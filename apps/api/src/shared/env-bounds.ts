@@ -114,7 +114,7 @@ export function validateTrustedProxiesEnv(
   });
 }
 
-const COOKIE_DOMAIN = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+const COOKIE_DOMAIN_SHAPE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
 function hostOf(url: string): string {
   return new URL(url).hostname;
@@ -131,20 +131,20 @@ function coversHost(domain: string, host: string): boolean {
  */
 export function validateHostsEnv(
   value: {
-    APP_URL: string;
+    APP_ORIGIN: string;
     BETTER_AUTH_URL: string;
-    AUTH_COOKIE_DOMAIN?: string;
+    COOKIE_DOMAIN?: string;
   },
   ctx: z.RefinementCtx,
 ): void {
-  const cookieDomain = value.AUTH_COOKIE_DOMAIN;
+  const cookieDomain = value.COOKIE_DOMAIN;
   if (!cookieDomain) return;
 
-  if (!COOKIE_DOMAIN.test(cookieDomain)) {
+  if (!COOKIE_DOMAIN_SHAPE.test(cookieDomain)) {
     ctx.addIssue({
       code: "custom",
-      path: ["AUTH_COOKIE_DOMAIN"],
-      message: `AUTH_COOKIE_DOMAIN (${cookieDomain}) must be a bare lowercase parent domain, e.g. example.com.`,
+      path: ["COOKIE_DOMAIN"],
+      message: `COOKIE_DOMAIN (${cookieDomain}) must be a bare lowercase parent domain, e.g. example.com.`,
     });
     return;
   }
@@ -152,20 +152,20 @@ export function validateHostsEnv(
   if (getPublicSuffix(cookieDomain, { allowPrivateDomains: true }) === cookieDomain) {
     ctx.addIssue({
       code: "custom",
-      path: ["AUTH_COOKIE_DOMAIN"],
-      message: `AUTH_COOKIE_DOMAIN (${cookieDomain}) is a public suffix: browsers reject the cookie, which signs everyone out. Use a domain you own, or leave it empty.`,
+      path: ["COOKIE_DOMAIN"],
+      message: `COOKIE_DOMAIN (${cookieDomain}) is a public suffix: browsers reject the cookie, which signs everyone out. Use a domain you own, or leave it empty.`,
     });
     return;
   }
 
-  const hosts = [value.APP_URL, value.BETTER_AUTH_URL].map(hostOf);
+  const hosts = [value.APP_ORIGIN, value.BETTER_AUTH_URL].map(hostOf);
   const outside = hosts.filter((host) => !coversHost(cookieDomain, host));
   if (outside.length === 0) return;
 
   ctx.addIssue({
     code: "custom",
-    path: ["AUTH_COOKIE_DOMAIN"],
-    message: `AUTH_COOKIE_DOMAIN (${cookieDomain}) is not a parent of ${outside.join(", ")}: the browser would drop the session cookie and sign everyone out.`,
+    path: ["COOKIE_DOMAIN"],
+    message: `COOKIE_DOMAIN (${cookieDomain}) is not a parent of ${outside.join(", ")}: the browser would drop the session cookie and sign everyone out.`,
   });
 }
 

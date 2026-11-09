@@ -14,10 +14,6 @@ export interface AuditedPage {
   readonly prepare?: (page: Page) => Promise<void>;
 }
 
-/** Defaults mirror `apps/api/scripts/seed-dev-user.ts`: change both together. */
-export const SEED_EMAIL = process.env.SEED_EMAIL ?? "dev@example.com";
-export const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "Nimbus-Harbor-42-Quartz";
-
 function formatViolation(violation: Violation): string {
   const targets = violation.nodes.map((node) => node.target.join(" ")).join(", ");
   return `${violation.id} (${violation.impact}): ${violation.help} → ${targets}`;
@@ -68,23 +64,4 @@ export async function tabTo(page: Page, target: Locator, maxPresses = 20): Promi
     await page.keyboard.press("Tab");
   }
   throw new Error(`Target never received focus after ${maxPresses} Tab presses`);
-}
-
-/**
- * Types the credentials with the keyboard only. Keyboard rather than clicks because
- * `/sign-in` is capped at 5 attempts per 15 min per IP: one shared sign-in per run is
- * the budget, so it doubles as the WCAG 2.1.1 keyboard-operability check.
- */
-export async function submitCredentials(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  const form = signInForm(page);
-
-  await tabTo(page, form.getByLabel("E-mail", { exact: true }));
-  await page.keyboard.type(email);
-  await page.keyboard.press("Tab");
-  await page.keyboard.type(password);
-  await page.keyboard.press("Enter");
 }

@@ -134,27 +134,27 @@ describe("validateEnvBounds", () => {
 describe("validateHostsEnv", () => {
   const schema = z
     .object({
-      APP_URL: z.string(),
+      APP_ORIGIN: z.string(),
       BETTER_AUTH_URL: z.string(),
-      AUTH_COOKIE_DOMAIN: z.string().optional(),
+      COOKIE_DOMAIN: z.string().optional(),
     })
     .superRefine(validateHostsEnv);
   it.each([
     ["fly.dev", "https://app.fly.dev", "https://api.fly.dev"],
     ["co.uk", "https://app.example.co.uk", "https://api.example.co.uk"],
-  ])("refuses the public suffix %s as a cookie domain", (domain, APP_URL, BETTER_AUTH_URL) => {
-    const parsed = schema.safeParse({ APP_URL, BETTER_AUTH_URL, AUTH_COOKIE_DOMAIN: domain });
+  ])("refuses the public suffix %s as a cookie domain", (domain, APP_ORIGIN, BETTER_AUTH_URL) => {
+    const parsed = schema.safeParse({ APP_ORIGIN, BETTER_AUTH_URL, COOKIE_DOMAIN: domain });
 
     expect(parsed.error?.issues[0]?.message).toContain("public suffix");
   });
 
   const hosts = {
-    APP_URL: "https://app.example.com",
+    APP_ORIGIN: "https://app.example.com",
     BETTER_AUTH_URL: "https://api.example.com",
   };
 
   it("accepts a parent domain of every host", () => {
-    expect(schema.safeParse({ ...hosts, AUTH_COOKIE_DOMAIN: "example.com" }).success).toBe(true);
+    expect(schema.safeParse({ ...hosts, COOKIE_DOMAIN: "example.com" }).success).toBe(true);
   });
 
   it("accepts no cookie domain", () => {
@@ -162,10 +162,10 @@ describe("validateHostsEnv", () => {
   });
 
   it.each([
-    ["a host outside the parent", { AUTH_COOKIE_DOMAIN: "other.example" }],
-    ["a suffix that is not a parent", { AUTH_COOKIE_DOMAIN: "ample.com" }],
-    ["a leading dot", { AUTH_COOKIE_DOMAIN: ".example.com" }],
-    ["a bare top-level name", { AUTH_COOKIE_DOMAIN: "localhost" }],
+    ["a host outside the parent", { COOKIE_DOMAIN: "other.example" }],
+    ["a suffix that is not a parent", { COOKIE_DOMAIN: "ample.com" }],
+    ["a leading dot", { COOKIE_DOMAIN: ".example.com" }],
+    ["a bare top-level name", { COOKIE_DOMAIN: "localhost" }],
   ])("refuses %s", (_label, override) => {
     expect(schema.safeParse({ ...hosts, ...override }).success).toBe(false);
   });

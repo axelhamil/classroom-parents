@@ -4,12 +4,12 @@ import type { env } from "../shared/env";
 
 type SettingsSource = Pick<
   typeof env,
-  "APP_URL" | "SWEEP_DEADLINE_MS" | "RGPD_GRACE_PERIOD_DAYS" | "RGPD_SWEEP_BATCH_SIZE"
+  "APP_ORIGIN" | "SWEEP_DEADLINE_MS" | "RGPD_GRACE_PERIOD_DAYS" | "RGPD_SWEEP_BATCH_SIZE"
 >;
 
 export const apiSettings = (source: SettingsSource) => {
   const rgpdSettings: RgpdSettings = {
-    appUrl: source.APP_URL,
+    appUrl: source.APP_ORIGIN,
     gracePeriodDays: source.RGPD_GRACE_PERIOD_DAYS,
     sweepDeadlineMs: source.SWEEP_DEADLINE_MS,
     sweepBatchSize: source.RGPD_SWEEP_BATCH_SIZE,

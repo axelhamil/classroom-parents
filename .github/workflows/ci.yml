@@ -72,7 +72,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:54329/classroom_parents
       # The preview server, not the dev server: CORS, CSRF and BetterAuth all read this.
       CORS_ORIGIN: http://localhost:4173
-      APP_URL: http://localhost:4173
+      APP_ORIGIN: http://localhost:4173
       # Pinned explicitly so the CI log states which account the checks run
       # against. db:seed and the checks resolve it through
       # apps/api/scripts/seed-account.ts, which holds the same default, so
@@ -96,7 +96,14 @@ jobs:
         # evaluates. Seeds and removes its own probe rows.
         run: pnpm --filter api check:outbox-lease
 
-      - name: Seed the audited account
+      - name: Check the sealing of linked Google tokens against a real database
+        # Tokens are sealed by the library's write paths and rewritten on refresh; only
+        # the stored column proves they are never in clear nor sealed twice. Google's
+        # token endpoint is stubbed, the probe user is removed.
+        run: pnpm --filter api check:token-sealing
+
+      - name: Seed the audited account and its session
+        # Writes the signed session cookie the accessibility setup loads (no password sign-in).
         run: pnpm --filter api db:seed
 
       - name: Check the account-wipe rollback against a real database

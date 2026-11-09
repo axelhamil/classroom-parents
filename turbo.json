@@ -14,8 +14,9 @@
     "PORT",
     "DATABASE_URL",
     "CORS_ORIGIN",
-    "APP_URL",
-    "AUTH_COOKIE_DOMAIN",
+    "APP_ORIGIN",
+    "COOKIE_DOMAIN",
+    "GOOGLE_*",
     "BETTER_AUTH_*",
     "RESEND_*",
     "RGPD_*",
@@ -92,7 +93,7 @@
     "check:a11y": {
       "dependsOn": ["build"],
       "cache": false,
-      "env": ["A11Y_BASE_URL", "A11Y_APP_URL", "SEED_EMAIL", "SEED_PASSWORD"]
+      "env": ["A11Y_BASE_URL", "A11Y_APP_URL"]
     },
     "format": {
       "outputs": []

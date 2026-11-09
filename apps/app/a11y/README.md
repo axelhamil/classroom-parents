@@ -11,8 +11,7 @@ interaction checks a rule engine cannot see. Runs on every PR
   decoration: `--primary` failed there while light passed.
 - **Landmarks**: exactly one `<main>` and one `<h1>` per page. Already a
   CLAUDE.md rule; this is what makes it enforceable.
-- **Keyboard**: every `/sign-in` control is reachable in DOM order, and the
-  setup itself signs in without a mouse.
+- **Keyboard**: every `/sign-in` control is reachable in DOM order.
 - **Mobile shell**: the bottom navigation stays inside a 390, 768 and 1440 px
   viewport with no horizontal overflow, and every section is reachable from it
   with `aria-current="page"` on the active tab. `/login` at 390 px keeps one
@@ -31,20 +30,18 @@ The gate audits the **preview build** on port 4173, against a live API:
 
 ```sh
 docker compose up postgres -d
-pnpm db:push && pnpm --filter api db:seed   # seeds dev@example.com
+pnpm db:push && pnpm --filter api db:seed   # seeds dev@example.com and its session cookie
 pnpm --filter api dev                        # API on :3000
 pnpm --filter app check:a11y                 # builds nothing, run `pnpm --filter app build` first
 ```
 
 Playwright starts the preview server itself and reuses one already listening.
+Sign-in is Google only, so the setup does not sign in: `db:seed` creates a
+session through BetterAuth and writes its signed cookie to `a11y/.auth/state.json`,
+which the setup checks against `/` (the signed-in home) before the audit uses it.
 
-Two things bite when running repeatedly:
+Three things bite when running repeatedly:
 
-- **`/sign-in` is capped at 5 attempts per 15 min per IP.** One run costs one
-  sign-in, which is why the setup doubles as the keyboard test rather than
-  spending a second one. The block is also held in the API process
-  (`inMemoryBlockDuration`), so clearing the `rate_limit` table is not enough:
-  restart the API.
 - **A page audited after a gate redirect still looks green.** `audit()` asserts
   the final URL for that reason; if a session or policy gate fires, the failure
   names the redirect instead of silently auditing the wrong page.

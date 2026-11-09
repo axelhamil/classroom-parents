@@ -44,8 +44,10 @@ export const envSchema = z
       .string()
       .optional()
       .transform((v) => v?.split(",").map((s) => s.trim())),
-    APP_URL: z.url(),
-    AUTH_COOKIE_DOMAIN: z.string().optional(),
+    APP_ORIGIN: z.url(),
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_SECRET: z.string().min(1),
+    COOKIE_DOMAIN: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
     RESEND_FROM: z.string().optional(),
     RGPD_GRACE_PERIOD_DAYS: z.coerce.number().int().min(0).default(7),
@@ -67,8 +69,6 @@ export const envSchema = z
     SENTRY_DSN: z.url().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),
     SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
-    AUTH_SIGN_IN_ACCOUNT_MAX: z.coerce.number().int().positive().default(5),
-    AUTH_SIGN_IN_ACCOUNT_WINDOW_SEC: z.coerce.number().int().positive().default(900),
     RATE_LIMIT_STORE: z.enum(["memory", "postgres"]).default("memory"),
     TRUSTED_PROXIES: z.string().transform(commaList).optional(),
     CAPTCHA_SECRET_KEY: z.string().optional(),

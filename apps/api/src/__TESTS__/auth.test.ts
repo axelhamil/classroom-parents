@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { EventTypes } from "@packages/events";
+import { symmetricEncrypt } from "better-auth/crypto";
+import { authSecretKey } from "../shared/auth/auth-secrets";
+import { openToken } from "../shared/auth/token-sealing";
+import { env } from "../shared/env";
 import { runWithRequestContext } from "../shared/request-context";
 
 const enqueue = mock(async (_events: { eventType: string; payload: unknown }[]) => undefined);
@@ -70,5 +74,88 @@ describe("session creation", () => {
     );
 
     expect(result.data.ipAddress).toBe(RESOLVED_IP);
+  });
+});
+
+describe("google identity and linked children", () => {
+  const google = auth.options.socialProviders.google;
+
+  it("asks google only for the parent identity at sign-in", () => {
+    expect(google.disableDefaultScope).toBe(true);
+    expect(google.scope).toEqual(["openid", "email", "profile"]);
+  });
+
+  it("asks for an offline grant and lets the parent pick the child's account", () => {
+    expect(google.accessType).toBe("offline");
+    expect(google.prompt).toBe("select_account consent");
+  });
+
+  it("links a child account whose email differs from the parent's", () => {
+    expect(auth.options.account.accountLinking).toEqual({
+      enabled: true,
+      allowDifferentEmails: true,
+    });
+  });
+
+  it("offers no password sign-in", () => {
+    expect("emailAndPassword" in auth.options).toBe(false);
+  });
+
+  it("keeps the deletion fields rgpd reads on the user", () => {
+    expect(Object.keys(auth.options.user.additionalFields)).toEqual([
+      "pendingDeletionUntil",
+      "deletedAt",
+    ]);
+  });
+});
+
+describe("linked account tokens", () => {
+  it("are sealed by the library under the key openToken reads", async () => {
+    expect(auth.options.account.encryptOAuthTokens).toBe(true);
+    const context = await auth.$context;
+
+    const sealed = await symmetricEncrypt({
+      key: context.secretConfig,
+      data: "1//fixture-refresh-token",
+    });
+    const opened = await openToken(sealed, authSecretKey(env));
+
+    expect(sealed).not.toBe("1//fixture-refresh-token");
+    expect(opened.getValue()).toBe("1//fixture-refresh-token");
+  });
+});
+
+describe("account events", () => {
+  beforeEach(() => {
+    enqueue.mockClear();
+  });
+
+  const account = { id: "account-1", userId: "user-1", providerId: "google", accountId: "g-1" };
+
+  function emitted(eventType: string) {
+    return enqueue.mock.calls
+      .flatMap(([events]) => events)
+      .filter((event) => event.eventType === eventType)
+      .map((event) => event.payload);
+  }
+
+  it("announces a linked google account", async () => {
+    const after = auth.options.databaseHooks.account.create.after;
+
+    await after(account as never);
+
+    expect(emitted(EventTypes.USER_ACCOUNT_LINKED)).toEqual([
+      { userId: "user-1", providerId: "google", accountId: "g-1" },
+    ]);
+  });
+
+  it("announces an unlinked account, which rgpd relies on", async () => {
+    const after = auth.options.databaseHooks.account.delete.after;
+
+    await after(account as never);
+
+    expect(emitted(EventTypes.USER_ACCOUNT_UNLINKED)).toEqual([
+      { userId: "user-1", providerId: "google", accountId: "g-1" },
+    ]);
   });
 });

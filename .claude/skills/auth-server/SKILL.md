@@ -5,7 +5,7 @@ description: Use when working on BetterAuth server-side, the request pipeline, s
 
 # Auth (BetterAuth integration, server)
 
-**Module-level singleton** (`src/auth.ts`), not wrapped in port/adapter, not in DI (wrapping recopies `auth.api.*` and loses `auth.$Infer.*`). Every consumer imports `auth` directly. **No inline `db.*` in `auth.ts`**, SQL lives in `auth-queries.ts` as typed Drizzle functions reading `resolveExecutor()`. Auth is infra, not domain: no repository, no port, no DI.
+**Module-level singleton** (`src/auth.ts`), not wrapped in port/adapter, not in DI (wrapping recopies `auth.api.*` and loses `auth.$Infer.*`). Every consumer imports `auth` directly. **No inline `db.*` in `auth.ts`**: a query it needs is a typed Drizzle function reading `resolveExecutor()` in a sibling file. Auth is infra, not domain: no repository, no port, no DI.
 
 ## Server pipeline (in order, `app.ts`)
 
@@ -24,11 +24,13 @@ Protected handlers compose `requireAuth`. **Never re-call `auth.api.getSession()
 
 `session.cookieCache: { enabled: true, maxAge: 60 }` (signature-only check between DB refreshes; keep `maxAge` ≤ 15 min for near-instant revoke, reduced to 60 s to make account bans effective within 1 min).
 
-Cookies: `httpOnly`, `secure: isProd`, `sameSite: isProd ? "none" : "lax"`, `none` because SPA+API are distinct origins; CSRF covered by `requireCsrf` (Origin allowlist). Same-site deploy → switch to `"lax"`. `AUTH_COOKIE_DOMAIN` turns on cross-subdomain cookies.
+Cookies: `httpOnly`, `secure: isProd`, `sameSite: "lax"`: app and api are sub-domains of one site, `COOKIE_DOMAIN` (their parent) turns on cross-subdomain cookies; CSRF stays covered by `requireCsrf` (Origin allowlist). BetterAuth trusts `APP_ORIGIN` only.
+
+Sign-in is Google only (identity scopes `openid email profile`, `shared/auth/google-scopes.ts`); a child's Google account is attached with `linkSocial` from the parent's session, never `signIn.social`. Linked tokens are sealed by `account.encryptOAuthTokens` (key = the BetterAuth secret, rotation through `BETTER_AUTH_SECRETS`) and read back with `openToken` (`shared/auth/token-sealing.ts`), proven by `check:token-sealing`.
 
 ## Email URLs route through the app
 
-`${env.APP_URL}/<route>?token=...` (opaque) or `${env.APP_URL}/<route>/<id>`. **Why**: branded UX; Outlook/Gmail mangle `?callbackURL=...` in API URLs. Don't pass `redirectTo`/`callbackURL` to auth-client methods when a `send*` server hook already builds the URL, silently overrides the canonical URL. Never pass `callbackURL` to `signIn.email`: its response then makes the client hard-navigate.
+`${env.APP_ORIGIN}/<route>?token=...` (opaque) or `${env.APP_ORIGIN}/<route>/<id>`. **Why**: branded UX; Outlook/Gmail mangle `?callbackURL=...` in API URLs. Don't pass `redirectTo`/`callbackURL` to auth-client methods when a `send*` server hook already builds the URL, silently overrides the canonical URL. Never pass `callbackURL` to `signIn.email`: its response then makes the client hard-navigate.
 
 ## Running code at every login
 

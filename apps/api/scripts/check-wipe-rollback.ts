@@ -130,7 +130,7 @@ function buildService(): RgpdService {
     outbox,
     instrumentation,
     {
-      appUrl: env.APP_URL,
+      appUrl: env.APP_ORIGIN,
       gracePeriodDays: env.RGPD_GRACE_PERIOD_DAYS,
       sweepDeadlineMs: env.SWEEP_DEADLINE_MS,
     },

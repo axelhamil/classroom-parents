@@ -13,8 +13,8 @@
         // T10 binds the daily rgpd sweep worker on the sweep lock, purge, count and run store.
         "src/shared/internal-routes/sweep-count.ts",
         "src/shared/services/drizzle-sweep-run.store.ts",
-        // Kept by the T1 brief: key derived from the versioned BETTER_AUTH_SECRETS, no consumer yet.
-        "src/shared/auth/auth-secrets.ts"
+        // T4 serves the Classroom scopes on GET /children/link-config and requests them in linkSocial.
+        "src/shared/auth/google-scopes.ts"
       ],
       "ignoreDependencies": ["pino-pretty"]
     },

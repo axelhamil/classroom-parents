@@ -1,9 +1,19 @@
-import { test as setup } from "@playwright/test";
+import { existsSync } from "node:fs";
+import { expect, test as setup } from "@playwright/test";
 import { STORAGE_STATE } from "./playwright.config";
-import { signIn } from "./sign-in";
 
-setup("authenticate", async ({ page }) => {
-  await page.goto("/sign-in");
-  await signIn(page);
-  await page.context().storageState({ path: STORAGE_STATE });
+setup("authenticate with the seeded session", async ({ browser }) => {
+  if (!existsSync(STORAGE_STATE)) {
+    throw new Error(`No seeded session at ${STORAGE_STATE}: run pnpm --filter api db:seed first`);
+  }
+
+  const context = await browser.newContext({ storageState: STORAGE_STATE });
+  const page = await context.newPage();
+
+  await page.goto("/");
+  await expect(page).toHaveURL((url) => url.pathname === "/");
+  await expect(page.locator("main")).toBeVisible();
+
+  await context.storageState({ path: STORAGE_STATE });
+  await context.close();
 });

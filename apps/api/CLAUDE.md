@@ -22,7 +22,6 @@ apps/api/src/
     settings.ts                 `apiSettings(env)`: env mapped once onto each module's typed settings
     route-guards.ts             `routeGuards`: the `RouteGuards` of `@packages/http` built from `shared/middleware`
   auth.ts                       BetterAuth singleton, deliberate exception to the modules rule (config-as-code, the lib owns the model), mounted on `/api/auth/*`
-  auth-queries.ts               Typed Drizzle reads for the auth bridge, plain functions reading `resolveExecutor()`, so `auth.ts` keeps config and event wiring only
   app.ts                        `Hono` construction, middleware, chained `.route()` mounts, `export const routes` / `export type AppType`. No server boot.
   index.ts                      Server entry: `Bun.serve()` handle kept on `globalThis` for `bun --hot`, worker starts, ordered shutdown steps
   migrate.ts                    Migration entry; `start` runs it before the server
