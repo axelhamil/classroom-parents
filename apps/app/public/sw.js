@@ -5,11 +5,14 @@ const FALLBACK = {
 };
 
 function safeTarget(navigate) {
-  if (typeof navigate !== "string" || !navigate.startsWith("/") || navigate.startsWith("//")) {
+  if (typeof navigate !== "string") return "/";
+
+  try {
+    const url = new URL(navigate, self.location.origin);
+    return url.origin === self.location.origin ? url.pathname + url.search + url.hash : "/";
+  } catch {
     return "/";
   }
-
-  return navigate;
 }
 
 function readNotification(data) {
@@ -45,7 +48,7 @@ self.addEventListener("push", (event) => {
       body,
       lang: "fr",
       icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
       data: { navigate },
     }),
   );

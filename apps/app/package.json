@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.1",
+    "@packages/ddd-kit": "workspace:*",
     "@packages/events": "workspace:*",
     "@packages/i18n": "workspace:*",
     "@packages/sentry-scrub": "workspace:*",

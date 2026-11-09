@@ -52,7 +52,7 @@ function ListRowButton({ className, type = "button", ...props }: React.Component
       data-slot="list-row-button"
       type={type}
       className={cn(
-        "flex flex-col items-start gap-1 rounded-sm text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default",
+        "flex flex-col items-start gap-1 rounded-sm text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-default",
         className,
       )}
       {...props}

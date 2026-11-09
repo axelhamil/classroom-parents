@@ -117,6 +117,39 @@ describe("service worker", () => {
     );
   });
 
+  it.each([["/\\evil.example"], ["/\t/evil.example"]])(
+    "given the disguised external target %j, then both the push and the click stay in the app",
+    async (navigate) => {
+      const worker = loadWorker([]);
+
+      await worker.dispatch("push", {
+        data: { json: () => ({ notification: { title: "t", body: "b", navigate } }) },
+      });
+      await worker.dispatch("notificationclick", {
+        notification: { data: { navigate }, close: vi.fn() },
+      });
+
+      expect(worker.showNotification).toHaveBeenCalledWith(
+        "t",
+        expect.objectContaining({ data: { navigate: "/" } }),
+      );
+      expect(worker.openWindow).toHaveBeenCalledWith(`${ORIGIN}/`);
+    },
+  );
+
+  it("given a push, then its status bar badge is the monochrome glyph, not the colour icon", async () => {
+    const worker = loadWorker();
+
+    await worker.dispatch("push", {
+      data: { json: () => ({ notification: { title: "t", body: "b", navigate: "/" } }) },
+    });
+
+    expect(worker.showNotification).toHaveBeenCalledWith(
+      "t",
+      expect.objectContaining({ badge: "/icons/badge-96.png" }),
+    );
+  });
+
   it("given an open app window, when the notification is clicked, then that window is focused on the target", async () => {
     const open = client(`${ORIGIN}/history`);
     const worker = loadWorker([open]);

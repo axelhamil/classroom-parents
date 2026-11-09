@@ -5,6 +5,12 @@ const FRAME_SEPARATOR = /\r?\n\r?\n/;
 const LINE_SEPARATOR = /\r?\n/;
 const RETRY_BASE_MS = 1_000;
 const RETRY_CAP_MS = 30_000;
+// A connection that closes sooner than this did not prove the server healthy: the next
+// retry keeps growing instead of restarting from the shortest delay.
+const STABLE_CONNECTION_MS = 10_000;
+// The session gate owns 401 and 403; 404 means the endpoint is not deployed. Retrying
+// any of them only hammers the API from every open tab.
+const TERMINAL_STATUSES: readonly number[] = [401, 403, 404];
 // The server sends `event: ping` every 25s. A stall timeout of a bit over 2x that interval tolerates
 // one missed ping plus network jitter before treating a silent-but-open connection as dead.
 const PING_INTERVAL_MS = 25_000;
@@ -107,6 +113,17 @@ export async function consume(body: ReadableStream<Uint8Array>, onData: (data: s
   }
 }
 
+export class UserStreamError extends Error {
+  constructor(readonly status: number) {
+    super(`USER_STREAM_${status}`);
+    this.name = "UserStreamError";
+  }
+}
+
+export function isServerFailure(error: unknown): boolean {
+  return error instanceof UserStreamError && error.status >= 500;
+}
+
 export interface UserStreamResponse {
   ok: boolean;
   status: number;
@@ -128,21 +145,24 @@ export async function runUserStream(
   let attempt = 0;
 
   while (!signal.aborted) {
+    let connectedAt: number | undefined;
     try {
       const res = await options().connect(signal);
-      if (!res.ok || !res.body) throw new Error(`USER_STREAM_${res.status}`);
+      if (!res.ok || !res.body) throw new UserStreamError(res.status);
 
-      attempt = 0;
+      connectedAt = Date.now();
       setConnected(true);
       options().onConnect?.();
       await consume(res.body, (data) => options().onData(data));
     } catch (err) {
       if (!signal.aborted) options().onDisconnect?.(attempt, err);
+      if (err instanceof UserStreamError && TERMINAL_STATUSES.includes(err.status)) return;
     } finally {
       if (!signal.aborted) setConnected(false);
     }
 
     if (signal.aborted) return;
+    if (connectedAt !== undefined && Date.now() - connectedAt >= STABLE_CONNECTION_MS) attempt = 0;
     await sleep(backoffDelay(attempt), signal);
     attempt += 1;
   }
@@ -151,12 +171,15 @@ export async function runUserStream(
 export interface UserStreamOptions {
   connect: (signal: AbortSignal) => Promise<UserStreamResponse>;
   parse: (value: unknown) => { type: UserStreamType } | undefined;
+  onServerFailure: (error: unknown) => void;
 }
 
-export function useUserStream({ connect, parse }: UserStreamOptions): { connected: boolean } {
+export function useUserStream({ connect, parse, onServerFailure }: UserStreamOptions): {
+  connected: boolean;
+} {
   const queryClient = useQueryClient();
-  const latest = useRef({ connect, parse });
-  latest.current = { connect, parse };
+  const latest = useRef({ connect, parse, onServerFailure });
+  latest.current = { connect, parse, onServerFailure };
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -170,6 +193,9 @@ export function useUserStream({ connect, parse }: UserStreamOptions): { connecte
       () => ({
         connect: latest.current.connect,
         onData: (data) => invalidate(invalidationsFor(data, latest.current.parse)),
+        onDisconnect: (_attempt, error) => {
+          if (isServerFailure(error)) latest.current.onServerFailure(error);
+        },
         onConnect: () => {
           connections += 1;
           if (connections > 1) invalidate(ALL_STREAM_KEYS);

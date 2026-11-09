@@ -32,6 +32,7 @@
  * input borders >= 3:1. Light: ink on paper 14.95, muted 6.37, white on primary 7.50,
  * destructive on paper 5.42, each category >= 5.3 on its tint and >= 5.8 on paper.
  * Dark: chalk on board 13.71, muted 8.24, primary on board 9.32, each category >= 6.5 on its tint.
+ * Focus ring drawn at full strength (half alpha fell to 2.26:1): light >= 6.09, dark >= 6.31 on paper, card and accent.
  */
 :root {
   color-scheme: light;
@@ -202,7 +203,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   body {
@@ -304,6 +305,27 @@
     [data-slot="nav-link"] {
       min-height: var(--touch-target);
       min-width: var(--touch-target);
+    }
+
+    [data-slot="input"],
+    [data-slot="select-trigger"] {
+      min-height: var(--touch-target);
+    }
+
+    [data-slot="checkbox"],
+    [data-slot="switch"] {
+      position: relative;
+    }
+
+    [data-slot="checkbox"]::after,
+    [data-slot="switch"]::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, var(--touch-target));
+      height: max(100%, var(--touch-target));
+      transform: translate(-50%, -50%);
     }
 
     input,

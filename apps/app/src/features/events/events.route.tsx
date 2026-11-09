@@ -3,6 +3,7 @@ import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Screen } from "../../shared/layout/screen";
+import { SCHOOL_TIME_ZONE, schoolToday } from "./school-today";
 
 export const Route = createFileRoute("/_protected/_shell/")({
   component: EventsPage,
@@ -12,14 +13,16 @@ function EventsPage() {
   const { t, i18n } = useTranslation("events");
   const today = new Date();
   const part = (options: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat(i18n.language, options).format(today);
+    new Intl.DateTimeFormat(i18n.language, { ...options, timeZone: SCHOOL_TIME_ZONE }).format(
+      today,
+    );
 
   return (
     <Screen
       title={t("list.title")}
       aside={
         <DateTab
-          dateTime={today.toISOString().slice(0, 10)}
+          dateTime={schoolToday(today)}
           day={part({ day: "numeric" })}
           month={part({ month: "short" })}
           weekday={part({ weekday: "short" })}

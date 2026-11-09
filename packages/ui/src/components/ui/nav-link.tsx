@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const navLinkVariants = cva(
-  "inline-flex shrink-0 items-center transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+  "inline-flex shrink-0 items-center transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
   {
     variants: {
       size: {

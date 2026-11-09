@@ -5,7 +5,8 @@
   "description": "DDD primitives for TypeScript: Result, Option, Entity, Aggregate, ValueObject",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./zoned-time": "./src/primitives/zoned-time.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
