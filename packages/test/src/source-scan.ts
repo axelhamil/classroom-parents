@@ -219,40 +219,56 @@ export function createSourceScan(root: string) {
   };
 }
 
+export type SourceScan = ReturnType<typeof createSourceScan>;
+
+export type LayerGuardName = "noThrow" | "noEnvRead" | "noTransactionParameter" | "readOnlyRoutes";
+
+export interface LayerGuard<Name extends LayerGuardName = LayerGuardName> {
+  name: Name;
+  rule: string;
+  count: (scan: SourceScan, layer: string) => Record<string, number>;
+  moduleLayers: readonly string[];
+}
+
+export const LAYER_GUARDS: { [Name in LayerGuardName]: LayerGuard<Name> } = {
+  noThrow: {
+    name: "noThrow",
+    rule: "domain and application never throw",
+    count: (scan, layer) => scan.throwsPerFile(layer),
+    moduleLayers: ["src/domain", "src/application"],
+  },
+  noEnvRead: {
+    name: "noEnvRead",
+    rule: "no environment read, settings arrive as prerequisites",
+    count: (scan, layer) => scan.envReadsPerFile(layer),
+    moduleLayers: ["src", "schemas"],
+  },
+  noTransactionParameter: {
+    name: "noTransactionParameter",
+    rule: "no transaction parameter, stores read the ambient one",
+    count: (scan, layer) => scan.transactionParametersPerFile(layer),
+    moduleLayers: ["src"],
+  },
+  readOnlyRoutes: {
+    name: "readOnlyRoutes",
+    rule: "routes never write, they go through a service",
+    count: (scan, layer) => scan.writeCallsPerFile(layer),
+    moduleLayers: ["src/infrastructure/http"],
+  },
+};
+
 export function assertModuleLayering(moduleRoot: string): void {
   const scan = createSourceScan(moduleRoot);
-
-  function offenders(layers: string[], count: (layer: string) => Record<string, number>): string[] {
-    return layers
-      .filter((layer) => existsSync(join(moduleRoot, layer)))
-      .flatMap((layer) => Object.keys(count(layer)));
-  }
 
   if (!existsSync(join(moduleRoot, "src")) || scan.sourceFiles("src").length === 0) {
     throw new Error(`module layering: no source file under ${moduleRoot}/src`);
   }
 
-  const guards: Record<string, string[]> = {
-    "domain and application never throw": offenders(
-      ["src/domain", "src/application"],
-      scan.throwsPerFile,
-    ),
-    "no environment read, settings arrive as prerequisites": offenders(
-      ["src", "schemas"],
-      scan.envReadsPerFile,
-    ),
-    "no transaction parameter, stores read the ambient one": offenders(
-      ["src"],
-      scan.transactionParametersPerFile,
-    ),
-    "routes never write, they go through a service": offenders(
-      ["src/infrastructure/http"],
-      scan.writeCallsPerFile,
-    ),
-  };
-
-  const violations = Object.entries(guards).flatMap(([guard, files]) =>
-    files.map((file) => `${guard}: ${file}`),
+  const violations = Object.values(LAYER_GUARDS).flatMap((guard) =>
+    guard.moduleLayers
+      .filter((layer) => existsSync(join(moduleRoot, layer)))
+      .flatMap((layer) => Object.keys(guard.count(scan, layer)))
+      .map((file) => `${guard.rule}: ${file}`),
   );
 
   if (violations.length > 0) {

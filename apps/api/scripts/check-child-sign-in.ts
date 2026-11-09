@@ -7,10 +7,12 @@
  * rewriting the link's redirect to `/callback/google`: the parent keeps its single
  * `google` account and the child never lands on the parent's session. A sign-in state
  * replayed on `/callback/google-classroom` leaves the child's stored tokens untouched.
+ * The database itself refuses a second row for the same provider account, so two
+ * concurrent links of one child cannot attach it to two parents.
  * Google's token endpoint is stubbed.
  */
 
-import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
+import { exitUnlessLocalDatabase, sessionsOf, stepRunner } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-child-sign-in", process.env.DATABASE_URL);
 
@@ -27,15 +29,6 @@ const probe = `check-child-sign-in-${crypto.randomUUID()}`;
 const parent = { sub: `${probe}-parent`, email: `${probe}-parent@example.com` };
 const child = { sub: `${probe}-child`, email: `${probe}-child@school.example` };
 const restoreFetch = stubGoogleTokenEndpoint();
-
-async function sessionsOf(userId: string | undefined): Promise<number> {
-  if (!userId) return 0;
-  const [row] = await db
-    .select({ total: count() })
-    .from(authSchema.session)
-    .where(eq(authSchema.session.userId, userId));
-  return row?.total ?? 0;
-}
 
 async function googleAccountsOf(userId: string | undefined): Promise<number> {
   if (!userId) return 0;
@@ -63,6 +56,29 @@ async function landsOnOwnSession(identity: { sub: string; email: string }): Prom
   const browser = new Browser();
   await browser.signIn("google", identity);
   return (await browser.sessionEmail()) === identity.email;
+}
+
+async function linksChildTwice(userId: string | undefined): Promise<unknown> {
+  if (!userId) return "no second user";
+
+  try {
+    await db.insert(authSchema.account).values({
+      id: `${probe}-second-link`,
+      userId,
+      providerId: CHILD_PROVIDER_ID,
+      accountId: child.sub,
+    });
+    return "inserted";
+  } catch (err) {
+    return err instanceof Error && err.cause instanceof Error ? err.cause : err;
+  }
+}
+
+function isUniqueViolation(err: unknown, constraint: string): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  if (!("code" in err) || !("constraint" in err)) return false;
+
+  return err.code === "23505" && err.constraint === constraint;
 }
 
 function refusedCode(body: unknown): unknown {
@@ -137,4 +153,11 @@ run(async () => {
     tokensBeforeHijack !== undefined && (await storedChildAccessToken()) === tokensBeforeHijack,
   );
   await step("the parent still holds a single session", (await sessionsOf(parentId)) === 1);
+
+  const secondLink = await linksChildTwice(await userIdOf(child.email));
+  await step(
+    "a child google account already linked cannot be stored for a second user",
+    isUniqueViolation(secondLink, "account_provider_account_uidx"),
+    secondLink instanceof Error ? secondLink.message : secondLink,
+  );
 }, "a linked child's google account never opens the parent's session");

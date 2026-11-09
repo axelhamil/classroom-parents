@@ -1,6 +1,6 @@
 # Accessibility gate
 
-`@axe-core/playwright` over the pages a regression would hurt most, plus three
+`@axe-core/playwright` over the pages a regression would hurt most, plus the
 interaction checks a rule engine cannot see. Runs on every PR
 (`.github/workflows/ci.yml`), and locally with `pnpm --filter app check:a11y`.
 
@@ -11,7 +11,12 @@ interaction checks a rule engine cannot see. Runs on every PR
   decoration: `--primary` failed there while light passed.
 - **Landmarks**: exactly one `<main>` and one `<h1>` per page. Already a
   CLAUDE.md rule; this is what makes it enforceable.
-- **Keyboard**: every `/sign-in` control is reachable in DOM order.
+- **Keyboard**: every `/sign-in` control is reachable in DOM order; a dialog
+  keeps focus inside on Tab and Shift+Tab and gives it back to its trigger on
+  Escape.
+- **Focus ring**: the destructive button's ring holds 3:1 against the dialog
+  surface, measured on a screenshot in light and dark (a ring with an alpha
+  suffix is exactly what arithmetic misjudges, see below).
 - **Mobile shell**: the bottom navigation stays inside a 390, 768 and 1440 px
   viewport with no horizontal overflow, and every section is reachable from it
   with `aria-current="page"` on the active tab. `/login` at 390 px keeps one

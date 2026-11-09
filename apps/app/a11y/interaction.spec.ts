@@ -1,8 +1,63 @@
-import { signInForm, tabTo } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
+import { COLOR_SCHEMES, signInForm, tabTo } from "@packages/test/a11y";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { STORAGE_STATE } from "./playwright.config";
 
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
+
+async function openDeletionDialog(page: Page): Promise<{ trigger: Locator; dialog: Locator }> {
+  await page.goto("/settings/privacy");
+
+  const trigger = page.getByRole("button", { name: "Supprimer le compte" });
+  await tabTo(page, trigger);
+  await page.keyboard.press("Enter");
+
+  const dialog = page.getByRole("alertdialog", { name: "Supprimer votre compte" });
+  await expect(dialog).toBeVisible();
+
+  return { trigger, dialog };
+}
+
+async function ringContrastBelow(surface: Locator, control: Locator): Promise<number> {
+  await control
+    .page()
+    .waitForFunction(() =>
+      document.getAnimations().every((animation) => animation.playState !== "running"),
+    );
+  const [frame, box] = await Promise.all([surface.boundingBox(), control.boundingBox()]);
+  if (!frame || !box) throw new Error("the dialog or its control has no box");
+
+  const column = Math.round(box.x + box.width / 2 - frame.x);
+  const ringRow = Math.ceil(box.y + box.height - frame.y) + 1;
+  const shot = await surface.screenshot();
+
+  return control.page().evaluate(
+    async ({ png, column, ringRow }) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${png}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("no 2d context");
+      context.drawImage(image, 0, 0);
+
+      const luminance = (row: number) => {
+        const [r = 0, g = 0, b = 0] = context.getImageData(column, row, 1, 1).data;
+        const linear = (channel: number) => {
+          const value = channel / 255;
+          return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+      };
+      const ring = luminance(ringRow);
+      const behind = luminance(ringRow + 10);
+
+      return (Math.max(ring, behind) + 0.05) / (Math.min(ring, behind) + 0.05);
+    },
+    { png: shot.toString("base64"), column, ringRow },
+  );
+}
 
 test("reaches every sign-in control in order with the keyboard", async ({ page }) => {
   await page.goto("/sign-in");
@@ -82,6 +137,45 @@ test.describe("signed in", () => {
       expect(overflow).toBe(0);
     });
   }
+
+  test("traps focus inside a dialog and gives it back to its trigger on Escape", async ({
+    page,
+  }) => {
+    const { trigger, dialog } = await openDeletionDialog(page);
+
+    for (const key of [...Array(10).fill("Tab"), ...Array(10).fill("Shift+Tab")]) {
+      await page.keyboard.press(key);
+      const contained = await dialog.evaluate((el) => el.contains(document.activeElement));
+      expect(contained, `focus escaped the dialog on ${key}`).toBe(true);
+    }
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
+  for (const colorScheme of COLOR_SCHEMES) {
+    test(`draws the destructive focus ring at 3:1 against its surface (${colorScheme})`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme });
+      const { dialog } = await openDeletionDialog(page);
+
+      const confirm = dialog.getByRole("button", { name: "Supprimer le compte" });
+      await tabTo(page, confirm);
+
+      expect(await ringContrastBelow(dialog, confirm)).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  test("names today's date tab for assistive technology", async ({ page }) => {
+    await page.goto("/");
+
+    const today = page.locator("[data-slot=date-tab]");
+
+    await expect(today).toHaveAttribute("aria-label", "Aujourd'hui");
+    await expect(today).not.toHaveAttribute("title");
+  });
 
   test("reaches every section from the bottom navigation on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });

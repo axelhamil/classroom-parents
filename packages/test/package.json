@@ -26,6 +26,7 @@
   "peerDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@packages/ddd-kit": "workspace:*",
+    "@packages/drizzle": "workspace:*",
     "@playwright/test": "^1.64.1"
   },
   "peerDependenciesMeta": {

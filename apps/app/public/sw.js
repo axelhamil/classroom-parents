@@ -65,7 +65,13 @@ async function openTarget(navigate) {
   }
 
   const focused = await existing.focus();
-  if (focused.url !== url) await focused.navigate(url);
+  if (focused.url === url) return;
+
+  try {
+    await focused.navigate(url);
+  } catch {
+    await self.clients.openWindow(url);
+  }
 }
 
 self.addEventListener("notificationclick", (event) => {

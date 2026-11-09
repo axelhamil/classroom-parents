@@ -162,6 +162,27 @@ describe("validateHostsEnv", () => {
   });
 
   it.each([
+    [
+      "two railway sub-domains",
+      "https://classroom-app.up.railway.app",
+      "https://classroom-api.up.railway.app",
+    ],
+    ["two unrelated domains", "https://app.example.com", "https://api.other.com"],
+    ["localhost against an ip", "http://localhost:5173", "http://127.0.0.1:3000"],
+  ])("refuses app and api on different sites: %s", (_label, APP_ORIGIN, BETTER_AUTH_URL) => {
+    const parsed = schema.safeParse({ APP_ORIGIN, BETTER_AUTH_URL });
+
+    expect(parsed.error?.issues[0]?.path).toEqual(["BETTER_AUTH_URL"]);
+  });
+
+  it.each([
+    ["sub-domains of one site", "https://app.example.com", "https://api.example.com"],
+    ["localhost on two ports", "http://localhost:5173", "http://localhost:3000"],
+  ])("accepts app and api on the same site: %s", (_label, APP_ORIGIN, BETTER_AUTH_URL) => {
+    expect(schema.safeParse({ APP_ORIGIN, BETTER_AUTH_URL }).success).toBe(true);
+  });
+
+  it.each([
     ["a host outside the parent", { COOKIE_DOMAIN: "other.example" }],
     ["a suffix that is not a parent", { COOKIE_DOMAIN: "ample.com" }],
     ["a leading dot", { COOKIE_DOMAIN: ".example.com" }],

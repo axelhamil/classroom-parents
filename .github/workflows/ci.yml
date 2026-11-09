@@ -70,7 +70,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:54329/classroom_parents
-      # The preview server, not the dev server: CORS, CSRF and BetterAuth all read this.
+      # The preview server, not the dev server: CORS and CSRF read CORS_ORIGIN,
+      # BetterAuth trusts APP_ORIGIN only.
       CORS_ORIGIN: http://localhost:4173
       APP_ORIGIN: http://localhost:4173
       # Pinned explicitly so the CI log states which account the checks run

@@ -917,6 +917,9 @@ importers:
       '@packages/ddd-kit':
         specifier: workspace:*
         version: link:../ddd-kit
+      '@packages/drizzle':
+        specifier: workspace:*
+        version: link:../drizzle
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.14.0

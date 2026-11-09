@@ -165,6 +165,18 @@ describe("service worker", () => {
     expect(worker.openWindow).not.toHaveBeenCalled();
   });
 
+  it("given a window the worker does not control, when the notification is clicked, then the target opens in a new window", async () => {
+    const uncontrolled = client(`${ORIGIN}/history`);
+    uncontrolled.navigate.mockRejectedValue(new TypeError("client is not controlled"));
+    const worker = loadWorker([uncontrolled]);
+
+    await worker.dispatch("notificationclick", {
+      notification: { data: { navigate: "/events/e1" }, close: vi.fn() },
+    });
+
+    expect(worker.openWindow).toHaveBeenCalledWith(`${ORIGIN}/events/e1`);
+  });
+
   it("given no open window, when the notification is clicked, then it opens the target", async () => {
     const worker = loadWorker([]);
 

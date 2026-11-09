@@ -26,7 +26,7 @@ function EventsPage() {
           day={part({ day: "numeric" })}
           month={part({ month: "short" })}
           weekday={part({ weekday: "short" })}
-          title={t("list.today")}
+          aria-label={t("list.today")}
         />
       }
     >

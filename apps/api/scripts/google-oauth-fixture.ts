@@ -141,7 +141,7 @@ export class Browser {
   ): Promise<Reply> {
     const started = await this.call(start, {
       provider,
-      callbackURL: `${env.APP_ORIGIN}/dashboard`,
+      callbackURL: `${env.APP_ORIGIN}/`,
     });
     const { body } = started;
     if (typeof body !== "object" || body === null || !("url" in body)) return started;

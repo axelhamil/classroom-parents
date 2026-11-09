@@ -16,15 +16,11 @@ const TERMINAL_STATUSES: readonly number[] = [401, 403, 404];
 const PING_INTERVAL_MS = 25_000;
 const STALL_TIMEOUT_MS = PING_INTERVAL_MS * 2 + 5_000;
 
-export const USER_STREAM_INVALIDATIONS = {
-  "events.changed": [["events"]],
-  "children.changed": [["children"]],
-  "sync.finished": [["events"], ["children"]],
-} as const satisfies Record<string, readonly QueryKey[]>;
+export type StreamInvalidations<Type extends string> = Readonly<Record<Type, readonly QueryKey[]>>;
 
-export type UserStreamType = keyof typeof USER_STREAM_INVALIDATIONS;
-
-const ALL_STREAM_KEYS: readonly QueryKey[] = [["events"], ["children"]];
+export type StreamMessageParser<Type extends string> = (
+  value: unknown,
+) => { type: Type } | undefined;
 
 function frameData(frame: string): string | undefined {
   const lines = frame.split(LINE_SEPARATOR);
@@ -49,9 +45,10 @@ export function handleStreamChunk(chunk: string, onData: (data: string) => void)
   return residue;
 }
 
-export function invalidationsFor(
+export function invalidationsFor<Type extends string>(
   data: string,
-  parse: (value: unknown) => { type: UserStreamType } | undefined,
+  parse: StreamMessageParser<Type>,
+  invalidations: StreamInvalidations<Type>,
 ): readonly QueryKey[] {
   let value: unknown;
   try {
@@ -62,7 +59,7 @@ export function invalidationsFor(
 
   const message = parse(value);
 
-  return message ? USER_STREAM_INVALIDATIONS[message.type] : [];
+  return message ? invalidations[message.type] : [];
 }
 
 const backoffDelay = (attempt: number) => {
@@ -168,18 +165,22 @@ export async function runUserStream(
   }
 }
 
-export interface UserStreamOptions {
+export interface UserStreamOptions<Type extends string> {
   connect: (signal: AbortSignal) => Promise<UserStreamResponse>;
-  parse: (value: unknown) => { type: UserStreamType } | undefined;
+  parse: StreamMessageParser<Type>;
+  invalidations: StreamInvalidations<Type>;
+  reconnectKeys: readonly QueryKey[];
   onServerFailure: (error: unknown) => void;
 }
 
-export function useUserStream({ connect, parse, onServerFailure }: UserStreamOptions): {
+export function useUserStream<Type extends string>(
+  options: UserStreamOptions<Type>,
+): {
   connected: boolean;
 } {
   const queryClient = useQueryClient();
-  const latest = useRef({ connect, parse, onServerFailure });
-  latest.current = { connect, parse, onServerFailure };
+  const latest = useRef(options);
+  latest.current = options;
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -192,13 +193,14 @@ export function useUserStream({ connect, parse, onServerFailure }: UserStreamOpt
     void runUserStream(
       () => ({
         connect: latest.current.connect,
-        onData: (data) => invalidate(invalidationsFor(data, latest.current.parse)),
+        onData: (data) =>
+          invalidate(invalidationsFor(data, latest.current.parse, latest.current.invalidations)),
         onDisconnect: (_attempt, error) => {
           if (isServerFailure(error)) latest.current.onServerFailure(error);
         },
         onConnect: () => {
           connections += 1;
-          if (connections > 1) invalidate(ALL_STREAM_KEYS);
+          if (connections > 1) invalidate(latest.current.reconnectKeys);
         },
       }),
       controller.signal,

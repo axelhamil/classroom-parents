@@ -1,4 +1,5 @@
 import type { IInstrumentation } from "@packages/ddd-kit";
+import { authSchema, count, db, eq } from "@packages/drizzle";
 
 const PROJECT_PORT = "54329";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
@@ -108,4 +109,15 @@ export function spanRecorder(): { instrumentation: IInstrumentation; spans: stri
   };
 
   return { instrumentation, spans };
+}
+
+export async function sessionsOf(userId: string | undefined): Promise<number> {
+  if (!userId) return 0;
+
+  const [row] = await db
+    .select({ total: count() })
+    .from(authSchema.session)
+    .where(eq(authSchema.session.userId, userId));
+
+  return row?.total ?? 0;
 }

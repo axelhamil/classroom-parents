@@ -4,7 +4,7 @@ import {
   EMAIL_SETTLE_MARGIN_SECONDS,
 } from "@packages/email/email-timing";
 import { OUTBOX_SETTLE_MARGIN_SECONDS } from "@packages/outbox/outbox-relay";
-import { getPublicSuffix } from "tldts";
+import { getDomain, getPublicSuffix } from "tldts";
 import type { z } from "zod";
 import {
   DEADLINE_FLUSH_TIMEOUT_MS,
@@ -124,12 +124,16 @@ function coversHost(domain: string, host: string): boolean {
   return host === domain || host.endsWith(`.${domain}`);
 }
 
+function siteOf(host: string): string {
+  return getDomain(host, { allowPrivateDomains: true }) ?? host;
+}
+
 /**
  * A cookie domain that is not a parent of every host fails quietly in a browser: it is
  * dropped, which signs everyone out with no error anywhere. Refusing the boot is the
  * only signal that gets read.
  */
-export function validateHostsEnv(
+function validateCookieDomain(
   value: {
     APP_ORIGIN: string;
     BETTER_AUTH_URL: string;
@@ -167,6 +171,38 @@ export function validateHostsEnv(
     path: ["COOKIE_DOMAIN"],
     message: `COOKIE_DOMAIN (${cookieDomain}) is not a parent of ${outside.join(", ")}: the browser would drop the session cookie and sign everyone out.`,
   });
+}
+
+/**
+ * The auth cookies are SameSite=Lax: an app and an api on two sites (two registrable
+ * domains, or two names under a public suffix such as up.railway.app) never see them on
+ * the app's fetches, so every sign-in silently fails. Localhost ports share one site.
+ */
+function validateSameSite(
+  value: { APP_ORIGIN: string; BETTER_AUTH_URL: string },
+  ctx: z.RefinementCtx,
+): void {
+  const appSite = siteOf(hostOf(value.APP_ORIGIN));
+  const apiSite = siteOf(hostOf(value.BETTER_AUTH_URL));
+  if (appSite === apiSite) return;
+
+  ctx.addIssue({
+    code: "custom",
+    path: ["BETTER_AUTH_URL"],
+    message: `BETTER_AUTH_URL (${apiSite}) and APP_ORIGIN (${appSite}) are not on the same site: the browser would drop the SameSite=Lax auth cookies and sign everyone out. Serve the api and the app under one domain you own (e.g. api.example.com and app.example.com).`,
+  });
+}
+
+export function validateHostsEnv(
+  value: {
+    APP_ORIGIN: string;
+    BETTER_AUTH_URL: string;
+    COOKIE_DOMAIN?: string;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  validateCookieDomain(value, ctx);
+  validateSameSite(value, ctx);
 }
 
 export function frontOrigins(value: { CORS_ORIGIN?: string[] }): string[] {

@@ -4,8 +4,8 @@ import {
   invalidationsFor,
   isServerFailure,
   runUserStream,
+  type StreamInvalidations,
   UserStreamError,
-  type UserStreamType,
 } from "./use-user-stream";
 
 function closedStream() {
@@ -147,16 +147,21 @@ describe("runUserStream", () => {
   });
 });
 
-const STREAM_TYPES: readonly string[] = ["events.changed", "children.changed", "sync.finished"];
+type ProbeType = "probe.changed" | "probe.finished";
 
-function isStreamType(value: unknown): value is UserStreamType {
-  return typeof value === "string" && STREAM_TYPES.includes(value);
+const PROBE_INVALIDATIONS: StreamInvalidations<ProbeType> = {
+  "probe.changed": [["probe"]],
+  "probe.finished": [["probe"], ["other"]],
+};
+
+function isProbeType(value: unknown): value is ProbeType {
+  return value === "probe.changed" || value === "probe.finished";
 }
 
-function parse(value: unknown): { type: UserStreamType } | undefined {
+function parse(value: unknown): { type: ProbeType } | undefined {
   if (typeof value !== "object" || value === null || !("type" in value)) return undefined;
 
-  return isStreamType(value.type) ? { type: value.type } : undefined;
+  return isProbeType(value.type) ? { type: value.type } : undefined;
 }
 
 describe("handleStreamChunk", () => {
@@ -164,34 +169,28 @@ describe("handleStreamChunk", () => {
     const received: string[] = [];
 
     const residue = handleStreamChunk(
-      'event: ping\ndata: {}\n\ndata: {"type":"events.changed"}\n\ndata: {"type":"chil',
+      'event: ping\ndata: {}\n\ndata: {"type":"probe.changed"}\n\ndata: {"type":"pro',
       (data) => received.push(data),
     );
 
-    expect(received).toEqual(['{"type":"events.changed"}']);
-    expect(residue).toBe('data: {"type":"chil');
+    expect(received).toEqual(['{"type":"probe.changed"}']);
+    expect(residue).toBe('data: {"type":"pro');
   });
 });
 
 describe("invalidationsFor", () => {
-  it("given events.changed, then only the events queries are invalidated", () => {
-    expect(invalidationsFor('{"type":"events.changed"}', parse)).toEqual([["events"]]);
-  });
-
-  it("given children.changed, then only the children queries are invalidated", () => {
-    expect(invalidationsFor('{"type":"children.changed"}', parse)).toEqual([["children"]]);
-  });
-
-  it("given sync.finished, then events and children are both invalidated", () => {
-    expect(invalidationsFor('{"type":"sync.finished","childId":"c1"}', parse)).toEqual([
-      ["events"],
-      ["children"],
+  it("given a known message, then the keys the app mapped to its type are invalidated", () => {
+    expect(invalidationsFor('{"type":"probe.changed"}', parse, PROBE_INVALIDATIONS)).toEqual([
+      ["probe"],
     ]);
+    expect(
+      invalidationsFor('{"type":"probe.finished","id":"c1"}', parse, PROBE_INVALIDATIONS),
+    ).toEqual([["probe"], ["other"]]);
   });
 
   it("given a payload that is not JSON or not a known message, then nothing is invalidated", () => {
-    expect(invalidationsFor("not json", parse)).toEqual([]);
-    expect(invalidationsFor('{"type":"unknown"}', parse)).toEqual([]);
+    expect(invalidationsFor("not json", parse, PROBE_INVALIDATIONS)).toEqual([]);
+    expect(invalidationsFor('{"type":"unknown"}', parse, PROBE_INVALIDATIONS)).toEqual([]);
   });
 });
 

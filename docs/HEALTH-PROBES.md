@@ -50,13 +50,13 @@ DB down (critical) = `fail` + 503. Resend / Google hiccup (non-critical) = `warn
 
 ## Registering a probe (from a new module)
 
-Each module **owner of an external dependency** ships its own `XxxHealthProbe` class implementing `OnInit`. inwire's `preload()` (called once after `.build()`) fires `onInit()` and the probe self-registers, no manual wiring list to keep in sync.
+Each module **owner of an external dependency** ships its own `XxxHealthProbe` class implementing `OnInit`. inwire's `preload()` (called once after `.build()`) fires `onInit()` and the probe self-registers, no manual wiring list to keep in sync. A module never imports `apps/api`: it declares the registry port it needs in its own `application/ports/` and receives the host's `IHealthCheckRegistry` (`apps/api/src/shared/ports/health.port.ts`, bound by the `health` module) through its prerequisites.
 
 ```ts
-// apps/api/src/modules/classroom/infrastructure/classroom-health-probe.ts (illustrative)
+// modules/classroom-sync/src/infrastructure/adapters/classroom-health-probe.ts (illustrative)
 import type { OnInit } from "inwire";
-import type { HealthCheckFn, IHealthCheckRegistry } from "../../../shared/ports/health.port";
-import type { IClassroomClient } from "../application/ports/classroom-client.port";
+import type { IClassroomClient } from "../../application/ports/classroom-client.port";
+import type { HealthCheckFn, IHealthCheckRegistry } from "../../application/ports/health-check-registry.port";
 
 export class ClassroomHealthProbe implements OnInit {
   constructor(
@@ -80,22 +80,19 @@ export class ClassroomHealthProbe implements OnInit {
 ```
 
 ```ts
-// apps/api/src/modules/classroom/module.ts (illustrative)
-declare module "inwire" {
-  interface AppDeps {
-    ClassroomHealthProbe: ClassroomHealthProbe;
-    // …
-  }
+// modules/classroom-sync/src/classroom-sync.module.ts (illustrative)
+export interface ClassroomSyncPrerequisites {
+  IHealthCheckRegistry: IHealthCheckRegistry;
 }
 
-export const classroomSyncModule = defineModule()((b) =>
+export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b) =>
   b
     .add("IClassroomClient", () => new GoogleClassroomClient())
     .add("ClassroomHealthProbe", (c) => new ClassroomHealthProbe(c.IHealthCheckRegistry, c.IClassroomClient)),
 );
 ```
 
-That's it. `trash apps/api/src/modules/classroom` removes both the binding and the probe, no orphan check, no stale registration.
+That's it. Removing the module and its `.addModule()` line in `apps/api/src/container.ts` removes both the binding and the probe, no orphan check, no stale registration.
 
 **Decisor `critical: true` vs `false`**: flip to `true` only if the dep being down makes the api unable to serve **any** request meaningfully. DB = `true` (no business logic without it). Google, email = `false` (most routes work without them; let the LB keep traffic flowing, alerting handles the degraded state).
 

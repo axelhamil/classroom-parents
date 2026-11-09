@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./user-stream-message": "./src/user-stream-message.ts"
   },
   "scripts": {
     "format": "biome format . --write",
