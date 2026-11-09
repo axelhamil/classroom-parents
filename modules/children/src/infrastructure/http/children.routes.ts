@@ -4,6 +4,7 @@ import { zV } from "@packages/http/validator";
 import { Hono } from "hono";
 import {
   childIdParamSchema,
+  linkedAccountParamSchema,
   registerChildBodySchema,
   renameChildBodySchema,
 } from "../../application/dto/child.dto";
@@ -13,7 +14,14 @@ export interface ChildrenRoutesDeps {
   routeGuards: RouteGuards;
   ChildConnectionService: Pick<
     ChildConnectionService,
-    "list" | "register" | "rename" | "disconnect" | "reconnect" | "linkable" | "linkConfig"
+    | "list"
+    | "register"
+    | "rename"
+    | "disconnect"
+    | "reconnect"
+    | "linkable"
+    | "discardLinked"
+    | "linkConfig"
   >;
 }
 
@@ -31,6 +39,19 @@ export function createChildrenRoutes(deps: ChildrenRoutesDeps) {
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })
+    .delete(
+      "/linkable/:linkedAccountId",
+      g.requireAuth,
+      zV("param", linkedAccountParamSchema),
+      async (c) => {
+        const result = await children.discardLinked(
+          g.currentUserId(c),
+          c.req.valid("param").linkedAccountId,
+        );
+        if (result.isFailure) throw new AppErrorException(result.getError());
+        return c.body(null, 204);
+      },
+    )
     .get("/link-config", g.requireAuth, (c) => c.json(children.linkConfig()))
     .post("/", g.requireAuth, zV("json", registerChildBodySchema), async (c) => {
       const result = await children.register(g.currentUserId(c), c.req.valid("json"));

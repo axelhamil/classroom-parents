@@ -14,6 +14,7 @@ import type {
   ChildrenError,
   DueChild,
   IChildRepository,
+  SyncLease,
 } from "../../application/ports/child-repository.port";
 import { ChildAccount } from "../../domain/child-account.aggregate";
 import { ChildAccountId } from "../../domain/child-account-id";
@@ -24,6 +25,16 @@ import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 const dbAttrs = { "db.system.name": "postgresql" } as const;
 
 const repositoryFailure = dbOperationFailure("CHILD_PROVIDER_FAILURE");
+
+const childNotFound: ChildrenError = {
+  code: "CHILD_NOT_FOUND",
+  message: "Cet enfant n'existe pas ou n'est plus relié à votre compte.",
+};
+
+const leaseLost: ChildrenError = {
+  code: "CHILD_SYNC_LEASE_CONFLICT",
+  message: "Cette synchronisation a été reprise par une autre tâche, son résultat est ignoré.",
+};
 
 type ChildRow = typeof childAccount.$inferSelect;
 
@@ -50,10 +61,15 @@ function toDomain(row: ChildRow): Result<ChildAccount, string> {
         nextSyncAt: row.nextSyncAt,
         syncStartedAt: Option.fromNullable(row.syncStartedAt),
         lastSyncRequestedAt: Option.fromNullable(row.lastSyncRequestedAt),
+        syncLease: row.syncLease,
       },
       id.getValue(),
     ),
   );
+}
+
+function leaseHeldBy(lease: SyncLease) {
+  return and(eq(childAccount.id, lease.childId), eq(childAccount.syncLease, lease.lease));
 }
 
 function mutableColumns(child: ChildAccount) {
@@ -66,6 +82,7 @@ function mutableColumns(child: ChildAccount) {
     nextSyncAt: child.get("nextSyncAt"),
     syncStartedAt: child.get("syncStartedAt").toNull(),
     lastSyncRequestedAt: child.get("lastSyncRequestedAt").toNull(),
+    syncLease: child.get("syncLease"),
   };
 }
 
@@ -111,6 +128,7 @@ export class DrizzleChildRepository implements IChildRepository {
       "save",
       and(eq(childAccount.id, child.id.value), eq(childAccount.userId, child.get("userId"))),
       mutableColumns(child),
+      childNotFound,
     );
   }
 
@@ -204,6 +222,7 @@ export class DrizzleChildRepository implements IChildRepository {
             .update(childAccount)
             .set({
               syncAttempts: sql`${childAccount.syncAttempts} + 1`,
+              syncLease: sql`${childAccount.syncLease} + 1`,
               syncStartedAt: now,
               nextSyncAt: new Date(now.getTime() + leaseMs),
             })
@@ -212,6 +231,7 @@ export class DrizzleChildRepository implements IChildRepository {
               childId: childAccount.id,
               userId: childAccount.userId,
               label: childAccount.label,
+              lease: childAccount.syncLease,
             });
           const claimed = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
@@ -228,29 +248,32 @@ export class DrizzleChildRepository implements IChildRepository {
   }
 
   async markSynced(
-    childId: string,
+    lease: SyncLease,
     at: Date,
     nextSyncAt: Date,
   ): Promise<Result<void, ChildrenError>> {
-    return this.updateOne("markSynced", eq(childAccount.id, childId), {
-      lastSyncedAt: at,
-      nextSyncAt,
-      syncStartedAt: null,
-      syncAttempts: 0,
-    });
+    return this.updateOne(
+      "markSynced",
+      leaseHeldBy(lease),
+      { lastSyncedAt: at, nextSyncAt, syncStartedAt: null, syncAttempts: 0 },
+      leaseLost,
+    );
   }
 
-  async markSyncFailed(childId: string, nextSyncAt: Date): Promise<Result<void, ChildrenError>> {
-    return this.updateOne("markSyncFailed", eq(childAccount.id, childId), {
-      nextSyncAt,
-      syncStartedAt: null,
-    });
+  async markSyncFailed(lease: SyncLease, nextSyncAt: Date): Promise<Result<void, ChildrenError>> {
+    return this.updateOne(
+      "markSyncFailed",
+      leaseHeldBy(lease),
+      { nextSyncAt, syncStartedAt: null },
+      leaseLost,
+    );
   }
 
   private async updateOne(
     method: string,
     where: ReturnType<typeof and>,
     values: Partial<typeof childAccount.$inferInsert>,
+    missing: ChildrenError,
   ): Promise<Result<void, ChildrenError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -266,11 +289,7 @@ export class DrizzleChildRepository implements IChildRepository {
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
           );
-          if (updated.length === 0)
-            return Result.fail({
-              code: "CHILD_NOT_FOUND",
-              message: "Cet enfant n'existe pas ou n'est plus relié à votre compte.",
-            });
+          if (updated.length === 0) return Result.fail(missing);
 
           return Result.ok();
         } catch (err) {

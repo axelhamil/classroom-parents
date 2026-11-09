@@ -1,9 +1,11 @@
 /**
  * Proves against a real Postgres what mocked ports cannot: a family never reads or writes
  * another family's child (ownership in every WHERE), deleting a user cascades its children,
- * disconnecting removes the linked BetterAuth account row, a refreshed token is stored sealed,
- * two concurrent claims return disjoint children and a claimed child stays unclaimable until
- * its lease ends, and two concurrent manual syncs start once. Google is stubbed.
+ * disconnecting removes the linked BetterAuth account row and two simultaneous disconnects
+ * revoke once, a refreshed token is stored sealed, two concurrent claims return disjoint
+ * children, one sync at a time per child (a manual sync during a lease answers running, a
+ * late worker's end of sync is fenced out), and every google-classroom link, attached to a
+ * child or not, ends revoked and erased. Google is stubbed.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -68,7 +70,12 @@ async function accountsOf(userId: string): Promise<LinkedGoogleAccount[]> {
   const rows = await db
     .select()
     .from(authSchema.account)
-    .where(eq(authSchema.account.userId, userId));
+    .where(
+      and(
+        eq(authSchema.account.userId, userId),
+        eq(authSchema.account.providerId, "google-classroom"),
+      ),
+    );
   return rows.map((row) => ({
     linkedAccountId: row.id,
     grantedScopes: (row.scope ?? "").split(/[\s,]+/),
@@ -114,7 +121,12 @@ async function createUser(name: string): Promise<string> {
   return id;
 }
 
-async function linkAccount(userId: string, name: string, expired = false): Promise<string> {
+async function linkAccount(
+  userId: string,
+  name: string,
+  expired = false,
+  scopes = CLASSROOM_SCOPES,
+): Promise<string> {
   const id = `${userId}-${name}`;
   await db.insert(authSchema.account).values({
     id,
@@ -124,7 +136,7 @@ async function linkAccount(userId: string, name: string, expired = false): Promi
     accessToken: `${SEAL}ya29.${name}`,
     refreshToken: `${SEAL}1//${name}`,
     accessTokenExpiresAt: new Date(T0.getTime() + (expired ? -60_000 : 3600_000)),
-    scope: ["openid", "email", "profile", ...CLASSROOM_SCOPES].join(","),
+    scope: ["openid", "email", "profile", ...scopes].join(","),
     updatedAt: T0,
   });
   return id;
@@ -224,29 +236,69 @@ run(async () => {
       bStored.refreshToken === `${SEAL}1//b-tom`,
   );
 
-  const manual = await Promise.all([
-    service.claimManualSync(a, aChild, T0),
-    service.claimManualSync(a, aChild, T0),
-  ]);
+  const workerClaim = await service.claimDueForSync(1000, T0);
+  const duringLease = await service.claimManualSync(a, aChild, new Date(T0.getTime() + 5_000));
   await step(
-    "two concurrent manual syncs start once",
-    manual
-      .map((r) => (r.isSuccess ? r.getValue() : "error"))
-      .sort()
-      .join() === "started,throttled",
+    "a manual sync during the worker's lease answers running, never a second sync",
+    workerClaim.isSuccess &&
+      workerClaim.getValue().some((d) => d.childId === aChild) &&
+      duringLease.isSuccess &&
+      duringLease.getValue().outcome === "running",
   );
+
+  const workerLease = workerClaim.isSuccess
+    ? workerClaim.getValue().find((d) => d.childId === aChild)
+    : undefined;
+  const afterCrash = new Date(T0.getTime() + LEASE_MS);
+  const takeover = await service.claimManualSync(a, aChild, afterCrash);
+  const takeoverClaim = takeover.isSuccess ? takeover.getValue() : undefined;
   await step(
-    "a manual sync 61 s later starts again",
-    (await service.claimManualSync(a, aChild, new Date(T0.getTime() + 61_000))).getValue() ===
-      "started",
+    "once the worker's lease has expired, a manual sync takes over with a new lease",
+    takeoverClaim?.outcome === "started" &&
+      workerLease !== undefined &&
+      takeoverClaim.lease.lease > workerLease.lease,
   );
-  const failedAt = new Date(T0.getTime() + 5 * 60_000);
-  await service.markSyncFailed(aChild, failedAt);
+  if (workerLease === undefined || takeoverClaim?.outcome !== "started")
+    throw new Error("no lease to fence");
+
+  const late = await service.markSynced(workerLease, afterCrash, new Date(T0.getTime() + 3600_000));
+  const afterLate = await childRow(aChild);
+  await step(
+    "the late worker's end of sync is refused and leaves the new sync untouched",
+    codeOf(late) === "CHILD_SYNC_LEASE_CONFLICT" &&
+      afterLate?.syncStartedAt?.getTime() === afterCrash.getTime() &&
+      afterLate.lastSyncedAt === null,
+  );
+  const failedAt = new Date(T0.getTime() + 12 * 60_000);
+  const failed = await service.markSyncFailed(takeoverClaim.lease, failedAt);
   const afterFailure = await childRow(aChild);
   await step(
-    "markSyncFailed sets the given next sync and clears syncing",
-    afterFailure?.nextSyncAt.getTime() === failedAt.getTime() &&
+    "the current lease holder's markSyncFailed sets the next sync and clears syncing",
+    failed.isSuccess &&
+      afterFailure?.nextSyncAt.getTime() === failedAt.getTime() &&
       afterFailure.syncStartedAt === null,
+  );
+
+  const racedAt = new Date(afterCrash.getTime() + 61_000);
+  const manual = await Promise.all([
+    service.claimManualSync(a, aChild, racedAt),
+    service.claimManualSync(a, aChild, racedAt),
+  ]);
+  const outcomes = manual.map((r) => (r.isSuccess ? r.getValue().outcome : codeOf(r)));
+  await step(
+    "two concurrent manual syncs start once, the other is told it is running",
+    [...outcomes].sort().join() === "running,started",
+    { outcomes },
+  );
+  const started = manual
+    .map((r) => (r.isSuccess ? r.getValue() : undefined))
+    .find((c) => c?.outcome === "started");
+  if (started?.outcome !== "started") throw new Error("no started manual sync");
+  await service.markSynced(started.lease, racedAt, new Date(T0.getTime() + 20 * 60_000));
+  const soon = await service.claimManualSync(a, aChild, new Date(racedAt.getTime() + 30_000));
+  await step(
+    "a manual sync requested 30 s after the last one is throttled",
+    soon.isSuccess && soon.getValue().outcome === "throttled",
   );
 
   const extra = [];
@@ -254,7 +306,7 @@ run(async () => {
     extra.push(await register(a, await linkAccount(a, name), name));
   }
   const probeIds = new Set([aChild, bChild, ...extra]);
-  const claimAt = new Date(T0.getTime() + 6 * 60_000);
+  const claimAt = new Date(T0.getTime() + 30 * 60_000);
   const mine = (result: Result<{ childId: string }[], ChildrenError>) =>
     result.isSuccess
       ? result
@@ -288,10 +340,37 @@ run(async () => {
 
   await service.markNeedsReconnect(bChild, "school_blocked");
   await step(
+    "a manual sync on a child blocked by its school is refused with CHILD_SYNC_BLOCKED",
+    codeOf(await service.claimManualSync(b, bChild, claimAt)) === "CHILD_SYNC_BLOCKED",
+  );
+  await step(
     "a blocked child is never claimed",
     mine(await service.claimDueForSync(1000, new Date(claimAt.getTime() + 3 * LEASE_MS))).every(
       (id) => id !== bChild,
     ) && (await childRow(bChild))?.cause === "school_blocked",
+  );
+
+  const twin = await register(a, await linkAccount(a, "a-twin"), "Jumeau");
+  const revokedBefore = revoked.length;
+  const twice = await Promise.all([service.disconnect(a, twin), service.disconnect(a, twin)]);
+  const twinEvents = await db
+    .select()
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        eq(outboxSchema.outboxEvent.aggregateId, twin),
+        eq(outboxSchema.outboxEvent.eventType, "child.account.disconnected"),
+      ),
+    );
+  await step(
+    "two simultaneous disconnects revoke once and announce once",
+    twice
+      .map((r) => codeOf(r))
+      .sort()
+      .join() === "CHILD_NOT_FOUND,ok" &&
+      revoked.length - revokedBefore === 1 &&
+      twinEvents.length === 1,
+    { outcomes: twice.map((r) => codeOf(r)), revocations: revoked.length - revokedBefore },
   );
 
   const disconnected = await service.disconnect(a, aChild);
@@ -312,6 +391,47 @@ run(async () => {
       ),
     );
   await step("CHILD_DISCONNECTED is committed with the erasure", disconnectedEvent !== undefined);
+
+  const noScope = await linkAccount(a, "a-noscope", false, []);
+  const refusedLink = await service.register(a, { linkedAccountId: noScope });
+  await step(
+    "a link without the Classroom scopes is revoked, erased and refused with CHILD_SCOPES_MISSING",
+    codeOf(refusedLink) === "CHILD_SCOPES_MISSING" &&
+      revoked.includes("1//a-noscope") &&
+      (await accountRow(noScope)) === undefined,
+  );
+
+  const parentSignIn = `${a}-google`;
+  await db.insert(authSchema.account).values({
+    id: parentSignIn,
+    accountId: `sub-${parentSignIn}`,
+    providerId: "google",
+    userId: a,
+    updatedAt: T0,
+  });
+  await step(
+    "the parent's own google account can never be discarded as a child link",
+    codeOf(await service.discardLinked(a, parentSignIn)) === "CHILD_ACCOUNT_NOT_LINKED" &&
+      (await accountRow(parentSignIn)) !== undefined,
+  );
+
+  const orphan = await linkAccount(a, "a-orphan");
+  const wiped = await service.revokeAllFor(a);
+  const left = await db
+    .select({ id: authSchema.account.id, providerId: authSchema.account.providerId })
+    .from(authSchema.account)
+    .where(eq(authSchema.account.userId, a));
+  await step(
+    "revokeAllFor revokes and erases every google-classroom account, attached to a child or not",
+    wiped.isSuccess &&
+      wiped.getValue().revoked === extra.length + 1 &&
+      wiped.getValue().failed === 0 &&
+      revoked.includes("1//a-orphan") &&
+      left.map((row) => row.providerId).join() === "google" &&
+      (await service.list(a)).getValue().length === 0 &&
+      (await accountRow(orphan)) === undefined,
+    { left: left.length },
+  );
 
   await db.delete(authSchema.user).where(eq(authSchema.user.id, b));
   await step("deleting a user cascades its children", (await childRow(bChild)) === undefined);

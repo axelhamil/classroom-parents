@@ -23,6 +23,7 @@ export const childAccount = pgTable(
     nextSyncAt: timestamp("next_sync_at").notNull(),
     syncStartedAt: timestamp("sync_started_at"),
     syncAttempts: integer("sync_attempts").notNull().default(0),
+    syncLease: integer("sync_lease").notNull().default(0),
     lastSyncRequestedAt: timestamp("last_sync_requested_at"),
   },
   (table) => [

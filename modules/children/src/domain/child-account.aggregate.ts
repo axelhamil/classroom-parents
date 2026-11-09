@@ -18,7 +18,10 @@ export interface ChildAccountProps {
   nextSyncAt: Date;
   syncStartedAt: Option<Date>;
   lastSyncRequestedAt: Option<Date>;
+  syncLease: number;
 }
+
+export type ManualSyncRefusal = "unavailable" | "running" | "throttled";
 
 export interface NewChildAccount {
   userId: string;
@@ -46,6 +49,7 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
         nextSyncAt: input.now,
         syncStartedAt: Option.none(),
         lastSyncRequestedAt: Option.none(),
+        syncLease: 0,
       },
       new ChildAccountId(),
     );
@@ -62,6 +66,8 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
   reconnect(now: Date): void {
     this._props.status = ChildStatus.connected();
     this._props.nextSyncAt = now;
+    this._props.syncStartedAt = Option.none();
+    this._props.syncLease += 1;
   }
 
   markNeedsReconnect(cause: ReconnectCause): Result<void, "unchanged"> {
@@ -69,10 +75,16 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     if (this._props.status.equals(broken)) return Result.fail("unchanged");
 
     this._props.status = broken;
+    this._props.syncStartedAt = Option.none();
     return Result.ok();
   }
 
-  requestManualSync(now: Date): Result<void, "throttled"> {
+  requestManualSync(now: Date): Result<void, ManualSyncRefusal> {
+    if (this._props.status.value !== "connected") return Result.fail("unavailable");
+
+    const leased = this._props.syncStartedAt.isSome() && this._props.nextSyncAt > now;
+    if (leased) return Result.fail("running");
+
     const last = this._props.lastSyncRequestedAt;
     if (last.isSome() && now.getTime() - last.unwrap().getTime() < MANUAL_SYNC_THROTTLE_MS)
       return Result.fail("throttled");
@@ -80,6 +92,7 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     this._props.lastSyncRequestedAt = Option.some(now);
     this._props.syncStartedAt = Option.some(now);
     this._props.nextSyncAt = new Date(now.getTime() + SYNC_LEASE_MS);
+    this._props.syncLease += 1;
     return Result.ok();
   }
 }

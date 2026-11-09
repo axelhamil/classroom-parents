@@ -10,10 +10,16 @@ export type ChildrenError = AppError<
   | "CHILD_TOKEN_INVALID_GRANT"
   | "CHILD_LABEL_INVALID"
   | "CHILD_PROVIDER_FAILURE"
+  | "CHILD_SYNC_BLOCKED"
+  | "CHILD_SYNC_LEASE_CONFLICT"
 >;
 
-export interface DueChild {
+export interface SyncLease {
   childId: string;
+  lease: number;
+}
+
+export interface DueChild extends SyncLease {
   userId: string;
   label: string;
 }
@@ -38,7 +44,7 @@ export interface IChildRepository {
 
   claimDue(limit: number, now: Date, leaseMs: number): Promise<Result<DueChild[], ChildrenError>>;
 
-  markSynced(childId: string, at: Date, nextSyncAt: Date): Promise<Result<void, ChildrenError>>;
+  markSynced(lease: SyncLease, at: Date, nextSyncAt: Date): Promise<Result<void, ChildrenError>>;
 
-  markSyncFailed(childId: string, nextSyncAt: Date): Promise<Result<void, ChildrenError>>;
+  markSyncFailed(lease: SyncLease, nextSyncAt: Date): Promise<Result<void, ChildrenError>>;
 }

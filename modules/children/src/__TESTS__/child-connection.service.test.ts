@@ -6,11 +6,7 @@ import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
-import type {
-  ChildrenError,
-  DueChild,
-  IChildRepository,
-} from "../application/ports/child-repository.port";
+import type { ChildrenError, IChildRepository } from "../application/ports/child-repository.port";
 import type {
   GoogleCredentials,
   IGoogleCredentialStore,
@@ -24,7 +20,10 @@ import type {
   GoogleProfile,
   IGoogleOAuthClient,
 } from "../application/ports/google-oauth-client.port";
-import type { ILinkedAccountEraser } from "../application/ports/linked-account-eraser.port";
+import type {
+  ErasedAccount,
+  ILinkedAccountEraser,
+} from "../application/ports/linked-account-eraser.port";
 import { ChildConnectionService } from "../application/services/child-connection.service";
 import { ChildAccount } from "../domain/child-account.aggregate";
 import { ChildAccountId } from "../domain/child-account-id";
@@ -63,7 +62,13 @@ function credentials(overrides: Partial<GoogleCredentials> = {}): GoogleCredenti
 }
 
 function child(
-  overrides: { status?: ChildStatus; lastSyncRequestedAt?: Date; linkedAccountId?: string } = {},
+  overrides: {
+    status?: ChildStatus;
+    lastSyncRequestedAt?: Date;
+    linkedAccountId?: string;
+    syncStartedAt?: Date;
+    nextSyncAt?: Date;
+  } = {},
 ): ChildAccount {
   return ChildAccount.reconstitute(
     {
@@ -74,9 +79,10 @@ function child(
       status: overrides.status ?? ChildStatus.connected(),
       connectedAt: new Date("2026-10-01T08:00:00.000Z"),
       lastSyncedAt: Option.none(),
-      nextSyncAt: new Date("2026-11-09T12:00:00.000Z"),
-      syncStartedAt: Option.none(),
+      nextSyncAt: overrides.nextSyncAt ?? new Date("2026-11-09T12:00:00.000Z"),
+      syncStartedAt: Option.fromNullable(overrides.syncStartedAt),
       lastSyncRequestedAt: Option.fromNullable(overrides.lastSyncRequestedAt),
+      syncLease: 4,
     },
     new ChildAccountId(),
   );
@@ -118,7 +124,7 @@ beforeEach(() => {
     ok<GoogleProfile>({ email: "lea@school.example", givenName: Option.some("Léa") }),
   );
   google.revoke.mockResolvedValue(Result.ok());
-  eraser.delete.mockResolvedValue(Result.ok());
+  eraser.delete.mockResolvedValue(ok(Option.some<ErasedAccount>({ accountId: "google-sub-1" })));
 
   service = new ChildConnectionService(
     repo,
@@ -174,6 +180,16 @@ describe("register", () => {
 
     expect(result.getError().code).toBe("CHILD_SCOPES_MISSING");
     expect(repo.create).not.toHaveBeenCalled();
+    expect(google.revoke).toHaveBeenCalledWith("1//refresh");
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+    expect(uow.outcome()).toBe("committed");
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.USER_ACCOUNT_UNLINKED,
+        aggregateId: LINKED,
+        payload: { userId: PARENT, providerId: "google-classroom", accountId: "google-sub-1" },
+      },
+    ]);
   });
 
   it("given no refresh token, then CHILD_REFRESH_TOKEN_MISSING telling to remove the app access first", async () => {
@@ -184,6 +200,38 @@ describe("register", () => {
     expect(result.getError().code).toBe("CHILD_REFRESH_TOKEN_MISSING");
     expect(result.getError().message).toContain("compte Google");
     expect(repo.create).not.toHaveBeenCalled();
+    expect(google.revoke).toHaveBeenCalled();
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+  });
+
+  it("given Google answers invalid_grant while reading the profile, then the account is erased and CHILD_TOKEN_INVALID_GRANT", async () => {
+    google.profile.mockResolvedValue(fail<GoogleProfile>("CHILD_TOKEN_INVALID_GRANT"));
+
+    const result = await service.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getError().code).toBe("CHILD_TOKEN_INVALID_GRANT");
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it("given no label, then the default label is the given name only", async () => {
+    google.profile.mockResolvedValue(
+      ok<GoogleProfile>({ email: "lea.martin@school.example", givenName: Option.some("Léa") }),
+    );
+
+    const result = await service.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().label).toBe("Léa");
+  });
+
+  it("given no label and no given name, then the neutral label, never the email", async () => {
+    google.profile.mockResolvedValue(
+      ok<GoogleProfile>({ email: "lea.martin@school.example", givenName: Option.none() }),
+    );
+
+    const result = await service.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().label).toBe("Enfant");
   });
 
   it("given the account is already used by a child, then CHILD_ALREADY_CONNECTED", async () => {
@@ -193,6 +241,7 @@ describe("register", () => {
 
     expect(result.getError().code).toBe("CHILD_ALREADY_CONNECTED");
     expect(repo.create).not.toHaveBeenCalled();
+    expect(eraser.delete).not.toHaveBeenCalled();
   });
 
   it("given another user's account, then CHILD_ACCOUNT_NOT_LINKED", async () => {
@@ -202,18 +251,20 @@ describe("register", () => {
 
     expect(result.getError().code).toBe("CHILD_ACCOUNT_NOT_LINKED");
     expect(enqueuedEvents(outbox)).toEqual([]);
+    expect(eraser.delete).not.toHaveBeenCalled();
   });
 });
 
 describe("reconnect", () => {
   it("given a blocked_by_school child whose account now has scopes and token, then connected, cause cleared, due now and CHILD_CONNECTED", async () => {
-    const blocked = child({ status: ChildStatus.brokenBy("school_blocked") });
+    const blocked = child({ status: ChildStatus.brokenBy("school_blocked"), syncStartedAt: NOW });
     repo.findOwned.mockResolvedValue(ok(Option.some(blocked)));
 
     const result = await service.reconnect(PARENT, blocked.id.value);
 
     expect(result.getValue()).toMatchObject({ status: "connected", cause: undefined });
     expect(blocked.get("nextSyncAt")).toEqual(NOW);
+    expect(result.getValue().syncing).toBe(false);
     expect(repo.save).toHaveBeenCalledWith(blocked);
     expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.CHILD_CONNECTED]);
   });
@@ -228,6 +279,7 @@ describe("reconnect", () => {
     expect(result.getError().code).toBe("CHILD_REFRESH_TOKEN_MISSING");
     expect(blocked.get("status").value).toBe("blocked_by_school");
     expect(repo.save).not.toHaveBeenCalled();
+    expect(eraser.delete).not.toHaveBeenCalled();
   });
 
   it("given another family's child, then CHILD_NOT_FOUND", async () => {
@@ -239,18 +291,29 @@ describe("reconnect", () => {
   });
 });
 
+describe("rename", () => {
+  it("given the parent's child, then the new label is saved and CHILD_RENAMED is enqueued without the label", async () => {
+    const owned = child();
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await service.rename(PARENT, owned.id.value, " Lili ");
+
+    expect(result.getValue().label).toBe("Lili");
+    expect(repo.save).toHaveBeenCalledWith(owned);
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.CHILD_RENAMED,
+        aggregateId: owned.id.value,
+        payload: { userId: PARENT, childId: owned.id.value },
+      },
+    ]);
+  });
+});
+
 describe("linkable", () => {
-  it("excludes the parent's own sign-in account and accounts already used by a child", async () => {
+  it("excludes accounts already used by a child", async () => {
     linked.listForUser.mockResolvedValue(
-      ok([
-        linkedAccount({
-          linkedAccountId: "parent-sign-in",
-          grantedScopes: ["openid", "email", "profile"],
-          hasRefreshToken: false,
-        }),
-        linkedAccount({ linkedAccountId: "used" }),
-        linkedAccount({ linkedAccountId: "free" }),
-      ]),
+      ok([linkedAccount({ linkedAccountId: "used" }), linkedAccount({ linkedAccountId: "free" })]),
     );
     repo.listForUser.mockResolvedValue(ok([child({ linkedAccountId: "used" })]));
 
@@ -259,6 +322,65 @@ describe("linkable", () => {
     expect(result.getValue()).toEqual([
       { linkedAccountId: "free", googleEmail: "lea@school.example" },
     ]);
+  });
+
+  it("given a fresh link without the Classroom scopes, then its token is revoked, the account erased and CHILD_SCOPES_MISSING returned", async () => {
+    linked.listForUser.mockResolvedValue(
+      ok([linkedAccount({ grantedScopes: ["openid", "email", "profile"] })]),
+    );
+
+    const result = await service.linkable(PARENT);
+
+    expect(result.getError().code).toBe("CHILD_SCOPES_MISSING");
+    expect(google.revoke).toHaveBeenCalledWith("1//refresh");
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+  });
+
+  it("given an unusable link next to a usable one, then the unusable one is erased and the usable one listed", async () => {
+    linked.listForUser.mockResolvedValue(
+      ok([
+        linkedAccount({ linkedAccountId: "no-token", hasRefreshToken: false }),
+        linkedAccount({ linkedAccountId: "free" }),
+      ]),
+    );
+
+    const result = await service.linkable(PARENT);
+
+    expect(result.getValue().map((a) => a.linkedAccountId)).toEqual(["free"]);
+    expect(eraser.delete).toHaveBeenCalledTimes(1);
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, "no-token");
+  });
+});
+
+describe("discardLinked", () => {
+  it("given a linked account no child uses, then its token is revoked and the account erased", async () => {
+    const result = await service.discardLinked(PARENT, LINKED);
+
+    expect(result.isSuccess).toBe(true);
+    expect(google.revoke).toHaveBeenCalledWith("1//refresh");
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+    expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([
+      EventTypes.USER_ACCOUNT_UNLINKED,
+    ]);
+  });
+
+  it("given an account a child uses, then CHILD_ALREADY_CONNECTED and nothing revoked", async () => {
+    repo.findByLinkedAccount.mockResolvedValue(ok(Option.some(child())));
+
+    const result = await service.discardLinked(PARENT, LINKED);
+
+    expect(result.getError().code).toBe("CHILD_ALREADY_CONNECTED");
+    expect(google.revoke).not.toHaveBeenCalled();
+  });
+
+  it("given an account already gone or another family's, then CHILD_ACCOUNT_NOT_LINKED and nothing revoked", async () => {
+    eraser.delete.mockResolvedValue(ok(Option.none<ErasedAccount>()));
+
+    const result = await service.discardLinked(PARENT, "someone-else");
+
+    expect(result.getError().code).toBe("CHILD_ACCOUNT_NOT_LINKED");
+    expect(google.revoke).not.toHaveBeenCalled();
+    expect(uow.outcome()).toBe("rolled_back");
   });
 });
 
@@ -339,6 +461,15 @@ describe("markNeedsReconnect", () => {
     expect(enqueuedEvents(outbox)[0]?.payload).toMatchObject({ cause });
   });
 
+  it("given a child syncing when it breaks, then it no longer shows as syncing", async () => {
+    const owned = child({ syncStartedAt: NOW, nextSyncAt: new Date(NOW.getTime() + 600_000) });
+    repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
+
+    await service.markNeedsReconnect(owned.id.value, "school_blocked");
+
+    expect(owned.get("syncStartedAt").isNone()).toBe(true);
+  });
+
   it("given a child already in that state, then nothing is written nor emitted", async () => {
     const owned = child({ status: ChildStatus.brokenBy("school_blocked") });
     repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
@@ -373,10 +504,23 @@ describe("disconnect", () => {
     ]);
   });
 
+  it("given a concurrent disconnect already erased the account, then CHILD_NOT_FOUND, no revoke and nothing emitted", async () => {
+    const owned = child();
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+    eraser.delete.mockResolvedValue(ok(Option.none<ErasedAccount>()));
+
+    const result = await service.disconnect(PARENT, owned.id.value);
+
+    expect(result.getError().code).toBe("CHILD_NOT_FOUND");
+    expect(google.revoke).not.toHaveBeenCalled();
+    expect(uow.outcome()).toBe("rolled_back");
+    expect(uow.writtenEvents()).toEqual([]);
+  });
+
   it("given the account row cannot be erased, then nothing is committed nor emitted", async () => {
     const owned = child();
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
-    eraser.delete.mockResolvedValue(fail<void>("CHILD_PROVIDER_FAILURE"));
+    eraser.delete.mockResolvedValue(fail<Option<ErasedAccount>>("CHILD_PROVIDER_FAILURE"));
 
     const result = await service.disconnect(PARENT, owned.id.value);
 
@@ -397,13 +541,18 @@ describe("disconnect", () => {
 });
 
 describe("revokeAllFor", () => {
-  it("given 3 children and one Google refusal, then {revoked: 2, failed: 1} as a success", async () => {
-    repo.listForUser.mockResolvedValue(
+  it("given 2 children, 1 link no child uses and one Google refusal, then every account is revoked and erased, {revoked: 2, failed: 1}", async () => {
+    const lea = child({ linkedAccountId: "a" });
+    const tom = child({ linkedAccountId: "b" });
+    linked.listForUser.mockResolvedValue(
       ok([
-        child({ linkedAccountId: "a" }),
-        child({ linkedAccountId: "b" }),
-        child({ linkedAccountId: "c" }),
+        linkedAccount({ linkedAccountId: "a" }),
+        linkedAccount({ linkedAccountId: "b" }),
+        linkedAccount({ linkedAccountId: "orphan", grantedScopes: ["openid"] }),
       ]),
+    );
+    repo.findByLinkedAccount.mockImplementation(async (_userId, linkedAccountId) =>
+      ok(Option.fromNullable({ a: lea, b: tom }[linkedAccountId])),
     );
     google.revoke
       .mockResolvedValueOnce(Result.ok())
@@ -413,45 +562,64 @@ describe("revokeAllFor", () => {
     const result = await service.revokeAllFor(PARENT);
 
     expect(result.getValue()).toEqual({ revoked: 2, failed: 1 });
+    expect(eraser.delete.mock.calls.map(([, id]) => id)).toEqual(["a", "b", "orphan"]);
+    expect(enqueuedEvents(outbox).map((e) => [e.eventType, e.aggregateId])).toEqual([
+      [EventTypes.CHILD_DISCONNECTED, lea.id.value],
+      [EventTypes.CHILD_DISCONNECTED, tom.id.value],
+      [EventTypes.USER_ACCOUNT_UNLINKED, "orphan"],
+    ]);
   });
 });
 
 describe("claimManualSync", () => {
-  it("given two requests within 60 s, then the second is throttled", async () => {
-    const owned = child();
-    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
-
-    const first = await service.claimManualSync(PARENT, owned.id.value, NOW);
-    const second = await service.claimManualSync(
-      PARENT,
-      owned.id.value,
-      new Date(NOW.getTime() + 59_000),
-    );
-
-    expect(first.getValue()).toBe("started");
-    expect(second.getValue()).toBe("throttled");
-    expect(repo.save).toHaveBeenCalledTimes(1);
-  });
-
-  it("given the last request is older than 60 s, then started and the child shows as syncing", async () => {
+  it("given an idle connected child, then started with a new lease and the child shows as syncing", async () => {
     const owned = child({ lastSyncRequestedAt: new Date(NOW.getTime() - 61_000) });
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
 
     const result = await service.claimManualSync(PARENT, owned.id.value, NOW);
 
-    expect(result.getValue()).toBe("started");
+    expect(result.getValue()).toEqual({
+      outcome: "started",
+      lease: { childId: owned.id.value, lease: 5 },
+    });
     expect(owned.get("syncStartedAt").unwrap()).toEqual(NOW);
+    expect(repo.save).toHaveBeenCalledWith(owned);
   });
-});
 
-describe("claimDueForSync", () => {
-  it("claims with the 10 minute lease", async () => {
-    const due: DueChild[] = [{ childId: "c1", userId: PARENT, label: "Léa" }];
-    repo.claimDue.mockResolvedValue(ok(due));
+  it("given a sync holding an active lease, then running and no second sync starts", async () => {
+    const owned = child({
+      syncStartedAt: new Date(NOW.getTime() - 5_000),
+      nextSyncAt: new Date(NOW.getTime() + 595_000),
+    });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
 
-    const result = await service.claimDueForSync(5, NOW);
+    const result = await service.claimManualSync(PARENT, owned.id.value, NOW);
 
-    expect(result.getValue()).toEqual(due);
-    expect(repo.claimDue).toHaveBeenCalledWith(5, NOW, 10 * 60_000);
+    expect(result.getValue()).toEqual({ outcome: "running" });
+    expect(repo.save).not.toHaveBeenCalled();
   });
+
+  it("given a finished sync requested less than 60 s ago, then throttled", async () => {
+    const owned = child({ lastSyncRequestedAt: new Date(NOW.getTime() - 59_000) });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await service.claimManualSync(PARENT, owned.id.value, NOW);
+
+    expect(result.getValue()).toEqual({ outcome: "throttled" });
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it.each<ReconnectCause>(["invalid_grant", "school_blocked"])(
+    "given a child broken by %s, then CHILD_SYNC_BLOCKED and nothing starts",
+    async (cause) => {
+      const owned = child({ status: ChildStatus.brokenBy(cause) });
+      repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+      const result = await service.claimManualSync(PARENT, owned.id.value, NOW);
+
+      expect(result.getError().code).toBe("CHILD_SYNC_BLOCKED");
+      expect(owned.get("syncStartedAt").isNone()).toBe(true);
+      expect(repo.save).not.toHaveBeenCalled();
+    },
+  );
 });

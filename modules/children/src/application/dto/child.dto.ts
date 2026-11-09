@@ -27,6 +27,8 @@ export const renameChildBodySchema = z.object({ label: childLabelSchema });
 
 export const childIdParamSchema = z.object({ id: z.uuid() });
 
+export const linkedAccountParamSchema = z.object({ linkedAccountId: z.string().min(1) });
+
 export function toChildDto(child: ChildAccount): ChildDto {
   const status = child.get("status");
 
