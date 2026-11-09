@@ -25,31 +25,63 @@ const CASES = [
   },
 ];
 
+function instantOf(date: string, time: string, timeZone = PARIS): string {
+  return zonedWallTimeToUtc(date, time, timeZone).getValue().toISOString();
+}
+
 describe("zoned wall time", () => {
   it.each(CASES)("converts $label to the matching instant", ({ date, time, utc }) => {
-    expect(zonedWallTimeToUtc(date, time, PARIS).toISOString()).toBe(utc);
+    expect(instantOf(date, time)).toBe(utc);
   });
 
   it.each(CASES)("reads $label back as the same wall time", ({ date, time, utc }) => {
-    expect(utcToZonedWall(new Date(utc), PARIS)).toEqual({ date, time });
+    expect(utcToZonedWall(new Date(utc), PARIS).getValue()).toEqual({ date, time });
   });
 
   it("moves a wall time skipped by the spring change forward by the gap", () => {
-    expect(zonedWallTimeToUtc("2027-03-28", "02:30", PARIS).toISOString()).toBe(
-      "2027-03-28T01:30:00.000Z",
-    );
+    expect(instantOf("2027-03-28", "02:30")).toBe("2027-03-28T01:30:00.000Z");
   });
 
   it("resolves a wall time repeated by the autumn change to its first occurrence", () => {
-    expect(zonedWallTimeToUtc("2026-10-25", "02:30", PARIS).toISOString()).toBe(
-      "2026-10-25T00:30:00.000Z",
-    );
+    expect(instantOf("2026-10-25", "02:30")).toBe("2026-10-25T00:30:00.000Z");
+  });
+
+  it("resolves the transitions of a zone more than 12 hours ahead of UTC", () => {
+    expect(instantOf("2026-04-05", "03:00", "Pacific/Chatham")).toBe("2026-04-04T13:15:00.000Z");
+    expect(instantOf("2026-09-27", "02:50", "Pacific/Chatham")).toBe("2026-09-26T14:05:00.000Z");
   });
 
   it("reads midnight as 00:00, not 24:00", () => {
-    expect(utcToZonedWall(new Date("2026-11-16T23:00:00.000Z"), PARIS)).toEqual({
+    expect(utcToZonedWall(new Date("2026-11-16T23:00:00.000Z"), PARIS).getValue()).toEqual({
       date: "2026-11-17",
       time: "00:00",
     });
+  });
+
+  it.each([
+    ["a day the month does not have", "2026-02-30", "18:00"],
+    ["a thirteenth month", "2026-13-01", "18:00"],
+    ["an hour past 23", "2026-11-17", "25:00"],
+    ["a minute past 59", "2026-11-17", "18:60"],
+    ["seconds", "2026-11-17", "18:00:30"],
+    ["a bare hour", "2026-11-17", "18"],
+    ["an empty date", "", "18:00"],
+  ])("rejects %s instead of shifting the instant", (_label, date, time) => {
+    expect(zonedWallTimeToUtc(date, time, PARIS).getError()).toBe("ZONED_TIME_INVALID_WALL_TIME");
+  });
+
+  it("rejects an unknown time zone in both directions", () => {
+    expect(zonedWallTimeToUtc("2026-11-17", "18:00", "Mars/Olympus").getError()).toBe(
+      "ZONED_TIME_INVALID_TIME_ZONE",
+    );
+    expect(utcToZonedWall(new Date(), "Mars/Olympus").getError()).toBe(
+      "ZONED_TIME_INVALID_TIME_ZONE",
+    );
+  });
+
+  it("rejects an invalid instant instead of throwing", () => {
+    expect(utcToZonedWall(new Date(Number.NaN), PARIS).getError()).toBe(
+      "ZONED_TIME_INVALID_INSTANT",
+    );
   });
 });

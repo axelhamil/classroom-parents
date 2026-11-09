@@ -177,6 +177,21 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^21.2.4
         version: 21.2.4
+      '@modules/agenda':
+        specifier: workspace:*
+        version: link:modules/agenda
+      '@modules/alerts':
+        specifier: workspace:*
+        version: link:modules/alerts
+      '@modules/children':
+        specifier: workspace:*
+        version: link:modules/children
+      '@modules/classroom-sync':
+        specifier: workspace:*
+        version: link:modules/classroom-sync
+      '@modules/extraction':
+        specifier: workspace:*
+        version: link:modules/extraction
       '@packages/typescript-config':
         specifier: workspace:*
         version: link:packages/typescript-config

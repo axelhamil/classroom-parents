@@ -71,7 +71,8 @@
         "eval/*.ts"
       ],
       "project": ["**/*.ts"],
-      // Pre-installed by T3 so module tasks never touch the lockfile; T10 drops each name knip reports as unneeded.
+      // Pre-installed by T3 so module tasks never touch the lockfile. Drop a name once every module declaring it imports it:
+      // knip then prints "Remove from ignoreDependencies". Owner: T10 (raccord), see the T3 report.
       "ignoreDependencies": [
         "@anthropic-ai/sdk",
         "@packages/drizzle",
@@ -89,6 +90,8 @@
   },
   "ignoreBinaries": ["src/index.ts"],
   "ignoreDependencies": [
+    // The root links every module so any workspace resolves @modules/<name>/schemas/*; the root itself imports none.
+    "@modules/*",
     "@packages/test",
     "@packages/typescript-config",
     "lint-staged",

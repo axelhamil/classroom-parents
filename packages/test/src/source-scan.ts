@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 interface CodeViews {
@@ -217,4 +217,45 @@ export function createSourceScan(root: string) {
     transactionOpenersPerFile,
     envReadsPerFile,
   };
+}
+
+export function assertModuleLayering(moduleRoot: string): void {
+  const scan = createSourceScan(moduleRoot);
+
+  function offenders(layers: string[], count: (layer: string) => Record<string, number>): string[] {
+    return layers
+      .filter((layer) => existsSync(join(moduleRoot, layer)))
+      .flatMap((layer) => Object.keys(count(layer)));
+  }
+
+  if (!existsSync(join(moduleRoot, "src")) || scan.sourceFiles("src").length === 0) {
+    throw new Error(`module layering: no source file under ${moduleRoot}/src`);
+  }
+
+  const guards: Record<string, string[]> = {
+    "domain and application never throw": offenders(
+      ["src/domain", "src/application"],
+      scan.throwsPerFile,
+    ),
+    "no environment read, settings arrive as prerequisites": offenders(
+      ["src", "schemas"],
+      scan.envReadsPerFile,
+    ),
+    "no transaction parameter, stores read the ambient one": offenders(
+      ["src"],
+      scan.transactionParametersPerFile,
+    ),
+    "routes never write, they go through a service": offenders(
+      ["src/infrastructure/http"],
+      scan.writeCallsPerFile,
+    ),
+  };
+
+  const violations = Object.entries(guards).flatMap(([guard, files]) =>
+    files.map((file) => `${guard}: ${file}`),
+  );
+
+  if (violations.length > 0) {
+    throw new Error(`module layering violated in ${moduleRoot}:\n${violations.join("\n")}`);
+  }
 }

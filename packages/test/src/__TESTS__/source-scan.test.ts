@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { createSourceScan } from "../source-scan";
+import { assertModuleLayering, createSourceScan } from "../source-scan";
 
 /* biome-ignore lint/suspicious/noTemplateCurlyInString: the fixture is source text holding a template literal */
 const TEMPLATE_SOURCE = "const tpl = `a ${b ? '//' : `/*${c}*/`} d`;";
@@ -132,5 +132,41 @@ describe("createSourceScan", () => {
       "env/meta.ts": 1,
       "env/optional.ts": 1,
     });
+  });
+});
+
+describe("assertModuleLayering", () => {
+  it("passes a module whose layers keep their guards", () => {
+    fixture("clean-module", {
+      "src/clean.module.ts": "export const m = 1;",
+      "src/domain/a.ts": "export const ok = () => Result.fail('NOPE');",
+    });
+
+    expect(() => assertModuleLayering(join(root, "clean-module"))).not.toThrow();
+  });
+
+  it("names every broken guard with its file", () => {
+    fixture("broken-module", {
+      "src/broken.module.ts": "export const m = 1;",
+      "src/domain/a.ts": "export const f = () => { throw new Error('x'); };",
+      "schemas/s.ts": "export const url = process.env.DATABASE_URL;",
+      "src/infrastructure/repositories/r.ts": "export const save = (tx: unknown) => tx;",
+      "src/infrastructure/http/x.routes.ts": "export const w = () => db.insert(table);",
+    });
+
+    expect(() => assertModuleLayering(join(root, "broken-module"))).toThrow(
+      [
+        "domain and application never throw: src/domain/a.ts",
+        "no environment read, settings arrive as prerequisites: schemas/s.ts",
+        "no transaction parameter, stores read the ambient one: src/infrastructure/repositories/r.ts",
+        "routes never write, they go through a service: src/infrastructure/http/x.routes.ts",
+      ].join("\n"),
+    );
+  });
+
+  it("refuses a module without source", () => {
+    fixture("empty-module", { "README.md": "" });
+
+    expect(() => assertModuleLayering(join(root, "empty-module"))).toThrow("no source file");
   });
 });

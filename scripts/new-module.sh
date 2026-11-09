@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Scaffolds modules/<name> as an empty @modules/<name> package: manifest, tsconfig, an empty
-# defineModule and its layering test. Run `pnpm install` afterwards to link the workspace.
+# defineModule and its layering test, then links it at the root so every workspace resolves
+# @modules/<name>/schemas/* for a foreign key.
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 name="${1:-}"
@@ -18,8 +19,8 @@ if [ -e "$dir" ]; then
   exit 1
 fi
 
-pascal="$(echo "$name" | sed -E 's/(^|-)([a-z0-9])/\U\2/g')"
-camel="$(echo "${pascal:0:1}" | tr '[:upper:]' '[:lower:]')${pascal:1}"
+pascal="$(printf '%s' "$name" | awk -F- '{ for (i = 1; i <= NF; i++) printf "%s%s", toupper(substr($i, 1, 1)), substr($i, 2) }')"
+camel="$(printf '%s' "$pascal" | awk '{ printf "%s%s", tolower(substr($0, 1, 1)), substr($0, 2) }')"
 
 mkdir -p "$dir/src/__TESTS__"
 
@@ -76,40 +77,18 @@ export const ${camel}Module = defineModule<${pascal}Prerequisites>()((b) => b);
 EOF
 
 cat >"$dir/src/__TESTS__/layering.test.ts" <<EOF
-import { describe, expect, it } from "bun:test";
-import { existsSync } from "node:fs";
+import { describe, it } from "bun:test";
 import { join } from "node:path";
-import { createSourceScan } from "@packages/test/source-scan";
-
-const moduleRoot = join(import.meta.dir, "../..");
-const scan = createSourceScan(moduleRoot);
-
-function existing(layers: string[]): string[] {
-  return layers.filter((layer) => existsSync(join(moduleRoot, layer)));
-}
-
-function offenders(layers: string[], count: (layer: string) => Record<string, number>): string[] {
-  return existing(layers).flatMap((layer) => Object.keys(count(layer)));
-}
+import { assertModuleLayering } from "@packages/test/source-scan";
 
 describe("layering rules of the $name module", () => {
-  it("domain and application never throw", () => {
-    expect(offenders(["src/domain", "src/application"], scan.throwsPerFile)).toEqual([]);
-  });
-
-  it("reads no environment, the host passes settings as prerequisites", () => {
-    expect(scan.sourceFiles("src").length).toBeGreaterThan(0);
-    expect(offenders(["src", "schemas"], scan.envReadsPerFile)).toEqual([]);
-  });
-
-  it("declares no transaction parameter, stores read the ambient one", () => {
-    expect(offenders(["src"], scan.transactionParametersPerFile)).toEqual([]);
-  });
-
-  it("routes never write, they go through a service", () => {
-    expect(offenders(["src/infrastructure/http"], scan.writeCallsPerFile)).toEqual([]);
+  it("keeps every layer guard of a module", () => {
+    assertModuleLayering(join(import.meta.dir, "../.."));
   });
 });
 EOF
 
-echo "created modules/$name, run pnpm install"
+cd "$ROOT"
+pnpm add -D -w "@modules/$name@workspace:*"
+
+echo "created modules/$name"

@@ -19,7 +19,7 @@ src/
 
 ## Declaring an event
 
-A business module declares its events in its own `contrib/<module>.ts` with `defineEventContribution({ types, payloads, retention, visibility, descriptions })`: `tsc` requires an entry in each map for every type, and `registry.ts` merges them into the catalog. **Why**: modules built in parallel never edit the same file. A name already in the core catalog fails to compile; a name or type string shared by two contributions fails `__tests__/contributions.test.ts`.
+A business module declares its events in its own `contrib/<module>.ts` with `defineEventContribution({ types, payloads, retention, visibility, descriptions })`: `tsc` requires an entry in each map for every type, and `registry.ts` merges them into the catalog. **Why**: modules built in parallel never edit the same file. A name already in the core catalog fails to compile; a name or type string shared by two contributions fails `__tests__/contributions.test.ts`. A contribution imports only `zod` and `../contribution`. **Why**: the catalog files import the registry, so a contribution importing `../payloads` or `../event-types` closes a load cycle and crashes at startup on an undefined `EventTypes`.
 
 A platform event (auth, email, outbox, security) touches five files; `tsc` names the missing entries in the exhaustive `Record<EventType, ...>` maps, and the catalog tests pin the rest:
 
