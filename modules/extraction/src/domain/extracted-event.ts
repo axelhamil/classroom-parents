@@ -1,5 +1,6 @@
 import type { ExtractionCategoryValue } from "./value-objects/extraction-category.vo";
 
+export const EXTRACTED_TITLE_MAX = 120;
 export const EXTRACTED_DESCRIPTION_MAX = 300;
 
 export type ExtractionConfidence = "high" | "medium" | "low";

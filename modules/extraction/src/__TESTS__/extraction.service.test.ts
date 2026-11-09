@@ -156,6 +156,62 @@ describe("ExtractionService.extract", () => {
       needsReview: true,
       reviewReasons: ["relative_holiday"],
     });
+    expect(requests().map((request) => request.tier)).toEqual(["fast"]);
+  });
+
+  it.each([
+    ["a provider failure", "EXTRACTION_PROVIDER_FAILURE"],
+    ["a rate limit", "EXTRACTION_RATE_LIMITED"],
+  ] as const)("keeps the fast events for review when the strong pass hits %s", async (_, code) => {
+    answers(
+      Result.ok({ events: [candidate(), candidate({ confidence: "low", title: "Devoir" })] }),
+      Result.fail({ code, message: "strong down" }),
+    );
+
+    const result = await extract(MATHS_TEST);
+
+    expect(result.getValue()).toMatchObject([
+      { title: "Évaluation de maths", needsReview: true },
+      { title: "Devoir", needsReview: true, reviewReasons: ["low_confidence"] },
+    ]);
+  });
+
+  it("cuts a long title on a word boundary within 120 characters", async () => {
+    const words = Array.from({ length: 40 }, (_, index) => `mot${index}`).join(" ");
+    answers(Result.ok({ events: [candidate({ title: words })] }));
+
+    const [event] = (await extract(MATHS_TEST)).getValue();
+
+    expect(event?.title.length).toBeLessThanOrEqual(120);
+    expect(words.startsWith(event?.title ?? "")).toBe(true);
+    expect(words.charAt(event?.title.length ?? 0)).toBe(" ");
+    expect(event?.needsReview).toBe(false);
+  });
+
+  it("names an untitled event after its category and keeps it for review", async () => {
+    answers(
+      Result.ok({ events: [candidate({ title: "  " })] }),
+      Result.ok({ events: [candidate({ title: "" })] }),
+    );
+
+    const [event] = (await extract(MATHS_TEST)).getValue();
+
+    expect(event).toMatchObject({ title: "Évaluation", needsReview: true });
+  });
+
+  it("normalizes a time written with seconds and drops an unreadable one for review", async () => {
+    answers(Result.ok({ events: [candidate({ deadlineTime: "08:30:00" })] }));
+    const [withSeconds] = (await extract(MATHS_TEST)).getValue();
+
+    answers(
+      Result.ok({ events: [candidate({ deadlineTime: "le matin" })] }),
+      Result.ok({ events: [candidate({ deadlineTime: "le matin" })] }),
+    );
+    const [unreadable] = (await extract(MATHS_TEST)).getValue();
+
+    expect(withSeconds).toMatchObject({ deadlineTime: "08:30", needsReview: false });
+    expect(unreadable?.deadlineTime).toBeUndefined();
+    expect(unreadable?.needsReview).toBe(true);
   });
 
   it("reports a rate limit of the provider", async () => {

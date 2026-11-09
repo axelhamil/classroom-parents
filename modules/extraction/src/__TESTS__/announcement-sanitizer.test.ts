@@ -24,11 +24,37 @@ describe("sanitizeAnnouncement", () => {
     expect(sanitizeAnnouncement(text)).toBe(text);
   });
 
-  it("replaces the child's names whatever the case and accents, but not inside other words", () => {
-    const text = "Léa, LEA et lea-marie Martin. Merci à Léandre.";
+  it("replaces the full name whatever the case and the first name written as a proper noun", () => {
+    const text = "Léa-Marie Martin, LÉA-MARIE MARTIN, Léa-Marie et lea-marie. Merci à Léandre.";
 
     expect(sanitizeAnnouncement(text, "Léa-Marie Martin")).toBe(
-      "[ENFANT], [ENFANT] et [ENFANT]. Merci à Léandre.",
+      "[ENFANT], [ENFANT], [ENFANT] et lea-marie. Merci à Léandre.",
     );
+  });
+
+  it.each([
+    [
+      "Maël Le Gall",
+      "Le contrôle aura lieu le jeudi 19 novembre, Maël Le Gall apporte le cahier de Maël.",
+      "Le contrôle aura lieu le jeudi 19 novembre, [ENFANT] apporte le cahier de [ENFANT].",
+    ],
+    [
+      "Inès De La Fontaine",
+      "Rendre la fiche de la sortie. De La Fontaine Inès et Inès De La Fontaine.",
+      "Rendre la fiche de la sortie. De La Fontaine [ENFANT] et [ENFANT].",
+    ],
+    [
+      "Avril Dupont",
+      "Évaluation le 3 avril. Avril Dupont révise, Avril aussi.",
+      "Évaluation le 3 avril. [ENFANT] révise, Avril aussi.",
+    ],
+    [
+      "Mai",
+      "Sortie le 12 Mai, Mai apporte son pique-nique.",
+      "Sortie le 12 Mai, Mai apporte son pique-nique.",
+    ],
+    ["Ma fille", "Ma fille rend la fiche à ma collègue.", "[ENFANT] rend la fiche à ma collègue."],
+  ])("never erases an article or a date for the child %p", (childName, text, expected) => {
+    expect(sanitizeAnnouncement(text, childName)).toBe(expected);
   });
 });

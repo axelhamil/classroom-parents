@@ -1,8 +1,10 @@
-import { type IInstrumentation, Result, utcToZonedWall } from "@packages/ddd-kit";
+import { type IInstrumentation, Option, Result, utcToZonedWall } from "@packages/ddd-kit";
 import {
   EXTRACTED_DESCRIPTION_MAX,
+  EXTRACTED_TITLE_MAX,
   type ExtractedEvent,
   type ExtractionConfidence,
+  type ReviewReason,
 } from "../../domain/extracted-event";
 import { ExtractionCategory } from "../../domain/value-objects/extraction-category.vo";
 import type { ExtractionError, ILanguageModel, ModelTier } from "../ports/language-model.port";
@@ -63,8 +65,39 @@ function announcementBlock(text: string): string {
   return ["<announcement>", text.replace(DELIMITER_TAGS, ""), "</announcement>"].join("\n");
 }
 
+const TIME_PATTERN = /^(\d{1,2})\s*[:h]\s*(\d{2})(?::\d{2})?$/;
+
 function truncate(text: string, max: number): string {
   return Array.from(text.trim()).slice(0, max).join("").trim();
+}
+
+function truncateOnWord(text: string, max: number): string {
+  const chars = Array.from(text.trim().replace(/\s+/g, " "));
+  if (chars.length <= max) return chars.join("");
+
+  const cut = chars.slice(0, max + 1).join("");
+  const lastSpace = cut.lastIndexOf(" ");
+
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : chars.slice(0, max).join("")).trim();
+}
+
+function normalizedTime(raw: string | null): Result<Option<string>, "TIME_UNREADABLE"> {
+  if (raw === null || raw.trim() === "") return Result.ok(Option.none());
+
+  const match = TIME_PATTERN.exec(raw.trim());
+  const hours = Number(match?.[1]);
+  const minutes = Number(match?.[2]);
+  if (!match || hours > 23 || minutes > 59) return Result.fail("TIME_UNREADABLE");
+
+  return Result.ok(Option.some(`${String(hours).padStart(2, "0")}:${match[2]}`));
+}
+
+function escalationReasons(event: ExtractedEvent): ReviewReason[] {
+  return event.reviewReasons.filter((reason) => reason !== "relative_holiday");
+}
+
+function forReview(event: ExtractedEvent): ExtractedEvent {
+  return { ...event, needsReview: true };
 }
 
 function cappedConfidence(
@@ -97,9 +130,17 @@ export class ExtractionService {
 
         const first = await this.pass("fast", user, source, publishedOn);
         if (first.isFailure) return first;
-        if (!first.getValue().some((event) => event.needsReview)) return first;
 
-        return this.pass("strong", user, source, publishedOn);
+        const fastEvents = first.getValue();
+        const doubtful = fastEvents.some(
+          (event) => event.needsReview && escalationReasons(event).length > 0,
+        );
+        if (!doubtful) return first;
+
+        const second = await this.pass("strong", user, source, publishedOn);
+        if (second.isSuccess) return second;
+
+        return Result.ok(fastEvents.map(forReview));
       },
     );
   }
@@ -142,8 +183,10 @@ export class ExtractionService {
       });
 
     const reviewReasons = reviewReasonsFor(candidate, { source, publishedOn });
+    const title = truncateOnWord(candidate.title, EXTRACTED_TITLE_MAX);
+    const time = normalizedTime(candidate.deadlineTime);
     const event: ExtractedEvent = {
-      title: candidate.title.trim(),
+      title: title || category.getValue().label(),
       description: truncate(candidate.description, EXTRACTED_DESCRIPTION_MAX),
       category: category.getValue().value,
       deadlineDate: candidate.deadlineDate,
@@ -151,12 +194,14 @@ export class ExtractionService {
         candidate.confidence,
         reviewReasons.includes("relative_holiday"),
       ),
-      needsReview: reviewReasons.length > 0,
+      needsReview: reviewReasons.length > 0 || title === "" || time.isFailure,
       reviewReasons,
     };
 
+    const deadlineTime = time.unwrapOr(Option.none());
+
     return Result.ok(
-      candidate.deadlineTime ? { ...event, deadlineTime: candidate.deadlineTime } : event,
+      deadlineTime.isSome() ? { ...event, deadlineTime: deadlineTime.unwrap() } : event,
     );
   }
 }

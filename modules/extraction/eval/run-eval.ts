@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
-import type { Breadcrumb, IInstrumentation, SpanOptions } from "@packages/ddd-kit";
+import {
+  type Breadcrumb,
+  type IInstrumentation,
+  Result,
+  type SpanOptions,
+} from "@packages/ddd-kit";
 import { z } from "zod";
 import type { ILanguageModel, ModelTier } from "../src/application/ports/language-model.port";
 import { ExtractionService } from "../src/application/services/extraction.service";
@@ -84,15 +89,36 @@ class UsageRecorder implements IInstrumentation {
   }
 }
 
-function pinnedTo(tier: ModelTier, model: ILanguageModel): ILanguageModel {
-  return { parse: (request) => model.parse({ ...request, tier }) };
+const NO_SECOND_PASS = {
+  code: "EXTRACTION_PROVIDER_FAILURE",
+  message: "single tier evaluation",
+} as const;
+
+function singleTier(tier: ModelTier, model: ILanguageModel): ILanguageModel {
+  return {
+    parse: async (request) =>
+      request.tier === "strong" ? Result.fail(NO_SECOND_PASS) : model.parse({ ...request, tier }),
+  };
 }
 
 const CONFIGURATIONS: { name: string; wrap: (model: ILanguageModel) => ILanguageModel }[] = [
-  { name: "haiku only", wrap: (model) => pinnedTo("fast", model) },
+  { name: "haiku only", wrap: (model) => singleTier("fast", model) },
   { name: "haiku, sonnet on doubt", wrap: (model) => model },
-  { name: "sonnet only", wrap: (model) => pinnedTo("strong", model) },
+  { name: "sonnet only", wrap: (model) => singleTier("strong", model) },
 ];
+
+function countingEscalations(
+  model: ILanguageModel,
+  counter: { escalations: number },
+): ILanguageModel {
+  return {
+    parse: (request) => {
+      if (request.tier === "strong") counter.escalations += 1;
+
+      return model.parse(request);
+    },
+  };
+}
 
 function loadCases(): EvalCase[] {
   const path = process.env.EVAL_SET ?? join(import.meta.dir, "synthetic.jsonl");
@@ -124,8 +150,12 @@ async function evaluate(
   wrap: (m: ILanguageModel) => ILanguageModel,
 ) {
   const recorder = new UsageRecorder();
+  const counter = { escalations: 0 };
   const service = new ExtractionService(
-    wrap(new AnthropicLanguageModel(new Anthropic(), recorder)),
+    countingEscalations(
+      wrap(new AnthropicLanguageModel(new Anthropic({ timeout: 60_000 }), recorder)),
+      counter,
+    ),
     recorder,
   );
   const totals = { expected: 0, predicted: 0, correct: 0, review: 0, failures: 0 };
@@ -165,6 +195,7 @@ async function evaluate(
       `recall ${percent(totals.correct, totals.expected)}`,
       `to review ${percent(totals.review, totals.predicted)}`,
       `failed calls ${totals.failures}`,
+      `escalation requested ${percent(counter.escalations, cases.length)}`,
       `cost $${recorder.costInDollars().toFixed(4)} for ${cases.length} announcements`,
     ].join(" | "),
   );

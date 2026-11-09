@@ -18,7 +18,7 @@ const EFFORT_BY_TIER = {
   strong: "high",
 } as const satisfies Record<ModelTier, "low" | "medium" | "high">;
 
-const MAX_OUTPUT_TOKENS = 4096;
+const MAX_OUTPUT_TOKENS = 16_000;
 
 const RATE_LIMITED: ExtractionError = {
   code: "EXTRACTION_RATE_LIMITED",
@@ -30,7 +30,8 @@ const PROVIDER_FAILURE: ExtractionError = {
 };
 const OUTPUT_INVALID: ExtractionError = {
   code: "EXTRACTION_OUTPUT_INVALID",
-  message: "La réponse du service d'extraction était illisible, l'annonce est à vérifier.",
+  message:
+    "La réponse du service d'extraction était illisible, l'annonce sera relue au prochain passage.",
 };
 
 class OutputRejected extends Error {

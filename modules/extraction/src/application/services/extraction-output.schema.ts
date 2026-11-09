@@ -8,10 +8,10 @@ const extractedCandidateSchema = z.object({
     .describe("French, one or two sentences on what to do or prepare, at most 300 characters"),
   category: extractionCategorySchema,
   deadlineDate: z.iso.date().describe("YYYY-MM-DD, Europe/Paris calendar day"),
-  deadlineTime: z.iso
-    .time({ precision: -1 })
+  deadlineTime: z
+    .string()
     .nullable()
-    .describe("HH:mm 24h, only when written in the announcement, else null"),
+    .describe("HH:mm on 24 hours, only when written in the announcement, else null"),
   confidence: z.enum(["high", "medium", "low"]),
   dateExpression: z.string().describe("Verbatim words of the announcement that fix the date"),
   evidenceQuote: z.string().describe("Verbatim sentence of the announcement supporting the event"),

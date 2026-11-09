@@ -35,7 +35,7 @@ describe("reviewReasonsFor", () => {
   });
 
   it("accepts the deadline on the publication day and 400 days later, not 401", () => {
-    const sameDay = { dateExpression: "", evidenceQuote: "Sortie au musée" };
+    const sameDay = { dateExpression: "Sortie au musée", evidenceQuote: "Sortie au musée" };
 
     expect(reasons({ ...sameDay, deadlineDate: "2026-11-09" })).toEqual([]);
     expect(reasons({ ...sameDay, deadlineDate: "2027-12-14" })).toEqual([]);
@@ -55,5 +55,64 @@ describe("reviewReasonsFor", () => {
 
   it("flags a low confidence", () => {
     expect(reasons({ confidence: "low" })).toEqual(["low_confidence"]);
+  });
+
+  describe("consistency of the deadline with the written day", () => {
+    const text = "Évaluation de maths jeudi 19 novembre";
+    const check = (overrides: Partial<ExtractedCandidate>, source = text) =>
+      reviewReasonsFor(candidate({ evidenceQuote: source, ...overrides }), {
+        source,
+        publishedOn: "2026-11-09",
+      });
+
+    it("flags a deadline that is not the day the announcement writes", () => {
+      expect(check({ dateExpression: "19 novembre", deadlineDate: "2026-11-20" })).toEqual([
+        "weekday_mismatch",
+      ]);
+      expect(check({ dateExpression: "19 novembre", deadlineDate: "2026-11-26" })).toEqual([
+        "weekday_mismatch",
+      ]);
+    });
+
+    it("flags a deadline whose weekday contradicts the weekday written next to its day", () => {
+      const teacherSlip = "Contrôle jeudi 20 novembre";
+
+      expect(
+        check({ dateExpression: "20 novembre", deadlineDate: "2026-11-20" }, teacherSlip),
+      ).toEqual(["weekday_mismatch"]);
+    });
+
+    it("flags an event whose date expression is empty", () => {
+      expect(check({ dateExpression: "", deadlineDate: "2026-11-20" })).toContain(
+        "quote_not_in_text",
+      );
+    });
+  });
+
+  it("flags a past date the model pushed to the next year", () => {
+    const source = "Fiche à rendre pour le 6 novembre";
+
+    expect(
+      reviewReasonsFor(
+        candidate({
+          category: "document_due",
+          deadlineDate: "2027-11-06",
+          dateExpression: "le 6 novembre",
+          evidenceQuote: source,
+        }),
+        { source, publishedOn: "2026-11-09" },
+      ),
+    ).toEqual(["date_before_publication"]);
+  });
+
+  it("matches a quote whatever the quotation marks", () => {
+    const source = "Le « contrôle » de jeudi 19 novembre";
+
+    expect(
+      reviewReasonsFor(candidate({ evidenceQuote: 'Le "contrôle" de jeudi 19 novembre' }), {
+        source,
+        publishedOn: "2026-11-09",
+      }),
+    ).toEqual([]);
   });
 });

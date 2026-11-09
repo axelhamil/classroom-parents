@@ -5,6 +5,8 @@ import type { ILanguageModel } from "./application/ports/language-model.port";
 import { ExtractionService } from "./application/services/extraction.service";
 import { AnthropicLanguageModel } from "./infrastructure/adapters/anthropic-language-model";
 
+const LLM_TIMEOUT_MS = 60_000;
+
 export interface ExtractionSettings {
   anthropicApiKey: string;
 }
@@ -20,7 +22,7 @@ export const extractionModule = defineModule<ExtractionPrerequisites>()((b) =>
       "ILanguageModel",
       (c): ILanguageModel =>
         new AnthropicLanguageModel(
-          new Anthropic({ apiKey: c.extractionSettings.anthropicApiKey }),
+          new Anthropic({ apiKey: c.extractionSettings.anthropicApiKey, timeout: LLM_TIMEOUT_MS }),
           c.IInstrumentation,
         ),
     )
