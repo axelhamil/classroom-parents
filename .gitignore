@@ -50,3 +50,6 @@ docs/superpowers/
 **/tsup.config.bundled_*.mjs
 
 .worktrees/
+
+# Real extraction evaluation set, never committed (minors data)
+modules/extraction/eval/local/
