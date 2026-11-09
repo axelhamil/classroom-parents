@@ -6,6 +6,12 @@ import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware } from "better-auth/api";
 import { di } from "./container";
+import {
+  childAccountLinking,
+  linkedAccountHooks,
+  refuseChildSignIn,
+  throughChildProvider,
+} from "./shared/auth/child-accounts";
 import { GOOGLE_IDENTITY_SCOPES } from "./shared/auth/google-scopes";
 import { asUnitOfWork } from "./shared/auth/unit-of-work-adapter";
 import { env } from "./shared/env";
@@ -38,10 +44,12 @@ const authOptions = {
       clientSecret: env.GOOGLE_CLIENT_SECRET,
       disableDefaultScope: true,
       scope: [...GOOGLE_IDENTITY_SCOPES],
-      accessType: "offline",
-      prompt: "select_account consent",
     },
   },
+
+  plugins: [
+    childAccountLinking({ clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }),
+  ],
 
   account: {
     encryptOAuthTokens: true,
@@ -71,6 +79,10 @@ const authOptions = {
   },
 
   hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/sign-in/social" && throughChildProvider(ctx)) refuseChildSignIn();
+    }),
+
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/verify-email") {
         const verified = ctx.context.newSession?.user;
@@ -109,7 +121,10 @@ const authOptions = {
     session: {
       create: {
         // BetterAuth fills ipAddress from raw X-Forwarded-For; keep the trusted-proxy value instead.
-        before: async (session) => ({ data: { ...session, ipAddress: getClientIp() ?? null } }),
+        before: async (session, context) => {
+          if (context && throughChildProvider(context)) return false;
+          return { data: { ...session, ipAddress: getClientIp() ?? null } };
+        },
         after: async (session) => {
           await emit(EventTypes.USER_SIGNED_IN, "session", session.id, {
             userId: session.userId,
@@ -120,26 +135,7 @@ const authOptions = {
         },
       },
     },
-    account: {
-      create: {
-        after: async (account) => {
-          await emit(EventTypes.USER_ACCOUNT_LINKED, "account", account.id, {
-            userId: account.userId,
-            providerId: account.providerId,
-            accountId: account.accountId,
-          });
-        },
-      },
-      delete: {
-        after: async (account) => {
-          await emit(EventTypes.USER_ACCOUNT_UNLINKED, "account", account.id, {
-            userId: account.userId,
-            providerId: account.providerId,
-            accountId: account.accountId,
-          });
-        },
-      },
-    },
+    account: linkedAccountHooks(emit),
   },
 } satisfies BetterAuthOptions;
 

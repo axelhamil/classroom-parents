@@ -63,31 +63,78 @@ describe("auth after hook, /verify-email", () => {
   });
 });
 
+const accountHooks = auth.options.databaseHooks.account;
+const sessionBefore = auth.options.databaseHooks.session.create.before;
+
 describe("session creation", () => {
   it("stores the trusted-proxy ip, not the client X-Forwarded-For", async () => {
-    const before = auth.options.databaseHooks?.session?.create?.before;
-    if (!before) throw new Error("auth has no session.create.before hook");
-
     const result = await runWithRequestContext(
       { requestId: "req-1", clientIp: () => RESOLVED_IP },
-      () => before(signedIn.session as never),
+      () => sessionBefore(signedIn.session as never, null),
     );
 
-    expect(result.data.ipAddress).toBe(RESOLVED_IP);
+    expect(typeof result === "object" && result.data.ipAddress).toBe(RESOLVED_IP);
   });
 });
 
-describe("google identity and linked children", () => {
-  const google = auth.options.socialProviders.google;
+describe("a linked child's google account", () => {
+  const [linking] = auth.options.plugins;
+  const [child] = linking.options.config;
 
-  it("asks google only for the parent identity at sign-in", () => {
-    expect(google.disableDefaultScope).toBe(true);
-    expect(google.scope).toEqual(["openid", "email", "profile"]);
+  it("is never a way to sign in", async () => {
+    const before = auth.options.hooks.before;
+
+    const attempt = before({
+      path: "/sign-in/social",
+      body: { provider: "google-classroom" },
+    } as never);
+
+    await expect(attempt).rejects.toMatchObject({
+      body: { code: "CHILD_ACCOUNT_SIGN_IN_FORBIDDEN" },
+    });
   });
 
-  it("asks for an offline grant and lets the parent pick the child's account", () => {
-    expect(google.accessType).toBe("offline");
-    expect(google.prompt).toBe("select_account consent");
+  it("never opens a session, even from its oauth callback", async () => {
+    const callback = { path: "/callback/:id", params: { id: "google-classroom" } };
+
+    expect(await sessionBefore(signedIn.session as never, callback as never)).toBe(false);
+  });
+
+  it("is linked under its own provider with the classroom scopes, offline and consent", () => {
+    expect(child?.providerId).toBe("google-classroom");
+    expect(child?.scopes).toEqual([
+      "openid",
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/classroom.courses.readonly",
+      "https://www.googleapis.com/auth/classroom.announcements.readonly",
+    ]);
+    expect(child?.accessType).toBe("offline");
+    expect(child?.prompt).toBe("select_account consent");
+  });
+
+  it("keeps no id token at rest", async () => {
+    const created = await accountHooks.create?.before?.(
+      { idToken: "eyJ.child.jwt" } as never,
+      null,
+    );
+    const updated = await accountHooks.update?.before?.({ idToken: "eyJ.child.jwt" }, null);
+
+    expect(typeof created === "object" && created.data.idToken).toBeNull();
+    expect(typeof updated === "object" && updated.data.idToken).toBeNull();
+  });
+});
+
+describe("the parent's google sign-in", () => {
+  const google = auth.options.socialProviders.google;
+
+  it("asks only for the parent identity, with no offline grant", () => {
+    expect(google).toMatchObject({
+      disableDefaultScope: true,
+      scope: ["openid", "email", "profile"],
+    });
+    expect("accessType" in google).toBe(false);
+    expect("prompt" in google).toBe(false);
   });
 
   it("links a child account whose email differs from the parent's", () => {
@@ -130,7 +177,12 @@ describe("account events", () => {
     enqueue.mockClear();
   });
 
-  const account = { id: "account-1", userId: "user-1", providerId: "google", accountId: "g-1" };
+  const childAccount = {
+    id: "account-1",
+    userId: "user-1",
+    providerId: "google-classroom",
+    accountId: "g-1",
+  };
 
   function emitted(eventType: string) {
     return enqueue.mock.calls
@@ -139,23 +191,25 @@ describe("account events", () => {
       .map((event) => event.payload);
   }
 
-  it("announces a linked google account", async () => {
-    const after = auth.options.databaseHooks.account.create.after;
-
-    await after(account as never);
+  it("announces a linked child account", async () => {
+    await accountHooks.create?.after?.(childAccount as never, null);
 
     expect(emitted(EventTypes.USER_ACCOUNT_LINKED)).toEqual([
-      { userId: "user-1", providerId: "google", accountId: "g-1" },
+      { userId: "user-1", providerId: "google-classroom", accountId: "g-1" },
     ]);
   });
 
-  it("announces an unlinked account, which rgpd relies on", async () => {
-    const after = auth.options.databaseHooks.account.delete.after;
+  it("does not announce the parent's own sign-in account as a linked child", async () => {
+    await accountHooks.create?.after?.({ ...childAccount, providerId: "google" } as never, null);
 
-    await after(account as never);
+    expect(emitted(EventTypes.USER_ACCOUNT_LINKED)).toEqual([]);
+  });
+
+  it("announces an unlinked account, which rgpd relies on", async () => {
+    await accountHooks.delete?.after?.(childAccount as never, null);
 
     expect(emitted(EventTypes.USER_ACCOUNT_UNLINKED)).toEqual([
-      { userId: "user-1", providerId: "google", accountId: "g-1" },
+      { userId: "user-1", providerId: "google-classroom", accountId: "g-1" },
     ]);
   });
 });

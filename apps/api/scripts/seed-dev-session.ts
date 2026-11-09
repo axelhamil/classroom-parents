@@ -1,3 +1,7 @@
+import { exitUnlessLocalDatabase } from "@packages/test/db-check";
+
+exitUnlessLocalDatabase("seed-dev-session", process.env.DATABASE_URL);
+
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";

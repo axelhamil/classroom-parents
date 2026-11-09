@@ -97,10 +97,15 @@ jobs:
         run: pnpm --filter api check:outbox-lease
 
       - name: Check the sealing of linked Google tokens against a real database
-        # Tokens are sealed by the library's write paths and rewritten on refresh; only
-        # the stored column proves they are never in clear nor sealed twice. Google's
-        # token endpoint is stubbed, the probe user is removed.
+        # A parent links a child through the real link callback, then refreshes twice;
+        # only the stored columns prove the library seals the tokens once, never in clear,
+        # and keeps no id token. Google's token endpoint is stubbed, the probes are removed.
         run: pnpm --filter api check:token-sealing
+
+      - name: Check that a linked child account never opens the parent's session
+        # BetterAuth finds a sign-in's owner by provider and account id; only the real
+        # OAuth endpoints over a real database prove the child provider cannot sign in.
+        run: pnpm --filter api check:child-sign-in
 
       - name: Seed the audited account and its session
         # Writes the signed session cookie the accessibility setup loads (no password sign-in).

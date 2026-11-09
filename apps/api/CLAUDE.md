@@ -107,4 +107,4 @@ BDD style, runner `bun test`. One test file per service, store, DTO or route fil
 ## Commands
 
 - **Tests**: `pnpm --filter api test` (`bun test --isolate --parallel`); a bare `bun test` drops file isolation. The tests read `apps/api/.env`, so run `pnpm bootstrap` then `scripts/worktree-db.sh` first.
-- **Real-database checks**: `pnpm --filter api check:{uow-rollback,outbox-lease,wipe-rollback}`. Each refuses any database but this worktree's local one (`requireLocalDatabase` from `@packages/test/db-check`: localhost, port 54329, `classroom_parents[_<slug>]`) and is wired in `.github/workflows/ci.yml`. Re-run the matching one after touching the code it covers.
+- **Real-database checks**: `pnpm --filter api check:{uow-rollback,outbox-lease,wipe-rollback,token-sealing,child-sign-in}`. Each refuses any database but this worktree's local one (`requireLocalDatabase` from `@packages/test/db-check`: localhost, port 54329, `classroom_parents[_<slug>]`) and is wired in `.github/workflows/ci.yml`. Re-run the matching one after touching the code it covers.

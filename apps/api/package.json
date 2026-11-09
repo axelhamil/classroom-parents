@@ -17,6 +17,7 @@
     "check:uow-rollback": "bun scripts/check-uow-rollback.ts",
     "check:outbox-lease": "bun scripts/check-outbox-lease.ts",
     "check:token-sealing": "bun scripts/check-token-sealing.ts",
+    "check:child-sign-in": "bun scripts/check-child-sign-in.ts",
     "start": "bun dist/migrate.js && bun dist/index.js",
     "type-check": "tsc --noEmit",
     "test": "bun test --isolate --parallel --pass-with-no-tests",
