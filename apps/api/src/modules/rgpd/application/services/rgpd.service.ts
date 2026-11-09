@@ -3,32 +3,17 @@ import type { IEmailService } from "@packages/email/email.port";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import type { IStaffStore } from "../../../../shared/ports/staff-store.port";
-import type { IStorageService, StorageError } from "../../../../shared/ports/storage.port";
-import type { ITotpVerifier } from "../../../../shared/ports/totp-verifier.port";
 import type { RgpdSettings } from "../config/rgpd-settings";
 import type {
   ExecuteWipeOutput,
   IRgpdRepository,
   RgpdError,
-  SoleOwnedOrgWithMembers,
   UserDeletionState,
 } from "../ports/rgpd.port";
-import type { IStaffAccessRules } from "../ports/staff-access-rules.port";
-
-const EXPORT_DOWNLOAD_TTL_SECONDS = 7 * 24 * 60 * 60;
-
-export interface PreflightAccountDeletionInput {
-  userId: string;
-}
-export interface PreflightAccountDeletionOutput {
-  blockingOrgs: SoleOwnedOrgWithMembers[];
-}
 
 export interface RequestAccountDeletionInput {
   userId: string;
-  totpCode?: string;
-  password?: string;
+  password: string;
 }
 export interface RequestAccountDeletionOutput {
   pendingDeletionUntil: string;
@@ -45,8 +30,7 @@ export interface ExecuteAccountWipeInput {
   userId: string;
 }
 export interface ExecuteAccountWipeOutput {
-  deletedOrgIds: string[];
-  storageKeysDeleted: number;
+  alreadyWiped: boolean;
 }
 
 export interface ProcessPendingDeletionsInput {
@@ -63,43 +47,16 @@ export interface ProcessPendingDeletionsOutput {
   truncated: boolean;
 }
 
-export interface RequestDataExportInput {
-  userId: string;
-}
-export interface RequestDataExportOutput {
-  ok: true;
-  expiresAt: string;
-}
-
 export class RgpdService {
   constructor(
     private readonly rgpd: IRgpdRepository,
-    private readonly storage: IStorageService,
     private readonly email: IEmailService,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
-    private readonly staff: IStaffStore,
-    private readonly staffAccess: IStaffAccessRules,
-    private readonly totp: ITotpVerifier,
     private readonly settings: Omit<RgpdSettings, "sweepBatchSize">,
     private readonly logger: ILogger,
   ) {}
-
-  async preflightAccountDeletion(
-    input: PreflightAccountDeletionInput,
-  ): Promise<Result<PreflightAccountDeletionOutput, RgpdError>> {
-    return this.instrumentation.startSpan(
-      { name: "RgpdService > preflightAccountDeletion", op: "function" },
-      async () => {
-        const blockingResult = await this.rgpd.findSoleOwnedNonPersonalOrgsWithMembers(
-          input.userId,
-        );
-        if (blockingResult.isFailure) return Result.fail(blockingResult.getError());
-        return Result.ok({ blockingOrgs: blockingResult.getValue() });
-      },
-    );
-  }
 
   async requestAccountDeletion(
     input: RequestAccountDeletionInput,
@@ -117,48 +74,13 @@ export class RgpdService {
             pendingDeletionUntil: state.pendingDeletionUntil.unwrap().toISOString(),
           });
 
-        const blockingResult = await this.rgpd.findSoleOwnedNonPersonalOrgsWithMembers(
-          input.userId,
-        );
-        if (blockingResult.isFailure) return Result.fail(blockingResult.getError());
-        const blocking = blockingResult.getValue();
-        if (blocking.length > 0)
-          return Result.fail({
-            code: "ACCOUNT_DELETION_BLOCKED",
-            message:
-              "transfer ownership or delete the listed organizations before account deletion",
-            metadata: { offendingOrgs: blocking },
-          });
-
-        if (state.twoFactorEnabled) {
-          if (!input.totpCode)
-            return Result.fail({
-              code: "TWO_FACTOR_REQUIRED",
-              message: "two-factor TOTP code required",
-            });
-
-          const totpResult = await this.totp.consume(input.userId, input.totpCode);
-          if (totpResult.isFailure) return Result.fail(totpResult.getError());
-          if (totpResult.getValue() !== "accepted")
-            return Result.fail({ code: "TWO_FACTOR_INVALID", message: "invalid TOTP code" });
-        } else {
-          if (!input.password)
-            return Result.fail({
-              code: "ACCOUNT_PASSWORD_REQUIRED",
-              message: "password required to confirm deletion",
-            });
-
-          const pwdResult = await this.rgpd.verifyPassword(input.userId, input.password);
-          if (pwdResult.isFailure) return Result.fail(pwdResult.getError());
-          if (!pwdResult.getValue())
-            return Result.fail({ code: "ACCOUNT_PASSWORD_INVALID", message: "invalid password" });
-        }
+        const pwdResult = await this.rgpd.verifyPassword(input.userId, input.password);
+        if (pwdResult.isFailure) return Result.fail(pwdResult.getError());
+        if (!pwdResult.getValue())
+          return Result.fail({ code: "ACCOUNT_PASSWORD_INVALID", message: "invalid password" });
 
         const until = new Date(Date.now() + this.settings.gracePeriodDays * 24 * 60 * 60 * 1000);
         const txResult = await this.transactions.run(async () => {
-          const refused = await this.refusedLastManager(input.userId);
-          if (refused.isFailure) return refused;
-
           const marked = await this.rgpd.markPendingDeletion(input.userId, until);
           if (marked.isFailure) return marked;
           await emitEvent(
@@ -180,7 +102,6 @@ export class RgpdService {
           { name: state.name, cancelUrl, expiresAt: until.toISOString() },
           {
             idempotencyKey: `delete-requested/${input.userId}/${until.getTime()}`,
-            locale: state.locale.toUndefined(),
           },
         );
         if (sent.isFailure)
@@ -238,7 +159,6 @@ export class RgpdService {
           { name: state.name },
           {
             idempotencyKey: `delete-cancelled/${input.userId}/${pendingUntil.getTime()}`,
-            locale: state.locale.toUndefined(),
           },
         );
         if (sent.isFailure)
@@ -262,8 +182,7 @@ export class RgpdService {
         if (stateResult.isFailure) return Result.fail(stateResult.getError());
 
         const state = stateResult.getValue();
-        if (state.deletedAt.isSome())
-          return Result.ok({ deletedOrgIds: [], storageKeysDeleted: 0 });
+        if (state.deletedAt.isSome()) return Result.ok({ alreadyWiped: true });
 
         if (state.pendingDeletionUntil.isNone() || state.pendingDeletionUntil.unwrap() > new Date())
           return Result.fail({
@@ -273,7 +192,6 @@ export class RgpdService {
 
         const originalEmail = state.email;
         const originalName = state.name;
-        const originalLocale = state.locale;
 
         let inner: Result<ExecuteWipeOutput, RgpdError>;
         try {
@@ -281,16 +199,6 @@ export class RgpdService {
             const wipe = await this.rgpd.executeWipe(input.userId);
             if (wipe.isFailure) return wipe;
             if (wipe.getValue().alreadyWiped) return wipe;
-
-            await this.staffAccess.announceImpersonationsEnded(
-              wipe.getValue().endedImpersonations,
-              "revoked",
-              new Date(),
-            );
-
-            const revoked = await this.revokeStaffAccess(input.userId);
-            if (revoked.isFailure)
-              return Result.fail<ExecuteWipeOutput, RgpdError>(revoked.getError());
 
             await emitEvent(
               this.outbox,
@@ -300,48 +208,11 @@ export class RgpdService {
               { userId: input.userId, deletedAt: new Date() },
               {},
             );
-            for (const orgId of wipe.getValue().deletedOrgIds) {
-              await emitEvent(
-                this.outbox,
-                EventTypes.ORG_DELETED,
-                "organization",
-                orgId,
-                { organizationId: orgId, actorUserId: input.userId },
-                { organizationId: orgId },
-              );
-            }
-            for (const { memberId, organizationId } of wipe.getValue().removedMemberships) {
-              await emitEvent(
-                this.outbox,
-                EventTypes.ORG_MEMBER_REMOVED,
-                "member",
-                memberId,
-                { organizationId, actorUserId: input.userId, userId: input.userId },
-                { organizationId },
-              );
-            }
-            for (const { tokenId, organizationId } of wipe.getValue().revokedTokens) {
-              await emitEvent(
-                this.outbox,
-                EventTypes.API_TOKEN_REVOKED,
-                "api_token",
-                tokenId,
-                {
-                  userId: input.userId,
-                  actorUserId: input.userId,
-                  organizationId: organizationId.toNull(),
-                  tokenId,
-                  reason: "user" as const,
-                },
-                { organizationId: organizationId.toNull() },
-              );
-            }
             const notified = await this.email.sendTemplate(
               "delete_completed",
               originalEmail,
               { name: originalName },
               {
-                locale: originalLocale.toUndefined(),
                 idempotencyKey: `delete-completed/${input.userId}`,
               },
             );
@@ -379,54 +250,9 @@ export class RgpdService {
             message: "wipe transaction failed",
           });
         }
-        const wipeOutput = inner.getValue();
-
-        const storageKeysDeleted = await this.purgeUserObjects(input.userId);
-
-        return Result.ok({ deletedOrgIds: wipeOutput.deletedOrgIds, storageKeysDeleted });
+        return Result.ok({ alreadyWiped: inner.getValue().alreadyWiped });
       },
     );
-  }
-
-  private async refusedLastManager(userId: string): Promise<Result<void, RgpdError>> {
-    if (this.staffAccess.isListed(userId)) return Result.ok();
-
-    const found = await this.staff.findActive(userId);
-    if (found.isFailure) return Result.fail(found.getError());
-
-    const isManager = found
-      .getValue()
-      .filter((row) => row.role === "manager" && this.staffAccess.grantsStaffAccess(row))
-      .isSome();
-    if (!isManager) return Result.ok();
-
-    const managers = await this.staff.lockActiveManagers();
-    if (managers.isFailure) return Result.fail(managers.getError());
-    if (!this.staffAccess.isLastManager(userId, managers.getValue())) return Result.ok();
-
-    return Result.fail({
-      code: "ACCOUNT_DELETION_LAST_MANAGER_FORBIDDEN",
-      message: "appoint another staff manager before deleting this account",
-    });
-  }
-
-  private async revokeStaffAccess(userId: string): Promise<Result<void, RgpdError>> {
-    const found = await this.staff.findActive(userId);
-    if (found.isFailure) return Result.fail(found.getError());
-    if (found.getValue().isNone()) return Result.ok();
-
-    const revoked = await this.staff.revoke(userId);
-    if (revoked.isFailure) return Result.fail(revoked.getError());
-
-    await this.staffAccess.announceImpersonationsEnded(revoked.getValue(), "revoked", new Date());
-
-    await emitEvent(this.outbox, EventTypes.ADMIN_STAFF_REVOKED, "user", userId, {
-      actorUserId: userId,
-      userId,
-      role: found.getValue().unwrap().role,
-    });
-
-    return Result.ok();
   }
 
   async processPendingDeletions(
@@ -466,7 +292,7 @@ export class RgpdService {
 
         for (const row of batch) {
           // Checked between wipes, never inside one: executeAccountWipe owns a transaction
-          // with cascade deletes and storage calls, and cutting it short would leave a
+          // with cascade deletes, and cutting it short would leave a
           // half-erased account, the one outcome an Art. 17 sweep must never produce.
           if (now() >= deadlineAt) {
             truncated = true;
@@ -516,97 +342,6 @@ export class RgpdService {
     );
   }
 
-  async requestDataExport(
-    input: RequestDataExportInput,
-  ): Promise<Result<RequestDataExportOutput, RgpdError | StorageError>> {
-    return this.instrumentation.startSpan(
-      { name: "RgpdService > requestDataExport", op: "function" },
-      async () => {
-        const stateResult = await this.loadDeletionState(input.userId);
-        if (stateResult.isFailure) return Result.fail(stateResult.getError());
-
-        const state = stateResult.getValue();
-
-        const exportRateLimitHours = this.settings.exportRateLimitHours;
-        const minNextRequestAt = state.lastExportRequestedAt.isSome()
-          ? state.lastExportRequestedAt.unwrap().getTime() + exportRateLimitHours * 60 * 60 * 1000
-          : 0;
-        if (Date.now() < minNextRequestAt) {
-          return Result.fail({
-            code: "ACCOUNT_EXPORT_RATE_LIMITED",
-            message: `data export limited to once per ${exportRateLimitHours}h`,
-          });
-        }
-
-        const payloadResult = await this.rgpd.collectUserDataForExport(input.userId);
-        if (payloadResult.isFailure) return Result.fail(payloadResult.getError());
-        const payload = payloadResult.getValue();
-        const key = `${input.userId}/exports/${crypto.randomUUID()}.json`;
-
-        const upload = await this.storage.uploadObject({
-          key,
-          body: JSON.stringify(payload, null, 2),
-          contentType: "application/json",
-        });
-        if (upload.isFailure) return Result.fail(upload.getError());
-
-        const presigned = await this.storage.presignDownload({
-          key,
-          expiresInSeconds: EXPORT_DOWNLOAD_TTL_SECONDS,
-        });
-        if (presigned.isFailure) return Result.fail(presigned.getError());
-
-        const txResult = await this.transactions.run(async () => {
-          const touched = await this.rgpd.touchExportRequestedAt(input.userId);
-          if (touched.isFailure) return touched;
-          await emitEvent(
-            this.outbox,
-            EventTypes.USER_EXPORT_REQUESTED,
-            "user",
-            input.userId,
-            { userId: input.userId },
-            {},
-          );
-          await emitEvent(
-            this.outbox,
-            EventTypes.USER_EXPORT_COMPLETED,
-            "user",
-            input.userId,
-            {
-              userId: input.userId,
-              storageKey: key,
-              expiresAt: new Date(presigned.getValue().expiresAt),
-            },
-            {},
-          );
-          return Result.ok<RgpdError>();
-        });
-        if (txResult.isFailure) return Result.fail(txResult.getError());
-
-        const sent = await this.email.sendTemplate(
-          "data_export_ready",
-          state.email,
-          {
-            name: state.name,
-            downloadUrl: presigned.getValue().url,
-            expiresAt: presigned.getValue().expiresAt,
-          },
-          {
-            idempotencyKey: `data-export/${key}`,
-            locale: state.locale.toUndefined(),
-          },
-        );
-        if (sent.isFailure)
-          this.logger.warn(
-            { userId: input.userId, code: sent.getError().code },
-            "data export upload succeeded but email failed",
-          );
-
-        return Result.ok({ ok: true, expiresAt: presigned.getValue().expiresAt });
-      },
-    );
-  }
-
   private async loadDeletionState(userId: string): Promise<Result<UserDeletionState, RgpdError>> {
     const stateResult = await this.rgpd.getUserDeletionState(userId);
     if (stateResult.isFailure) return Result.fail(stateResult.getError());
@@ -617,27 +352,5 @@ export class RgpdService {
     }
 
     return Result.ok(state.unwrap());
-  }
-
-  private async purgeUserObjects(userId: string): Promise<number> {
-    const list = await this.storage.listObjectKeys(`${userId}/`);
-    if (list.isFailure) {
-      this.logger.warn(
-        { userId, code: list.getError().code },
-        "storage prefix listing failed after wipe: orphaned blobs need manual cleanup",
-      );
-      return 0;
-    }
-
-    const keys = list.getValue();
-    const deleted = await this.storage.deleteObjects(keys);
-    if (deleted.isFailure) {
-      this.logger.warn(
-        { userId, code: deleted.getError().code },
-        "storage prefix delete failed after wipe: orphaned blobs need manual cleanup",
-      );
-    }
-
-    return keys.length;
   }
 }

@@ -12,15 +12,8 @@
     "check:a11y": "playwright test --config a11y/playwright.config.ts"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.7.14",
-    "@better-auth/sso": "1.7.14",
-    "@better-auth/stripe": "1.7.14",
     "@hookform/resolvers": "^6.0.1",
-    "@packages/access-control": "workspace:*",
-    "@packages/cookie-consent": "workspace:*",
-    "@packages/events": "workspace:*",
     "@packages/i18n": "workspace:*",
-    "@packages/policies": "workspace:*",
     "@packages/sentry-scrub": "workspace:*",
     "@packages/ui": "workspace:*",
     "@packages/web-kit": "workspace:*",
@@ -32,7 +25,6 @@
     "hono": "^4.13.14",
     "i18next": "^26.5.11",
     "lucide-react": "^1.62.0",
-    "qrcode.react": "^4.2.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-hook-form": "^7.91.0",

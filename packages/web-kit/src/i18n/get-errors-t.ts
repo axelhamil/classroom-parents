@@ -1,4 +1,4 @@
-import { enCatalog } from "@packages/i18n";
+import { frCatalog } from "@packages/i18n";
 import type { TFunction } from "i18next";
 import { getI18n } from "./i18n";
 
@@ -16,7 +16,7 @@ export function getErrorsT(): TFunction<"errors"> {
     opts?.defaultValue ?? key) as TFunction<"errors">;
 }
 
-export type ErrorFallbackKey = keyof typeof enCatalog.errors.fallback;
+export type ErrorFallbackKey = keyof typeof frCatalog.errors.fallback;
 
 /**
  * The last-resort copy for a failed request (`errors.fallback.*`), resolved
@@ -25,5 +25,5 @@ export type ErrorFallbackKey = keyof typeof enCatalog.errors.fallback;
  * boot it answers with the English catalog value, never the raw key.
  */
 export function errorFallback(key: ErrorFallbackKey): string {
-  return getErrorsT()(`fallback.${key}`, { defaultValue: enCatalog.errors.fallback[key] });
+  return getErrorsT()(`fallback.${key}`, { defaultValue: frCatalog.errors.fallback[key] });
 }

@@ -7,7 +7,6 @@ const envSchema = z.object({
   VITE_SENTRY_DSN: blankAsAbsent(z.url()),
   VITE_SENTRY_ENVIRONMENT: blankAsAbsent(z.string()),
   VITE_GIT_SHA: blankAsAbsent(z.string()),
-  VITE_ANALYTICS_SRC: blankAsAbsent(z.url()),
 });
 
 export const env = envSchema.parse(import.meta.env);

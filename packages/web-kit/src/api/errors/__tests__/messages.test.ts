@@ -1,22 +1,24 @@
-import enCatalog from "@packages/i18n/src/catalogs/en";
+import frCatalog from "@packages/i18n/src/catalogs/fr";
 import { describe, expect, it } from "vitest";
 import { catalogT } from "../../../i18n/__tests__/catalog-t";
 import { formatApiError } from "../messages";
 
-const t = catalogT(enCatalog.errors);
+const t = catalogT(frCatalog.errors);
 
 describe("formatApiError", () => {
   it("prefers an exact code over a suffix", () => {
-    expect(formatApiError({ code: "ACCOUNT_PASSWORD_INVALID" }, "fb", t)).toBe("Invalid password.");
+    expect(formatApiError({ code: "ACCOUNT_PASSWORD_INVALID" }, "fb", t)).toBe(
+      "Mot de passe invalide.",
+    );
   });
 
   it("falls back to the suffix table", () => {
-    expect(formatApiError({ code: "WEBHOOK_NOT_FOUND" }, "fb", t)).toBe("Not found.");
+    expect(formatApiError({ code: "WEBHOOK_NOT_FOUND" }, "fb", t)).toBe("Introuvable.");
   });
 
   it("matches the longest suffix, not the first", () => {
     expect(formatApiError({ code: "AUDIT_INTEGRITY_FAILED" }, "fb", t)).toBe(
-      "Data integrity check failed. Please try again.",
+      "Le contrôle d'intégrité a échoué. Veuillez réessayer.",
     );
   });
 
@@ -36,10 +38,10 @@ describe("formatApiError", () => {
 
   it("resolves an HTTP_<status> code (no business code) through the byStatus table", () => {
     expect(formatApiError({ status: 400, code: "HTTP_400", message: "url: bad" }, "fb", t)).toBe(
-      enCatalog.errors.byStatus["400"],
+      frCatalog.errors.byStatus["400"],
     );
     expect(formatApiError({ status: 403, code: "HTTP_403", message: "raw" }, "fb", t)).toBe(
-      enCatalog.errors.byStatus["403"],
+      frCatalog.errors.byStatus["403"],
     );
   });
 
@@ -56,28 +58,28 @@ describe("formatApiError", () => {
 
   it("resolves the validator code through the suffix table", () => {
     expect(formatApiError({ status: 400, code: "REQUEST_INVALID", message: "raw" }, "fb", t)).toBe(
-      enCatalog.errors.byCode.REQUEST_INVALID,
+      frCatalog.errors.byCode.REQUEST_INVALID,
     );
   });
 
   it("resolves the impersonation refusal to its own copy, not the generic 403", () => {
     expect(
       formatApiError({ code: "IMPERSONATION_ACTION_FORBIDDEN", status: 403 }, "fallback", t),
-    ).toBe(enCatalog.errors.byCode.IMPERSONATION_ACTION_FORBIDDEN);
+    ).toBe(frCatalog.errors.byCode.IMPERSONATION_ACTION_FORBIDDEN);
   });
 
   it("resolves the policy refusal to its own copy, not the generic 409", () => {
     expect(formatApiError({ code: "POLICY_ACCEPTANCE_REQUIRED", status: 409 }, "fallback", t)).toBe(
-      enCatalog.errors.byCode.POLICY_ACCEPTANCE_REQUIRED,
+      frCatalog.errors.byCode.POLICY_ACCEPTANCE_REQUIRED,
     );
-    expect(enCatalog.errors.byCode.POLICY_ACCEPTANCE_REQUIRED).not.toBe(
-      enCatalog.errors.byStatus["409"],
+    expect(frCatalog.errors.byCode.POLICY_ACCEPTANCE_REQUIRED).not.toBe(
+      frCatalog.errors.byStatus["409"],
     );
   });
 
   it("resolves a quota refusal through the suffix table", () => {
     expect(formatApiError({ code: "BILLING_QUOTA_EXCEEDED", status: 429 }, "fallback", t)).toBe(
-      enCatalog.errors.bySuffix.QUOTA_EXCEEDED,
+      frCatalog.errors.bySuffix.QUOTA_EXCEEDED,
     );
   });
 });

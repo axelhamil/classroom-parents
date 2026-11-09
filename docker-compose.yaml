@@ -6,7 +6,7 @@ services:
     container_name: classroom-parents-postgres
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      - "54329:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

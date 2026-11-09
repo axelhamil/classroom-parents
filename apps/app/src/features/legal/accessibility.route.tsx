@@ -1,4 +1,3 @@
-import { toLocale } from "@packages/i18n";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { PageHeader } from "@packages/ui/components/ui/page-header";
 import { Separator } from "@packages/ui/components/ui/separator";
@@ -14,8 +13,7 @@ export const Route = createFileRoute("/legal/accessibility")({
 });
 
 function AccessibilityPage() {
-  const { t, i18n } = useTranslation("common");
-  const locale = toLocale(i18n.language);
+  const { t } = useTranslation("common");
   return (
     <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
       <PageHeader
@@ -25,7 +23,7 @@ function AccessibilityPage() {
 
       <Separator />
 
-      <UntranslatedBodyBanner show={locale !== "en"} />
+      <UntranslatedBodyBanner />
 
       <section className="flex flex-col gap-3">
         <TypographyH2>Compliance status</TypographyH2>

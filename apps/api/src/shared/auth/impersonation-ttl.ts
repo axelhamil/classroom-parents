@@ -1,1 +1,0 @@
-export const IMPERSONATION_TTL_SECONDS = 60 * 60;

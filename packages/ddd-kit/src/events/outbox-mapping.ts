@@ -6,7 +6,6 @@ export type OutboxRow = {
   eventType: string;
   aggregateId: string;
   aggregateType: string;
-  organizationId: string | null;
   payload: unknown;
   metadata: {
     specversion: "1.0";
@@ -21,7 +20,6 @@ export type OutboxRow = {
 
 export type OutboxMappingScope = {
   source: string;
-  organizationId?: string | null;
   aggregateType: string;
   traceparent?: string;
   requestId?: string;
@@ -33,7 +31,6 @@ export function domainEventToOutboxRow(event: IDomainEvent, scope: OutboxMapping
     eventType: event.eventType,
     aggregateId: event.aggregateId,
     aggregateType: scope.aggregateType,
-    organizationId: scope.organizationId ?? null,
     payload: event.payload,
     metadata: {
       specversion: "1.0",

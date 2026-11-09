@@ -21,13 +21,8 @@ mock.module("../logger", () => ({
 }));
 
 const { requireRateLimit } = await import("../middleware/rate-limit.middleware");
-const {
-  GLOBAL_POLICY,
-  AUTH_SIGN_IN_POLICY,
-  AUTH_MAGIC_LINK_POLICY,
-  AUTH_TWO_FACTOR_POLICY,
-  AUTH_VERIFY_EMAIL_POLICY,
-} = await import("../middleware/rate-limit.policies");
+const { GLOBAL_POLICY, AUTH_SIGN_IN_POLICY, AUTH_SIGN_UP_POLICY, AUTH_VERIFY_EMAIL_POLICY } =
+  await import("../middleware/rate-limit.policies");
 const { normalizeHop, resolveClientIp } = await import("../middleware/rate-limit.ip");
 const { createErrorHandler } = await import("../middleware/error.middleware");
 
@@ -245,8 +240,8 @@ describe("requireRateLimit middleware", () => {
     });
   });
 
-  describe("policy isolation, sign-in vs magic-link", () => {
-    it("a magic-link request consumes ONLY the magic-link policy, not sign-in", async () => {
+  describe("policy isolation, sign-in vs sign-up", () => {
+    it("a sign-up request consumes ONLY the sign-up policy, not sign-in", async () => {
       const consumedPolicies: string[] = [];
       const limiter: IRateLimiter = {
         consume: async (key) => {
@@ -256,28 +251,25 @@ describe("requireRateLimit middleware", () => {
       };
       const app = new Hono<{ Variables: { requestId: string; user: null } }>();
       app.use("*", async (c, next) => {
-        c.set("requestId", "req-magic");
+        c.set("requestId", "req-signup");
         c.set("user", null);
         await next();
       });
       app.use("/api/auth/sign-in/email", requireRateLimit({ limiter }, AUTH_SIGN_IN_POLICY));
-      app.use(
-        "/api/auth/sign-in/magic-link",
-        requireRateLimit({ limiter }, AUTH_MAGIC_LINK_POLICY),
-      );
-      app.post("/api/auth/sign-in/magic-link", (c) => c.json({ ok: true }));
+      app.use("/api/auth/sign-up/email", requireRateLimit({ limiter }, AUTH_SIGN_UP_POLICY));
+      app.post("/api/auth/sign-up/email", (c) => c.json({ ok: true }));
       app.onError(createErrorHandler(mockInstrumentation()));
 
       mockedAddress = "1.2.3.4";
-      await app.request("/api/auth/sign-in/magic-link", { method: "POST" });
+      await app.request("/api/auth/sign-up/email", { method: "POST" });
 
       const signInKeys = consumedPolicies.filter((k) => k.startsWith("auth-sign-in:"));
-      const magicLinkKeys = consumedPolicies.filter((k) => k.startsWith("auth-magic-link:"));
+      const signUpKeys = consumedPolicies.filter((k) => k.startsWith("auth-sign-up:"));
       expect(signInKeys).toHaveLength(0);
-      expect(magicLinkKeys).toHaveLength(1);
+      expect(signUpKeys).toHaveLength(1);
     });
 
-    it("a sign-in/email request consumes ONLY the sign-in policy, not magic-link", async () => {
+    it("a sign-in/email request consumes ONLY the sign-in policy, not sign-up", async () => {
       const consumedPolicies: string[] = [];
       const limiter: IRateLimiter = {
         consume: async (key) => {
@@ -292,10 +284,7 @@ describe("requireRateLimit middleware", () => {
         await next();
       });
       app.use("/api/auth/sign-in/email", requireRateLimit({ limiter }, AUTH_SIGN_IN_POLICY));
-      app.use(
-        "/api/auth/sign-in/magic-link",
-        requireRateLimit({ limiter }, AUTH_MAGIC_LINK_POLICY),
-      );
+      app.use("/api/auth/sign-up/email", requireRateLimit({ limiter }, AUTH_SIGN_UP_POLICY));
       app.post("/api/auth/sign-in/email", (c) => c.json({ ok: true }));
       app.onError(createErrorHandler(mockInstrumentation()));
 
@@ -303,42 +292,9 @@ describe("requireRateLimit middleware", () => {
       await app.request("/api/auth/sign-in/email", { method: "POST" });
 
       const signInKeys = consumedPolicies.filter((k) => k.startsWith("auth-sign-in:"));
-      const magicLinkKeys = consumedPolicies.filter((k) => k.startsWith("auth-magic-link:"));
+      const signUpKeys = consumedPolicies.filter((k) => k.startsWith("auth-sign-up:"));
       expect(signInKeys).toHaveLength(1);
-      expect(magicLinkKeys).toHaveLength(0);
-    });
-  });
-
-  describe("policy isolation, two-factor vs sign-in", () => {
-    it("a two-factor/verify-totp request consumes ONLY the two-factor policy, not sign-in", async () => {
-      const consumedPolicies: string[] = [];
-      const limiter: IRateLimiter = {
-        consume: async (key) => {
-          consumedPolicies.push(key);
-          return Result.ok(allowDecision());
-        },
-      };
-      const app = new Hono<{ Variables: { requestId: string; user: null } }>();
-      app.use("*", async (c, next) => {
-        c.set("requestId", "req-2fa");
-        c.set("user", null);
-        await next();
-      });
-      app.use("/api/auth/sign-in/email", requireRateLimit({ limiter }, AUTH_SIGN_IN_POLICY));
-      app.use(
-        "/api/auth/two-factor/verify-totp",
-        requireRateLimit({ limiter }, AUTH_TWO_FACTOR_POLICY),
-      );
-      app.post("/api/auth/two-factor/verify-totp", (c) => c.json({ ok: true }));
-      app.onError(createErrorHandler(mockInstrumentation()));
-
-      mockedAddress = "1.2.3.4";
-      await app.request("/api/auth/two-factor/verify-totp", { method: "POST" });
-
-      const signInKeys = consumedPolicies.filter((k) => k.startsWith("auth-sign-in:"));
-      const twoFactorKeys = consumedPolicies.filter((k) => k.startsWith("auth-two-factor:"));
-      expect(signInKeys).toHaveLength(0);
-      expect(twoFactorKeys).toHaveLength(1);
+      expect(signUpKeys).toHaveLength(0);
     });
   });
 

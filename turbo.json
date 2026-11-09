@@ -15,14 +15,10 @@
     "DATABASE_URL",
     "CORS_ORIGIN",
     "APP_URL",
-    "ADMIN_URL",
     "AUTH_COOKIE_DOMAIN",
     "BETTER_AUTH_*",
     "RESEND_*",
-    "INTERNAL_*",
     "RGPD_*",
-    "S3_*",
-    "STORAGE_*",
     "VITE_*"
   ],
   "tasks": {
@@ -54,7 +50,7 @@
       "env": ["DATABASE_URL"]
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "//#test:scripts"],
       "inputs": [
         "src/**",
         "schemas/**",
@@ -129,6 +125,10 @@
     "ui:add": {
       "cache": false,
       "interactive": true
+    },
+    "//#test:scripts": {
+      "inputs": ["scripts/**/*.ts", "packages/test/src/db-check.ts"],
+      "outputs": []
     }
   }
 }

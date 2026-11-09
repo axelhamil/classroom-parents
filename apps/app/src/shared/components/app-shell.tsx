@@ -11,15 +11,11 @@ import { cn } from "@packages/ui/libs/utils.js";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AuthorizationDevTool } from "../auth/authorization-devtool";
-import { NotificationBell } from "../notifications/notification-bell";
 import { CommandPalette } from "./command-palette";
 import { ContextualTabs } from "./contextual-tabs";
 import { DeletionPendingBanner } from "./deletion-pending-banner";
-import { ImpersonationBanner } from "./impersonation-banner";
 import { LegalFooter } from "./legal-footer";
 import { LogoMark } from "./logo-mark";
-import { OrgSwitcher } from "./org-switcher";
 import { ThemeToggle } from "./theme-toggle";
 import { usePrimaryNav } from "./use-primary-nav";
 import { UserMenu } from "./user-menu";
@@ -62,8 +58,6 @@ export function AppShell({ user, children }: AppShellProps) {
 
             <Separator orientation="vertical" className="h-5" />
 
-            <OrgSwitcher />
-
             <nav className="hidden shrink-0 items-center gap-1 md:flex">
               {primaryNav.map((item) => (
                 <NavLink key={item.to} variant="pill" active={item.active} asChild>
@@ -96,8 +90,6 @@ export function AppShell({ user, children }: AppShellProps) {
                 <Search />
               </IconButton>
 
-              <NotificationBell />
-
               <ThemeToggle />
 
               <UserMenu user={user} />
@@ -112,7 +104,6 @@ export function AppShell({ user, children }: AppShellProps) {
         </header>
       </Band>
 
-      <ImpersonationBanner />
       <DeletionPendingBanner />
 
       <div className="flex-1">{children}</div>
@@ -120,7 +111,6 @@ export function AppShell({ user, children }: AppShellProps) {
       <LegalFooter />
 
       <CommandPalette />
-      <AuthorizationDevTool />
     </div>
   );
 }

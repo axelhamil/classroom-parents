@@ -65,7 +65,7 @@ export function UserMenu({ user }: UserMenuProps) {
         <DropdownMenuSeparator className="md:hidden" />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link to="/settings/account">
+            <Link to="/settings/privacy">
               <User />
               {t("userMenu.account")}
             </Link>

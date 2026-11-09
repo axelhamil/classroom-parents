@@ -27,10 +27,11 @@ describe("extractRouteFromChain", () => {
 describe("listFrontConsumers", () => {
   it("finds every call site in the front and attributes it to its file", () => {
     const consumers = listFrontConsumers();
-    expect(consumers.length).toBeGreaterThan(30);
 
-    const presign = consumers.find((c) => c.route === "POST /uploads/presign");
-    expect(presign?.file).toBe("apps/app/src/shared/api/mutations/create-upload.ts");
+    const requestDeletion = consumers.find((c) => c.route === "POST /me/delete");
+    expect(requestDeletion?.file).toBe(
+      "apps/app/src/shared/api/mutations/request-account-deletion.ts",
+    );
   });
 });
 

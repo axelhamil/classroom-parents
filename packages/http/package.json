@@ -7,7 +7,8 @@
     "./validator": "./src/validator.ts",
     "./time-id-cursor": "./src/time-id-cursor.ts",
     "./route-guards": "./src/route-guards.ts",
-    "./testing/route-guards": "./src/testing/route-guards.ts"
+    "./testing/route-guards": "./src/testing/route-guards.ts",
+    "./instrumented-fetch": "./src/instrumented-fetch.ts"
   },
   "scripts": {
     "format": "biome format . --write",
@@ -19,7 +20,6 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
-    "@packages/access-control": "workspace:*",
     "@packages/ddd-kit": "workspace:*",
     "@packages/drizzle": "workspace:*",
     "hono": "^4.13.14",

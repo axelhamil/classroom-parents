@@ -53,25 +53,7 @@ describe("surface parity", () => {
   // middleware mount paths (rate-limit/CSRF/CORS guards), any ALL entry outside it, and outside
   // the already-excluded BetterAuth mount, is either a new middleware mount (extend the list) or
   // the exact silent gap this test exists to catch (declare it in ROUTE_MAP instead).
-  const KNOWN_MIDDLEWARE_ALL_PATHS = new Set([
-    "/*",
-    "/csp-report",
-    "/me",
-    "/me/*",
-    "/uploads",
-    "/uploads/*",
-    "/settings/*",
-    "/admin/*",
-    "/admin/step-up",
-    "/consents",
-    "/consents/*",
-    "/billing/portal",
-    "/notifications",
-    "/notifications/*",
-    "/internal/*",
-    "/api/v1/*",
-    "/api/token-scanning/*",
-  ]);
+  const KNOWN_MIDDLEWARE_ALL_PATHS = new Set(["/*", "/me", "/me/*"]);
 
   it("has no ALL-method route besides the documented BetterAuth mount and known middleware", () => {
     const unexpectedAllRoutes = routes.routes

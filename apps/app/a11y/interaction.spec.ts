@@ -8,44 +8,16 @@ test("reaches every sign-in control in order with the keyboard", async ({ page }
   await page.goto("/sign-in");
 
   const form = signInForm(page);
-  await tabTo(page, form.getByLabel("Email", { exact: true }));
+  await tabTo(page, form.getByLabel("E-mail", { exact: true }));
 
   await page.keyboard.press("Tab");
-  await expect(form.getByLabel("Password", { exact: true })).toBeFocused();
+  await expect(form.getByLabel("Mot de passe", { exact: true })).toBeFocused();
 
   await page.keyboard.press("Tab");
-  await expect(form.getByRole("checkbox", { name: "Remember me" })).toBeFocused();
+  await expect(form.getByRole("checkbox", { name: "Se souvenir de moi" })).toBeFocused();
 
   await page.keyboard.press("Tab");
-  await expect(form.getByRole("button", { name: "Sign in", exact: true })).toBeFocused();
-});
-
-test("reaches and operates the SSO entry with the keyboard", async ({ page }) => {
-  await page.goto("/sign-in");
-
-  // The passkey button only renders once `PublicKeyCredential` support resolves
-  // (async, conditional); `tabTo` rather than a fixed Tab count skips past it
-  // whether or not it showed up, same as every other control on this page.
-  const ssoTrigger = page.getByRole("button", { name: "Sign in with SSO", exact: true });
-  await tabTo(page, ssoTrigger);
-
-  // Space activates a focused button the same way a click does: this both proves
-  // the trigger is keyboard-operable and expands the collapsible for the next step.
-  await page.keyboard.press(" ");
-
-  const ssoForm = page
-    .locator("form")
-    .filter({ has: page.getByRole("button", { name: "Continue", exact: true }) });
-  const ssoEmail = ssoForm.getByLabel("Email", { exact: true });
-  await expect(ssoEmail).toBeVisible();
-
-  // Revealing the field must not break focus order: the very next stop from the
-  // trigger has to be the field it just revealed.
-  await page.keyboard.press("Tab");
-  await expect(ssoEmail).toBeFocused();
-
-  await page.keyboard.press("Tab");
-  await expect(ssoForm.getByRole("button", { name: "Continue", exact: true })).toBeFocused();
+  await expect(form.getByRole("button", { name: "Se connecter", exact: true })).toBeFocused();
 });
 
 test.describe("signed in", () => {
@@ -56,7 +28,7 @@ test.describe("signed in", () => {
     await expect(page.locator("main")).toBeVisible();
 
     await page.keyboard.press("ControlOrMeta+k");
-    const palette = page.getByRole("dialog", { name: "Command palette" });
+    const palette = page.getByRole("dialog", { name: "Palette de commandes" });
     await expect(palette).toBeVisible();
 
     for (let i = 0; i < 10; i++) {
@@ -79,10 +51,10 @@ test.describe("signed in", () => {
       });
       await page.setViewportSize({ width, height: 800 });
 
-      await page.goto("/settings/api-tokens");
+      await page.goto("/settings/privacy");
 
       const activeTab = page
-        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("navigation", { name: "Sections des paramètres" })
         .locator("a[data-active]");
       await expect(activeTab).toBeInViewport({ ratio: 1 });
       const overflow = await page.evaluate(
@@ -98,10 +70,10 @@ test.describe("signed in", () => {
   }) => {
     await page.goto("/dashboard");
 
-    const toggle = page.getByRole("button", { name: /Switch to (dark|light) theme/ });
+    const toggle = page.getByRole("button", { name: /Passer au thème (sombre|clair)/ });
     await tabTo(page, toggle);
 
-    const tooltip = page.getByRole("tooltip").filter({ hasText: /Switch to (dark|light) theme/ });
+    const tooltip = page.getByRole("tooltip").filter({ hasText: /Passer au thème (sombre|clair)/ });
     await expect(tooltip).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -114,37 +86,22 @@ test.describe("signed in", () => {
     await expect(page.locator("main")).toBeVisible();
 
     await page.keyboard.press("ControlOrMeta+k");
-    const palette = page.getByRole("dialog", { name: "Command palette" });
+    const palette = page.getByRole("dialog", { name: "Palette de commandes" });
     await expect(palette).toBeVisible();
 
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("tooltip").filter({ hasText: "Close" })).toBeVisible();
+    await expect(page.getByRole("tooltip").filter({ hasText: "Fermer" })).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(palette).toBeHidden();
-  });
-
-  test("explains a disabled control from a keyboard stop on its hint", async ({ page }) => {
-    await page.goto("/settings/privacy");
-
-    const frozen = page.getByRole("switch", { name: "Strictly necessary" });
-    await expect(frozen).toBeDisabled();
-
-    const hint = page.getByRole("group").filter({ has: frozen });
-    await expect(hint).toHaveAccessibleDescription(/cannot be turned off/);
-
-    await tabTo(page, hint.locator("[tabindex='0']"));
-    await expect(
-      page.getByRole("tooltip").filter({ hasText: /cannot be turned off/ }),
-    ).toBeVisible();
   });
 
   test("reaches the primary navigation from the user menu on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
 
     await page.goto("/dashboard");
-    await page.getByRole("button", { name: "Open user menu" }).click();
-    await page.getByRole("menuitem", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Ouvrir le menu utilisateur" }).click();
+    await page.getByRole("menuitem", { name: "Paramètres" }).click();
 
     await expect(page).toHaveURL(/\/settings/);
   });
@@ -167,7 +124,7 @@ test.describe("signed in", () => {
     const isDark = () => page.evaluate(() => document.documentElement.classList.contains("dark"));
     const before = await isDark();
 
-    await page.getByRole("button", { name: /Switch to (dark|light) theme/ }).click();
+    await page.getByRole("button", { name: /Passer au thème (sombre|clair)/ }).click();
 
     await expect.poll(isDark).toBe(!before);
     const transitioned = await page.evaluate(

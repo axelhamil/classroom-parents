@@ -13,15 +13,8 @@ function apiError(code: string) {
 }
 
 describe("buildDeletionOnError", () => {
-  const onClose = vi.fn();
   const reportFieldError = vi.fn();
-  const onError = buildDeletionOnError(
-    onClose,
-    "ACCOUNT_PASSWORD_INVALID",
-    reportFieldError,
-    tErrors,
-    t,
-  );
+  const onError = buildDeletionOnError("ACCOUNT_PASSWORD_INVALID", reportFieldError, tErrors, t);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -32,27 +25,12 @@ describe("buildDeletionOnError", () => {
 
     expect(reportFieldError).toHaveBeenCalledWith("deletion.invalidCredential");
     expect(toastError).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("toasts and closes the dialog when the deletion is blocked", () => {
-    onError(apiError("ACCOUNT_DELETION_BLOCKED"));
-
-    expect(toastError).toHaveBeenCalledOnce();
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(reportFieldError).not.toHaveBeenCalled();
-  });
-
-  it("closes the dialog when the last manager is refused, the toast says what to do", () => {
-    onError(apiError("ACCOUNT_DELETION_LAST_MANAGER_FORBIDDEN"));
-
-    expect(onClose).toHaveBeenCalledOnce();
-  });
-
-  it("toasts and keeps the dialog open on any other failure", () => {
+  it("toasts on any other failure", () => {
     onError(new Error("network"));
 
     expect(toastError).toHaveBeenCalledWith("deletion.requestFailed");
-    expect(onClose).not.toHaveBeenCalled();
+    expect(reportFieldError).not.toHaveBeenCalled();
   });
 });

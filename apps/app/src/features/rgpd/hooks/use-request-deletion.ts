@@ -19,7 +19,5 @@ export function useRequestDeletion({ onClose }: UseRequestDeletionOptions) {
       onClose();
       toast.success(t("deletion.requestedToast"));
     },
-    // Errors are surfaced by the calling form so it can branch on `err.code`
-    // (ACCOUNT_DELETION_BLOCKED gets a special UI path with the offending org list).
   });
 }

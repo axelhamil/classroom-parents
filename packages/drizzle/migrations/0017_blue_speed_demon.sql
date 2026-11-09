@@ -1,1 +1,0 @@
-ALTER TABLE "organization" ADD COLUMN "sso_enforced" boolean DEFAULT false NOT NULL;

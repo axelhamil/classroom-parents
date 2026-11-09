@@ -6,7 +6,6 @@ import type { IOutboxRepository } from "./outbox.port";
 const SOURCE = "app/api";
 
 export type EmitOptions = {
-  organizationId?: string | null;
   traceparent?: string;
   eventId?: string;
 };
@@ -44,7 +43,6 @@ export async function emitEvent<TPayload>(
   await outbox.enqueue([event], {
     source: SOURCE,
     aggregateType,
-    organizationId: opts.organizationId,
     traceparent: opts.traceparent,
   });
   return id;

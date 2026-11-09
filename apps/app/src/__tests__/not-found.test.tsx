@@ -1,4 +1,4 @@
-import { createI18n, enCatalog } from "@packages/i18n";
+import { createI18n, frCatalog } from "@packages/i18n";
 import { TooltipProvider } from "@packages/ui/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
@@ -16,7 +16,7 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 const SHELL_HEADER = /<header(?![^>]*data-slot="page-header")/;
 
 async function renderUnknownUrl() {
-  const i18n = await createI18n({ locale: "en", resources: enCatalog });
+  const i18n = await createI18n({ locale: "fr", resources: frCatalog });
   router.update({
     ...router.options,
     history: createMemoryHistory({ initialEntries: ["/no-such-page"] }),
@@ -45,8 +45,8 @@ describe("unknown url", () => {
     const html = await renderUnknownUrl();
 
     expect(html).toContain("<h1");
-    expect(html).toContain("Page not found");
-    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>Back to home<\/a>/);
+    expect(html).toContain("Page introuvable");
+    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>Revenir à l(&#x27;|')accueil<\/a>/);
     expect(html).not.toMatch(SHELL_HEADER);
   });
 
@@ -59,7 +59,7 @@ describe("unknown url", () => {
     const html = await renderUnknownUrl();
 
     expect(html).toMatch(SHELL_HEADER);
-    expect(html).toContain("Page not found");
+    expect(html).toContain("Page introuvable");
     expect(html.match(/<main/g)).toHaveLength(1);
     expect(html.match(/<h1/g)).toHaveLength(1);
   });

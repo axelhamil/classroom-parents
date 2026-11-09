@@ -61,7 +61,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: classroom_parents
         ports:
-          - 5432:5432
+          - 54329:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -69,24 +69,15 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classroom_parents
+      DATABASE_URL: postgresql://postgres:postgres@localhost:54329/classroom_parents
       # The preview server, not the dev server: CORS, CSRF and BetterAuth all read this.
       CORS_ORIGIN: http://localhost:4173
       APP_URL: http://localhost:4173
-      # The guard resolves MX records; leaving it on would make the seed depend on DNS.
-      DISPOSABLE_EMAIL_BLOCK_ENABLED: "false"
       # Pinned explicitly so the CI log states which account the checks run
       # against. db:seed and the checks resolve it through
       # apps/api/scripts/seed-account.ts, which holds the same default, so
       # they stay aligned whether or not this var is set.
       SEED_EMAIL: dev@example.com
-      # check:sweep-lock signs requests against the ephemeral CI
-      # Postgres above; this key never authenticates a real deployment, so it can
-      # live in the workflow. apps/api/.env.example deliberately ships this var
-      # empty (fail-closed on every /internal/* route, including rgpd-sweep) rather
-      # than a shared placeholder that would ship a working key into every
-      # bootstrapped .env and every environment, staging included.
-      INTERNAL_SIGNING_KEY: ci-only-signing-key-3f9a1c7e2b6d4f80912345
 
     steps:
       - uses: actions/checkout@v5
@@ -98,9 +89,6 @@ jobs:
 
       - name: Push schema
         run: pnpm db:push
-
-      - name: Check the sweep lease against a real database
-        run: pnpm --filter api check:sweep-lock
 
       - name: Check the outbox lease claim and settle against a real database
         # Skip locked, the lease expiry, the stale settle guard and the dead replay

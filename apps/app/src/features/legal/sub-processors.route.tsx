@@ -1,4 +1,3 @@
-import { toLocale } from "@packages/i18n";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { PageHeader } from "@packages/ui/components/ui/page-header";
 import { Separator } from "@packages/ui/components/ui/separator";
@@ -76,8 +75,7 @@ function SubProcessorTable({ processors, caption }: SubProcessorTableProps) {
 }
 
 function SubProcessorsPage() {
-  const { t, i18n } = useTranslation("common");
-  const locale = toLocale(i18n.language);
+  const { t } = useTranslation("common");
   const active = SUB_PROCESSORS.filter((sp) => sp.status === "active");
   const planned = SUB_PROCESSORS.filter((sp) => sp.status === "planned");
 
@@ -90,7 +88,7 @@ function SubProcessorsPage() {
 
       <Separator />
 
-      <UntranslatedBodyBanner show={locale !== "en"} />
+      <UntranslatedBodyBanner />
 
       <section className="flex flex-col gap-3">
         <TypographyH2>What is a sub-processor?</TypographyH2>

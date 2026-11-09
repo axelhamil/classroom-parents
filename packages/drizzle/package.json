@@ -19,10 +19,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@packages/cookie-consent": "workspace:*",
     "@packages/ddd-kit": "workspace:*",
-    "@packages/events": "workspace:*",
-    "@packages/policies": "workspace:*",
     "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
     "pg": "^8.23.1"

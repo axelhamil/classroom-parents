@@ -24,15 +24,14 @@ function ipKeyFn(name: string): (c: Context) => string {
 // Two windows with two different jobs: the minute window bounds a BURST, the hour
 // window is the sustained anti-abuse ceiling. They must be tuned against what one
 // page view actually costs, measured here, a signed-in page view fires up to 8 API
-// calls (session, consents, policies, notifications stream + count, three
-// organization endpoints), so a 60/min burst window meant ~7 navigations per minute
+// calls, so a 60/min burst window meant ~7 navigations per minute
 // before a legitimate user got a 429. 300/min tolerates ~35 navigations in a burst
 // while the hour window (1800 = 30/min sustained) still caps real abuse, unchanged.
 // Loosening the burst window costs nothing at the surfaces that matter: every
 // credential path carries its own far tighter, fail-closed policy below.
 //
 // `sessionMiddleware` deliberately nulls the user for `/api/auth/*`, so BetterAuth
-// traffic, including a signed-in user's session and organization queries, keys on
+// traffic, including a signed-in user's session query, keys on
 // the IP, not the user. Two signed-in users behind one NAT therefore share this
 // bucket for that traffic.
 export const GLOBAL_POLICY: PolicyConfig = {
@@ -56,25 +55,8 @@ export const AUTH_SIGN_IN_POLICY: PolicyConfig = {
   captchaAboveRatio: CAPTCHA_ABOVE_RATIO,
 };
 
-export const AUTH_FORGOT_PASSWORD_POLICY: PolicyConfig = {
-  name: "auth-forgot-password",
-  keyFn: ipKeyFn("auth-forgot-password"),
-  windows: [{ policyName: "auth-forgot-password", windowSec: 900, maxRequests: 3 }],
-  emitSecurityEvent: true,
-  failClosed: true,
-};
-
-export const AUTH_MAGIC_LINK_POLICY: PolicyConfig = {
-  name: "auth-magic-link",
-  keyFn: ipKeyFn("auth-magic-link"),
-  windows: [{ policyName: "auth-magic-link", windowSec: 900, maxRequests: 3 }],
-  emitSecurityEvent: true,
-  failClosed: true,
-};
-
 // /send-verification-email: public POST taking an arbitrary email, no session, the
-// same "make the server email a stranger" primitive as request-password-reset and
-// sign-in/magic-link, and it gets the same ceiling. Without its own policy the global
+// "make the server email a stranger" primitive, so it gets a tight ceiling. Without its own policy the global
 // burst window is its only bound, which is not a bound on abuse: that window exists to
 // let one legitimate user navigate quickly, not to cap how many strangers one IP can
 // have mailed.
@@ -93,49 +75,6 @@ export const AUTH_SIGN_UP_POLICY: PolicyConfig = {
   emitSecurityEvent: true,
   failClosed: true,
   captchaAboveRatio: CAPTCHA_ABOVE_RATIO,
-};
-
-export function visitorCapRoutes(
-  maxRequests: number | undefined,
-  windowSec: number,
-): ReadonlyArray<readonly [path: string, policy: PolicyConfig]> {
-  if (maxRequests === undefined) return [];
-
-  return [
-    [
-      "/sign-up/email",
-      {
-        name: "accounts-per-visitor",
-        keyFn: ipKeyFn("accounts-per-visitor"),
-        windows: [{ policyName: "accounts-per-visitor", windowSec, maxRequests }],
-        emitSecurityEvent: true,
-        failClosed: true,
-      },
-    ],
-  ];
-}
-
-// Two-factor verify paths: /two-factor/verify-totp, /two-factor/verify-otp,
-// /two-factor/verify-backup-code (BetterAuth twoFactor plugin, confirmed via dist grep).
-export const ADMIN_STEP_UP_USER_POLICY: PolicyConfig = {
-  name: "admin-step-up-user",
-  keyFn: (c) => {
-    const user = c.get("user") as { id: string } | null | undefined;
-    return `admin-step-up-user:${user?.id ?? resolveClientIp(c)}`;
-  },
-  windows: [{ policyName: "admin-step-up-user", windowSec: 900, maxRequests: 5 }],
-  emitSecurityEvent: true,
-  failClosed: true,
-  advertiseBudget: false,
-};
-
-export const AUTH_TWO_FACTOR_POLICY: PolicyConfig = {
-  name: "auth-two-factor",
-  keyFn: ipKeyFn("auth-two-factor"),
-  windows: [{ policyName: "auth-two-factor", windowSec: 900, maxRequests: 5 }],
-  emitSecurityEvent: true,
-  failClosed: true,
-  advertiseBudget: false,
 };
 
 export const ACCOUNT_DELETE_POLICY: PolicyConfig = {
@@ -157,105 +96,5 @@ export const AUTH_VERIFY_EMAIL_POLICY: PolicyConfig = {
   windows: [{ policyName: "auth-verify-email", windowSec: 900, maxRequests: 5 }],
   emitSecurityEvent: true,
   failClosed: true,
-  advertiseBudget: false,
-};
-
-// /reset-password: POST that consumes the reset token (distinct from /request-password-reset).
-export const AUTH_RESET_PASSWORD_POLICY: PolicyConfig = {
-  name: "auth-reset-password",
-  keyFn: ipKeyFn("auth-reset-password"),
-  windows: [{ policyName: "auth-reset-password", windowSec: 900, maxRequests: 3 }],
-  emitSecurityEvent: true,
-  failClosed: true,
-  advertiseBudget: false,
-};
-
-// /passkey/generate-authenticate-options + /passkey/verify-authentication
-// (BetterAuth @better-auth/passkey plugin, confirmed via dist grep).
-export const AUTH_PASSKEY_POLICY: PolicyConfig = {
-  name: "auth-passkey",
-  keyFn: ipKeyFn("auth-passkey"),
-  windows: [{ policyName: "auth-passkey", windowSec: 900, maxRequests: 10 }],
-  emitSecurityEvent: true,
-  failClosed: true,
-  advertiseBudget: false,
-};
-
-// Cookie consent POST, public guest endpoint, keyed by IP.
-// fail-open: a store outage must not block consent recording (guest flow).
-// emitSecurityEvent=false: consent spam is not a security signal.
-// advertiseBudget=false: no RateLimit headers on consent routes.
-export const CONSENT_POST_POLICY: PolicyConfig = {
-  name: "consent-post",
-  keyFn: ipKeyFn("consent-post"),
-  windows: [
-    { policyName: "consent-post", windowSec: 60, maxRequests: 10 },
-    { policyName: "consent-post", windowSec: 3600, maxRequests: 50 },
-  ],
-  emitSecurityEvent: false,
-  advertiseBudget: false,
-};
-
-// API token access, two separate policies mounted in sequence.
-// One policy per axis prevents an attacker with N tokens from bypassing the IP
-// ceiling by rotating tokens (a composite key would merge both counters).
-// failClosed=true: authenticated surface; a store outage must not disable the guard.
-export const API_TOKEN_POLICY: PolicyConfig = {
-  name: "api-token",
-  keyFn: (c) => `tok:${c.get("apiTokenId") as string}`,
-  windows: [{ policyName: "api-token", windowSec: 60, maxRequests: 600 }],
-  failClosed: true,
-  advertiseBudget: true,
-};
-
-export const API_TOKEN_IP_POLICY: PolicyConfig = {
-  name: "api-token-ip",
-  keyFn: (c) => `tokip:${resolveClientIp(c)}`,
-  windows: [{ policyName: "api-token-ip", windowSec: 60, maxRequests: 1200 }],
-  failClosed: true,
-};
-
-// GitHub Secret Scanning webhook, machine-to-machine, low frequency, public.
-// fail-open: a store outage must not block revocation notifications.
-export const GITHUB_SCANNING_POLICY: PolicyConfig = {
-  name: "github-scanning",
-  keyFn: ipKeyFn("github-scanning"),
-  windows: [
-    { policyName: "github-scanning", windowSec: 60, maxRequests: 10 },
-    { policyName: "github-scanning", windowSec: 3600, maxRequests: 100 },
-  ],
-  emitSecurityEvent: false,
-  advertiseBudget: false,
-};
-
-// SCIM (RFC 7644) directory sync, bearer-token protocol surface with no session,
-// so it previously ran at the loose 300/min GLOBAL_POLICY (tuned for smoothing a
-// signed-in user's page navigation, not for bounding a machine client). Also the
-// surface the post-PR-review SCIM hardening closed (`auth.ts`: `hooks.before` reads
-// the bearer header before the plugin's own token verification to gate seat cap and
-// snapshot the deprovisioning actor), a tight, fail-closed ceiling here is defense
-// in depth on top of that fix, not a substitute for it. Keyed by IP.
-export const SCIM_POLICY: PolicyConfig = {
-  name: "scim",
-  keyFn: ipKeyFn("scim"),
-  windows: [
-    { policyName: "scim", windowSec: 60, maxRequests: 60 },
-    { policyName: "scim", windowSec: 3600, maxRequests: 1000 },
-  ],
-  emitSecurityEvent: true,
-  failClosed: true,
-};
-
-// Browser-sent CSP violation reports, no user identity, keyed by IP.
-// emitSecurityEvent=false: the violation itself is the signal (emitted unconditionally per report).
-// advertiseBudget=false: no RateLimit headers exposed to browsers.
-export const CSP_REPORT_POLICY: PolicyConfig = {
-  name: "csp-report",
-  keyFn: ipKeyFn("csp-report"),
-  windows: [
-    { policyName: "csp-report", windowSec: 60, maxRequests: 20 },
-    { policyName: "csp-report", windowSec: 3600, maxRequests: 200 },
-  ],
-  emitSecurityEvent: false,
   advertiseBudget: false,
 };

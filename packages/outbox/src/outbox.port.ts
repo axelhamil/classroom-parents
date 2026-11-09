@@ -6,13 +6,11 @@ export type OutboxDeliveries = Readonly<Record<string, string>>;
 export interface DeliveredEvent extends IDomainEvent {
   readonly eventId: string;
   readonly aggregateType: string;
-  readonly organizationId?: string;
   readonly requestId?: string;
 }
 
 export type OutboxEnqueueScope = {
   source: string;
-  organizationId?: string | null;
   aggregateType?: string;
   traceparent?: string;
 };
@@ -22,7 +20,6 @@ export type OutboxRecord = {
   eventType: string;
   aggregateId: string;
   aggregateType: string;
-  organizationId: Option<string>;
   payload: unknown;
   metadata: OutboxEventMetadata;
   occurredAt: Date;

@@ -8,29 +8,13 @@ const scan = createSourceScan(apiSrcRoot);
 
 const ENV_OWNER = "shared/env.ts";
 
-const ALLOWED_ENV_READERS: Record<string, string> = {
-  "cron/env.ts":
-    "env of the standalone scripts started by the scheduler outside the api process, it cannot import shared/env",
-};
+const ALLOWED_ENV_READERS: Record<string, string> = {};
 
 const ALLOWED_TX_PARAMETERS: Record<string, string> = {};
 
 const ALLOWED_TRANSACTION_OPENERS: Record<string, string> = {};
 
-const COMPOSED_MODULES = [
-  "admin",
-  "api-token",
-  "audit-log",
-  "billing",
-  "consents",
-  "notifications",
-  "policies",
-  "profile",
-  "quotas",
-  "rgpd",
-  "uploads",
-  "webhooks",
-];
+const COMPOSED_MODULES = ["rgpd"];
 
 const HOST_REACH = [
   /from\s+["'][./]*container["']/,
@@ -53,7 +37,7 @@ function layersNamed(name: string): string[] {
 function isRouteFile(file: string): boolean {
   const name = file.split("/").at(-1) ?? "";
 
-  return file.startsWith("public-api/") || name === "routes.ts" || name.endsWith(".routes.ts");
+  return name === "routes.ts" || name.endsWith(".routes.ts");
 }
 
 describe("layering rules of the api", () => {
@@ -67,12 +51,9 @@ describe("layering rules of the api", () => {
   });
 
   it("routes never write to the database", () => {
-    const routeFiles = [...scan.sourceFiles("modules"), ...scan.sourceFiles("public-api")].filter(
-      isRouteFile,
-    );
+    const routeFiles = scan.sourceFiles("modules").filter(isRouteFile);
     const writes = {
       ...scan.writeCallsPerFile("modules"),
-      ...scan.writeCallsPerFile("public-api"),
     };
 
     const writingRoutes = Object.keys(writes).filter(isRouteFile);

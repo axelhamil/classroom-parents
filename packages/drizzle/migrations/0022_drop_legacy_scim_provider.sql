@@ -1,1 +1,0 @@
-DROP TABLE "scim_provider" CASCADE;

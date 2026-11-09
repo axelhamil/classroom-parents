@@ -3,15 +3,16 @@ import { DEFAULT_LOCALE, isLocale, LOCALES } from "../locales";
 import { resolveLocale } from "../resolve";
 
 describe("LOCALES", () => {
-  it("is exactly en and fr, with en as the default", () => {
-    expect(LOCALES).toEqual(["en", "fr"]);
-    expect(DEFAULT_LOCALE).toBe("en");
+  it("is French only, with fr as the default", () => {
+    expect(LOCALES).toEqual(["fr"]);
+    expect(DEFAULT_LOCALE).toBe("fr");
   });
 });
 
 describe("isLocale", () => {
   it("accepts supported locales and rejects everything else", () => {
     expect(isLocale("fr")).toBe(true);
+    expect(isLocale("en")).toBe(false);
     expect(isLocale("de")).toBe(false);
     expect(isLocale(undefined)).toBe(false);
     expect(isLocale("")).toBe(false);
@@ -36,8 +37,8 @@ describe("resolveLocale", () => {
   });
 
   it("falls back to the default when nothing matches", () => {
-    expect(resolveLocale(["de", "es"])).toBe("en");
-    expect(resolveLocale([])).toBe("en");
+    expect(resolveLocale(["en", "de"])).toBe("fr");
+    expect(resolveLocale([])).toBe("fr");
   });
 
   it("ignores empty and malformed candidates", () => {

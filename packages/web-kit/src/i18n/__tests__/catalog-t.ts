@@ -1,4 +1,4 @@
-import { enCatalog, lookupCatalogValue, type Namespace } from "@packages/i18n";
+import { frCatalog, lookupCatalogValue, type Namespace } from "@packages/i18n";
 import type { TFunction } from "i18next";
 
 /**
@@ -10,7 +10,7 @@ export function enLabel(key: string, namespace: Namespace): string | undefined {
   const [prefix, path] = key.includes(":") ? key.split(":") : [namespace, key];
   if (prefix === undefined || path === undefined) return undefined;
 
-  return lookupCatalogValue((enCatalog as Record<string, unknown>)[prefix], path);
+  return lookupCatalogValue((frCatalog as Record<string, unknown>)[prefix], path);
 }
 
 type TOptions = Record<string, unknown> & { defaultValue?: string };

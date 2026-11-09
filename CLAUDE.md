@@ -14,25 +14,24 @@ One guide per app and per package that carries rules of its own. Read the one yo
 
 | Area | Guide | Owns |
 |---|---|---|
-| API | `apps/api/CLAUDE.md` | server architecture, module layers, DI, CQRS, RPC contract, auth, org scoping, logging, observability, tests, real-database checks |
+| API | `apps/api/CLAUDE.md` | server architecture, module layers, DI, RPC contract, auth, ownership, logging, observability, tests, real-database checks |
 | App | `apps/app/CLAUDE.md` | client layout, routing, features, queries and mutations, forms, i18n, gates, theme, accessibility gate |
 | Modules | `modules/CLAUDE.md` | business module contract: anatomy, prerequisites, ports between modules, host queries, routes as factories, boundaries |
 | `packages/ddd-kit` | `packages/ddd-kit/CLAUDE.md` | `Result`, `Option`, aggregates, value objects, repository and unit-of-work contracts |
 | `packages/drizzle` | `packages/drizzle/CLAUDE.md` | schema, migrations, query rules, transaction service |
 | `packages/http` | `packages/http/CLAUDE.md` | request validator, cursor pagination, route-guard contract the host implements |
 | `packages/outbox` | `packages/outbox/CLAUDE.md` | outbox port, emit helpers, relay, dispatcher, lease model shared by every delivery worker |
-| `packages/access-control` | `packages/access-control/CLAUDE.md` | capability model shared by server, route gates and UI |
 | `packages/events` | `packages/events/CLAUDE.md` | event catalog, payload contract, retention, visibility, notification map |
-| `packages/i18n` | `packages/i18n/CLAUDE.md` | catalogs, locale parity, typed keys |
+| `packages/i18n` | `packages/i18n/CLAUDE.md` | French catalogs, typed keys |
 | `packages/ui` | `packages/ui/CLAUDE.md` | shadcn primitives, theme tokens, composition components |
 | `packages/web-kit` | `packages/web-kit/CLAUDE.md` | what every React app shares: api client, query client, i18n boot, theme, auth broadcast |
-| Other packages | skills below | `cookie-consent`, `policies`, `emails`, `email` are driven by the matching skill; `sentry-scrub` (see `docs/OBSERVABILITY.md`), `test`, `typescript-config` carry no rules |
+| Other packages | skills below | `emails`, `email` are driven by the matching skill; `sentry-scrub` (see `docs/OBSERVABILITY.md`), `test`, `typescript-config` carry no rules |
 
 `.claude/skills/` holds the subsystem playbooks (`auth-server`, `events-outbox`, `compliance-consent`, `email-delivery`) and `feature-slice` for implementing a story end to end.
 
 ## Philosophy
 
-Lean Startup, **Build → Measure → Learn**. The stack ships SaaS plumbing (auth, billing, multi-tenant, email, storage) and isolates the domain so pivots don't trash the foundation. "Done > perfect" applies to features; the rules in the guides are non-negotiable, they are what *makes* shipping fast sustainable.
+Lean Startup, **Build → Measure → Learn**. The stack ships the plumbing (auth, email, outbox, RGPD deletion) and isolates the domain so pivots don't trash the foundation. "Done > perfect" applies to features; the rules in the guides are non-negotiable, they are what *makes* shipping fast sustainable.
 
 ## Working method
 
@@ -61,20 +60,21 @@ pnpm workspaces + Turborepo + Biome + Husky + lint-staged + commitlint + release
 
 `pnpm bootstrap` (copies `.env.example` → `.env` in `apps/api`, `apps/app` and `packages/drizzle`, idempotent) · `pnpm dev` (Turbo TUI, `--filter=<app>` to scope) · `build` · `test` · `type-check` · `check` (Biome) · `fix` · `ci:check` · `check:boundaries` · `check:duplication` · `check:unused` · `ui:add` · `db:push` / `db:generate` / `db:migrate` / `db:seed` / `db:studio` · `clean`.
 
-- Postgres runs on `localhost:5433` (never pin it back to 5432, it collides with a system Postgres): `docker compose up postgres -d` for native dev.  Compose holds only Postgres; the api and the app run natively with `pnpm dev`.
-- After a schema change: `pnpm db:push` (dev, non-interactive) or `db:generate && db:migrate` (prod-style). `db:push` applies the schema only and skips the data steps of migrations, so a local account that needs one (an existing admin who is not listed in `PLATFORM_ADMIN_IDS` gets no staff row) needs `db:migrate` or the env list.
+- Postgres runs on `localhost:54329` (never 5432 or 5433, other projects hold them): `docker compose up postgres -d`. Compose holds only Postgres; the api and the app run natively with `pnpm dev`.
+- **One database per worktree**: `scripts/worktree-db.sh` creates `classroom_parents_<branch slug>` in that container (idempotent) and writes its `DATABASE_URL` into `apps/api/.env` and `packages/drizzle/.env`. Run it after `pnpm bootstrap` in every new worktree, then `pnpm db:push`. **Why**: parallel worktrees sharing one database wipe each other's data in the real-database checks, which refuse any other database (`requireLocalDatabase`).
+- After a schema change: `pnpm db:push` (dev, non-interactive) or `db:generate && db:migrate` (prod-style).
 
 ## Work tracking
 
-Solo project. Every task of the plan is one branch off `dev` named `<conventional-commit-type>/<slug>` (for example `feat/children-module`), one signed commit, one PR into `dev`, and ticks its line in `ROADMAP.md` inside that commit.
+Solo project. Every task of the plan is one branch off `develop` named `<conventional-commit-type>/<slug>` (for example `feat/children-module`), one signed commit, one PR into `develop`; `ROADMAP.md` is ticked when the task is merged.
 
 ## Release flow
 
-Two-branch model. **`main` = released; `dev` = integration.** release-please (`release-please-config.json`, `.github/workflows/release.yml`) runs on every push to `dev` with the bot GitHub App token (`vars.BOT_CLIENT_ID`, `secrets.BOT_PRIVATE_KEY`). **Why the App token**: a PR or a push made with the default workflow token triggers no workflow, so the release PR would never run CI and the moved `main` would never deploy.
+Two-branch model. **`main` = released; `develop` = integration.** release-please (`release-please-config.json`, `.github/workflows/release.yml`) runs on every push to `develop` with the bot GitHub App token (`vars.BOT_CLIENT_ID`, `secrets.BOT_PRIVATE_KEY`). **Why the App token**: a PR or a push made with the default workflow token triggers no workflow, so the release PR would never run CI and the moved `main` would never deploy.
 
 - **Conventional Commits required** (commitlint enforces a lower-case subject). Release impact: `feat` → minor; `fix`/`perf`/`refactor`/`revert`/`build` → patch; `docs`/`style`/`test`/`chore`/`ci` alone → no release (hidden sections of the config); `BREAKING CHANGE:` footer (or `!`) → major. Pick the type for the *release impact you want*, not the file touched.
-- **Release**: release-please keeps one release PR open on `dev` (version, `CHANGELOG.md`, `package.json`). Merging it tags, publishes the GitHub release, then the workflow pushes that commit to `main` as a fast-forward, which deploys production. There is no `dev` → `main` PR.
-- **Hotfix**: branch `hotfix/<issue>-<slug>` off `main`, PR into `main`; merging it deploys production without shipping what waits on `dev`. Then merge `main` back into `dev` by hand, so the fix lands in the next release's changelog and that release stays a fast-forward of `main`. A hotfix gets no tag of its own. **Why**: release-please keeps one release line per branch; a release tagged on `main` and merged back into `dev` becomes `dev`'s last release and silently drops every older `dev` commit from the next changelog and version bump (measured on a sandbox repo, `last-release-sha` does not prevent it).
+- **Release**: release-please keeps one release PR open on `develop` (version, `CHANGELOG.md`, `package.json`). Merging it tags, publishes the GitHub release, then the workflow pushes that commit to `main` as a fast-forward, which deploys production. There is no `develop` → `main` PR.
+- **Hotfix**: branch `hotfix/<issue>-<slug>` off `main`, PR into `main`; merging it deploys production without shipping what waits on `develop`. `.github/workflows/sync-develop.yml` then merges `main` back into `develop`, so the fix lands in the next release's changelog and that release stays a fast-forward of `main`. A hotfix gets no tag of its own. **Why**: release-please keeps one release line per branch; a release tagged on `main` and merged back into `develop` becomes `develop`'s last release and silently drops every older `develop` commit from the next changelog and version bump (measured on a sandbox repo, `last-release-sha` does not prevent it).
 - **PRs merge by squash** (the only method the repo allows): title = PR title, body = PR description, so the PR title is the conventional commit release-please reads, once. **Why**: release-please also parses the body of a merge commit, which GitHub fills with the PR title, so a merge commit lists every PR twice in the changelog (measured on the sandbox repo). The PR title follows Conventional Commits like a commit subject.
 - A version, a `version` field, a tag or a changelog entry is never written by hand: the release PR owns them.
 - `main` only moves through the bot or a hotfix PR; never push to it.

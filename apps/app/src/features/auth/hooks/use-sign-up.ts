@@ -1,11 +1,10 @@
-import { SSO_REDIRECT_IN_PROGRESS } from "@packages/web-kit/observability/error-classifier";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { SignUpInput } from "../../../shared/auth/auth.schema";
 import { authClient } from "../../../shared/auth/auth-client";
-import { redirectToSsoIfRequired, resolveAuthError } from "../auth-error";
+import { resolveAuthError } from "../auth-error";
 import { rememberPostVerifyRedirect } from "../post-verify-redirect";
 
 export function useSignUp(redirectTo?: string) {
@@ -22,8 +21,6 @@ export function useSignUp(redirectTo?: string) {
         callbackURL: redirectTo,
       });
       if (error) {
-        if (await redirectToSsoIfRequired(error, redirectTo))
-          throw new Error(SSO_REDIRECT_IN_PROGRESS);
         throw new Error(resolveAuthError(error, "signUp.failed", t, tErrors));
       }
 
@@ -34,9 +31,6 @@ export function useSignUp(redirectTo?: string) {
       toast.success(t("signUp.successToast"));
       void navigate({ to: "/verify-email" });
     },
-    onError: (err) => {
-      if (err.message === SSO_REDIRECT_IN_PROGRESS) return;
-      toast.error(err.message);
-    },
+    onError: (err) => toast.error(err.message),
   });
 }

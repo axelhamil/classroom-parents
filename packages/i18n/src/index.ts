@@ -4,7 +4,7 @@
 // import `createI18n`.
 import "./types";
 
-export { default as enCatalog, NAMESPACES, type Namespace } from "./catalogs/en";
+export { default as frCatalog, NAMESPACES, type Namespace } from "./catalogs/fr";
 export { type CreateI18nOptions, createI18n } from "./create-instance";
 export { loadCatalog, type Resources } from "./load-catalog";
 export { DEFAULT_LOCALE, isLocale, LOCALES, type Locale, toLocale } from "./locales";

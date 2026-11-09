@@ -72,7 +72,7 @@ describe("throwApiError", () => {
       headers: { "Retry-After": "10" },
     });
     const err = await throwApiError(res, "loadPolicies").catch((e) => e);
-    expect(err.message).toBe("Failed to load policies");
+    expect(err.message).toBe("Échec du chargement des politiques");
     expect(err.status).toBe(429);
     expect(err.metadata?.retryAfter).toBe(10);
   });

@@ -22,12 +22,9 @@ const { app, routes } = await import("../app");
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "ALL"]);
 
-const NOT_COOKIE_AUTHENTICATED = ["/internal/", "/api/v1/", "/api/token-scanning/", "/api/auth/"];
-const PUBLIC_WITHOUT_CREDENTIAL = ["/csp-report"];
+const NOT_COOKIE_AUTHENTICATED = ["/api/auth/"];
 
 function isCookieAuthenticated(path: string): boolean {
-  if (PUBLIC_WITHOUT_CREDENTIAL.includes(path)) return false;
-
   return !NOT_COOKIE_AUTHENTICATED.some((prefix) => path.startsWith(prefix));
 }
 
@@ -45,7 +42,7 @@ const mutatingRoutes = [
 
 describe("CSRF coverage of the live route table", () => {
   it("finds the cookie-authenticated mutating routes", () => {
-    expect(mutatingRoutes.map(({ path }) => path)).toContain("/notifications/read-all");
+    expect(mutatingRoutes.map(({ path }) => path)).toContain("/me/delete");
   });
 
   it("refuses a foreign Origin on every cookie-authenticated mutating route", async () => {

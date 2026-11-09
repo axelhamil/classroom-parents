@@ -70,7 +70,6 @@ function toDeliveredEvent(record: OutboxRecord): DeliveredEvent {
     eventType: record.eventType,
     aggregateId: record.aggregateId,
     aggregateType: record.aggregateType,
-    organizationId: record.organizationId.toUndefined(),
     requestId: record.metadata.requestId,
     dateOccurred: record.occurredAt,
     payload: record.payload,
@@ -302,7 +301,6 @@ export class OutboxRelay {
       ],
       {
         source: "app/api/outbox-relay",
-        organizationId: null,
         aggregateType: "outbox_event",
       },
     );

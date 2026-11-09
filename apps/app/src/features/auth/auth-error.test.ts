@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redirectToSsoIfRequired, resolveAuthError } from "./auth-error";
+import { resolveAuthError } from "./auth-error";
 
 const t = ((key: string) => key) as never;
 const tErrors = ((key: string, opts?: { defaultValue?: string }) => {
@@ -46,17 +46,5 @@ describe("resolveAuthError", () => {
 
   it("returns the caller fallback key translation when message and code are absent", () => {
     expect(resolveAuthError({ status: 500 }, "signIn.failed", t, tErrors)).toBe("signIn.failed");
-  });
-});
-
-describe("redirectToSsoIfRequired", () => {
-  it("returns false without touching the network for a non-SSO_REQUIRED error", async () => {
-    await expect(redirectToSsoIfRequired({ status: 401, message: "Unauthorized" })).resolves.toBe(
-      false,
-    );
-  });
-
-  it("returns false when the rejection is SSO_REQUIRED but carries no providerId", async () => {
-    await expect(redirectToSsoIfRequired({ message: "SSO_REQUIRED" })).resolves.toBe(false);
   });
 });

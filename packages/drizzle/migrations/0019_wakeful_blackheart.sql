@@ -1,1 +1,0 @@
-CREATE INDEX "email_message_failed_sweep_idx" ON "email_message" USING btree ("created_at") WHERE "email_message"."status" = 'failed';

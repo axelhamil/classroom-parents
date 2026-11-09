@@ -1,9 +1,3 @@
-/**
- * What a table cell or a label and value row shows when the value is absent,
- * so every "no value" in the app reads the same.
- */
-export const EMPTY_VALUE = "-";
-
 export interface DisplayUser {
   name?: string | null;
   email: string;

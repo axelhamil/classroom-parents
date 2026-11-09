@@ -23,13 +23,6 @@ function formatViolation(violation: Violation): string {
   return `${violation.id} (${violation.impact}): ${violation.help} → ${targets}`;
 }
 
-export function corsHeaders(origin?: string): Record<string, string> {
-  return {
-    "access-control-allow-origin": origin ?? "*",
-    "access-control-allow-credentials": "true",
-  };
-}
-
 export async function blockingViolations(page: Page, include?: string): Promise<string[]> {
   const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   const results = await (include ? builder.include(include) : builder).analyze();
@@ -63,15 +56,10 @@ export async function audit(
   expect(await blockingViolations(page)).toEqual([]);
 }
 
-/**
- * `/sign-in` can mount several forms whose email field carries the same label:
- * the credentials form and whichever alternative (magic link, SSO) is open.
- * Scoping by the submit button is what keeps the locators unambiguous.
- */
 export function signInForm(page: Page): Locator {
   return page
     .locator("form")
-    .filter({ has: page.getByRole("button", { name: "Sign in", exact: true }) });
+    .filter({ has: page.getByRole("button", { name: "Se connecter", exact: true }) });
 }
 
 export async function tabTo(page: Page, target: Locator, maxPresses = 20): Promise<void> {
@@ -80,11 +68,6 @@ export async function tabTo(page: Page, target: Locator, maxPresses = 20): Promi
     await page.keyboard.press("Tab");
   }
   throw new Error(`Target never received focus after ${maxPresses} Tab presses`);
-}
-
-export async function dismissCookieBanner(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Reject all" }).click();
-  await page.getByRole("dialog", { name: "Cookie consent" }).waitFor({ state: "hidden" });
 }
 
 /**
@@ -99,7 +82,7 @@ export async function submitCredentials(
 ): Promise<void> {
   const form = signInForm(page);
 
-  await tabTo(page, form.getByLabel("Email", { exact: true }));
+  await tabTo(page, form.getByLabel("E-mail", { exact: true }));
   await page.keyboard.type(email);
   await page.keyboard.press("Tab");
   await page.keyboard.type(password);

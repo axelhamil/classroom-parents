@@ -1,6 +1,6 @@
-import { POLICY_URLS, type PolicyType } from "@packages/policies";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import type { ReactNode } from "react";
+import { POLICY_URLS, type PolicyType } from "../legal/policy-labels";
 
 interface PolicyLinkProps {
   type: PolicyType;

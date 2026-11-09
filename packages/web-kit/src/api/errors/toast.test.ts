@@ -10,8 +10,8 @@ vi.mock("sonner", () => ({
 
 vi.mock("../../i18n/get-errors-t", async () => {
   const { catalogT } = await import("../../i18n/__tests__/catalog-t");
-  const { default: enCatalog } = await import("@packages/i18n/src/catalogs/en");
-  return { getErrorsT: () => catalogT(enCatalog.errors) };
+  const { default: frCatalog } = await import("@packages/i18n/src/catalogs/fr");
+  return { getErrorsT: () => catalogT(frCatalog.errors) };
 });
 
 import { toast } from "sonner";
@@ -48,7 +48,7 @@ describe("toastError", () => {
     });
     toastError(err, "fallback");
     expect(toast.error).toHaveBeenCalledOnce();
-    expect(toast.error).toHaveBeenCalledWith("Invalid input.");
+    expect(toast.error).toHaveBeenCalledWith("Saisie invalide.");
   });
 
   it("prefers the caller's localised fallback over the untranslated server message", () => {

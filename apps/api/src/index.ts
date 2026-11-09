@@ -30,7 +30,6 @@ EventCollector.setOutOfContextLogger((msg, meta) => logger.warn(meta ?? {}, msg)
 
 await di.preload();
 await di.OutboxDispatcher.start(di);
-await di.WebhookDeliveryWorker.start();
 await di.EmailDeliveryWorker.start();
 await di.NotificationStreamHub.start();
 lifecycleState.markStarted();
@@ -40,8 +39,6 @@ if (env.NODE_ENV === "production" && !env.TRUSTED_PROXIES) {
     "TRUSTED_PROXIES is not set in production, behind a load-balancer all requests share the LB socket address as rate-limit key (collective lockout). Set it to `private` (trusts platform private ranges, the right value behind a container proxy such as Traefik on Coolify), a comma-separated CIDR list, or exact proxy IPs.",
   );
 }
-
-export type { WebhookDeliveryStatus } from "./modules/webhooks/application/ports/webhook-delivery.port";
 
 const serveOptions = {
   ...buildServerOptions({ port: env.PORT, idleTimeoutSeconds: env.SERVER_IDLE_TIMEOUT_SECONDS }),
@@ -71,7 +68,6 @@ const steps: ShutdownStep[] = [
     timeoutMs: env.SHUTDOWN_WORKERS_TIMEOUT_MS,
     run: async () => {
       await Promise.all([
-        di.WebhookDeliveryWorker.stop(),
         di.EmailDeliveryWorker.stop(),
         di.OutboxDispatcher.stop(),
         di.NotificationStreamHub.stop(),

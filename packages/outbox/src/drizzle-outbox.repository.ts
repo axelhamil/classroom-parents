@@ -128,7 +128,6 @@ function claimQuery(
       eventType: oe.eventType,
       aggregateId: oe.aggregateId,
       aggregateType: oe.aggregateType,
-      organizationId: oe.organizationId,
       payload: oe.payload,
       metadata: oe.metadata,
       occurredAt: oe.occurredAt,
@@ -159,7 +158,6 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
           const rows = events.map((event) =>
             domainEventToOutboxRow(event, {
               source: scope.source,
-              organizationId: scope.organizationId,
               aggregateType: scope.aggregateType ?? "unknown",
               traceparent: scope.traceparent,
               requestId,
@@ -192,7 +190,6 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
           rows
             .map((row) => ({
               ...row,
-              organizationId: Option.fromNullable(row.organizationId),
               deadAt: Option.fromNullable(row.deadAt),
             }))
             .sort(byOccurrence),

@@ -16,11 +16,12 @@ Versions are pinned in `mise.toml` (Node, pnpm, Bun).
 pnpm install
 docker compose up postgres -d
 pnpm bootstrap
+scripts/worktree-db.sh
 pnpm db:push
 pnpm dev
 ```
 
-Postgres listens on `localhost:5433`. `pnpm bootstrap` copies each `.env.example` to `.env`; real keys never go in the repository.
+Postgres listens on `localhost:54329`. `pnpm bootstrap` copies each `.env.example` to `.env`; real keys never go in the repository. `scripts/worktree-db.sh` gives the current worktree its own database (`classroom_parents_<branch>`) and writes its `DATABASE_URL`.
 
 ## Checks
 

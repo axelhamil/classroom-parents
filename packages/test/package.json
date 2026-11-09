@@ -11,6 +11,7 @@
     "./bun/unit-of-work": "./src/bun/unit-of-work-mock.ts",
     "./bun/instrumentation": "./src/bun/instrumentation-mock.ts",
     "./source-scan": "./src/source-scan.ts",
+    "./db-check": "./src/db-check.ts",
     "./a11y": "./src/a11y.ts",
     "./redirect-vectors": "./src/redirect-vectors.ts",
     "./base-vitest.config": "./base-vitest.config.js"

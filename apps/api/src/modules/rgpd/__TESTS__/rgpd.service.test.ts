@@ -13,51 +13,21 @@ import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort } from "@packages/test/bun";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
-import { staffAccessRules } from "../../../composition/sources/rgpd";
-import type {
-  IStaffStore,
-  StaffManagerRecord,
-  StaffRecord,
-} from "../../../shared/ports/staff-store.port";
-import type { IStorageService } from "../../../shared/ports/storage.port";
-import type { ITotpVerifier } from "../../../shared/ports/totp-verifier.port";
 import { NoOpInstrumentation } from "../../../shared/services/noop-instrumentation";
 import type {
   ExecuteWipeOutput,
   IRgpdRepository,
   PendingDeletionRow,
   RgpdError,
-  SoleOwnedOrgWithMembers,
   UserDeletionState,
-  UserExportPayload,
 } from "../application/ports/rgpd.port";
 import { RgpdService } from "../application/services/rgpd.service";
 
 const baseState: UserDeletionState = {
   email: "u@example.com",
   name: "User",
-  locale: Option.some("fr"),
-  twoFactorEnabled: false,
   pendingDeletionUntil: Option.none(),
   deletedAt: Option.none(),
-  lastExportRequestedAt: Option.none(),
-};
-
-const stubExportPayload: UserExportPayload = {
-  exportedAt: new Date().toISOString(),
-  user: {
-    id: "u1",
-    name: "User",
-    email: "u@example.com",
-    emailVerified: true,
-    image: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    twoFactorEnabled: false,
-  },
-  sessions: [],
-  memberships: [],
-  invitationsSent: [],
 };
 
 let uow: UnitOfWorkMock = mockUnitOfWork();
@@ -80,46 +50,16 @@ function graceElapsedStateFor(userId: string): UserDeletionState {
 
 function makeRepo(overrides: Partial<IRgpdRepository> = {}): IRgpdRepository {
   return {
-    findSoleOwnedNonPersonalOrgsWithMembers: mock(async () => Result.ok<never[], RgpdError>([])),
-    collectUserDataForExport: mock(async () =>
-      Result.ok<UserExportPayload, RgpdError>(stubExportPayload),
-    ),
     markPendingDeletion: mock(async () => Result.ok<RgpdError>()),
     clearPendingDeletion: mock(async () => Result.ok<RgpdError>()),
     findUsersReadyForWipe: mock(async () => Result.ok<PendingDeletionRow[], RgpdError>([])),
-    executeWipe: mock(async () =>
-      Result.ok<ExecuteWipeOutput, RgpdError>({
-        deletedOrgIds: ["org_personal", "org_solo"],
-        anonymizedEmail: "deleted-uuid@anonymized.local",
-        alreadyWiped: false,
-        endedImpersonations: [],
-        removedMemberships: [],
-        revokedTokens: [],
-      }),
-    ),
+    executeWipe: mock(async () => Result.ok<ExecuteWipeOutput, RgpdError>({ alreadyWiped: false })),
     verifyPassword: mock(async () => Result.ok<boolean, RgpdError>(true)),
-    touchExportRequestedAt: mock(async () => Result.ok<RgpdError>()),
     getUserDeletionState: mock(async () =>
       Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(baseState)),
     ),
     ...overrides,
   } as unknown as IRgpdRepository;
-}
-
-function makeStorage(overrides: Partial<IStorageService> = {}): IStorageService {
-  return {
-    presignUpload: mock(async () => Result.ok({ url: "", expiresAt: "" })),
-    presignDownload: mock(async () =>
-      Result.ok({ url: "https://cdn.example.com/export.json", expiresAt: "2099-01-01T00:00:00Z" }),
-    ),
-    headObject: mock(async () => Result.ok({ size: 0, contentType: "" })),
-    deleteObject: mock(async () => Result.ok<RgpdError>()),
-    uploadObject: mock(async () => Result.ok<RgpdError>()),
-    listObjectKeys: mock(async () => Result.ok(["u1/uploads/a", "u1/exports/b"])),
-    deleteObjects: mock(async () => Result.ok<RgpdError>()),
-    publicUrlFor: mock(() => ""),
-    ...overrides,
-  } as unknown as IStorageService;
 }
 
 function makeEmail(): IEmailService {
@@ -134,50 +74,25 @@ function makeEmail(): IEmailService {
 function buildService(deps: {
   repo: IRgpdRepository;
   email: IEmailService;
-  storage?: IStorageService;
   uow?: IUnitOfWork;
   outbox?: IOutboxRepository;
   instrumentation?: IInstrumentation;
-  staff?: IStaffStore;
-  listed?: string[];
-  totp?: ITotpVerifier;
 }): RgpdService {
   const outbox = deps.outbox ?? mockPort<IOutboxRepository>();
 
   return new RgpdService(
     deps.repo,
-    deps.storage ?? makeStorage(),
     deps.email,
     deps.uow ?? uow.unitOfWork,
     outbox,
     deps.instrumentation ?? new NoOpInstrumentation(),
-    deps.staff ?? makeStaff(Option.none(), []),
-    staffAccessRules(outbox, { PLATFORM_ADMIN_IDS: deps.listed ?? [] }),
-    deps.totp ?? acceptingTotp(),
     {
       appUrl: "https://app.example.com",
       gracePeriodDays: 7,
-      exportRateLimitHours: 24,
       sweepDeadlineMs: 90_000,
     },
     mockPort<ILogger>(),
   );
-}
-
-function acceptingTotp() {
-  const totp = mockPort<ITotpVerifier>();
-  totp.consume.mockImplementation(async () => Result.ok("accepted"));
-
-  return totp;
-}
-
-function makeStaff(row: Option<StaffRecord>, managers: StaffManagerRecord[]) {
-  const staff = mockPort<IStaffStore>();
-  staff.findActive.mockImplementation(async () => Result.ok(row));
-  staff.lockActiveManagers.mockImplementation(async () => Result.ok(managers));
-  staff.revoke.mockImplementation(async () => Result.ok([]));
-
-  return staff;
 }
 
 function makeService(opts: {
@@ -211,57 +126,7 @@ describe("RgpdService", () => {
     uow = mockUnitOfWork();
   });
 
-  describe("preflightAccountDeletion", () => {
-    it("returns an empty blockingOrgs list when user has no blocking orgs", async () => {
-      const repo = makeRepo();
-      const service = buildService({ repo, email });
-
-      const result = await service.preflightAccountDeletion({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
-      expect(result.getValue().blockingOrgs).toEqual([]);
-    });
-
-    it("returns blocking orgs when user is sole owner of non-personal orgs with other members", async () => {
-      const blocking: SoleOwnedOrgWithMembers[] = [
-        { orgId: "org_1", orgName: "Acme", otherMembersCount: 3 },
-        { orgId: "org_2", orgName: "Beta", otherMembersCount: 1 },
-      ];
-      const repo = makeRepo({
-        findSoleOwnedNonPersonalOrgsWithMembers: mock(async () =>
-          Result.ok<SoleOwnedOrgWithMembers[], RgpdError>(blocking),
-        ),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.preflightAccountDeletion({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
-      expect(result.getValue().blockingOrgs).toEqual(blocking);
-    });
-  });
-
   describe("requestAccountDeletion", () => {
-    it("returns ACCOUNT_DELETION_BLOCKED when sole-owner of non-personal orgs with members", async () => {
-      const repo = makeRepo({
-        findSoleOwnedNonPersonalOrgsWithMembers: mock(async () =>
-          Result.ok<SoleOwnedOrgWithMembers[], RgpdError>([
-            { orgId: "org_1", orgName: "Acme", otherMembersCount: 3 },
-          ]),
-        ),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.requestAccountDeletion({ userId: "u1", password: "secret" });
-
-      expect(result.isFailure).toBe(true);
-      const err = result.getError();
-      expect(err.code).toBe("ACCOUNT_DELETION_BLOCKED");
-      expect(err.metadata?.offendingOrgs).toEqual([
-        { orgId: "org_1", orgName: "Acme", otherMembersCount: 3 },
-      ]);
-    });
-
     it("returns ACCOUNT_PASSWORD_INVALID on bad password", async () => {
       const repo = makeRepo({
         verifyPassword: mock(async () => Result.ok<boolean, RgpdError>(false)),
@@ -274,7 +139,7 @@ describe("RgpdService", () => {
       expect(result.getError().code).toBe("ACCOUNT_PASSWORD_INVALID");
     });
 
-    it("marks pending and emails when password is valid and 2FA disabled", async () => {
+    it("marks pending and emails when the password is valid", async () => {
       const repo = makeRepo();
       const service = buildService({ repo, email });
 
@@ -286,42 +151,8 @@ describe("RgpdService", () => {
         "delete_requested",
         "u@example.com",
         expect.objectContaining({ name: "User", cancelUrl: expect.any(String) }),
-        expect.objectContaining({ idempotencyKey: expect.any(String), locale: "fr" }),
+        expect.objectContaining({ idempotencyKey: expect.any(String) }),
       );
-    });
-
-    it("returns TWO_FACTOR_REQUIRED when 2FA enabled and no totpCode given", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some({ ...baseState, twoFactorEnabled: true }),
-          ),
-        ),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.requestAccountDeletion({ userId: "u1", password: "ignored" });
-
-      expect(result.isFailure).toBe(true);
-      expect(result.getError().code).toBe("TWO_FACTOR_REQUIRED");
-    });
-
-    it("returns TWO_FACTOR_INVALID when TOTP code is invalid", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some({ ...baseState, twoFactorEnabled: true }),
-          ),
-        ),
-      });
-      const totp = mockPort<ITotpVerifier>();
-      totp.consume.mockImplementation(async () => Result.ok("invalid"));
-      const service = buildService({ repo, email, totp });
-
-      const result = await service.requestAccountDeletion({ userId: "u1", totpCode: "000000" });
-
-      expect(result.isFailure).toBe(true);
-      expect(result.getError().code).toBe("TWO_FACTOR_INVALID");
     });
 
     it("returns existing pendingDeletionUntil when already pending without re-marking", async () => {
@@ -365,7 +196,7 @@ describe("RgpdService", () => {
         "delete_cancelled",
         "u@example.com",
         expect.objectContaining({ name: "User" }),
-        expect.objectContaining({ idempotencyKey: expect.any(String), locale: "fr" }),
+        expect.objectContaining({ idempotencyKey: expect.any(String) }),
       );
     });
 
@@ -381,259 +212,31 @@ describe("RgpdService", () => {
     });
   });
 
-  describe("requestAccountDeletion by staff", () => {
-    const managerRow = Option.some<StaffRecord>({
-      userId: "u1",
-      role: "manager",
-      source: "console",
-      banned: false,
-      overrides: [],
-    });
-    const request = { userId: "u1", password: "pw" };
-
-    it("refuses the last manager with an actionable error and marks nothing", async () => {
-      const repo = makeRepo();
-      const service = buildService({
-        repo,
-        email,
-        staff: makeStaff(managerRow, [{ userId: "u1", source: "console" }]),
-      });
-
-      const result = await service.requestAccountDeletion(request);
-
-      expect(result.getError().code).toBe("ACCOUNT_DELETION_LAST_MANAGER_FORBIDDEN");
-      expect(repo.markPendingDeletion).not.toHaveBeenCalled();
-    });
-
-    it("lets a manager go when another one remains", async () => {
-      const repo = makeRepo();
-      const service = buildService({
-        repo,
-        email,
-        staff: makeStaff(managerRow, [
-          { userId: "u1", source: "console" },
-          { userId: "u2", source: "console" },
-        ]),
-      });
-
-      expect((await service.requestAccountDeletion(request)).isSuccess).toBe(true);
-    });
-
-    it("lets an env-listed last manager go, the env being the recovery", async () => {
-      const repo = makeRepo();
-      const service = buildService({
-        repo,
-        email,
-        listed: ["u1"],
-        staff: makeStaff(managerRow, [{ userId: "u1", source: "console" }]),
-      });
-
-      expect((await service.requestAccountDeletion(request)).isSuccess).toBe(true);
-    });
-
-    it("lets a support member go without touching the manager lock", async () => {
-      const staff = makeStaff(
-        Option.some<StaffRecord>({
-          userId: "u1",
-          role: "support",
-          source: "console",
-          banned: false,
-          overrides: [],
-        }),
-        [],
-      );
-      const service = buildService({ repo: makeRepo(), email, staff });
-
-      expect((await service.requestAccountDeletion(request)).isSuccess).toBe(true);
-      expect(staff.lockActiveManagers).not.toHaveBeenCalled();
-    });
-  });
-
   describe("executeAccountWipe", () => {
     const elapsedState: UserDeletionState = {
       ...baseState,
       pendingDeletionUntil: Option.some(new Date(Date.now() - 1000)),
     };
 
-    it("revokes the staff row of a wiped member and announces it with the member as actor", async () => {
+    it("anonymizes via repo and emails the user", async () => {
       const repo = makeRepo({
         getUserDeletionState: mock(async () =>
           Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
         ),
       });
-      const staff = makeStaff(
-        Option.some<StaffRecord>({
-          userId: "u1",
-          role: "manager",
-          source: "console",
-          banned: false,
-          overrides: [],
-        }),
-        [],
-      );
       const outbox = mockPort<IOutboxRepository>();
-      outbox.enqueue.mockImplementation(async () => {});
-      const service = buildService({ repo, email, staff, outbox });
-
-      const result = await service.executeAccountWipe({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
-      expect(staff.revoke).toHaveBeenCalledWith("u1");
-      expect(
-        enqueuedEvents(outbox).filter((e) => e.eventType === EventTypes.ADMIN_STAFF_REVOKED),
-      ).toEqual([
-        {
-          eventType: EventTypes.ADMIN_STAFF_REVOKED,
-          aggregateId: "u1",
-          payload: { actorUserId: "u1", userId: "u1", role: "manager" },
-        },
-      ]);
-    });
-
-    it("announces each impersonation of a wiped customer as revoked", async () => {
-      const createdAt = new Date(Date.now() - 60_000);
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-        executeWipe: mock(async () =>
-          Result.ok<ExecuteWipeOutput, RgpdError>({
-            deletedOrgIds: [],
-            anonymizedEmail: "deleted-uuid@anonymized.local",
-            alreadyWiped: false,
-            endedImpersonations: [
-              {
-                sessionId: "s1",
-                userId: "u1",
-                impersonatedBy: "staff-1",
-                createdAt,
-                expiresAt: new Date(createdAt.getTime() + 3_600_000),
-              },
-            ],
-            removedMemberships: [],
-            revokedTokens: [],
-          }),
-        ),
-      });
-      const outbox = mockPort<IOutboxRepository>();
-      outbox.enqueue.mockImplementation(async () => {});
       const service = buildService({ repo, email, outbox });
-
-      await service.executeAccountWipe({ userId: "u1" });
-
-      expect(
-        enqueuedEvents(outbox)
-          .filter((e) => e.eventType === EventTypes.ADMIN_IMPERSONATION_STOPPED)
-          .map((e) => e.payload),
-      ).toEqual([
-        expect.objectContaining({ actorUserId: "staff-1", userId: "u1", endReason: "revoked" }),
-      ]);
-    });
-
-    it("announces the impersonations a wiped staff member still ran as revoked", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const staff = makeStaff(
-        Option.some<StaffRecord>({
-          userId: "u1",
-          role: "support",
-          source: "console",
-          banned: false,
-          overrides: [],
-        }),
-        [],
-      );
-      const createdAt = new Date(Date.now() - 60_000);
-      staff.revoke.mockImplementation(async () =>
-        Result.ok([
-          {
-            sessionId: "s1",
-            userId: "customer",
-            impersonatedBy: "u1",
-            createdAt,
-            expiresAt: new Date(createdAt.getTime() + 3_600_000),
-          },
-        ]),
-      );
-      const outbox = mockPort<IOutboxRepository>();
-      outbox.enqueue.mockImplementation(async () => {});
-      const service = buildService({ repo, email, staff, outbox });
-
-      await service.executeAccountWipe({ userId: "u1" });
-
-      expect(
-        enqueuedEvents(outbox)
-          .filter((e) => e.eventType === EventTypes.ADMIN_IMPERSONATION_STOPPED)
-          .map((e) => e.payload),
-      ).toEqual([
-        expect.objectContaining({ actorUserId: "u1", userId: "customer", endReason: "revoked" }),
-      ]);
-    });
-
-    it("writes nothing on the staff side for a user who is not staff", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const staff = makeStaff(Option.none(), []);
-      const service = buildService({ repo, email, staff });
-
-      await service.executeAccountWipe({ userId: "u1" });
-
-      expect(staff.revoke).not.toHaveBeenCalled();
-    });
-
-    it("rolls the wipe back when the staff revocation fails", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const staff = makeStaff(
-        Option.some<StaffRecord>({
-          userId: "u1",
-          role: "support",
-          source: "console",
-          banned: false,
-          overrides: [],
-        }),
-        [],
-      );
-      staff.revoke.mockImplementation(async () =>
-        Result.fail({ code: "ADMIN_STAFF_PROVIDER_FAILURE", message: "down" }),
-      );
-      const service = buildService({ repo, email, staff });
-
-      const result = await service.executeAccountWipe({ userId: "u1" });
-
-      expect(result.getError().code).toBe("ACCOUNT_WIPE_PROVIDER_FAILURE");
-    });
-
-    it("anonymizes via repo, deletes storage prefix, and emails the user", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const storage = makeStorage();
-      const service = buildService({ repo, email, storage });
 
       const result = await service.executeAccountWipe({ userId: "u1" });
 
       expect(result.isSuccess).toBe(true);
       expect(repo.executeWipe).toHaveBeenCalled();
-      expect(storage.listObjectKeys).toHaveBeenCalledWith("u1/");
-      expect(storage.deleteObjects).toHaveBeenCalledWith(["u1/uploads/a", "u1/exports/b"]);
-      expect(result.getValue().storageKeysDeleted).toBe(2);
+      expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.USER_DELETED]);
       expect(email.sendTemplate).toHaveBeenCalledWith(
         "delete_completed",
         "u@example.com",
         { name: "User" },
-        expect.objectContaining({ idempotencyKey: "delete-completed/u1", locale: "fr" }),
+        expect.objectContaining({ idempotencyKey: "delete-completed/u1" }),
       );
     });
 
@@ -725,113 +328,13 @@ describe("RgpdService", () => {
       expect(captured).toHaveLength(1);
     });
 
-    it("emits ORG_DELETED for every organization destroyed in the wipe (RGPD audit completeness)", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const spyOutbox = mockPort<IOutboxRepository>();
-      const service = buildService({ repo, email, outbox: spyOutbox });
-
-      const result = await service.executeAccountWipe({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
-      expect(enqueuedEvents(spyOutbox).some((e) => e.eventType === EventTypes.USER_DELETED)).toBe(
-        true,
-      );
-      const orgDeleted = enqueuedEvents(spyOutbox)
-        .filter((e) => e.eventType === EventTypes.ORG_DELETED)
-        .map((e) => e.aggregateId)
-        .sort();
-      expect(orgDeleted).toEqual(["org_personal", "org_solo"]);
-    });
-
-    it("announces the membership of every surviving organization and each revoked api token, deleted organizations included", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-        executeWipe: mock(async () =>
-          Result.ok<ExecuteWipeOutput, RgpdError>({
-            deletedOrgIds: ["org_personal"],
-            anonymizedEmail: "deleted-uuid@anonymized.local",
-            alreadyWiped: false,
-            endedImpersonations: [],
-            removedMemberships: [{ memberId: "mem_team", organizationId: "org_team" }],
-            revokedTokens: [
-              { tokenId: "tok_personal", organizationId: Option.none() },
-              { tokenId: "tok_team", organizationId: Option.some("org_team") },
-              { tokenId: "tok_personal_org", organizationId: Option.some("org_personal") },
-            ],
-          }),
-        ),
-      });
-      const spyOutbox = mockPort<IOutboxRepository>();
-      const service = buildService({ repo, email, outbox: spyOutbox });
-
-      const result = await service.executeAccountWipe({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
-      const events = enqueuedEvents(spyOutbox);
-      expect(events.filter((e) => e.eventType === EventTypes.ORG_MEMBER_REMOVED)).toEqual([
-        {
-          eventType: EventTypes.ORG_MEMBER_REMOVED,
-          aggregateId: "mem_team",
-          payload: { organizationId: "org_team", actorUserId: "u1", userId: "u1" },
-        },
-      ]);
-      expect(events.filter((e) => e.eventType === EventTypes.API_TOKEN_REVOKED)).toEqual([
-        {
-          eventType: EventTypes.API_TOKEN_REVOKED,
-          aggregateId: "tok_personal",
-          payload: {
-            userId: "u1",
-            actorUserId: "u1",
-            organizationId: null,
-            tokenId: "tok_personal",
-            reason: "user",
-          },
-        },
-        {
-          eventType: EventTypes.API_TOKEN_REVOKED,
-          aggregateId: "tok_team",
-          payload: {
-            userId: "u1",
-            actorUserId: "u1",
-            organizationId: "org_team",
-            tokenId: "tok_team",
-            reason: "user",
-          },
-        },
-        {
-          eventType: EventTypes.API_TOKEN_REVOKED,
-          aggregateId: "tok_personal_org",
-          payload: {
-            userId: "u1",
-            actorUserId: "u1",
-            organizationId: "org_personal",
-            tokenId: "tok_personal_org",
-            reason: "user",
-          },
-        },
-      ]);
-    });
-
     it("short-circuits without emitting USER_DELETED when the repository reports the row already wiped (lost race, no SKIP LOCKED on rgpd-sweep)", async () => {
       const repo = makeRepo({
         getUserDeletionState: mock(async () =>
           Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
         ),
         executeWipe: mock(async () =>
-          Result.ok<ExecuteWipeOutput, RgpdError>({
-            deletedOrgIds: [],
-            anonymizedEmail: "",
-            alreadyWiped: true,
-            endedImpersonations: [],
-            removedMemberships: [],
-            revokedTokens: [],
-          }),
+          Result.ok<ExecuteWipeOutput, RgpdError>({ alreadyWiped: true }),
         ),
       });
       const spyOutbox = mockPort<IOutboxRepository>();
@@ -849,12 +352,9 @@ describe("RgpdService", () => {
           Result.ok<Option<UserDeletionState>, RgpdError>(
             Option.some({
               email: "deleted@anonymized.local",
-              locale: Option.none<"fr">(),
               name: "[deleted]",
-              twoFactorEnabled: false,
               pendingDeletionUntil: Option.none(),
               deletedAt: Option.some(new Date()),
-              lastExportRequestedAt: Option.none(),
             }),
           ),
         ),
@@ -864,7 +364,7 @@ describe("RgpdService", () => {
       const result = await service.executeAccountWipe({ userId: "u1" });
 
       expect(result.isSuccess).toBe(true);
-      expect(result.getValue().storageKeysDeleted).toBe(0);
+      expect(result.getValue().alreadyWiped).toBe(true);
       expect(repo.executeWipe).not.toHaveBeenCalled();
     });
 
@@ -886,25 +386,6 @@ describe("RgpdService", () => {
       expect(result.isFailure).toBe(true);
       expect(result.getError().code).toBe("ACCOUNT_DELETION_NOT_FOUND");
       expect(repo.executeWipe).not.toHaveBeenCalled();
-    });
-
-    it("does not throw when storage cleanup fails because the wipe is already committed", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const storage = makeStorage({
-        listObjectKeys: mock(async () =>
-          Result.fail({ code: "STORAGE_PROVIDER_FAILURE" as const, message: "boom" }),
-        ) as IStorageService["listObjectKeys"],
-      });
-      const service = buildService({ repo, email, storage });
-
-      const result = await service.executeAccountWipe({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
-      expect(result.getValue().storageKeysDeleted).toBe(0);
     });
   });
 
@@ -1098,90 +579,6 @@ describe("RgpdService", () => {
       const output = result.getValue();
       expect(output.failed).toHaveLength(1);
       expect(output.failed[0]?.errorCode).toBe("ACCOUNT_WIPE_PROVIDER_FAILURE");
-    });
-  });
-
-  describe("requestDataExport", () => {
-    it("returns ACCOUNT_DELETION_NOT_FOUND when user is not found", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.none()),
-        ),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.requestDataExport({ userId: "u1" });
-
-      expect(result.isFailure).toBe(true);
-      expect(result.getError().code).toBe("ACCOUNT_DELETION_NOT_FOUND");
-    });
-
-    it("returns ACCOUNT_EXPORT_RATE_LIMITED when an export was requested too recently", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some({ ...baseState, lastExportRequestedAt: Option.some(new Date()) }),
-          ),
-        ),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.requestDataExport({ userId: "u1" });
-
-      expect(result.isFailure).toBe(true);
-      expect(result.getError().code).toBe("ACCOUNT_EXPORT_RATE_LIMITED");
-    });
-
-    it("propagates ACCOUNT_DELETION_NOT_FOUND when collectUserDataForExport returns not-found", async () => {
-      const repo = makeRepo({
-        collectUserDataForExport: mock(async () =>
-          Result.fail<UserExportPayload, RgpdError>({
-            code: "ACCOUNT_DELETION_NOT_FOUND",
-            message: "user not found",
-          }),
-        ),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.requestDataExport({ userId: "u1" });
-
-      expect(result.isFailure).toBe(true);
-      expect(result.getError().code).toBe("ACCOUNT_DELETION_NOT_FOUND");
-    });
-
-    it("uploads payload, presigns download URL, emails the user and returns expiresAt", async () => {
-      const repo = makeRepo();
-      const storage = makeStorage();
-      const service = buildService({ repo, email, storage });
-
-      const result = await service.requestDataExport({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
-      expect(result.getValue().ok).toBe(true);
-      expect(result.getValue().expiresAt).toBe("2099-01-01T00:00:00Z");
-      expect(storage.uploadObject).toHaveBeenCalled();
-      expect(storage.presignDownload).toHaveBeenCalled();
-      expect(email.sendTemplate).toHaveBeenCalledWith(
-        "data_export_ready",
-        "u@example.com",
-        expect.objectContaining({ name: "User", downloadUrl: expect.any(String) }),
-        expect.objectContaining({ idempotencyKey: expect.any(String), locale: "fr" }),
-      );
-      expect(repo.touchExportRequestedAt).toHaveBeenCalledWith("u1");
-    });
-
-    it("succeeds even when email send fails", async () => {
-      const repo = makeRepo();
-      const failEmail = {
-        sendTemplate: mock(async () =>
-          Result.fail({ code: "EMAIL_SEND_FAILED" as const, message: "smtp error" }),
-        ),
-      } as unknown as IEmailService;
-      const service = buildService({ repo, email: failEmail });
-
-      const result = await service.requestDataExport({ userId: "u1" });
-
-      expect(result.isSuccess).toBe(true);
     });
   });
 });

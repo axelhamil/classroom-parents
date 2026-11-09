@@ -24,8 +24,8 @@ export function listBackRoutes(): RouteKey[] {
   return [...keys].sort();
 }
 
-/** Hono keeps a trailing slash on a sub-app mounted at "/", "/uploads/" and
- * "/uploads" are the same route, and the front reconstructs the second form. */
+/** Hono keeps a trailing slash on a sub-app mounted at "/", "/me/" and "/me" are
+ * the same route, and the front reconstructs the second form. */
 function normalize(path: string): string {
   return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
 }

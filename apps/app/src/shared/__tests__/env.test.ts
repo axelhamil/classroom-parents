@@ -13,12 +13,7 @@ describe("env", () => {
   // `.env.example` ships these keys blank. Read as "", the Sentry environment
   // was "" instead of falling back to the build mode, and the release was "".
   it("treats every blank optional key as absent", async () => {
-    for (const key of [
-      "VITE_SENTRY_DSN",
-      "VITE_SENTRY_ENVIRONMENT",
-      "VITE_GIT_SHA",
-      "VITE_ANALYTICS_SRC",
-    ]) {
+    for (const key of ["VITE_SENTRY_DSN", "VITE_SENTRY_ENVIRONMENT", "VITE_GIT_SHA"]) {
       vi.stubEnv(key, "");
     }
 
@@ -27,7 +22,6 @@ describe("env", () => {
     expect(env.VITE_SENTRY_DSN).toBeUndefined();
     expect(env.VITE_SENTRY_ENVIRONMENT).toBeUndefined();
     expect(env.VITE_GIT_SHA).toBeUndefined();
-    expect(env.VITE_ANALYTICS_SRC).toBeUndefined();
   });
 
   it("keeps a set value", async () => {

@@ -5,12 +5,8 @@
       "entry": [
         "src/container.ts",
         "src/shared/middleware/*.ts",
-        "src/shared/db/quota-reservation.ts",
-        "src/shared/internal-routes/internal-fetch.ts",
         "src/modules/*/module.ts",
-        "src/modules/*/routes.ts",
-        "src/modules/*/internal.routes.ts",
-        "src/cron/*.ts"
+        "src/modules/*/routes.ts"
       ],
       "project": ["**/*.ts"],
       "ignoreDependencies": ["pino-pretty"]
@@ -23,9 +19,6 @@
         "src/shared/api/api-client.ts",
         "src/shared/api/mutations/*.ts",
         "src/shared/api/queries/*.ts",
-        "src/shared/auth/feature-gate.tsx",
-        "src/shared/auth/plan-gate.tsx",
-        "src/shared/auth/quota-gate.tsx",
         "src/shared/observability/noop.ts",
         "src/shared/observability/sentry.ts",
         "a11y/*.setup.ts",
@@ -41,9 +34,6 @@
     },
     "packages/i18n": {
       "entry": ["src/index.ts"],
-      "project": ["src/**/*.ts"]
-    },
-    "packages/access-control": {
       "project": ["src/**/*.ts"]
     },
     "packages/ui": {

@@ -32,7 +32,6 @@ export function RequestDeletionPasswordForm({ onClose }: RequestDeletionPassword
         onSubmit={form.handleSubmit((values) =>
           mutation.mutate(values, {
             onError: buildDeletionOnError(
-              onClose,
               "ACCOUNT_PASSWORD_INVALID",
               (msg) => form.setError("password", { message: msg }),
               tErrors,

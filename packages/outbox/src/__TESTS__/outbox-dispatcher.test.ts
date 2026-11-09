@@ -20,7 +20,6 @@ const RECORD: OutboxRecord = {
   eventType: TYPE,
   aggregateId: "u1",
   aggregateType: "user",
-  organizationId: Option.none(),
   payload: {},
   metadata: { specversion: "1.0", source: "test", datacontenttype: "application/json" },
   occurredAt: new Date(),

@@ -11,10 +11,9 @@ import { useSignIn } from "../hooks/use-sign-in";
 
 interface SignInFormProps {
   redirectTo?: string;
-  passkeyAutofill: boolean;
 }
 
-export function SignInForm({ redirectTo, passkeyAutofill }: SignInFormProps) {
+export function SignInForm({ redirectTo }: SignInFormProps) {
   const { t } = useTranslation("auth");
   const revealLabels = usePasswordRevealLabels();
   const mutation = useSignIn(redirectTo);
@@ -36,7 +35,7 @@ export function SignInForm({ redirectTo, passkeyAutofill }: SignInFormProps) {
           name="email"
           label={t("emailField.label")}
           type="email"
-          autoComplete={passkeyAutofill ? "username webauthn" : "username"}
+          autoComplete="username"
           placeholder={t("emailField.placeholder")}
         />
 

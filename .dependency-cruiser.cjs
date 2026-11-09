@@ -97,9 +97,9 @@ module.exports = {
     },
     {
       name: "fronts-never-import-modules",
-      comment: "apps/app and apps/admin reach business code only through the api client types.",
+      comment: "apps/app reaches business code only through the api client types.",
       severity: "error",
-      from: { path: "^apps/(app|admin)/" },
+      from: { path: "^apps/app/" },
       to: { path: `${MODULES}/` },
     },
     {
@@ -142,7 +142,7 @@ module.exports = {
       to: {
         path: [
           "(^|node_modules/)(@sentry|better-auth|@better-auth|hono|@tanstack/react-router)(/|$)",
-          "^packages/(access-control|drizzle|ddd-kit|emails|events|ui)/",
+          "^packages/(drizzle|ddd-kit|emails|events|ui)/",
         ],
       },
     },
@@ -151,16 +151,8 @@ module.exports = {
       comment:
         "A front reaches the api only through the typed Hono RPC client factory (api/client), never its internals.",
       severity: "error",
-      from: { path: "^apps/(app|admin)/" },
+      from: { path: "^apps/app/" },
       to: { path: "^apps/api/", pathNot: "^apps/api/src/client\\.ts$" },
-    },
-    {
-      name: "admin-never-imports-app",
-      comment:
-        "The back office shares through packages only: an import of the customer app would pull its session, gates and bundle onto the staff host.",
-      severity: "error",
-      from: { path: "^apps/admin/" },
-      to: { path: "^apps/app/" },
     },
   ],
   options: {

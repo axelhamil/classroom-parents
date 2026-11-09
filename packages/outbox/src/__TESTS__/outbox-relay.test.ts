@@ -37,7 +37,6 @@ function record(overrides: Partial<OutboxRecord> = {}): OutboxRecord {
     eventType: TYPE,
     aggregateId: "u1",
     aggregateType: "user",
-    organizationId: Option.some("org-1"),
     payload: { userId: "u1" },
     metadata: {
       specversion: "1.0",
@@ -116,7 +115,6 @@ describe("OutboxRelay.drainOnce", () => {
     expect(seen.map(({ inTransaction }) => inTransaction)).toEqual([false, false]);
     expect(seen[0]?.event).toMatchObject({
       eventId: "evt-1",
-      organizationId: "org-1",
       requestId: "req-1",
       aggregateType: "user",
     });

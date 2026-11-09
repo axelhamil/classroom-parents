@@ -19,7 +19,6 @@ export const outboxEvent = pgTable(
     eventType: text("event_type").notNull(),
     aggregateId: text("aggregate_id").notNull(),
     aggregateType: text("aggregate_type").notNull(),
-    organizationId: text("organization_id"),
     payload: jsonb("payload").$type<unknown>().notNull(),
     metadata: jsonb("metadata").$type<OutboxEventMetadata>().notNull(),
     occurredAt: timestamp("occurred_at").notNull(),

@@ -10,9 +10,9 @@ describe("buildEventDispatcher", () => {
     const dispatcher = buildEventDispatcher(
       [builtIn("audit-log"), builtIn("webhook-fanout"), builtIn("notification-fanout")],
       {
-        NotifyImpersonatedUser: onEvent(
-          EventTypes.ADMIN_IMPERSONATION_STARTED,
-          "notify-impersonated-user",
+        NotifyDeletedUser: onEvent(
+          EventTypes.USER_DELETED,
+          "notify-deleted-user",
           () => async () => {},
         )({}),
       },
@@ -24,11 +24,11 @@ describe("buildEventDispatcher", () => {
     );
 
     expect(builtInsOnly).toHaveLength(ALL_EVENT_TYPES.length - 1);
-    expect(dispatcher.handlersOf(EventTypes.ADMIN_IMPERSONATION_STARTED)).toEqual([
+    expect(dispatcher.handlersOf(EventTypes.USER_DELETED)).toEqual([
       "audit-log",
       "webhook-fanout",
       "notification-fanout",
-      "notify-impersonated-user",
+      "notify-deleted-user",
     ]);
   });
 });

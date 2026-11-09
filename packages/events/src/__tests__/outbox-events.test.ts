@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { EventTypes, SUBSCRIBABLE_EVENT_TYPES } from "../event-types";
-import { notificationConfigOf } from "../notification-map";
+import { EventTypes } from "../event-types";
 import { OUTBOX_LAST_ERROR_MAX_LENGTH, PayloadByEventType } from "../payloads";
-import { retentionFor } from "../retention-map";
 
 const dead = {
   eventId: "e1",
@@ -14,12 +12,6 @@ const dead = {
 };
 
 describe("outbox events", () => {
-  it("outbox.event_dead is internal, operational and never notified", () => {
-    expect(SUBSCRIBABLE_EVENT_TYPES).not.toContain(EventTypes.OUTBOX_EVENT_DEAD);
-    expect(retentionFor(EventTypes.OUTBOX_EVENT_DEAD)).toBe("operational");
-    expect(notificationConfigOf(EventTypes.OUTBOX_EVENT_DEAD)).toBeUndefined();
-  });
-
   it("OUTBOX_EVENT_DEAD requires actorUserId to be null explicitly", () => {
     const schema = PayloadByEventType[EventTypes.OUTBOX_EVENT_DEAD];
 

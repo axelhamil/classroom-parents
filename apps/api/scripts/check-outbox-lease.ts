@@ -3,29 +3,23 @@
  * share a row, a claimed row stays hidden until its lease expires, a settle with a
  * stale attempt count writes nothing, deliveries merge instead of overwriting, a dead
  * row is replayed only once due, a type outside the list is never claimed, and an
- * enqueue rolled back with its run leaves neither a row nor a notification, a
- * redelivered audit-log handler appends a single link to the hash chain, and the
- * retention purge removes delivered rows past the cutoff but never a dead one.
+ * enqueue rolled back with its run leaves neither a row nor a notification.
  *
  * Every one of these lives in the claim CTE, the settle WHERE or the transaction,
  * which a mocked executor never evaluates.
  */
 
-import { requireLocalDatabase } from "./require-local-database";
+import { requireLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
 
-requireLocalDatabase("check-outbox-lease");
+try {
+  requireLocalDatabase(process.env.DATABASE_URL);
+} catch (err) {
+  console.error(`check-outbox-lease refused to run: ${err instanceof Error ? err.message : err}`);
+  process.exit(1);
+}
 
 import { Result, uuidv7 } from "@packages/ddd-kit";
-import {
-  and,
-  auditLogSchema,
-  db,
-  eq,
-  like,
-  or,
-  outboxSchema,
-  TransactionService,
-} from "@packages/drizzle";
+import { and, db, eq, like, or, outboxSchema, TransactionService } from "@packages/drizzle";
 import { EventTypes } from "@packages/events";
 import {
   DrizzleOutboxRepository,
@@ -34,32 +28,25 @@ import {
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { OutboxRecord } from "@packages/outbox/outbox.port";
 import { Client } from "pg";
-import { AuditEventSubscriber } from "../src/modules/audit-log/infrastructure/services/audit-event-subscriber";
-import { buildPurgeFilter } from "../src/shared/internal-routes/sweep-outbox.route";
-import { purgeBatchWithTimeout, requireFilter } from "../src/shared/internal-routes/sweep-purge";
-import { sweepSpans } from "../src/shared/internal-routes/sweep-span";
-import { checkRun, recordingInstrumentation } from "./check-harness";
 
 const PROBE = `check.outbox-lease.${crypto.randomUUID()}`;
 const TYPE_A = `${PROBE}.a`;
 const TYPE_B = `${PROBE}.b`;
 const AGGREGATE = `check-outbox-lease-${crypto.randomUUID()}`;
 
-const { instrumentation, spans } = recordingInstrumentation();
+const { instrumentation, spans } = spanRecorder();
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const uow = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check/outbox-lease" });
 });
 
 const oe = outboxSchema.outboxEvent;
-const al = auditLogSchema.auditLog;
 
 async function cleanup(): Promise<void> {
-  await db.delete(al).where(eq(al.targetId, AGGREGATE));
   await db.delete(oe).where(or(like(oe.eventType, `${PROBE}%`), eq(oe.aggregateId, AGGREGATE)));
 }
 
-const { step, fail, run } = checkRun("check-outbox-lease", cleanup);
+const { step, fail, run } = stepRunner("check-outbox-lease", cleanup);
 
 async function seed(
   count: number,
@@ -335,67 +322,6 @@ async function main(): Promise<void> {
     pending.isSuccess
       ? { ...pending.getValue(), dueInMs: pending.getValue().dueInMs.toNull() }
       : pending.getError(),
-  );
-
-  const audit = new AuditEventSubscriber(uow, instrumentation, true);
-  const audited = {
-    eventId: uuidv7(),
-    eventType: EventTypes.USER_PROFILE_UPDATED,
-    aggregateId: AGGREGATE,
-    aggregateType: "user",
-    payload: { userId: AGGREGATE, changes: {} },
-    dateOccurred: new Date(),
-  };
-  await Promise.all([audit.handle(audited), audit.handle(audited)]);
-  await audit.handle(audited);
-  const links = await db
-    .select({ id: al.id, hash: al.hash, prevHash: al.prevHash })
-    .from(al)
-    .where(eq(al.targetId, AGGREGATE));
-  const [link] = links;
-  const [successor] = link?.hash
-    ? await db.select({ id: al.id }).from(al).where(eq(al.prevHash, link.hash))
-    : [];
-  await step(
-    "audit-log redelivery keeps a single chain link",
-    links.length === 1 &&
-      link?.id === `audit-${audited.eventId}` &&
-      link.hash !== null &&
-      successor === undefined,
-    { links: links.length, successor: successor?.id },
-  );
-
-  await resetProbes();
-  const cutoff = new Date(Date.now() - 24 * 3_600_000);
-  const longAgo = new Date(cutoff.getTime() - 3_600_000);
-  const [deliveredOld = ""] = await seed(1, TYPE_A, { dispatchedAt: longAgo });
-  const [deliveredRecent = ""] = await seed(1, TYPE_A, { dispatchedAt: new Date() });
-  const [deadOld = ""] = await seed(1, TYPE_A, {
-    occurredAt: longAgo,
-    deadAt: longAgo,
-    attempts: 10,
-  });
-  const purged = await purgeBatchWithTimeout({
-    table: oe,
-    idColumn: oe.id,
-    where: requireFilter(and(buildPurgeFilter(cutoff), like(oe.eventType, `${PROBE}%`)), PROBE),
-    orderBy: oe.dispatchedAt,
-    batchSize: 100,
-    spans: sweepSpans(instrumentation),
-    uow,
-  });
-  const kept = await db
-    .select({ id: oe.id })
-    .from(oe)
-    .where(like(oe.eventType, `${PROBE}%`));
-  const keptIds = kept.map((row) => row.id);
-  await step(
-    "retention keeps dead undelivered rows and removes delivered ones past the cutoff",
-    purged === 1 &&
-      !keptIds.includes(deliveredOld) &&
-      keptIds.includes(deliveredRecent) &&
-      keptIds.includes(deadOld),
-    { purged, kept: keptIds.length },
   );
 }
 
