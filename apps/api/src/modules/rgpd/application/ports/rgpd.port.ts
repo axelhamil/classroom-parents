@@ -2,7 +2,7 @@ import type { AppError, Option, Result } from "@packages/ddd-kit";
 
 export type RgpdError = AppError<
   | "ACCOUNT_DELETION_NOT_FOUND"
-  | "ACCOUNT_PASSWORD_INVALID"
+  | "ACCOUNT_REAUTH_REQUIRED"
   | "ACCOUNT_WIPE_NOTIFY_PROVIDER_FAILURE"
   | "ACCOUNT_WIPE_PROVIDER_FAILURE"
   | "RGPD_REPOSITORY_PROVIDER_FAILURE"
@@ -14,7 +14,6 @@ export interface ExecuteWipeOutput {
 
 export interface PendingDeletionRow {
   userId: string;
-  email: string;
   pendingDeletionUntil: Date;
 }
 
@@ -22,7 +21,6 @@ export interface UserDeletionState {
   email: string;
   name: string;
   pendingDeletionUntil: Option<Date>;
-  deletedAt: Option<Date>;
 }
 
 export interface IRgpdRepository {
@@ -30,11 +28,11 @@ export interface IRgpdRepository {
 
   clearPendingDeletion(userId: string): Promise<Result<void, RgpdError>>;
 
-  findUsersReadyForWipe(limit: number): Promise<Result<PendingDeletionRow[], RgpdError>>;
+  findUsersReadyForWipe(now: Date, limit: number): Promise<Result<PendingDeletionRow[], RgpdError>>;
 
   executeWipe(userId: string): Promise<Result<ExecuteWipeOutput, RgpdError>>;
 
-  verifyPassword(userId: string, password: string): Promise<Result<boolean, RgpdError>>;
+  findSessionStart(userId: string, sessionId: string): Promise<Result<Option<Date>, RgpdError>>;
 
   getUserDeletionState(userId: string): Promise<Result<Option<UserDeletionState>, RgpdError>>;
 }

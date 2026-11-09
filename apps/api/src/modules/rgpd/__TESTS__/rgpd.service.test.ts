@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import {
-  type IInstrumentation,
+  type AppError,
   type ILogger,
   type IUnitOfWork,
   Option,
@@ -9,13 +9,17 @@ import {
 } from "@packages/ddd-kit";
 import type { EmailError, IEmailService } from "@packages/email/email.port";
 import { EventTypes } from "@packages/events";
+import { readActorId } from "@packages/outbox/event-actor";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
-import { mockPort } from "@packages/test/bun";
+import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
 import { NoOpInstrumentation } from "../../../shared/services/noop-instrumentation";
 import type {
-  ExecuteWipeOutput,
+  ChildRevocationTally,
+  IChildConnections,
+} from "../application/ports/child-connections.port";
+import type {
   IRgpdRepository,
   PendingDeletionRow,
   RgpdError,
@@ -23,562 +27,363 @@ import type {
 } from "../application/ports/rgpd.port";
 import { RgpdService } from "../application/services/rgpd.service";
 
-const baseState: UserDeletionState = {
-  email: "u@example.com",
-  name: "User",
+const HOUR = 60 * 60 * 1000;
+const NOW = new Date("2026-11-09T10:00:00.000Z");
+
+const activeState: UserDeletionState = {
+  email: "parent@example.com",
+  name: "Parent",
   pendingDeletionUntil: Option.none(),
-  deletedAt: Option.none(),
 };
 
-let uow: UnitOfWorkMock = mockUnitOfWork();
+const elapsedState: UserDeletionState = {
+  ...activeState,
+  pendingDeletionUntil: Option.some(new Date(NOW.getTime() - 1000)),
+};
 
-function throwingUnitOfWork(message: string): IUnitOfWork {
-  const { unitOfWork } = mockUnitOfWork();
-  unitOfWork.run.mockImplementation(async () => {
-    throw new Error(message);
-  });
-  return unitOfWork;
+interface Fixture {
+  repo: PortMock<IRgpdRepository>;
+  children: PortMock<IChildConnections>;
+  email: PortMock<IEmailService>;
+  outbox: PortMock<IOutboxRepository>;
+  uow: UnitOfWorkMock;
+  timeline: string[];
+  service(unitOfWork?: IUnitOfWork): RgpdService;
 }
 
-function graceElapsedStateFor(userId: string): UserDeletionState {
+function fixture(state: UserDeletionState = activeState): Fixture {
+  const timeline: string[] = [];
+  const repo = mockPort<IRgpdRepository>();
+  repo.getUserDeletionState.mockImplementation(async () => Result.ok(Option.some(state)));
+  repo.findSessionStart.mockImplementation(async () =>
+    Result.ok(Option.some(new Date(Date.now() - HOUR))),
+  );
+  repo.markPendingDeletion.mockImplementation(async () => Result.ok());
+  repo.clearPendingDeletion.mockImplementation(async () => Result.ok());
+  repo.findUsersReadyForWipe.mockImplementation(async () => Result.ok([]));
+  repo.executeWipe.mockImplementation(async () => {
+    timeline.push("wipe");
+    return Result.ok({ alreadyWiped: false });
+  });
+
+  const children = mockPort<IChildConnections>();
+  children.revokeAll.mockImplementation(async () => {
+    timeline.push("revoke");
+    return Result.ok({ revoked: 2, failed: 0 });
+  });
+
+  const email = mockPort<IEmailService>();
+  email.sendTemplate.mockImplementation(async () => Result.ok());
+
+  const outbox = mockPort<IOutboxRepository>();
+  const uow = mockUnitOfWork();
+
   return {
-    ...baseState,
-    email: `${userId}@example.com`,
-    pendingDeletionUntil: Option.some(new Date(Date.now() - 1000)),
+    repo,
+    children,
+    email,
+    outbox,
+    uow,
+    timeline,
+    service: (unitOfWork = uow.unitOfWork) =>
+      new RgpdService(
+        repo,
+        children,
+        email,
+        unitOfWork,
+        outbox,
+        new NoOpInstrumentation(),
+        {
+          appUrl: "https://app.example.com",
+          gracePeriodDays: 7,
+          freshSessionMaxAgeMs: 24 * HOUR,
+          sweepDeadlineMs: 90_000,
+        },
+        mockPort<ILogger>(),
+      ),
   };
 }
 
-function makeRepo(overrides: Partial<IRgpdRepository> = {}): IRgpdRepository {
-  return {
-    markPendingDeletion: mock(async () => Result.ok<RgpdError>()),
-    clearPendingDeletion: mock(async () => Result.ok<RgpdError>()),
-    findUsersReadyForWipe: mock(async () => Result.ok<PendingDeletionRow[], RgpdError>([])),
-    executeWipe: mock(async () => Result.ok<ExecuteWipeOutput, RgpdError>({ alreadyWiped: false })),
-    verifyPassword: mock(async () => Result.ok<boolean, RgpdError>(true)),
-    getUserDeletionState: mock(async () =>
-      Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(baseState)),
-    ),
-    ...overrides,
-  } as unknown as IRgpdRepository;
-}
-
-function makeEmail(): IEmailService {
-  return {
-    sendTemplate: mock(async () => Result.ok<RgpdError>()),
-    sendTemplateBatch: mock(async () => Result.ok<RgpdError>()),
-    sendRaw: mock(async () => Result.ok<RgpdError>()),
-    sendRawBatch: mock(async () => Result.ok<RgpdError>()),
-  } as unknown as IEmailService;
-}
-
-function buildService(deps: {
-  repo: IRgpdRepository;
-  email: IEmailService;
-  uow?: IUnitOfWork;
-  outbox?: IOutboxRepository;
-  instrumentation?: IInstrumentation;
-}): RgpdService {
-  const outbox = deps.outbox ?? mockPort<IOutboxRepository>();
-
-  return new RgpdService(
-    deps.repo,
-    deps.email,
-    deps.uow ?? uow.unitOfWork,
-    outbox,
-    deps.instrumentation ?? new NoOpInstrumentation(),
-    {
-      appUrl: "https://app.example.com",
-      gracePeriodDays: 7,
-      sweepDeadlineMs: 90_000,
-    },
-    mockPort<ILogger>(),
-  );
-}
-
-function makeService(opts: {
-  email?: IEmailService;
-  readyForWipe?: string[];
-  wipeFails?: boolean;
-}): RgpdService {
-  const rows: PendingDeletionRow[] = (opts.readyForWipe ?? []).map((userId) => ({
-    userId,
-    email: `${userId}@example.com`,
-    pendingDeletionUntil: new Date(Date.now() - 1000),
-  }));
-  const repo = makeRepo({
-    findUsersReadyForWipe: mock(async () => Result.ok<PendingDeletionRow[], RgpdError>(rows)),
-    getUserDeletionState: opts.wipeFails
-      ? mock(async () => Result.ok<Option<UserDeletionState>, RgpdError>(Option.none()))
-      : mock(async (userId: string) =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some(graceElapsedStateFor(userId)),
-          ),
-        ),
-  });
-  return buildService({ repo, email: opts.email ?? makeEmail() });
+function rows(...entries: [string, Date][]): PendingDeletionRow[] {
+  return entries.map(([userId, pendingDeletionUntil]) => ({ userId, pendingDeletionUntil }));
 }
 
 describe("RgpdService", () => {
-  let email: IEmailService;
-
-  beforeEach(() => {
-    email = makeEmail();
-    uow = mockUnitOfWork();
-  });
-
   describe("requestAccountDeletion", () => {
-    it("returns ACCOUNT_PASSWORD_INVALID on bad password", async () => {
-      const repo = makeRepo({
-        verifyPassword: mock(async () => Result.ok<boolean, RgpdError>(false)),
-      });
-      const service = buildService({ repo, email });
+    it("given a Google-only parent with a fresh session, schedules the deletion without any password", async () => {
+      const f = fixture();
 
-      const result = await service.requestAccountDeletion({ userId: "u1", password: "wrong" });
+      const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
+
+      expect(result.isSuccess).toBe(true);
+      expect(f.repo.markPendingDeletion).toHaveBeenCalledTimes(1);
+      const [requested] = enqueuedEvents(f.outbox);
+      expect(requested?.eventType).toBe(EventTypes.USER_DELETION_REQUESTED);
+      expect(readActorId(requested?.payload).unwrapOr("none")).toBe("u1");
+      expect(f.uow.outcome()).toBe("committed");
+    });
+
+    it("given a session older than the fresh age, asks to sign in again and schedules nothing", async () => {
+      const f = fixture();
+      f.repo.findSessionStart.mockImplementation(async () =>
+        Result.ok(Option.some(new Date(Date.now() - 25 * HOUR))),
+      );
+
+      const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
 
       expect(result.isFailure).toBe(true);
-      expect(result.getError().code).toBe("ACCOUNT_PASSWORD_INVALID");
+      expect(result.getError().code).toBe("ACCOUNT_REAUTH_REQUIRED");
+      expect(f.repo.markPendingDeletion).not.toHaveBeenCalled();
+      expect(enqueuedEvents(f.outbox)).toHaveLength(0);
     });
 
-    it("marks pending and emails when the password is valid", async () => {
-      const repo = makeRepo();
-      const service = buildService({ repo, email });
+    it("given a session that is not the user's, asks to sign in again", async () => {
+      const f = fixture();
+      f.repo.findSessionStart.mockImplementation(async () => Result.ok(Option.none()));
 
-      const result = await service.requestAccountDeletion({ userId: "u1", password: "good" });
+      const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s2" });
 
-      expect(result.isSuccess).toBe(true);
-      expect(repo.markPendingDeletion).toHaveBeenCalled();
-      expect(email.sendTemplate).toHaveBeenCalledWith(
-        "delete_requested",
-        "u@example.com",
-        expect.objectContaining({ name: "User", cancelUrl: expect.any(String) }),
-        expect.objectContaining({ idempotencyKey: expect.any(String) }),
-      );
+      expect(result.isFailure).toBe(true);
+      expect(result.getError().code).toBe("ACCOUNT_REAUTH_REQUIRED");
     });
 
-    it("returns existing pendingDeletionUntil when already pending without re-marking", async () => {
-      const existing = new Date(Date.now() + 86400000);
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some({ ...baseState, pendingDeletionUntil: Option.some(existing) }),
-          ),
-        ),
-      });
-      const service = buildService({ repo, email });
+    it("given a deletion already pending, returns its date without re-marking", async () => {
+      const until = new Date(Date.now() + 24 * HOUR);
+      const f = fixture({ ...activeState, pendingDeletionUntil: Option.some(until) });
 
-      const result = await service.requestAccountDeletion({ userId: "u1", password: "anything" });
+      const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
 
-      expect(result.isSuccess).toBe(true);
-      expect(result.getValue().pendingDeletionUntil).toBe(existing.toISOString());
-      expect(repo.markPendingDeletion).not.toHaveBeenCalled();
+      expect(result.getValue().pendingDeletionUntil).toBe(until.toISOString());
+      expect(f.repo.markPendingDeletion).not.toHaveBeenCalled();
     });
   });
 
   describe("cancelAccountDeletion", () => {
-    it("clears the pending column and emails when a deletion is pending", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some({
-              ...baseState,
-              pendingDeletionUntil: Option.some(new Date(Date.now() + 86400000)),
-            }),
-          ),
-        ),
+    it("given a pending deletion, clears it and announces the cancellation", async () => {
+      const f = fixture({
+        ...activeState,
+        pendingDeletionUntil: Option.some(new Date(Date.now() + HOUR)),
       });
-      const service = buildService({ repo, email });
 
-      const result = await service.cancelAccountDeletion({ userId: "u1" });
+      const result = await f.service().cancelAccountDeletion({ userId: "u1" });
 
       expect(result.isSuccess).toBe(true);
-      expect(repo.clearPendingDeletion).toHaveBeenCalledWith("u1");
-      expect(email.sendTemplate).toHaveBeenCalledWith(
-        "delete_cancelled",
-        "u@example.com",
-        expect.objectContaining({ name: "User" }),
-        expect.objectContaining({ idempotencyKey: expect.any(String) }),
-      );
+      expect(enqueuedEvents(f.outbox).map((e) => e.eventType)).toEqual([
+        EventTypes.USER_DELETION_CANCELLED,
+      ]);
     });
 
-    it("returns ACCOUNT_DELETION_NOT_FOUND when nothing is pending", async () => {
-      const repo = makeRepo();
-      const service = buildService({ repo, email });
+    it("given nothing pending, answers ACCOUNT_DELETION_NOT_FOUND", async () => {
+      const f = fixture();
 
-      const result = await service.cancelAccountDeletion({ userId: "u1" });
+      const result = await f.service().cancelAccountDeletion({ userId: "u1" });
 
-      expect(result.isFailure).toBe(true);
       expect(result.getError().code).toBe("ACCOUNT_DELETION_NOT_FOUND");
-      expect(repo.clearPendingDeletion).not.toHaveBeenCalled();
+      expect(f.repo.clearPendingDeletion).not.toHaveBeenCalled();
     });
   });
 
   describe("executeAccountWipe", () => {
-    const elapsedState: UserDeletionState = {
-      ...baseState,
-      pendingDeletionUntil: Option.some(new Date(Date.now() - 1000)),
-    };
+    it("given a user with 2 children, revokes their tokens before deleting the user", async () => {
+      const f = fixture(elapsedState);
 
-    it("anonymizes via repo and emails the user", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const outbox = mockPort<IOutboxRepository>();
-      const service = buildService({ repo, email, outbox });
-
-      const result = await service.executeAccountWipe({ userId: "u1" });
+      const result = await f.service().executeAccountWipe({ userId: "u1", now: NOW });
 
       expect(result.isSuccess).toBe(true);
-      expect(repo.executeWipe).toHaveBeenCalled();
-      expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.USER_DELETED]);
-      expect(email.sendTemplate).toHaveBeenCalledWith(
-        "delete_completed",
-        "u@example.com",
-        { name: "User" },
-        expect.objectContaining({ idempotencyKey: "delete-completed/u1" }),
-      );
+      expect(f.timeline).toEqual(["revoke", "wipe"]);
+      expect(f.uow.outcome()).toBe("committed");
     });
 
-    it("enqueues the confirmation inside the wipe transaction", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
+    it("given Google refuses every revocation, still erases the account", async () => {
+      const f = fixture(elapsedState);
+      f.children.revokeAll.mockImplementation(async () =>
+        Result.ok<ChildRevocationTally, AppError>({ revoked: 0, failed: 2 }),
+      );
+
+      const result = await f.service().executeAccountWipe({ userId: "u1", now: NOW });
+
+      expect(result.isSuccess).toBe(true);
+      expect(f.repo.executeWipe).toHaveBeenCalledTimes(1);
+      expect(enqueuedEvents(f.outbox).map((e) => e.eventType)).toEqual([EventTypes.USER_DELETED]);
+    });
+
+    it("given the revocation itself fails, still erases the account", async () => {
+      const f = fixture(elapsedState);
+      f.children.revokeAll.mockImplementation(async () =>
+        Result.fail<ChildRevocationTally, AppError>({
+          code: "CHILD_PROVIDER_FAILURE",
+          message: "down",
+        }),
+      );
+
+      const result = await f.service().executeAccountWipe({ userId: "u1", now: NOW });
+
+      expect(result.isSuccess).toBe(true);
+      expect(f.repo.executeWipe).toHaveBeenCalledTimes(1);
+    });
+
+    it("announces the deletion without any personal data and confirms it by email inside the transaction", async () => {
+      const f = fixture(elapsedState);
       const sentInside: boolean[] = [];
-      (email.sendTemplate as unknown as ReturnType<typeof mock>).mockImplementation(async () => {
+      f.email.sendTemplate.mockImplementation(async () => {
         sentInside.push(UnitOfWorkContext.transaction() !== undefined);
         return Result.ok();
       });
-      const service = buildService({ repo, email });
 
-      const result = await service.executeAccountWipe({ userId: "u1" });
+      await f.service().executeAccountWipe({ userId: "u1", now: NOW });
 
-      expect(result.isSuccess).toBe(true);
-      expect(uow.outcome()).toBe("committed");
+      const [deleted] = enqueuedEvents(f.outbox);
+      expect(deleted?.payload).toEqual({ userId: "u1", deletedAt: NOW });
+      expect(JSON.stringify(deleted?.payload)).not.toContain("@");
       expect(sentInside).toEqual([true]);
-      expect(email.sendTemplate).toHaveBeenCalledTimes(1);
-      const call = (
-        email.sendTemplate as unknown as {
-          mock: {
-            calls: [string, string, unknown, { idempotencyKey?: string }][];
-          };
-        }
-      ).mock.calls[0];
-      if (!call) throw new Error("sendTemplate was not called");
-      const [template, to, variables, options] = call;
-      expect(template).toBe("delete_completed");
-      expect(to).toBe("u@example.com");
-      expect(variables).toEqual({ name: "User" });
-      expect(options.idempotencyKey).toBe("delete-completed/u1");
+      expect(f.email.sendTemplate).toHaveBeenCalledWith(
+        "delete_completed",
+        "parent@example.com",
+        { name: "Parent" },
+        { idempotencyKey: "delete-completed/u1" },
+      );
     });
 
-    it("aborts the wipe transaction when the confirmation cannot be enqueued", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const failEmail: IEmailService = {
-        ...makeEmail(),
-        sendTemplate: mock(async () =>
-          Result.fail<void, EmailError>({ code: "EMAIL_PROVIDER_FAILURE", message: "boom" }),
-        ),
-      };
-      const service = buildService({ repo, email: failEmail });
+    it("given the deletion transaction fails, nothing is committed and the deletion is not announced", async () => {
+      const f = fixture(elapsedState);
+      f.repo.executeWipe.mockImplementation(async () =>
+        Result.fail({ code: "RGPD_REPOSITORY_PROVIDER_FAILURE", message: "down" }),
+      );
 
-      const result = await service.executeAccountWipe({ userId: "u1" });
+      const result = await f.service().executeAccountWipe({ userId: "u1", now: NOW });
 
-      expect(result.isFailure).toBe(true);
-      expect(result.getError().code).toBe("ACCOUNT_WIPE_NOTIFY_PROVIDER_FAILURE");
-      expect(uow.outcome()).toBe("rolled_back");
-    });
-
-    it("reports a generic provider failure and captures the error when the ROLLBACK itself throws", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-      });
-      const failEmail: IEmailService = {
-        ...makeEmail(),
-        sendTemplate: mock(async () =>
-          Result.fail<void, EmailError>({ code: "EMAIL_PROVIDER_FAILURE", message: "boom" }),
-        ),
-      };
-      const brokenTx = throwingUnitOfWork("connection terminated unexpectedly");
-      const captured: unknown[] = [];
-      const capturingInstrumentation = new NoOpInstrumentation();
-      capturingInstrumentation.capture = (err: unknown) => {
-        captured.push(err);
-      };
-
-      const service = buildService({
-        repo,
-        email: failEmail,
-        uow: brokenTx,
-        instrumentation: capturingInstrumentation,
-      });
-
-      const result = await service.executeAccountWipe({ userId: "u1" });
-
-      expect(result.isFailure).toBe(true);
       expect(result.getError().code).toBe("ACCOUNT_WIPE_PROVIDER_FAILURE");
-      expect(captured).toHaveLength(1);
+      expect(f.uow.outcome()).toBe("rolled_back");
+      expect(enqueuedEvents(f.outbox)).toHaveLength(0);
     });
 
-    it("short-circuits without emitting USER_DELETED when the repository reports the row already wiped (lost race, no SKIP LOCKED on rgpd-sweep)", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(Option.some(elapsedState)),
-        ),
-        executeWipe: mock(async () =>
-          Result.ok<ExecuteWipeOutput, RgpdError>({ alreadyWiped: true }),
-        ),
-      });
-      const spyOutbox = mockPort<IOutboxRepository>();
-      const service = buildService({ repo, email, outbox: spyOutbox });
+    it("given the confirmation email cannot be queued, rolls the wipe back", async () => {
+      const f = fixture(elapsedState);
+      f.email.sendTemplate.mockImplementation(async () =>
+        Result.fail<void, EmailError>({ code: "EMAIL_PROVIDER_FAILURE", message: "boom" }),
+      );
 
-      const result = await service.executeAccountWipe({ userId: "u1" });
+      const result = await f.service().executeAccountWipe({ userId: "u1", now: NOW });
 
-      expect(result.isSuccess).toBe(true);
-      expect(enqueuedEvents(spyOutbox)).toHaveLength(0);
+      expect(result.getError().code).toBe("ACCOUNT_WIPE_NOTIFY_PROVIDER_FAILURE");
+      expect(f.uow.outcome()).toBe("rolled_back");
     });
 
-    it("returns success no-op when user is already deleted", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some({
-              email: "deleted@anonymized.local",
-              name: "[deleted]",
-              pendingDeletionUntil: Option.none(),
-              deletedAt: Option.some(new Date()),
-            }),
-          ),
-        ),
+    it("given the transaction throws, reports a provider failure", async () => {
+      const f = fixture(elapsedState);
+      const broken = mockUnitOfWork().unitOfWork;
+      broken.run.mockImplementation(async () => {
+        throw new Error("connection terminated unexpectedly");
       });
-      const service = buildService({ repo, email });
 
-      const result = await service.executeAccountWipe({ userId: "u1" });
+      const result = await f.service(broken).executeAccountWipe({ userId: "u1", now: NOW });
 
-      expect(result.isSuccess).toBe(true);
+      expect(result.getError().code).toBe("ACCOUNT_WIPE_PROVIDER_FAILURE");
+    });
+
+    it("given another run already deleted the user, does not announce the deletion twice", async () => {
+      const f = fixture(elapsedState);
+      f.repo.executeWipe.mockImplementation(async () => Result.ok({ alreadyWiped: true }));
+
+      const result = await f.service().executeAccountWipe({ userId: "u1", now: NOW });
+
       expect(result.getValue().alreadyWiped).toBe(true);
-      expect(repo.executeWipe).not.toHaveBeenCalled();
+      expect(enqueuedEvents(f.outbox)).toHaveLength(0);
+      expect(f.email.sendTemplate).not.toHaveBeenCalled();
     });
 
-    it("rejects when grace has not elapsed yet", async () => {
-      const repo = makeRepo({
-        getUserDeletionState: mock(async () =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some({
-              ...baseState,
-              pendingDeletionUntil: Option.some(new Date(Date.now() + 86400000)),
-            }),
-          ),
-        ),
+    it("given the grace period is still running, refuses and revokes nothing", async () => {
+      const f = fixture({
+        ...activeState,
+        pendingDeletionUntil: Option.some(new Date(NOW.getTime() + HOUR)),
       });
-      const service = buildService({ repo, email });
 
-      const result = await service.executeAccountWipe({ userId: "u1" });
+      const result = await f.service().executeAccountWipe({ userId: "u1", now: NOW });
 
-      expect(result.isFailure).toBe(true);
       expect(result.getError().code).toBe("ACCOUNT_DELETION_NOT_FOUND");
-      expect(repo.executeWipe).not.toHaveBeenCalled();
+      expect(f.children.revokeAll).not.toHaveBeenCalled();
+      expect(f.repo.executeWipe).not.toHaveBeenCalled();
     });
   });
 
   describe("processPendingDeletions", () => {
-    const pendingRows: PendingDeletionRow[] = [
-      { userId: "u1", email: "u1@example.com", pendingDeletionUntil: new Date(Date.now() - 1000) },
-      { userId: "u2", email: "u2@example.com", pendingDeletionUntil: new Date(Date.now() - 1000) },
-      { userId: "u3", email: "u3@example.com", pendingDeletionUntil: new Date(Date.now() - 1000) },
-    ];
+    let f: Fixture;
 
-    function makeBatchRepo(
-      rows: PendingDeletionRow[],
-      overrides: Partial<IRgpdRepository> = {},
-    ): IRgpdRepository {
-      return makeRepo({
-        findUsersReadyForWipe: mock(async () => Result.ok<PendingDeletionRow[], RgpdError>(rows)),
-        getUserDeletionState: mock(async (userId: string) =>
-          Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some(graceElapsedStateFor(userId)),
-          ),
-        ),
-        ...overrides,
-      });
-    }
-
-    it("returns the pending list without calling wipe in dryRun mode", async () => {
-      const repo = makeBatchRepo(pendingRows);
-      const service = buildService({ repo, email });
-
-      const result = await service.processPendingDeletions({ batchSize: 50, dryRun: true });
-
-      expect(result.isSuccess).toBe(true);
-      const output = result.getValue();
-      expect(output.dryRun).toBe(true);
-      expect(output.processed).toBe(3);
-      expect(output.succeeded).toEqual(["u1", "u2", "u3"]);
-      expect(output.failed).toEqual([]);
-      expect(repo.executeWipe).not.toHaveBeenCalled();
+    beforeEach(() => {
+      f = fixture(elapsedState);
     });
 
-    it("fails the sweep when the batch cannot be loaded", async () => {
-      const repo = makeBatchRepo([], {
-        findUsersReadyForWipe: mock(async () =>
-          Result.fail<PendingDeletionRow[], RgpdError>({
-            code: "RGPD_REPOSITORY_PROVIDER_FAILURE",
-            message: "down",
-          }),
+    it("given a pending deletion still inside its grace period, skips it", async () => {
+      f.repo.findUsersReadyForWipe.mockImplementation(async () =>
+        Result.ok(
+          rows(["due", new Date(NOW.getTime() - HOUR)], ["grace", new Date(NOW.getTime() + HOUR)]),
         ),
-      });
-      const service = buildService({ repo, email });
+      );
 
-      const result = await service.processPendingDeletions({});
+      const result = await f.service().processPendingDeletions({ now: NOW });
 
-      expect(result.isFailure).toBe(true);
+      expect(result.getValue().succeeded).toEqual(["due"]);
+      expect(result.getValue().failed).toEqual([]);
+      expect(f.repo.executeWipe).toHaveBeenCalledTimes(1);
+    });
+
+    it("given dryRun, lists the due accounts and changes nothing", async () => {
+      f.repo.findUsersReadyForWipe.mockImplementation(async () =>
+        Result.ok(rows(["u1", NOW], ["u2", NOW])),
+      );
+
+      const result = await f.service().processPendingDeletions({ now: NOW, dryRun: true });
+
+      expect(result.getValue()).toMatchObject({ dryRun: true, succeeded: ["u1", "u2"] });
+      expect(f.children.revokeAll).not.toHaveBeenCalled();
+      expect(f.repo.executeWipe).not.toHaveBeenCalled();
+      expect(enqueuedEvents(f.outbox)).toHaveLength(0);
+    });
+
+    it("given one wipe fails, the others still go through", async () => {
+      f.repo.findUsersReadyForWipe.mockImplementation(async () =>
+        Result.ok(rows(["u1", NOW], ["u2", NOW], ["u3", NOW])),
+      );
+      f.repo.getUserDeletionState.mockImplementation(async (userId: string) =>
+        Result.ok(userId === "u2" ? Option.none() : Option.some(elapsedState)),
+      );
+
+      const result = await f.service().processPendingDeletions({ now: NOW });
+
+      expect(result.getValue().succeeded).toEqual(["u1", "u3"]);
+      expect(result.getValue().failed).toEqual([
+        { userId: "u2", errorCode: "ACCOUNT_DELETION_NOT_FOUND" },
+      ]);
+    });
+
+    it("given the batch cannot be loaded, fails the sweep", async () => {
+      f.repo.findUsersReadyForWipe.mockImplementation(async () =>
+        Result.fail<PendingDeletionRow[], RgpdError>({
+          code: "RGPD_REPOSITORY_PROVIDER_FAILURE",
+          message: "down",
+        }),
+      );
+
+      const result = await f.service().processPendingDeletions({ now: NOW });
+
       expect(result.getError().code).toBe("RGPD_REPOSITORY_PROVIDER_FAILURE");
     });
 
-    it("only requests up to batchSize rows from the repo", async () => {
-      const repo = makeBatchRepo(pendingRows.slice(0, 2), {
-        findUsersReadyForWipe: mock(async (limit: number) =>
-          Result.ok<PendingDeletionRow[], RgpdError>(pendingRows.slice(0, limit)),
-        ),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.processPendingDeletions({ batchSize: 2 });
-
-      expect(result.isSuccess).toBe(true);
-      expect(repo.findUsersReadyForWipe).toHaveBeenCalledWith(2);
-      expect(result.getValue().processed).toBe(2);
-    });
-
-    it("processes all rows and reports successes (happy path)", async () => {
-      const repo = makeBatchRepo(pendingRows);
-      const service = buildService({ repo, email });
-
-      const result = await service.processPendingDeletions({});
-
-      expect(result.isSuccess).toBe(true);
-      const output = result.getValue();
-      expect(output.dryRun).toBe(false);
-      expect(output.processed).toBe(3);
-      expect(output.succeeded).toHaveLength(3);
-      expect(output.failed).toHaveLength(0);
-    });
-
-    it("aggregates failures without throwing while other users are still processed", async () => {
-      const repo = makeBatchRepo(pendingRows, {
-        getUserDeletionState: mock(async (userId: string) => {
-          if (userId === "u2") {
-            return Result.ok<Option<UserDeletionState>, RgpdError>(Option.none());
-          }
-          return Result.ok<Option<UserDeletionState>, RgpdError>(
-            Option.some(graceElapsedStateFor(userId)),
-          );
-        }),
-      });
-      const service = buildService({ repo, email });
-
-      const result = await service.processPendingDeletions({});
-
-      expect(result.isSuccess).toBe(true);
-      const output = result.getValue();
-      expect(output.processed).toBe(3);
-      expect(output.succeeded).toContain("u1");
-      expect(output.succeeded).toContain("u3");
-      expect(output.failed.some((f) => f.userId === "u2")).toBe(true);
-    });
-
-    it("sends one enqueue per account rather than one batch", async () => {
-      const emailMock = makeEmail();
-      const service = makeService({ email: emailMock, readyForWipe: ["u1", "u2", "u3"] });
-
-      const result = await service.processPendingDeletions({ batchSize: 50 });
-
-      expect(result.getValue().succeeded).toHaveLength(3);
-      expect(emailMock.sendTemplate).toHaveBeenCalledTimes(3);
-      expect(emailMock.sendTemplateBatch).not.toHaveBeenCalled();
-    });
-
-    it("does not send anything when every wipe fails", async () => {
-      const emailMock = makeEmail();
-      const service = makeService({ email: emailMock, readyForWipe: ["u1"], wipeFails: true });
-
-      await service.processPendingDeletions({ batchSize: 50 });
-
-      expect(emailMock.sendTemplate).not.toHaveBeenCalled();
-      expect(emailMock.sendTemplateBatch).not.toHaveBeenCalled();
-    });
-
-    it("stops between wipes once the budget is spent and reports truncated", async () => {
-      // A clock that jumps 60ms per read: deadlineAt = 60 + 100 = 160. The first
-      // in-loop check reads 120 (< 160, wipe runs); the second reads 180 (>= 160,
-      // stop before starting the next wipe): one account wiped, two deferred.
-      let readCount = 0;
-      const fakeClock = () => {
-        readCount += 1;
-        return readCount * 60;
+    it("given the time budget is spent, stops between two wipes and reports truncated", async () => {
+      f.repo.findUsersReadyForWipe.mockImplementation(async () =>
+        Result.ok(rows(["u1", NOW], ["u2", NOW], ["u3", NOW])),
+      );
+      let reads = 0;
+      const clock = () => {
+        reads += 1;
+        return reads * 60;
       };
-      const repo = makeBatchRepo(pendingRows);
-      const service = buildService({ repo, email });
 
-      const result = await service.processPendingDeletions({
-        batchSize: 3,
-        dryRun: false,
-        deadlineMs: 100,
-        now: fakeClock,
-      });
+      const result = await f
+        .service()
+        .processPendingDeletions({ now: NOW, deadlineMs: 100, clock });
 
-      expect(result.isSuccess).toBe(true);
-      const output = result.getValue();
-      expect(output.succeeded).toHaveLength(1);
-      expect(output.succeeded.length).toBeLessThan(3);
-      expect(output.truncated).toBe(true);
-      expect(output.processed).toBe(output.succeeded.length + output.failed.length);
-      expect(output.processed).toBeLessThan(3);
-    });
-
-    it("reports truncated: false when every account finishes inside the budget", async () => {
-      const repo = makeBatchRepo(pendingRows);
-      const service = buildService({ repo, email });
-
-      const result = await service.processPendingDeletions({
-        batchSize: 3,
-        dryRun: false,
-        deadlineMs: 100,
-        now: () => 0,
-      });
-
-      expect(result.isSuccess).toBe(true);
-      const output = result.getValue();
-      expect(output.succeeded).toHaveLength(3);
-      expect(output.truncated).toBe(false);
-    });
-
-    it("records ACCOUNT_WIPE_PROVIDER_FAILURE when the wipe transaction throws", async () => {
-      const badRows: PendingDeletionRow[] = [
-        {
-          userId: "u1",
-          email: "u1@example.com",
-          pendingDeletionUntil: new Date(Date.now() - 1000),
-        },
-      ];
-      const repo = makeBatchRepo(badRows);
-      const badTx = throwingUnitOfWork("db failure");
-      const service = buildService({ repo, email, uow: badTx });
-
-      const result = await service.processPendingDeletions({});
-
-      expect(result.isSuccess).toBe(true);
-      const output = result.getValue();
-      expect(output.failed).toHaveLength(1);
-      expect(output.failed[0]?.errorCode).toBe("ACCOUNT_WIPE_PROVIDER_FAILURE");
+      expect(result.getValue()).toMatchObject({ succeeded: ["u1"], truncated: true });
     });
   });
 });

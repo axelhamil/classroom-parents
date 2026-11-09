@@ -29,8 +29,8 @@ export function RequestDeletionPasswordForm({ onClose }: RequestDeletionPassword
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit((values) =>
-          mutation.mutate(values, {
+        onSubmit={form.handleSubmit(() =>
+          mutation.mutate(undefined, {
             onError: buildDeletionOnError(
               "ACCOUNT_PASSWORD_INVALID",
               (msg) => form.setError("password", { message: msg }),

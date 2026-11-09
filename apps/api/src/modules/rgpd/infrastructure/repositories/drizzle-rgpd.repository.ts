@@ -3,12 +3,13 @@ import {
   and,
   dbOperationFailure,
   eq,
-  isNull,
   lte,
+  or,
+  outboxSchema,
   resolveExecutor,
   schema,
+  sql,
 } from "@packages/drizzle";
-import { verifyPassword as verifyHash } from "better-auth/crypto";
 import type { Logger } from "../../../../shared/logger";
 import type {
   ExecuteWipeOutput,
@@ -19,8 +20,6 @@ import type {
 } from "../../application/ports/rgpd.port";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
-const ANONYMIZED_DOMAIN = "anonymized.local";
-const ANONYMIZED_NAME = "[deleted]";
 
 const repositoryFailure = dbOperationFailure("RGPD_REPOSITORY_PROVIDER_FAILURE");
 
@@ -78,7 +77,10 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
     );
   }
 
-  async findUsersReadyForWipe(limit: number): Promise<Result<PendingDeletionRow[], RgpdError>> {
+  async findUsersReadyForWipe(
+    now: Date,
+    limit: number,
+  ): Promise<Result<PendingDeletionRow[], RgpdError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: "DrizzleRgpdRepository > findUsersReadyForWipe" },
@@ -87,13 +89,11 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
           const query = exec
             .select({
               userId: schema.user.id,
-              email: schema.user.email,
               pendingDeletionUntil: schema.user.pendingDeletionUntil,
             })
             .from(schema.user)
-            .where(
-              and(lte(schema.user.pendingDeletionUntil, new Date()), isNull(schema.user.deletedAt)),
-            )
+            .where(lte(schema.user.pendingDeletionUntil, now))
+            .orderBy(schema.user.pendingDeletionUntil)
             .limit(limit);
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
@@ -120,29 +120,21 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
       { name: "DrizzleRgpdRepository > executeWipe" },
       async () => {
         try {
-          const anonymizedEmail = `deleted-${crypto.randomUUID()}@${ANONYMIZED_DOMAIN}`;
-          const updatedRows = await exec
-            .update(schema.user)
-            .set({
-              email: anonymizedEmail,
-              name: ANONYMIZED_NAME,
-              image: null,
-              emailVerified: false,
-              pendingDeletionUntil: null,
-              deletedAt: new Date(),
-            })
-            .where(and(eq(schema.user.id, userId), isNull(schema.user.deletedAt)))
+          const deleted = await exec
+            .delete(schema.user)
+            .where(eq(schema.user.id, userId))
             .returning({ id: schema.user.id });
+          if (deleted.length === 0) return Result.ok({ alreadyWiped: true });
 
-          if (updatedRows.length === 0) {
-            // Another overlapping run already wiped this account between our
-            // pending-deletion read and this transaction: nothing left to do,
-            // and the caller must not emit USER_DELETED a second time.
-            return Result.ok({ alreadyWiped: true });
-          }
-
-          await exec.delete(schema.session).where(eq(schema.session.userId, userId));
-          await exec.delete(schema.account).where(eq(schema.account.userId, userId));
+          const { outboxEvent } = outboxSchema;
+          await exec
+            .delete(outboxEvent)
+            .where(
+              or(
+                sql`${outboxEvent.payload}->>'userId' = ${userId}`,
+                sql`${outboxEvent.payload}->>'actorUserId' = ${userId}`,
+              ),
+            );
 
           return Result.ok({ alreadyWiped: false });
         } catch (err) {
@@ -154,30 +146,30 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
     );
   }
 
-  async verifyPassword(userId: string, password: string): Promise<Result<boolean, RgpdError>> {
+  async findSessionStart(
+    userId: string,
+    sessionId: string,
+  ): Promise<Result<Option<Date>, RgpdError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
-      { name: "DrizzleRgpdRepository > verifyPassword" },
+      { name: "DrizzleRgpdRepository > findSessionStart" },
       async () => {
         try {
-          const accQuery = exec
-            .select({ password: schema.account.password })
-            .from(schema.account)
-            .where(
-              and(eq(schema.account.userId, userId), eq(schema.account.providerId, "credential")),
-            )
+          const query = exec
+            .select({ createdAt: schema.session.createdAt })
+            .from(schema.session)
+            .where(and(eq(schema.session.id, sessionId), eq(schema.session.userId, userId)))
             .limit(1);
-          const [acc] = await this.instrumentation.startSpan(
-            { name: accQuery.toSQL().sql, op: "db.query", attributes: dbAttrs },
-            () => accQuery.execute(),
+          const [row] = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
           );
-          if (!acc?.password) return Result.ok(false);
-          const ok = await verifyHash({ hash: acc.password, password });
-          return Result.ok(ok);
+
+          return Result.ok(Option.fromNullable(row?.createdAt));
         } catch (err) {
           this.instrumentation.capture(err);
-          this.logger.error({ err, userId }, "RgpdRepository.verifyPassword failed");
-          return Result.fail(repositoryFailure("verifyPassword"));
+          this.logger.error({ err, userId }, "RgpdRepository.findSessionStart failed");
+          return Result.fail(repositoryFailure("findSessionStart"));
         }
       },
     );
@@ -196,7 +188,6 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
               email: schema.user.email,
               name: schema.user.name,
               pendingDeletionUntil: schema.user.pendingDeletionUntil,
-              deletedAt: schema.user.deletedAt,
             })
             .from(schema.user)
             .where(eq(schema.user.id, userId))
@@ -211,7 +202,6 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
               email: u.email,
               name: u.name,
               pendingDeletionUntil: Option.fromNullable(u.pendingDeletionUntil),
-              deletedAt: Option.fromNullable(u.deletedAt),
             }),
           );
         } catch (err) {

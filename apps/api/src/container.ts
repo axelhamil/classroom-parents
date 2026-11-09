@@ -17,6 +17,7 @@ import {
 import { OutboxRelay } from "@packages/outbox/outbox-relay";
 import { container } from "inwire";
 import { Resend } from "resend";
+import { childConnectionsBinding } from "./composition/child-connections";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import { rgpdModule } from "./modules/rgpd/module";
@@ -120,6 +121,7 @@ export const di = container()
     (c) => new NotificationStreamHub(logger, env.DATABASE_URL, c.IInstrumentation),
   )
   .addModule(healthModule)
+  .addModule(childConnectionsBinding)
   .addModule(rgpdModule)
   .add(
     "OutboxDispatcher",

@@ -39,7 +39,7 @@ const accountDeleteRateLimit = requireRateLimit(
 );
 
 const routes = createRgpdRoutes({
-  routeGuards: openRouteGuards({ userId: "user-1" }),
+  routeGuards: openRouteGuards({ userId: "user-1", sessionId: "session-1" }),
   accountDeleteRateLimit,
   RgpdService: { ...mockPort<RgpdRoutesDeps["RgpdService"]>(), requestAccountDeletion },
 });
@@ -55,8 +55,6 @@ function postDelete() {
 
   return app.request("/me/delete", {
     method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ password: "wrong-password" }),
   });
 }
 
@@ -64,6 +62,16 @@ describe("POST /me/delete attempt budget", () => {
   beforeEach(() => {
     consume.mockClear();
     requestAccountDeletion.mockClear();
+  });
+
+  it("accepts a request without password and hands the current session to the service", async () => {
+    const res = await postDelete();
+
+    expect(res.status).toBe(200);
+    expect(requestAccountDeletion).toHaveBeenCalledWith({
+      userId: "user-1",
+      sessionId: "session-1",
+    });
   });
 
   it("charges the attempt to the user, not to the address", async () => {

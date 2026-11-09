@@ -4,6 +4,7 @@ import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
 import { logger } from "../../shared/logger";
 import type { RgpdSettings } from "./application/config/rgpd-settings";
+import type { IChildConnections } from "./application/ports/child-connections.port";
 import type { IRgpdRepository } from "./application/ports/rgpd.port";
 import { RgpdService } from "./application/services/rgpd.service";
 import { DrizzleRgpdRepository } from "./infrastructure/repositories/drizzle-rgpd.repository";
@@ -13,6 +14,7 @@ export interface RgpdPrerequisites {
   ITransactionService: IUnitOfWork;
   IOutboxRepository: IOutboxRepository;
   IEmailService: IEmailService;
+  IChildConnections: IChildConnections;
   rgpdSettings: RgpdSettings;
 }
 
@@ -27,6 +29,7 @@ export const rgpdModule = defineModule<RgpdPrerequisites>()((b) =>
       (c) =>
         new RgpdService(
           c.IRgpdRepository,
+          c.IChildConnections,
           c.IEmailService,
           c.ITransactionService,
           c.IOutboxRepository,

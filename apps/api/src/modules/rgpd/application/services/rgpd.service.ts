@@ -4,6 +4,7 @@ import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import type { RgpdSettings } from "../config/rgpd-settings";
+import type { IChildConnections } from "../ports/child-connections.port";
 import type {
   ExecuteWipeOutput,
   IRgpdRepository,
@@ -13,7 +14,7 @@ import type {
 
 export interface RequestAccountDeletionInput {
   userId: string;
-  password: string;
+  sessionId: string;
 }
 export interface RequestAccountDeletionOutput {
   pendingDeletionUntil: string;
@@ -28,16 +29,18 @@ export interface CancelAccountDeletionOutput {
 
 export interface ExecuteAccountWipeInput {
   userId: string;
+  now: Date;
 }
 export interface ExecuteAccountWipeOutput {
   alreadyWiped: boolean;
 }
 
 export interface ProcessPendingDeletionsInput {
+  now: Date;
   batchSize?: number;
   dryRun?: boolean;
   deadlineMs?: number;
-  now?: () => number;
+  clock?: () => number;
 }
 export interface ProcessPendingDeletionsOutput {
   processed: number;
@@ -50,6 +53,7 @@ export interface ProcessPendingDeletionsOutput {
 export class RgpdService {
   constructor(
     private readonly rgpd: IRgpdRepository,
+    private readonly childConnections: IChildConnections,
     private readonly email: IEmailService,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
@@ -74,10 +78,8 @@ export class RgpdService {
             pendingDeletionUntil: state.pendingDeletionUntil.unwrap().toISOString(),
           });
 
-        const pwdResult = await this.rgpd.verifyPassword(input.userId, input.password);
-        if (pwdResult.isFailure) return Result.fail(pwdResult.getError());
-        if (!pwdResult.getValue())
-          return Result.fail({ code: "ACCOUNT_PASSWORD_INVALID", message: "invalid password" });
+        const freshness = await this.ensureFreshSession(input);
+        if (freshness.isFailure) return Result.fail(freshness.getError());
 
         const until = new Date(Date.now() + this.settings.gracePeriodDays * 24 * 60 * 60 * 1000);
         const txResult = await this.transactions.run(async () => {
@@ -125,12 +127,6 @@ export class RgpdService {
         if (stateResult.isFailure) return Result.fail(stateResult.getError());
 
         const state = stateResult.getValue();
-        if (state.deletedAt.isSome())
-          return Result.fail({
-            code: "ACCOUNT_DELETION_NOT_FOUND",
-            message: "account has already been wiped",
-          });
-
         if (state.pendingDeletionUntil.isNone())
           return Result.fail({
             code: "ACCOUNT_DELETION_NOT_FOUND",
@@ -182,13 +178,13 @@ export class RgpdService {
         if (stateResult.isFailure) return Result.fail(stateResult.getError());
 
         const state = stateResult.getValue();
-        if (state.deletedAt.isSome()) return Result.ok({ alreadyWiped: true });
-
-        if (state.pendingDeletionUntil.isNone() || state.pendingDeletionUntil.unwrap() > new Date())
+        if (state.pendingDeletionUntil.isNone() || state.pendingDeletionUntil.unwrap() > input.now)
           return Result.fail({
             code: "ACCOUNT_DELETION_NOT_FOUND",
             message: "user is not in pending_deletion state or grace has not elapsed",
           });
+
+        await this.revokeChildTokens(input.userId);
 
         const originalEmail = state.email;
         const originalName = state.name;
@@ -205,7 +201,7 @@ export class RgpdService {
               EventTypes.USER_DELETED,
               "user",
               input.userId,
-              { userId: input.userId, deletedAt: new Date() },
+              { userId: input.userId, deletedAt: input.now },
               {},
             );
             const notified = await this.email.sendTemplate(
@@ -263,7 +259,7 @@ export class RgpdService {
       async () => {
         const dryRun = input.dryRun === true;
 
-        const batchResult = await this.rgpd.findUsersReadyForWipe(input.batchSize ?? 50);
+        const batchResult = await this.rgpd.findUsersReadyForWipe(input.now, input.batchSize ?? 50);
         if (batchResult.isFailure) {
           this.logger.error(
             { code: batchResult.getError().code },
@@ -272,7 +268,7 @@ export class RgpdService {
           return Result.fail(batchResult.getError());
         }
 
-        const batch = batchResult.getValue();
+        const batch = batchResult.getValue().filter((row) => row.pendingDeletionUntil <= input.now);
 
         if (dryRun)
           return Result.ok({
@@ -283,8 +279,8 @@ export class RgpdService {
             truncated: false,
           });
 
-        const now = input.now ?? Date.now;
-        const deadlineAt = now() + (input.deadlineMs ?? this.settings.sweepDeadlineMs);
+        const clock = input.clock ?? Date.now;
+        const deadlineAt = clock() + (input.deadlineMs ?? this.settings.sweepDeadlineMs);
 
         const succeeded: string[] = [];
         const failed: Array<{ userId: string; errorCode: string }> = [];
@@ -294,7 +290,7 @@ export class RgpdService {
           // Checked between wipes, never inside one: executeAccountWipe owns a transaction
           // with cascade deletes, and cutting it short would leave a
           // half-erased account, the one outcome an Art. 17 sweep must never produce.
-          if (now() >= deadlineAt) {
+          if (clock() >= deadlineAt) {
             truncated = true;
             this.logger.warn(
               {
@@ -307,7 +303,7 @@ export class RgpdService {
           }
 
           try {
-            const res = await this.executeAccountWipe({ userId: row.userId });
+            const res = await this.executeAccountWipe({ userId: row.userId, now: input.now });
             if (res.isSuccess) {
               succeeded.push(row.userId);
             } else {
@@ -340,6 +336,38 @@ export class RgpdService {
         });
       },
     );
+  }
+
+  private async ensureFreshSession(
+    input: RequestAccountDeletionInput,
+  ): Promise<Result<void, RgpdError>> {
+    const startResult = await this.rgpd.findSessionStart(input.userId, input.sessionId);
+    if (startResult.isFailure) return Result.fail(startResult.getError());
+
+    const start = startResult.getValue();
+    const fresh =
+      start.isSome() && Date.now() - start.unwrap().getTime() < this.settings.freshSessionMaxAgeMs;
+    if (fresh) return Result.ok();
+
+    return Result.fail({
+      code: "ACCOUNT_REAUTH_REQUIRED",
+      message: "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
+    });
+  }
+
+  private async revokeChildTokens(userId: string): Promise<void> {
+    const revocation = await this.childConnections.revokeAll(userId);
+    if (revocation.isFailure) {
+      this.logger.warn(
+        { userId, code: revocation.getError().code },
+        "child token revocation failed, the wipe goes on (right to erasure)",
+      );
+      return;
+    }
+
+    const tally = revocation.getValue();
+    if (tally.failed > 0)
+      this.logger.warn({ userId, ...tally }, "google refused some child token revocations");
   }
 
   private async loadDeletionState(userId: string): Promise<Result<UserDeletionState, RgpdError>> {

@@ -9,11 +9,11 @@ Compliance infra, not DDD: a service over a store, no aggregate.
 
 ## Account deletion (`apps/api/src/modules/rgpd/`)
 
-- **Routes** (`routes.ts`, mounted on `/me`, CSRF guarded): `POST /me/delete` (`requireAuth`, own rate limit, Zod body) → `RgpdService.requestAccountDeletion`; `DELETE /me/delete` → `cancelAccountDeletion`. Failures become `AppErrorException`, mapped by the central error handler.
+- **Routes** (`routes.ts`, mounted on `/me`, CSRF guarded): `POST /me/delete` (`requireAuth`, own rate limit, no body) → `RgpdService.requestAccountDeletion`, which asks for no password (parents sign in with Google only) but for a session started less than `freshSessionMaxAgeMs` ago (24 h, the BetterAuth `freshAge` default), else `ACCOUNT_REAUTH_REQUIRED` (403: sign in with Google again); `DELETE /me/delete` → `cancelAccountDeletion`. Failures become `AppErrorException`, mapped by the central error handler.
 - **Grace period**: a request sets `user.pendingDeletionUntil` to now + `RGPD_GRACE_PERIOD_DAYS` (BetterAuth additional field, `input: false`) and emits `user.deletion.requested`; a cancel clears it and emits `user.deletion.cancelled`. Both in one `uow.run`.
-- **Wipe**: `executeAccountWipe` erases the account and emits `user.deleted`; `processPendingDeletions` walks the expired requests in batches of `RGPD_SWEEP_BATCH_SIZE` within the sweep deadline. No worker calls it yet: the periodic sweep is bound by T10 on the sweep pieces of `shared/internal-routes/` (no HTTP endpoint, no external cron).
+- **Wipe**: `executeAccountWipe` first revokes every child Google token through the `IChildConnections` port (best effort: a refusal or a failure is logged, never blocks the erasure), then in one `uow.run` deletes the user row (children, sessions, accounts and sealed tokens follow by FK cascade), purges the outbox rows whose payload names the user as `userId` or `actorUserId`, emits `user.deleted` (no PII) and queues the confirmation email; a failure of any step rolls all of it back; `processPendingDeletions` walks the expired requests in batches of `RGPD_SWEEP_BATCH_SIZE` within the sweep deadline. No worker calls it yet: the periodic sweep is bound by T10 on the sweep pieces of `shared/internal-routes/` (no HTTP endpoint, no external cron).
 - **Settings** come from `application/config/rgpd-settings.ts` (built from env, validated at boot), never read from `env` inside the service.
-- **Proof**: `rgpd.service.test.ts` (scenarios per rule) and `pnpm --filter api check:wipe-rollback` (a failing wipe rolls the whole unit back against Postgres).
+- **Proof**: `rgpd.service.test.ts` (scenarios per rule) and `pnpm --filter api check:wipe-rollback` (rollback, cascade, outbox purge, grace period and the Google-only fresh-session request, against Postgres).
 
 ## Legal pages and sub-processors (`apps/app`)
 
