@@ -12,11 +12,16 @@ src/
   visibility-map.ts       `VISIBILITY` (`satisfies Record<EventType, ...>`): `public` = may be shown to the user it concerns, `internal` = never exposed
   event-descriptions.ts   `EVENT_DESCRIPTIONS: Record<EventType, string>`, English only
   user-stream-message.ts  `UserStreamMessage`, the Zod union pushed on `GET /stream`
+  contribution.ts         `defineEventContribution`, the shape of a module's events
+  contrib/<module>.ts     one contribution per business module, one owner each
+  registry.ts             spreads every contribution into the five maps above
 ```
 
 ## Declaring an event
 
-One new type touches five files; `tsc` names the missing entries in the exhaustive `Record<EventType, ...>` maps, and the catalog tests pin the rest:
+A business module declares its events in its own `contrib/<module>.ts` with `defineEventContribution({ types, payloads, retention, visibility, descriptions })`: `tsc` requires an entry in each map for every type, and `registry.ts` merges them into the catalog. **Why**: modules built in parallel never edit the same file. A name already in the core catalog fails to compile; a name or type string shared by two contributions fails `__tests__/contributions.test.ts`.
+
+A platform event (auth, email, outbox, security) touches five files; `tsc` names the missing entries in the exhaustive `Record<EventType, ...>` maps, and the catalog tests pin the rest:
 
 1. `event-types.ts`: the `EventTypes` entry (`"<group>.<noun>.<past_tense_verb>"`).
 2. `payloads.ts`: the Zod payload and its entry in `PayloadByEventType`.

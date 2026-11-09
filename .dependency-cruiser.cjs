@@ -52,11 +52,11 @@ module.exports = {
       to: { path: `${MODULES}/([^/]+)/`, pathNot: `${MODULES}/$1/` },
     },
     {
-      name: "tests-reach-other-modules-schemas-only",
+      name: "tests-and-scripts-reach-other-modules-schemas-only",
       comment:
-        "A test may seed another module's tables through its schemas, never reach its code: the fixture would couple both modules.",
+        "A test or a real-database script may seed another module's tables through its schemas, never reach its code: the fixture would couple both modules.",
       severity: "error",
-      from: { path: `${MODULES}/([^/]+)/src/(testing/|__TESTS__/)` },
+      from: { path: `${MODULES}/([^/]+)/(src/testing/|src/__TESTS__/|scripts/|eval/)` },
       to: {
         path: `${MODULES}/([^/]+)/`,
         pathNot: [`${MODULES}/$1/`, `${MODULES}/[^/]+/schemas/`],

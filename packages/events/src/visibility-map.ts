@@ -1,4 +1,5 @@
 import type { EventType } from "./event-types";
+import { CONTRIBUTED_VISIBILITY } from "./registry";
 
 export type Visibility = "public" | "internal";
 
@@ -16,6 +17,7 @@ export const VISIBILITY = {
   "security.csrf.rejected": "internal",
   "email.delivery.exhausted": "internal",
   "outbox.event_dead": "internal",
+  ...CONTRIBUTED_VISIBILITY,
 } satisfies Record<EventType, Visibility>;
 
 export function isPublicEvent(eventType: EventType): boolean {

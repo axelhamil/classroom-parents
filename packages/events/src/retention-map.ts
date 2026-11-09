@@ -1,4 +1,5 @@
 import { type EventType, EventTypes, isKnownEventType } from "./event-types";
+import { CONTRIBUTED_RETENTION } from "./registry";
 
 export type RetentionPolicy = "operational" | "compliance" | "none";
 
@@ -16,6 +17,7 @@ export const RETENTION_MAP: Record<EventType, RetentionPolicy> = {
   [EventTypes.SECURITY_CSRF_REJECTED]: "operational",
   [EventTypes.EMAIL_DELIVERY_EXHAUSTED]: "operational",
   [EventTypes.OUTBOX_EVENT_DEAD]: "operational",
+  ...CONTRIBUTED_RETENTION,
 };
 
 export function retentionFor(eventType: string): RetentionPolicy {

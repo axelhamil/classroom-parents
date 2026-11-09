@@ -1,4 +1,5 @@
 import { type EventType, EventTypes, isKnownEventType } from "./event-types";
+import { CONTRIBUTED_DESCRIPTIONS } from "./registry";
 
 export const EVENT_DESCRIPTIONS: Record<EventType, string> = {
   [EventTypes.USER_CREATED]: "A new user account was created.",
@@ -16,6 +17,7 @@ export const EVENT_DESCRIPTIONS: Record<EventType, string> = {
     "An email exhausted its delivery attempts or was rejected; a dead email is replayed every few hours while still recent.",
   [EventTypes.OUTBOX_EVENT_DEAD]:
     "A domain event exhausted its delivery attempts and is now retried every few hours.",
+  ...CONTRIBUTED_DESCRIPTIONS,
 };
 
 export function descriptionFor(eventType: string): string {

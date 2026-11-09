@@ -1,3 +1,5 @@
+import { CONTRIBUTED_TYPES } from "./registry";
+
 export const EventTypes = {
   USER_CREATED: "user.created",
   USER_SIGNED_IN: "user.signed_in",
@@ -12,6 +14,7 @@ export const EventTypes = {
   OUTBOX_EVENT_DEAD: "outbox.event_dead",
   SECURITY_RATE_LIMIT_EXCEEDED: "security.rate_limit.exceeded",
   SECURITY_CSRF_REJECTED: "security.csrf.rejected",
+  ...CONTRIBUTED_TYPES,
 } as const;
 
 export type EventType = (typeof EventTypes)[keyof typeof EventTypes];

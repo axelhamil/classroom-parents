@@ -64,7 +64,27 @@
       "project": ["src/**/*.ts"]
     },
     "modules/*": {
-      "project": ["**/*.ts"]
+      "entry": [
+        "src/*.module.ts",
+        "src/infrastructure/http/*.routes.ts",
+        "scripts/check-*.ts",
+        "eval/*.ts"
+      ],
+      "project": ["**/*.ts"],
+      // Pre-installed by T3 so module tasks never touch the lockfile; T10 drops each name knip reports as unneeded.
+      "ignoreDependencies": [
+        "@anthropic-ai/sdk",
+        "@packages/drizzle",
+        "@packages/email",
+        "@packages/events",
+        "@packages/http",
+        "@packages/outbox",
+        "@types/web-push",
+        "drizzle-orm",
+        "hono",
+        "web-push",
+        "zod"
+      ]
     }
   },
   "ignoreBinaries": ["src/index.ts"],

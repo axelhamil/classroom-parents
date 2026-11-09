@@ -1,0 +1,33 @@
+{
+  "name": "@modules/agenda",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./agenda.module": "./src/agenda.module.ts",
+    "./schemas/*": "./schemas/*.ts",
+    "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts"
+  },
+  "scripts": {
+    "test": "bun test --isolate",
+    "type-check": "tsc --noEmit",
+    "check": "biome check ."
+  },
+  "dependencies": {
+    "@packages/ddd-kit": "workspace:*",
+    "@packages/drizzle": "workspace:*",
+    "@packages/events": "workspace:*",
+    "@packages/http": "workspace:*",
+    "@packages/outbox": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.14",
+    "inwire": "^4.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@packages/test": "workspace:*",
+    "@packages/typescript-config": "workspace:*",
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}

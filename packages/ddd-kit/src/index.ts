@@ -21,3 +21,4 @@ export * from "./primitives/canonical-json";
 export * from "./primitives/option";
 export * from "./primitives/result";
 export * from "./primitives/uuid";
+export * from "./primitives/zoned-time";

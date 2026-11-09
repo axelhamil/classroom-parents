@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EventTypes } from "./event-types";
+import { CONTRIBUTED_PAYLOADS } from "./registry";
 
 const UserRef = z.object({ userId: z.string() });
 const Email = z.email();
@@ -96,4 +97,5 @@ export const PayloadByEventType = {
   [EventTypes.OUTBOX_EVENT_DEAD]: OutboxEventDeadPayload,
   [EventTypes.SECURITY_RATE_LIMIT_EXCEEDED]: SecurityRateLimitExceededPayload,
   [EventTypes.SECURITY_CSRF_REJECTED]: SecurityCsrfRejectedPayload,
+  ...CONTRIBUTED_PAYLOADS,
 } as const;
