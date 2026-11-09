@@ -15,6 +15,11 @@ const STATUS_BY_SUFFIX = {
   _PROVIDER_FAILURE: 502,
   _UNAVAILABLE: 503,
   _TIMEOUT: 504,
+  _ALREADY_CONNECTED: 409,
+  _NOT_LINKED: 404,
+  _SCOPES_MISSING: 403,
+  _TOKEN_MISSING: 409,
+  _INVALID_GRANT: 409,
 } as const satisfies Record<string, number>;
 
 export type ErrorSuffix = keyof typeof STATUS_BY_SUFFIX;

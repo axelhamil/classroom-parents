@@ -9,6 +9,9 @@
  * replayed on `/callback/google-classroom` leaves the child's stored tokens untouched.
  * The database itself refuses a second row for the same provider account, so two
  * concurrent links of one child cannot attach it to two parents.
+ * Over HTTP the parent can neither read the child's tokens back (`/refresh-token`,
+ * `/get-access-token`) nor unlink an account (`/unlink-account`): unlinking its only
+ * `google` account would lock it out, and unlinking the child would skip Google's revoke.
  * Google's token endpoint is stubbed.
  */
 
@@ -30,13 +33,20 @@ const parent = { sub: `${probe}-parent`, email: `${probe}-parent@example.com` };
 const child = { sub: `${probe}-child`, email: `${probe}-child@school.example` };
 const restoreFetch = stubGoogleTokenEndpoint();
 
-async function googleAccountsOf(userId: string | undefined): Promise<number> {
+async function accountsOf(userId: string | undefined, providerId: string): Promise<number> {
   if (!userId) return 0;
   const [row] = await db
     .select({ total: count() })
     .from(authSchema.account)
-    .where(and(eq(authSchema.account.userId, userId), eq(authSchema.account.providerId, "google")));
+    .where(
+      and(eq(authSchema.account.userId, userId), eq(authSchema.account.providerId, providerId)),
+    );
   return row?.total ?? 0;
+}
+
+function leaksNoToken(body: unknown): boolean {
+  const text = JSON.stringify(body ?? null);
+  return !text.includes("accessToken") && !text.includes("refreshToken");
 }
 
 async function storedChildAccessToken(): Promise<string | null | undefined> {
@@ -100,6 +110,37 @@ run(async () => {
   await step("the parent is signed in", (await parentBrowser.sessionEmail()) === parent.email);
   await step("the parent holds one session after linking", (await sessionsOf(parentId)) === 1);
 
+  for (const path of ["/refresh-token", "/get-access-token"]) {
+    const read = await parentBrowser.call(path, { providerId: CHILD_PROVIDER_ID });
+    await step(
+      `${path} is refused over HTTP and returns no token`,
+      read.status === 403 &&
+        refusedCode(read.body) === "LINKED_ACCOUNT_HTTP_FORBIDDEN" &&
+        leaksNoToken(read.body),
+    );
+  }
+
+  const unlinkGoogle = await parentBrowser.call("/unlink-account", { providerId: "google" });
+  await step(
+    "unlinking the parent's only google account over HTTP is refused",
+    unlinkGoogle.status === 403 &&
+      refusedCode(unlinkGoogle.body) === "LINKED_ACCOUNT_HTTP_FORBIDDEN",
+  );
+  await step("the parent keeps its google account", (await accountsOf(parentId, "google")) === 1);
+
+  const unlinkChild = await parentBrowser.call("/unlink-account", {
+    providerId: CHILD_PROVIDER_ID,
+    accountId: child.sub,
+  });
+  await step(
+    "unlinking the child over HTTP is refused, it goes through the revoking disconnect",
+    unlinkChild.status === 403 && refusedCode(unlinkChild.body) === "LINKED_ACCOUNT_HTTP_FORBIDDEN",
+  );
+  await step(
+    "the child's linked account is still there",
+    (await accountsOf(parentId, CHILD_PROVIDER_ID)) === 1,
+  );
+
   const childBrowser = new Browser();
   const throughChildProvider = await childBrowser.signIn(CHILD_PROVIDER_ID, child);
   await step(
@@ -129,7 +170,10 @@ run(async () => {
     linkedUnderGoogle.status === 403 &&
       refusedCode(linkedUnderGoogle.body) === "CHILD_LINK_PROVIDER_FORBIDDEN",
   );
-  await step("the parent still owns one google account", (await googleAccountsOf(parentId)) === 1);
+  await step(
+    "the parent still owns one google account",
+    (await accountsOf(parentId, "google")) === 1,
+  );
   await step(
     "a child linked under google opens its own session, never the parent's",
     await landsOnOwnSession(directly),
@@ -139,7 +183,7 @@ run(async () => {
   await parentBrowser.link(CHILD_PROVIDER_ID, rewritten, "google");
   await step(
     "a link redirected to /callback/google creates no google account on the parent",
-    (await googleAccountsOf(parentId)) === 1,
+    (await accountsOf(parentId, "google")) === 1,
   );
   await step(
     "a child whose link was redirected opens its own session, never the parent's",

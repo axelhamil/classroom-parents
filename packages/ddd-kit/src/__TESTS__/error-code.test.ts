@@ -25,4 +25,12 @@ describe("httpStatusFromCode", () => {
   it("resolves BILLING_QUOTA_EXCEEDED to 429", () => {
     expect(httpStatusFromCode("BILLING_QUOTA_EXCEEDED")).toBe(429);
   });
+
+  it("resolves the child account codes the linking flow returns", () => {
+    expect(httpStatusFromCode("CHILD_ALREADY_CONNECTED")).toBe(409);
+    expect(httpStatusFromCode("CHILD_ACCOUNT_NOT_LINKED")).toBe(404);
+    expect(httpStatusFromCode("CHILD_SCOPES_MISSING")).toBe(403);
+    expect(httpStatusFromCode("CHILD_REFRESH_TOKEN_MISSING")).toBe(409);
+    expect(httpStatusFromCode("CHILD_TOKEN_INVALID_GRANT")).toBe(409);
+  });
 });

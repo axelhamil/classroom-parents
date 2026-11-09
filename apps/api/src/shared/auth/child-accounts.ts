@@ -44,11 +44,22 @@ export function throughChildProvider(request: { body?: unknown; params?: unknown
   return requestedProvider(request) === CHILD_PROVIDER_ID;
 }
 
+const SERVER_ONLY_PATHS = ["/refresh-token", "/get-access-token", "/unlink-account"];
+
 export function guardChildProvider(request: {
   path: string;
   body?: unknown;
   params?: unknown;
+  request?: Request;
 }): void {
+  if (request.request && SERVER_ONLY_PATHS.includes(request.path)) {
+    throw new APIError("FORBIDDEN", {
+      code: "LINKED_ACCOUNT_HTTP_FORBIDDEN",
+      message:
+        "Les comptes Google reliés se gèrent depuis la page Enfants. Pour retirer un enfant, utilisez « Déconnecter ».",
+    });
+  }
+
   if (request.path === "/sign-in/social" && throughChildProvider(request)) {
     throw new APIError("FORBIDDEN", {
       code: "CHILD_ACCOUNT_SIGN_IN_FORBIDDEN",

@@ -5,13 +5,15 @@
   "type": "module",
   "exports": {
     "./children.module": "./src/children.module.ts",
+    "./application/*": "./src/application/*.ts",
     "./schemas/*": "./schemas/*.ts",
     "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts"
   },
   "scripts": {
     "test": "bun test --isolate",
     "type-check": "tsc --noEmit",
-    "check": "biome check ."
+    "check": "biome check .",
+    "check:child-db": "bun --env-file=../../packages/drizzle/.env scripts/check-child-db.ts"
   },
   "dependencies": {
     "@packages/ddd-kit": "workspace:*",

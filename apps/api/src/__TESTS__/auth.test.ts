@@ -94,6 +94,21 @@ describe("a linked child's google account", () => {
     });
   });
 
+  it.each(["/refresh-token", "/get-access-token", "/unlink-account"])(
+    "refuses %s over HTTP and lets the server call it",
+    async (path) => {
+      const before = auth.options.hooks.before;
+      const body = { providerId: "google-classroom" };
+
+      const overHttp = before({ path, body, request: new Request("http://api.test") } as never);
+
+      await expect(overHttp).rejects.toMatchObject({
+        body: { code: "LINKED_ACCOUNT_HTTP_FORBIDDEN" },
+      });
+      expect(await before({ path, body } as never)).toBeUndefined();
+    },
+  );
+
   it("is linked only through google-classroom, never under google", async () => {
     const before = auth.options.hooks.before;
 
