@@ -125,15 +125,20 @@ export class Browser {
     return typeof user.email === "string" ? user.email : undefined;
   }
 
-  signIn(provider: string, identity: GoogleIdentity): Promise<Reply> {
-    return this.oauth("/sign-in/social", provider, identity);
+  signIn(provider: string, identity: GoogleIdentity, callbackProvider = provider): Promise<Reply> {
+    return this.oauth("/sign-in/social", provider, identity, callbackProvider);
   }
 
-  link(provider: string, identity: GoogleIdentity): Promise<Reply> {
-    return this.oauth("/link-social", provider, identity);
+  link(provider: string, identity: GoogleIdentity, callbackProvider = provider): Promise<Reply> {
+    return this.oauth("/link-social", provider, identity, callbackProvider);
   }
 
-  private async oauth(start: string, provider: string, identity: GoogleIdentity): Promise<Reply> {
+  private async oauth(
+    start: string,
+    provider: string,
+    identity: GoogleIdentity,
+    callbackProvider: string,
+  ): Promise<Reply> {
     const started = await this.call(start, {
       provider,
       callbackURL: `${env.APP_ORIGIN}/dashboard`,
@@ -144,7 +149,7 @@ export class Browser {
 
     const state = new URL(body.url).searchParams.get("state") ?? "";
     const code = encodeURIComponent(`${identity.sub}|${identity.email}`);
-    return this.call(`/callback/${provider}?code=${code}&state=${state}`);
+    return this.call(`/callback/${callbackProvider}?code=${code}&state=${state}`);
   }
 }
 

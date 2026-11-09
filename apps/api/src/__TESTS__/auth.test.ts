@@ -94,6 +94,16 @@ describe("a linked child's google account", () => {
     });
   });
 
+  it("is linked only through google-classroom, never under google", async () => {
+    const before = auth.options.hooks.before;
+
+    const attempt = before({ path: "/link-social", body: { provider: "google" } } as never);
+
+    await expect(attempt).rejects.toMatchObject({
+      body: { code: "CHILD_LINK_PROVIDER_FORBIDDEN" },
+    });
+  });
+
   it("never opens a session, even from its oauth callback", async () => {
     const callback = { path: "/callback/:id", params: { id: "google-classroom" } };
 
@@ -137,10 +147,11 @@ describe("the parent's google sign-in", () => {
     expect("prompt" in google).toBe(false);
   });
 
-  it("links a child account whose email differs from the parent's", () => {
+  it("links a child account whose email differs from the parent's, never by email match", () => {
     expect(auth.options.account.accountLinking).toEqual({
       enabled: true,
       allowDifferentEmails: true,
+      disableImplicitLinking: true,
     });
   });
 

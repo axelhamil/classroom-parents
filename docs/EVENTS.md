@@ -91,8 +91,8 @@ Delivered outbox rows and settled emails are derived data. The purge helpers sta
 
 ## BetterAuth bridge and emit sites
 
-- `apps/api/src/auth.ts`, `databaseHooks` (bound to the library's transaction through `asUnitOfWork`): `user.created` (`user.create.after`), `user.signed_in` (`session.create.after`), `user.account.unlinked` (`account.delete.after`, credential accounts skipped).
-- `apps/api/src/auth.ts`, `hooks.after` (path based, skipped when the endpoint returned an `APIError`): `user.email_verified` (`/verify-email`), `user.profile.updated` (`/update-user`, field-level diff), `user.account.linked` (`/link-social`).
+- `apps/api/src/auth.ts`, `databaseHooks` (bound to the library's transaction through `asUnitOfWork`): `user.created` (`user.create.after`), `user.signed_in` (`session.create.after`), `user.account.linked` (`account.create.after`, `google-classroom` child accounts only, `shared/auth/child-accounts.ts`), `user.account.unlinked` (`account.delete.after`).
+- `apps/api/src/auth.ts`, `hooks.after` (path based, skipped when the endpoint returned an `APIError`): `user.email_verified` (`/verify-email`), `user.profile.updated` (`/update-user`, field-level diff).
 - `apps/api/src/auth.ts` and `shared/middleware/rate-limit.middleware.ts`: `security.rate_limit.exceeded`; `shared/middleware/csrf.middleware.ts`: `security.csrf.rejected` (nullable actor, no trusted session on a rejection).
 - `apps/api/src/modules/rgpd`: `user.deletion.requested`, `user.deletion.cancelled`, `user.deleted`.
 - `packages/email`: `email.delivery.exhausted`; `packages/outbox`: `outbox.event_dead` (the worker is the actor, `actorUserId: null`).

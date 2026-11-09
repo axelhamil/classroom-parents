@@ -5,7 +5,7 @@ export const EVENT_DESCRIPTIONS: Record<EventType, string> = {
   [EventTypes.USER_CREATED]: "A new user account was created.",
   [EventTypes.USER_SIGNED_IN]: "A user signed in to their account.",
   [EventTypes.USER_EMAIL_VERIFIED]: "A user verified their email address.",
-  [EventTypes.USER_ACCOUNT_LINKED]: "A user linked a third-party sign-in provider.",
+  [EventTypes.USER_ACCOUNT_LINKED]: "A parent linked a child's Google Classroom account.",
   [EventTypes.USER_ACCOUNT_UNLINKED]: "A user unlinked a third-party sign-in provider.",
   [EventTypes.USER_DELETION_REQUESTED]: "A user scheduled their account for deletion.",
   [EventTypes.USER_DELETION_CANCELLED]: "A user cancelled a pending account deletion.",

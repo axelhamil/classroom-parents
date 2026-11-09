@@ -3,14 +3,18 @@
  * linked child's Google account never opens the parent's session: a parent signs in and
  * links the child through `google-classroom`, then the child's Google account tries to
  * sign in through `google-classroom` (refused) and through `google` (its own account,
- * never the parent's). Google's token endpoint is stubbed.
+ * never the parent's). A parent then tries to link a child under `google`, directly or by
+ * rewriting the link's redirect to `/callback/google`: the parent keeps its single
+ * `google` account and the child never lands on the parent's session. A sign-in state
+ * replayed on `/callback/google-classroom` leaves the child's stored tokens untouched.
+ * Google's token endpoint is stubbed.
  */
 
 import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-child-sign-in", process.env.DATABASE_URL);
 
-import { authSchema, count, db, eq } from "@packages/drizzle";
+import { and, authSchema, count, db, eq } from "@packages/drizzle";
 import { CHILD_PROVIDER_ID } from "../src/shared/auth/child-accounts";
 import {
   Browser,
@@ -31,6 +35,34 @@ async function sessionsOf(userId: string | undefined): Promise<number> {
     .from(authSchema.session)
     .where(eq(authSchema.session.userId, userId));
   return row?.total ?? 0;
+}
+
+async function googleAccountsOf(userId: string | undefined): Promise<number> {
+  if (!userId) return 0;
+  const [row] = await db
+    .select({ total: count() })
+    .from(authSchema.account)
+    .where(and(eq(authSchema.account.userId, userId), eq(authSchema.account.providerId, "google")));
+  return row?.total ?? 0;
+}
+
+async function storedChildAccessToken(): Promise<string | null | undefined> {
+  const [row] = await db
+    .select({ accessToken: authSchema.account.accessToken })
+    .from(authSchema.account)
+    .where(
+      and(
+        eq(authSchema.account.providerId, CHILD_PROVIDER_ID),
+        eq(authSchema.account.accountId, child.sub),
+      ),
+    );
+  return row?.accessToken;
+}
+
+async function landsOnOwnSession(identity: { sub: string; email: string }): Promise<boolean> {
+  const browser = new Browser();
+  await browser.signIn("google", identity);
+  return (await browser.sessionEmail()) === identity.email;
 }
 
 function refusedCode(body: unknown): unknown {
@@ -70,4 +102,39 @@ run(async () => {
     (await childBrowser.sessionEmail()) === child.email,
   );
   await step("no session was opened on the parent", (await sessionsOf(parentId)) === 1);
+
+  const directly = {
+    sub: `${probe}-linked-under-google`,
+    email: `${probe}-sibling@school.example`,
+  };
+  const linkedUnderGoogle = await parentBrowser.link("google", directly);
+  await step(
+    "linking a child under google is refused",
+    linkedUnderGoogle.status === 403 &&
+      refusedCode(linkedUnderGoogle.body) === "CHILD_LINK_PROVIDER_FORBIDDEN",
+  );
+  await step("the parent still owns one google account", (await googleAccountsOf(parentId)) === 1);
+  await step(
+    "a child linked under google opens its own session, never the parent's",
+    await landsOnOwnSession(directly),
+  );
+
+  const rewritten = { sub: `${probe}-redirect-rewritten`, email: `${probe}-cousin@school.example` };
+  await parentBrowser.link(CHILD_PROVIDER_ID, rewritten, "google");
+  await step(
+    "a link redirected to /callback/google creates no google account on the parent",
+    (await googleAccountsOf(parentId)) === 1,
+  );
+  await step(
+    "a child whose link was redirected opens its own session, never the parent's",
+    await landsOnOwnSession(rewritten),
+  );
+
+  const tokensBeforeHijack = await storedChildAccessToken();
+  await new Browser().signIn("google", child, CHILD_PROVIDER_ID);
+  await step(
+    "a sign-in replayed on /callback/google-classroom leaves the child's tokens untouched",
+    tokensBeforeHijack !== undefined && (await storedChildAccessToken()) === tokensBeforeHijack,
+  );
+  await step("the parent still holds a single session", (await sessionsOf(parentId)) === 1);
 }, "a linked child's google account never opens the parent's session");

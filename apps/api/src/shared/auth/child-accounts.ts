@@ -1,6 +1,6 @@
 import { type EventType, EventTypes } from "@packages/events";
 import type { BetterAuthOptions } from "better-auth";
-import { APIError } from "better-auth/api";
+import { APIError, getOAuthState } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { GOOGLE_CLASSROOM_SCOPES, GOOGLE_IDENTITY_SCOPES } from "./google-scopes";
 
@@ -44,12 +44,25 @@ export function throughChildProvider(request: { body?: unknown; params?: unknown
   return requestedProvider(request) === CHILD_PROVIDER_ID;
 }
 
-export function refuseChildSignIn(): never {
-  throw new APIError("FORBIDDEN", {
-    code: "CHILD_ACCOUNT_SIGN_IN_FORBIDDEN",
-    message:
-      "Le compte Google d'un enfant sert uniquement à lire Classroom. Connectez-vous avec votre propre compte Google.",
-  });
+export function guardChildProvider(request: {
+  path: string;
+  body?: unknown;
+  params?: unknown;
+}): void {
+  if (request.path === "/sign-in/social" && throughChildProvider(request)) {
+    throw new APIError("FORBIDDEN", {
+      code: "CHILD_ACCOUNT_SIGN_IN_FORBIDDEN",
+      message:
+        "Le compte Google d'un enfant sert uniquement à lire Classroom. Connectez-vous avec votre propre compte Google.",
+    });
+  }
+
+  if (request.path === "/link-social" && !throughChildProvider(request)) {
+    throw new APIError("FORBIDDEN", {
+      code: "CHILD_LINK_PROVIDER_FORBIDDEN",
+      message: "Un compte enfant se lie uniquement par Google Classroom.",
+    });
+  }
 }
 
 type AccountHooks = NonNullable<NonNullable<BetterAuthOptions["databaseHooks"]>["account"]>;
@@ -61,10 +74,36 @@ type Emit = (
   payload: unknown,
 ) => Promise<void>;
 
+type HookContext = Parameters<NonNullable<NonNullable<AccountHooks["create"]>["before"]>>[1];
+
+async function linkingFlow(): Promise<boolean | undefined> {
+  const state = await getOAuthState();
+  return state ? Boolean(state.link) : undefined;
+}
+
+async function opensSecondSignInAccount(
+  account: { providerId: string; userId: string },
+  context: HookContext,
+): Promise<boolean> {
+  if (!context || account.providerId === CHILD_PROVIDER_ID) return false;
+  if (await linkingFlow()) return true;
+
+  const owned = await context.context.internalAdapter.findAccounts(account.userId);
+  return owned.length > 0;
+}
+
+async function childSignInCallback(context: HookContext): Promise<boolean> {
+  if (!context || !throughChildProvider(context)) return false;
+  return (await linkingFlow()) === false;
+}
+
 export function linkedAccountHooks(emit: Emit): AccountHooks {
   return {
     create: {
-      before: async (account) => ({ data: { ...account, idToken: null } }),
+      before: async (account, context) => {
+        if (await opensSecondSignInAccount(account, context)) return false;
+        return { data: { ...account, idToken: null } };
+      },
       after: async (account) => {
         if (account.providerId !== CHILD_PROVIDER_ID) return;
         await emit(EventTypes.USER_ACCOUNT_LINKED, "account", account.id, {
@@ -75,7 +114,10 @@ export function linkedAccountHooks(emit: Emit): AccountHooks {
       },
     },
     update: {
-      before: async (account) => ({ data: { ...account, idToken: null } }),
+      before: async (account, context) => {
+        if (await childSignInCallback(context)) return false;
+        return { data: { ...account, idToken: null } };
+      },
     },
     delete: {
       after: async (account) => {

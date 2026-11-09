@@ -8,8 +8,8 @@ import { createAuthMiddleware } from "better-auth/api";
 import { di } from "./container";
 import {
   childAccountLinking,
+  guardChildProvider,
   linkedAccountHooks,
-  refuseChildSignIn,
   throughChildProvider,
 } from "./shared/auth/child-accounts";
 import { GOOGLE_IDENTITY_SCOPES } from "./shared/auth/google-scopes";
@@ -53,7 +53,7 @@ const authOptions = {
 
   account: {
     encryptOAuthTokens: true,
-    accountLinking: { enabled: true, allowDifferentEmails: true },
+    accountLinking: { enabled: true, allowDifferentEmails: true, disableImplicitLinking: true },
   },
 
   user: {
@@ -79,9 +79,7 @@ const authOptions = {
   },
 
   hooks: {
-    before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path === "/sign-in/social" && throughChildProvider(ctx)) refuseChildSignIn();
-    }),
+    before: createAuthMiddleware(async (ctx) => guardChildProvider(ctx)),
 
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/verify-email") {
