@@ -6,6 +6,7 @@ import type { GoogleEmail } from "./value-objects/google-email.vo";
 
 export const MANUAL_SYNC_THROTTLE_MS = 60_000;
 export const SYNC_LEASE_MS = 10 * 60_000;
+export const DISCONNECT_LEASE_MS = 2 * 60_000;
 
 export interface ChildAccountProps {
   userId: string;
@@ -63,16 +64,34 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     this._props.label = label;
   }
 
-  reconnect(now: Date): void {
+  reconnect(now: Date): Result<void, "disconnecting"> {
+    if (this.isDisconnecting()) return Result.fail("disconnecting");
+
     this._props.status = ChildStatus.connected();
     this._props.nextSyncAt = now;
     this._props.syncStartedAt = Option.none();
     this._props.syncLease += 1;
+    return Result.ok();
+  }
+
+  beginDisconnect(now: Date): Result<void, "in_progress"> {
+    if (this.isDisconnecting() && this._props.nextSyncAt > now) return Result.fail("in_progress");
+
+    this._props.status = ChildStatus.disconnecting();
+    this._props.syncStartedAt = Option.none();
+    this._props.nextSyncAt = new Date(now.getTime() + DISCONNECT_LEASE_MS);
+    this._props.syncLease += 1;
+    return Result.ok();
+  }
+
+  isDisconnecting(): boolean {
+    return this._props.status.value === "disconnecting";
   }
 
   markNeedsReconnect(cause: ReconnectCause): Result<void, "unchanged"> {
     const broken = ChildStatus.brokenBy(cause);
-    if (this._props.status.equals(broken)) return Result.fail("unchanged");
+    if (this._props.status.equals(broken) || this.isDisconnecting())
+      return Result.fail("unchanged");
 
     this._props.status = broken;
     this._props.syncStartedAt = Option.none();

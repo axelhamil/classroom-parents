@@ -4,15 +4,16 @@
  * disconnecting removes the linked BetterAuth account row and two simultaneous disconnects
  * revoke once, a refreshed token is stored sealed, two concurrent claims return disjoint
  * children, one sync at a time per child (a manual sync during a lease answers running, a
- * late worker's end of sync is fenced out), and every google-classroom link, attached to a
- * child or not, ends revoked and erased. Google is stubbed.
+ * late worker's end of sync is fenced out), a disconnect revokes outside any transaction and
+ * a failed revoke leaves the child disconnecting until the resumption finishes it, and every
+ * google-classroom link, attached to a child or not, ends revoked and erased. Google is stubbed.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-child-db", process.env.DATABASE_URL);
 
-import { Option, Result } from "@packages/ddd-kit";
+import { Option, Result, UnitOfWorkContext } from "@packages/ddd-kit";
 import {
   and,
   authSchema,
@@ -84,6 +85,8 @@ async function accountsOf(userId: string): Promise<LinkedGoogleAccount[]> {
 }
 
 const revoked: string[] = [];
+let revokedInsideTransaction = 0;
+let googleDown = false;
 const google: IGoogleOAuthClient = {
   refresh: async () =>
     Result.ok<GoogleAccess, ChildrenError>({
@@ -92,6 +95,10 @@ const google: IGoogleOAuthClient = {
       refreshToken: Option.none(),
     }),
   revoke: async (token) => {
+    if (UnitOfWorkContext.transaction() !== undefined) revokedInsideTransaction += 1;
+    if (googleDown)
+      return Result.fail<void, ChildrenError>({ code: "CHILD_PROVIDER_FAILURE", message: "down" });
+
     revoked.push(token);
     return Result.ok();
   },
@@ -364,13 +371,43 @@ run(async () => {
     );
   await step(
     "two simultaneous disconnects revoke once and announce once",
-    twice
-      .map((r) => codeOf(r))
-      .sort()
-      .join() === "CHILD_NOT_FOUND,ok" &&
+    ["CHILD_NOT_FOUND,ok", "ok,ok"].includes(
+      twice
+        .map((r) => codeOf(r))
+        .sort()
+        .join(),
+    ) &&
       revoked.length - revokedBefore === 1 &&
       twinEvents.length === 1,
     { outcomes: twice.map((r) => codeOf(r)), revocations: revoked.length - revokedBefore },
+  );
+
+  const stuck = await register(a, await linkAccount(a, "a-stuck"), "Bloqué");
+  googleDown = true;
+  const failedDisconnect = await service.disconnect(a, stuck);
+  googleDown = false;
+  const stuckRow = await childRow(stuck);
+  await step(
+    "a disconnect whose revoke fails leaves the child disconnecting, its account kept",
+    codeOf(failedDisconnect) === "CHILD_PROVIDER_FAILURE" &&
+      stuckRow?.status === "disconnecting" &&
+      (await accountRow(`${a}-a-stuck`)) !== undefined,
+  );
+  await step(
+    "a disconnecting child is never claimed for a sync",
+    !(await service.claimDueForSync(1000, new Date(T0.getTime() + 1000 * LEASE_MS)))
+      .getValue()
+      .some((d) => d.childId === stuck),
+  );
+  const resumed = await service.resumeDisconnections(1000, new Date(T0.getTime() + 1000));
+  await step(
+    "the resumption revokes and finishes the stuck disconnect",
+    resumed.isSuccess &&
+      resumed.getValue().finished >= 1 &&
+      revoked.includes("1//a-stuck") &&
+      (await childRow(stuck)) === undefined &&
+      (await accountRow(`${a}-a-stuck`)) === undefined,
+    resumed.isSuccess ? resumed.getValue() : {},
   );
 
   const disconnected = await service.disconnect(a, aChild);
@@ -431,6 +468,14 @@ run(async () => {
       (await service.list(a)).getValue().length === 0 &&
       (await accountRow(orphan)) === undefined,
     { left: left.length },
+  );
+
+  await step(
+    "no Google revoke ever ran inside an open transaction",
+    revokedInsideTransaction === 0,
+    {
+      revokedInsideTransaction,
+    },
   );
 
   await db.delete(authSchema.user).where(eq(authSchema.user.id, b));

@@ -12,6 +12,7 @@ import {
 import { childAccount } from "../../../schemas/child.schema";
 import type {
   ChildrenError,
+  DisconnectingChild,
   DueChild,
   IChildRepository,
   SyncLease,
@@ -19,7 +20,7 @@ import type {
 import { ChildAccount } from "../../domain/child-account.aggregate";
 import { ChildAccountId } from "../../domain/child-account-id";
 import { ChildLabel } from "../../domain/value-objects/child-label.vo";
-import { ChildStatus } from "../../domain/value-objects/child-status.vo";
+import { ChildStatus, type ChildStatusValue } from "../../domain/value-objects/child-status.vo";
 import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
@@ -37,6 +38,10 @@ const leaseLost: ChildrenError = {
 };
 
 type ChildRow = typeof childAccount.$inferSelect;
+
+interface ClaimedRow extends DisconnectingChild {
+  label: string;
+}
 
 function toDomain(row: ChildRow): Result<ChildAccount, string> {
   const id = ChildAccountId.parse(row.id);
@@ -181,24 +186,29 @@ export class DrizzleChildRepository implements IChildRepository {
     );
   }
 
-  async delete(userId: string, childId: string): Promise<Result<void, ChildrenError>> {
+  async deleteLeased(lease: SyncLease): Promise<Result<void, ChildrenError>> {
     const exec = resolveExecutor();
-    return this.instrumentation.startSpan({ name: "DrizzleChildRepository > delete" }, async () => {
-      try {
-        const query = exec
-          .delete(childAccount)
-          .where(and(eq(childAccount.id, childId), eq(childAccount.userId, userId)));
-        await this.instrumentation.startSpan(
-          { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
-          () => query.execute(),
-        );
+    return this.instrumentation.startSpan(
+      { name: "DrizzleChildRepository > deleteLeased" },
+      async () => {
+        try {
+          const query = exec
+            .delete(childAccount)
+            .where(leaseHeldBy(lease))
+            .returning({ id: childAccount.id });
+          const deleted = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+          if (deleted.length === 0) return Result.fail(leaseLost);
 
-        return Result.ok();
-      } catch (err) {
-        this.instrumentation.capture(err);
-        return Result.fail(repositoryFailure("delete"));
-      }
-    });
+          return Result.ok();
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("deleteLeased"));
+        }
+      },
+    );
   }
 
   async claimDue(
@@ -206,44 +216,25 @@ export class DrizzleChildRepository implements IChildRepository {
     now: Date,
     leaseMs: number,
   ): Promise<Result<DueChild[], ChildrenError>> {
-    const exec = resolveExecutor();
-    return this.instrumentation.startSpan(
-      { name: "DrizzleChildRepository > claimDue" },
-      async () => {
-        try {
-          const due = exec
-            .select({ id: childAccount.id })
-            .from(childAccount)
-            .where(and(eq(childAccount.status, "connected"), lte(childAccount.nextSyncAt, now)))
-            .orderBy(asc(childAccount.nextSyncAt))
-            .limit(limit)
-            .for("update", { skipLocked: true });
-          const query = exec
-            .update(childAccount)
-            .set({
-              syncAttempts: sql`${childAccount.syncAttempts} + 1`,
-              syncLease: sql`${childAccount.syncLease} + 1`,
-              syncStartedAt: now,
-              nextSyncAt: new Date(now.getTime() + leaseMs),
-            })
-            .where(inArray(childAccount.id, due))
-            .returning({
-              childId: childAccount.id,
-              userId: childAccount.userId,
-              label: childAccount.label,
-              lease: childAccount.syncLease,
-            });
-          const claimed = await this.instrumentation.startSpan(
-            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
-            () => query.execute(),
-          );
+    const claimed = await this.claim("claimDue", "connected", limit, now, leaseMs);
+    return claimed.map((rows) =>
+      rows.map(({ childId, userId, label, lease }) => ({ childId, userId, label, lease })),
+    );
+  }
 
-          return Result.ok(claimed);
-        } catch (err) {
-          this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("claimDue"));
-        }
-      },
+  async claimDisconnecting(
+    limit: number,
+    now: Date,
+    leaseMs: number,
+  ): Promise<Result<DisconnectingChild[], ChildrenError>> {
+    const claimed = await this.claim("claimDisconnecting", "disconnecting", limit, now, leaseMs);
+    return claimed.map((rows) =>
+      rows.map(({ childId, userId, linkedAccountId, lease }) => ({
+        childId,
+        userId,
+        linkedAccountId,
+        lease,
+      })),
     );
   }
 
@@ -261,11 +252,64 @@ export class DrizzleChildRepository implements IChildRepository {
   }
 
   async markSyncFailed(lease: SyncLease, nextSyncAt: Date): Promise<Result<void, ChildrenError>> {
+    return this.releaseLease(lease, nextSyncAt);
+  }
+
+  async releaseLease(lease: SyncLease, retryAt: Date): Promise<Result<void, ChildrenError>> {
     return this.updateOne(
-      "markSyncFailed",
+      "releaseLease",
       leaseHeldBy(lease),
-      { nextSyncAt, syncStartedAt: null },
+      { nextSyncAt: retryAt, syncStartedAt: null },
       leaseLost,
+    );
+  }
+
+  private async claim(
+    method: string,
+    status: ChildStatusValue,
+    limit: number,
+    now: Date,
+    leaseMs: number,
+  ) {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: `DrizzleChildRepository > ${method}` },
+      async (): Promise<Result<ClaimedRow[], ChildrenError>> => {
+        try {
+          const due = exec
+            .select({ id: childAccount.id })
+            .from(childAccount)
+            .where(and(eq(childAccount.status, status), lte(childAccount.nextSyncAt, now)))
+            .orderBy(asc(childAccount.nextSyncAt))
+            .limit(limit)
+            .for("update", { skipLocked: true });
+          const query = exec
+            .update(childAccount)
+            .set({
+              syncAttempts: sql`${childAccount.syncAttempts} + 1`,
+              syncLease: sql`${childAccount.syncLease} + 1`,
+              syncStartedAt: status === "connected" ? now : null,
+              nextSyncAt: new Date(now.getTime() + leaseMs),
+            })
+            .where(inArray(childAccount.id, due))
+            .returning({
+              childId: childAccount.id,
+              userId: childAccount.userId,
+              linkedAccountId: childAccount.linkedAccountId,
+              label: childAccount.label,
+              lease: childAccount.syncLease,
+            });
+          const claimed = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return Result.ok(claimed);
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure(method));
+        }
+      },
     );
   }
 

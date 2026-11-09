@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Option, Result } from "@packages/ddd-kit";
+import { Option, Result, UnitOfWorkContext } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
-import type { ChildrenError, IChildRepository } from "../application/ports/child-repository.port";
+import type {
+  ChildrenError,
+  DisconnectingChild,
+  IChildRepository,
+} from "../application/ports/child-repository.port";
 import type {
   GoogleCredentials,
   IGoogleCredentialStore,
@@ -101,6 +105,7 @@ let outbox: PortMock<IOutboxRepository>;
 let instrumentation: ReturnType<typeof mockInstrumentation>;
 let uow: UnitOfWorkMock;
 let service: ChildConnectionService;
+let revokedInsideTransaction: boolean[];
 
 beforeEach(() => {
   repo = mockPort<IChildRepository>();
@@ -114,7 +119,8 @@ beforeEach(() => {
 
   repo.create.mockResolvedValue(Result.ok());
   repo.save.mockResolvedValue(Result.ok());
-  repo.delete.mockResolvedValue(Result.ok());
+  repo.deleteLeased.mockResolvedValue(Result.ok());
+  repo.releaseLease.mockResolvedValue(Result.ok());
   repo.findByLinkedAccount.mockResolvedValue(ok(Option.none<ChildAccount>()));
   repo.listForUser.mockResolvedValue(ok<ChildAccount[]>([]));
   linked.find.mockResolvedValue(ok(Option.some(linkedAccount())));
@@ -123,7 +129,11 @@ beforeEach(() => {
   google.profile.mockResolvedValue(
     ok<GoogleProfile>({ email: "lea@school.example", givenName: Option.some("Léa") }),
   );
-  google.revoke.mockResolvedValue(Result.ok());
+  revokedInsideTransaction = [];
+  google.revoke.mockImplementation(async () => {
+    revokedInsideTransaction.push(UnitOfWorkContext.transaction() !== undefined);
+    return Result.ok();
+  });
   eraser.delete.mockResolvedValue(ok(Option.some<ErasedAccount>({ accountId: "google-sub-1" })));
 
   service = new ChildConnectionService(
@@ -181,6 +191,7 @@ describe("register", () => {
     expect(result.getError().code).toBe("CHILD_SCOPES_MISSING");
     expect(repo.create).not.toHaveBeenCalled();
     expect(google.revoke).toHaveBeenCalledWith("1//refresh");
+    expect(revokedInsideTransaction).toEqual([false]);
     expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
     expect(uow.outcome()).toBe("committed");
     expect(enqueuedEvents(outbox)).toEqual([
@@ -202,6 +213,16 @@ describe("register", () => {
     expect(repo.create).not.toHaveBeenCalled();
     expect(google.revoke).toHaveBeenCalled();
     expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+  });
+
+  it("given the revoke of a refused link fails, then the account is kept for a retry and the typed error still returned", async () => {
+    linked.find.mockResolvedValue(ok(Option.some(linkedAccount({ grantedScopes: ["openid"] }))));
+    google.revoke.mockResolvedValue(fail<void>("CHILD_PROVIDER_FAILURE"));
+
+    const result = await service.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getError().code).toBe("CHILD_SCOPES_MISSING");
+    expect(eraser.delete).not.toHaveBeenCalled();
   });
 
   it("given Google answers invalid_grant while reading the profile, then the account is erased and CHILD_TOKEN_INVALID_GRANT", async () => {
@@ -282,6 +303,16 @@ describe("reconnect", () => {
     expect(eraser.delete).not.toHaveBeenCalled();
   });
 
+  it("given a child being disconnected, then CHILD_NOT_FOUND and it stays disconnecting", async () => {
+    const leaving = child({ status: ChildStatus.disconnecting() });
+    repo.findOwned.mockResolvedValue(ok(Option.some(leaving)));
+
+    const result = await service.reconnect(PARENT, leaving.id.value);
+
+    expect(result.getError().code).toBe("CHILD_NOT_FOUND");
+    expect(leaving.get("status").value).toBe("disconnecting");
+  });
+
   it("given another family's child, then CHILD_NOT_FOUND", async () => {
     repo.findOwned.mockResolvedValue(ok(Option.none<ChildAccount>()));
 
@@ -324,7 +355,7 @@ describe("linkable", () => {
     ]);
   });
 
-  it("given a fresh link without the Classroom scopes, then its token is revoked, the account erased and CHILD_SCOPES_MISSING returned", async () => {
+  it("given a fresh link without the Classroom scopes, then CHILD_SCOPES_MISSING naming it, and nothing is revoked nor erased", async () => {
     linked.listForUser.mockResolvedValue(
       ok([linkedAccount({ grantedScopes: ["openid", "email", "profile"] })]),
     );
@@ -332,11 +363,12 @@ describe("linkable", () => {
     const result = await service.linkable(PARENT);
 
     expect(result.getError().code).toBe("CHILD_SCOPES_MISSING");
-    expect(google.revoke).toHaveBeenCalledWith("1//refresh");
-    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+    expect(result.getError().metadata).toEqual({ unusableLinkedAccountIds: [LINKED] });
+    expect(google.revoke).not.toHaveBeenCalled();
+    expect(eraser.delete).not.toHaveBeenCalled();
   });
 
-  it("given an unusable link next to a usable one, then the unusable one is erased and the usable one listed", async () => {
+  it("given an unusable link next to a usable one, then only the usable one is listed and nothing is erased", async () => {
     linked.listForUser.mockResolvedValue(
       ok([
         linkedAccount({ linkedAccountId: "no-token", hasRefreshToken: false }),
@@ -347,21 +379,29 @@ describe("linkable", () => {
     const result = await service.linkable(PARENT);
 
     expect(result.getValue().map((a) => a.linkedAccountId)).toEqual(["free"]);
-    expect(eraser.delete).toHaveBeenCalledTimes(1);
-    expect(eraser.delete).toHaveBeenCalledWith(PARENT, "no-token");
+    expect(eraser.delete).not.toHaveBeenCalled();
   });
 });
 
 describe("discardLinked", () => {
-  it("given a linked account no child uses, then its token is revoked and the account erased", async () => {
+  it("given a linked account no child uses, then its token is revoked outside any transaction and the account erased", async () => {
     const result = await service.discardLinked(PARENT, LINKED);
 
     expect(result.isSuccess).toBe(true);
-    expect(google.revoke).toHaveBeenCalledWith("1//refresh");
+    expect(revokedInsideTransaction).toEqual([false]);
     expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
     expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([
       EventTypes.USER_ACCOUNT_UNLINKED,
     ]);
+  });
+
+  it("given Google fails the revoke, then the account is kept and CHILD_PROVIDER_FAILURE", async () => {
+    google.revoke.mockResolvedValue(fail<void>("CHILD_PROVIDER_FAILURE"));
+
+    const result = await service.discardLinked(PARENT, LINKED);
+
+    expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
+    expect(eraser.delete).not.toHaveBeenCalled();
   });
 
   it("given an account a child uses, then CHILD_ALREADY_CONNECTED and nothing revoked", async () => {
@@ -373,14 +413,14 @@ describe("discardLinked", () => {
     expect(google.revoke).not.toHaveBeenCalled();
   });
 
-  it("given an account already gone or another family's, then CHILD_ACCOUNT_NOT_LINKED and nothing revoked", async () => {
+  it("given another family's account, then CHILD_ACCOUNT_NOT_LINKED and nothing revoked", async () => {
+    store.read.mockResolvedValue(ok(Option.none<GoogleCredentials>()));
     eraser.delete.mockResolvedValue(ok(Option.none<ErasedAccount>()));
 
     const result = await service.discardLinked(PARENT, "someone-else");
 
     expect(result.getError().code).toBe("CHILD_ACCOUNT_NOT_LINKED");
     expect(google.revoke).not.toHaveBeenCalled();
-    expect(uow.outcome()).toBe("rolled_back");
   });
 });
 
@@ -482,42 +522,68 @@ describe("markNeedsReconnect", () => {
 });
 
 describe("disconnect", () => {
-  it("given Google refuses the revoke, then the account row and the child are still deleted and the failure is captured", async () => {
+  it("marks the child disconnecting and commits, revokes outside any transaction, then erases the account and the child", async () => {
+    const owned = child();
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await service.disconnect(PARENT, owned.id.value);
+
+    expect(result.isSuccess).toBe(true);
+    expect(repo.save).toHaveBeenCalledWith(owned);
+    expect(owned.get("status").value).toBe("disconnecting");
+    expect(google.revoke).toHaveBeenCalledWith("1//refresh");
+    expect(revokedInsideTransaction).toEqual([false]);
+    expect(repo.deleteLeased).toHaveBeenCalledWith({ childId: owned.id.value, lease: 5 });
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+    expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([
+      EventTypes.CHILD_DISCONNECT_REQUESTED,
+      EventTypes.CHILD_DISCONNECTED,
+    ]);
+  });
+
+  it("given Google fails the revoke, then the child stays disconnecting, its lease is released for a retry and nothing is erased", async () => {
     const owned = child();
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
     google.revoke.mockResolvedValue(fail<void>("CHILD_PROVIDER_FAILURE"));
 
     const result = await service.disconnect(PARENT, owned.id.value);
 
-    expect(result.isSuccess).toBe(true);
-    expect(google.revoke).toHaveBeenCalledWith("1//refresh");
-    expect(instrumentation.capture).toHaveBeenCalled();
-    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
-    expect(repo.delete).toHaveBeenCalledWith(PARENT, owned.id.value);
-    expect(uow.outcome()).toBe("committed");
-    expect(enqueuedEvents(outbox)).toEqual([
-      {
-        eventType: EventTypes.CHILD_DISCONNECTED,
-        aggregateId: owned.id.value,
-        payload: { userId: PARENT, childId: owned.id.value },
-      },
+    expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
+    expect(owned.get("status").value).toBe("disconnecting");
+    expect(repo.releaseLease).toHaveBeenCalledWith({ childId: owned.id.value, lease: 5 }, NOW);
+    expect(eraser.delete).not.toHaveBeenCalled();
+    expect(repo.deleteLeased).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([
+      EventTypes.CHILD_DISCONNECT_REQUESTED,
     ]);
   });
 
-  it("given a concurrent disconnect already erased the account, then CHILD_NOT_FOUND, no revoke and nothing emitted", async () => {
-    const owned = child();
-    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
-    eraser.delete.mockResolvedValue(ok(Option.none<ErasedAccount>()));
+  it("given a disconnect already holding the lease, then accepted without a second revoke", async () => {
+    const leaving = child({
+      status: ChildStatus.disconnecting(),
+      nextSyncAt: new Date(NOW.getTime() + 60_000),
+    });
+    repo.findOwned.mockResolvedValue(ok(Option.some(leaving)));
 
-    const result = await service.disconnect(PARENT, owned.id.value);
+    const result = await service.disconnect(PARENT, leaving.id.value);
 
-    expect(result.getError().code).toBe("CHILD_NOT_FOUND");
+    expect(result.isSuccess).toBe(true);
     expect(google.revoke).not.toHaveBeenCalled();
-    expect(uow.outcome()).toBe("rolled_back");
-    expect(uow.writtenEvents()).toEqual([]);
+    expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it("given the account row cannot be erased, then nothing is committed nor emitted", async () => {
+  it("given a parent retrying a failed disconnect, then it is taken over and finished", async () => {
+    const leaving = child({ status: ChildStatus.disconnecting(), nextSyncAt: NOW });
+    repo.findOwned.mockResolvedValue(ok(Option.some(leaving)));
+
+    const result = await service.disconnect(PARENT, leaving.id.value);
+
+    expect(result.isSuccess).toBe(true);
+    expect(google.revoke).toHaveBeenCalledTimes(1);
+    expect(repo.deleteLeased).toHaveBeenCalledWith({ childId: leaving.id.value, lease: 5 });
+  });
+
+  it("given the final erasure fails, then it rolls back and the child stays disconnecting for a retry", async () => {
     const owned = child();
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
     eraser.delete.mockResolvedValue(fail<Option<ErasedAccount>>("CHILD_PROVIDER_FAILURE"));
@@ -526,7 +592,9 @@ describe("disconnect", () => {
 
     expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
     expect(uow.outcome()).toBe("rolled_back");
-    expect(uow.writtenEvents()).toEqual([]);
+    expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([
+      EventTypes.CHILD_DISCONNECT_REQUESTED,
+    ]);
   });
 
   it("given another family's child, then CHILD_NOT_FOUND and nothing is revoked", async () => {
@@ -540,8 +608,45 @@ describe("disconnect", () => {
   });
 });
 
+describe("resumeDisconnections", () => {
+  it("given a disconnect whose revoke failed, then the retry revokes outside any transaction and finishes it", async () => {
+    const stuck: DisconnectingChild = {
+      childId: "c1",
+      userId: PARENT,
+      linkedAccountId: LINKED,
+      lease: 7,
+    };
+    repo.claimDisconnecting.mockResolvedValue(ok([stuck]));
+
+    const result = await service.resumeDisconnections(10, NOW);
+
+    expect(result.getValue()).toEqual({ finished: 1, failed: 0 });
+    expect(revokedInsideTransaction).toEqual([false]);
+    expect(repo.deleteLeased).toHaveBeenCalledWith({ childId: "c1", lease: 7 });
+    expect(eraser.delete).toHaveBeenCalledWith(PARENT, LINKED);
+    expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.CHILD_DISCONNECTED]);
+  });
+
+  it("given Google still fails, then counted as failed and the lease released", async () => {
+    const stuck: DisconnectingChild = {
+      childId: "c1",
+      userId: PARENT,
+      linkedAccountId: LINKED,
+      lease: 7,
+    };
+    repo.claimDisconnecting.mockResolvedValue(ok([stuck]));
+    google.revoke.mockResolvedValue(fail<void>("CHILD_PROVIDER_FAILURE"));
+
+    const result = await service.resumeDisconnections(10, NOW);
+
+    expect(result.getValue()).toEqual({ finished: 0, failed: 1 });
+    expect(repo.releaseLease).toHaveBeenCalledWith({ childId: "c1", lease: 7 }, NOW);
+    expect(eraser.delete).not.toHaveBeenCalled();
+  });
+});
+
 describe("revokeAllFor", () => {
-  it("given 2 children, 1 link no child uses and one Google refusal, then every account is revoked and erased, {revoked: 2, failed: 1}", async () => {
+  it("given 2 children, 1 link no child uses and one Google refusal, then every revoke runs outside a transaction and {revoked: 2, failed: 1}", async () => {
     const lea = child({ linkedAccountId: "a" });
     const tom = child({ linkedAccountId: "b" });
     linked.listForUser.mockResolvedValue(
@@ -555,17 +660,24 @@ describe("revokeAllFor", () => {
       ok(Option.fromNullable({ a: lea, b: tom }[linkedAccountId])),
     );
     google.revoke
-      .mockResolvedValueOnce(Result.ok())
-      .mockResolvedValueOnce(fail<void>("CHILD_PROVIDER_FAILURE"))
-      .mockResolvedValueOnce(Result.ok());
+      .mockImplementationOnce(async () => {
+        revokedInsideTransaction.push(UnitOfWorkContext.transaction() !== undefined);
+        return Result.ok();
+      })
+      .mockResolvedValueOnce(fail<void>("CHILD_PROVIDER_FAILURE"));
 
     const result = await service.revokeAllFor(PARENT);
 
     expect(result.getValue()).toEqual({ revoked: 2, failed: 1 });
-    expect(eraser.delete.mock.calls.map(([, id]) => id)).toEqual(["a", "b", "orphan"]);
-    expect(enqueuedEvents(outbox).map((e) => [e.eventType, e.aggregateId])).toEqual([
+    expect(revokedInsideTransaction).toEqual([false, false]);
+    expect(tom.get("status").value).toBe("disconnecting");
+    expect(eraser.delete.mock.calls.map(([, id]) => id)).toEqual(["a", "orphan"]);
+    expect(
+      enqueuedEvents(outbox)
+        .filter((e) => e.eventType !== EventTypes.CHILD_DISCONNECT_REQUESTED)
+        .map((e) => [e.eventType, e.aggregateId]),
+    ).toEqual([
       [EventTypes.CHILD_DISCONNECTED, lea.id.value],
-      [EventTypes.CHILD_DISCONNECTED, tom.id.value],
       [EventTypes.USER_ACCOUNT_UNLINKED, "orphan"],
     ]);
   });

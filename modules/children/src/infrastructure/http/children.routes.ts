@@ -39,8 +39,8 @@ export function createChildrenRoutes(deps: ChildrenRoutesDeps) {
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })
-    .delete(
-      "/linkable/:linkedAccountId",
+    .post(
+      "/linkable/:linkedAccountId/discard",
       g.requireAuth,
       zV("param", linkedAccountParamSchema),
       async (c) => {

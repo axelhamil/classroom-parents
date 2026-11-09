@@ -24,6 +24,11 @@ export interface DueChild extends SyncLease {
   label: string;
 }
 
+export interface DisconnectingChild extends SyncLease {
+  userId: string;
+  linkedAccountId: string;
+}
+
 export interface IChildRepository {
   create(child: ChildAccount): Promise<Result<void, ChildrenError>>;
 
@@ -40,9 +45,17 @@ export interface IChildRepository {
 
   listForUser(userId: string): Promise<Result<ChildAccount[], ChildrenError>>;
 
-  delete(userId: string, childId: string): Promise<Result<void, ChildrenError>>;
+  deleteLeased(lease: SyncLease): Promise<Result<void, ChildrenError>>;
+
+  releaseLease(lease: SyncLease, retryAt: Date): Promise<Result<void, ChildrenError>>;
 
   claimDue(limit: number, now: Date, leaseMs: number): Promise<Result<DueChild[], ChildrenError>>;
+
+  claimDisconnecting(
+    limit: number,
+    now: Date,
+    leaseMs: number,
+  ): Promise<Result<DisconnectingChild[], ChildrenError>>;
 
   markSynced(lease: SyncLease, at: Date, nextSyncAt: Date): Promise<Result<void, ChildrenError>>;
 

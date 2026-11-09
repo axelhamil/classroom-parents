@@ -82,12 +82,23 @@ describe("GoogleOAuthClient.revoke", () => {
     expect(sentForm(fetchImpl).get("token")).toBe("1//refresh");
   });
 
-  it("given Google refuses (HTTP 400), then a failure", async () => {
+  it("given invalid_token (already revoked or expired), then a success", async () => {
     const { client } = clientAnswering(() =>
-      Response.json({ error: "invalid_token" }, { status: 400 }),
+      Response.json(
+        { error: "invalid_token", error_description: "Token expired or revoked" },
+        { status: 400 },
+      ),
     );
 
     const result = await client.revoke("1//already-revoked");
+
+    expect(result.isSuccess).toBe(true);
+  });
+
+  it("given a Google outage, then CHILD_PROVIDER_FAILURE", async () => {
+    const { client } = clientAnswering(() => new Response("upstream", { status: 503 }));
+
+    const result = await client.revoke("1//refresh");
 
     expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
   });

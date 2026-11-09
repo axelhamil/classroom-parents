@@ -1,7 +1,12 @@
 import { Option, Result, ValueObject } from "@packages/ddd-kit";
 import { z } from "zod";
 
-export const CHILD_STATUSES = ["connected", "needs_reconnect", "blocked_by_school"] as const;
+export const CHILD_STATUSES = [
+  "connected",
+  "needs_reconnect",
+  "blocked_by_school",
+  "disconnecting",
+] as const;
 export const RECONNECT_CAUSES = ["invalid_grant", "school_blocked"] as const;
 
 export type ChildStatusValue = (typeof CHILD_STATUSES)[number];
@@ -17,6 +22,10 @@ const STATUS_BY_CAUSE = {
 export class ChildStatus extends ValueObject<ChildStatusValue> {
   static connected(): ChildStatus {
     return new ChildStatus("connected");
+  }
+
+  static disconnecting(): ChildStatus {
+    return new ChildStatus("disconnecting");
   }
 
   static brokenBy(cause: ReconnectCause): ChildStatus {

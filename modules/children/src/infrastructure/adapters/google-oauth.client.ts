@@ -92,9 +92,15 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
     return this.instrumentation.startSpan({ name: "GoogleOAuthClient > revoke" }, async () => {
       const sent = await this.post(REVOKE_URL, { token });
       if (sent.isFailure) return Result.fail(providerFailure("revoke"));
-      if (!sent.getValue().ok) return Result.fail(providerFailure("revoke"));
 
-      return Result.ok();
+      const response = sent.getValue();
+      if (response.ok) return Result.ok();
+
+      const refused = tokenError.safeParse(await jsonBody(response));
+      if (refused.success && refused.data.error === "invalid_token") return Result.ok();
+
+      this.instrumentation.capture(new Error(`google token revoke answered ${response.status}`));
+      return Result.fail(providerFailure("revoke"));
     });
   }
 
