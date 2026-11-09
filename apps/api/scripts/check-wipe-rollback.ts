@@ -18,7 +18,7 @@
  * and caps the lock wait with `lock_timeout`.
  */
 
-import { checkRecorder, exitUnlessLocalDatabase } from "@packages/test/db-check";
+import { checkRecorder, exitUnlessLocalDatabase, sessionsOf } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-wipe-rollback", process.env.DATABASE_URL);
 
@@ -167,8 +167,11 @@ async function userRow(id: string) {
   return row;
 }
 
-async function countOf(table: typeof authSchema.session | typeof authSchema.account, id: string) {
-  const rows = await db.select({ id: table.id }).from(table).where(eq(table.userId, id));
+async function accountsOf(id: string) {
+  const rows = await db
+    .select({ id: authSchema.account.id })
+    .from(authSchema.account)
+    .where(eq(authSchema.account.userId, id));
 
   return rows.length;
 }
@@ -259,10 +262,7 @@ async function checkFailedWipeRollsBack(): Promise<void> {
     result.isFailure && result.getError().code === "ACCOUNT_WIPE_NOTIFY_PROVIDER_FAILURE",
   );
   check("the user row survives the rolled back wipe", (await userRow(rolledBackId)) !== undefined);
-  check(
-    "the session survives the rolled back wipe",
-    (await countOf(authSchema.session, rolledBackId)) === 1,
-  );
+  check("the session survives the rolled back wipe", (await sessionsOf(rolledBackId)) === 1);
   const rows = await outboxRowsNaming(rolledBackId);
   check(
     "the outbox purge is rolled back with the wipe and USER_DELETED is not enqueued",
@@ -297,11 +297,8 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
     revokedWhileUserExisted,
   );
   check("the user row is deleted", (await userRow(erasedId)) === undefined);
-  check("its sessions are deleted", (await countOf(authSchema.session, erasedId)) === 0);
-  check(
-    "its accounts and sealed tokens are deleted",
-    (await countOf(authSchema.account, erasedId)) === 0,
-  );
+  check("its sessions are deleted", (await sessionsOf(erasedId)) === 0);
+  check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
 
   const rows = await outboxRowsNaming(erasedId);
   check(
