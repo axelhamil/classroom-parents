@@ -8,12 +8,17 @@ describe("email events", () => {
     const exhausted = {
       messageId: "m1",
       template: null,
-      toHash: "h",
       attempts: 5,
       lastError: "boom",
     };
 
     expect(schema.safeParse({ ...exhausted, actorUserId: null }).success).toBe(true);
     expect(schema.safeParse(exhausted).success).toBe(false);
+  });
+
+  it("email.delivery.exhausted carries no recipient identifier", () => {
+    const schema = PayloadByEventType[EventTypes.EMAIL_DELIVERY_EXHAUSTED];
+
+    expect(Object.keys(schema.shape)).not.toContain("toHash");
   });
 });

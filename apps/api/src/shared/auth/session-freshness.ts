@@ -1,0 +1,1 @@
+export const SESSION_FRESH_AGE_SECONDS = 24 * 60 * 60;

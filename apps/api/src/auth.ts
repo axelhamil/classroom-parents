@@ -13,6 +13,7 @@ import {
   throughChildProvider,
 } from "./shared/auth/child-accounts";
 import { GOOGLE_IDENTITY_SCOPES } from "./shared/auth/google-scopes";
+import { SESSION_FRESH_AGE_SECONDS } from "./shared/auth/session-freshness";
 import { asUnitOfWork } from "./shared/auth/unit-of-work-adapter";
 import { env } from "./shared/env";
 import { getClientIp } from "./shared/request-context";
@@ -65,7 +66,7 @@ const authOptions = {
 
   trustedOrigins: [env.APP_ORIGIN],
 
-  session: { cookieCache: { enabled: true, maxAge: 60 } },
+  session: { freshAge: SESSION_FRESH_AGE_SECONDS, cookieCache: { enabled: true, maxAge: 60 } },
 
   advanced: {
     ...(env.COOKIE_DOMAIN

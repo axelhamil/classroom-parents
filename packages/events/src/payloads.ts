@@ -47,7 +47,6 @@ export const UserProfileUpdatedPayload = UserRef.extend({
 export const EmailDeliveryExhaustedPayload = z.object({
   messageId: z.string(),
   template: z.string().nullable(),
-  toHash: z.string(),
   attempts: z.number().int().nonnegative(),
   lastError: z.string(),
   actorUserId: z.string().nullable(),

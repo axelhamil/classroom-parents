@@ -2,7 +2,10 @@ import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import {
   and,
   dbOperationFailure,
+  emailSchema,
   eq,
+  gt,
+  isNull,
   lte,
   or,
   outboxSchema,
@@ -29,7 +32,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
     private readonly instrumentation: IInstrumentation,
   ) {}
 
-  async markPendingDeletion(userId: string, until: Date): Promise<Result<void, RgpdError>> {
+  async markPendingDeletion(userId: string, until: Date): Promise<Result<boolean, RgpdError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: "DrizzleRgpdRepository > markPendingDeletion" },
@@ -38,12 +41,13 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
           const query = exec
             .update(schema.user)
             .set({ pendingDeletionUntil: until })
-            .where(eq(schema.user.id, userId));
-          await this.instrumentation.startSpan(
+            .where(and(eq(schema.user.id, userId), isNull(schema.user.pendingDeletionUntil)))
+            .returning({ id: schema.user.id });
+          const marked = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
           );
-          return Result.ok();
+          return Result.ok(marked.length > 0);
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.markPendingDeletion failed");
@@ -53,7 +57,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
     );
   }
 
-  async clearPendingDeletion(userId: string): Promise<Result<void, RgpdError>> {
+  async clearPendingDeletion(userId: string, now: Date): Promise<Result<boolean, RgpdError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: "DrizzleRgpdRepository > clearPendingDeletion" },
@@ -62,12 +66,13 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
           const query = exec
             .update(schema.user)
             .set({ pendingDeletionUntil: null })
-            .where(eq(schema.user.id, userId));
-          await this.instrumentation.startSpan(
+            .where(and(eq(schema.user.id, userId), gt(schema.user.pendingDeletionUntil, now)))
+            .returning({ id: schema.user.id });
+          const cleared = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
           );
-          return Result.ok();
+          return Result.ok(cleared.length > 0);
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.clearPendingDeletion failed");
@@ -114,7 +119,11 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
     );
   }
 
-  async executeWipe(userId: string): Promise<Result<ExecuteWipeOutput, RgpdError>> {
+  async executeWipe(
+    userId: string,
+    recipient: string,
+    now: Date,
+  ): Promise<Result<ExecuteWipeOutput, RgpdError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: "DrizzleRgpdRepository > executeWipe" },
@@ -122,9 +131,13 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
         try {
           const deleted = await exec
             .delete(schema.user)
-            .where(eq(schema.user.id, userId))
+            .where(and(eq(schema.user.id, userId), lte(schema.user.pendingDeletionUntil, now)))
             .returning({ id: schema.user.id });
           if (deleted.length === 0) return Result.ok({ alreadyWiped: true });
+
+          await exec
+            .delete(emailSchema.emailMessage)
+            .where(eq(emailSchema.emailMessage.toAddress, recipient));
 
           const { outboxEvent } = outboxSchema;
           await exec

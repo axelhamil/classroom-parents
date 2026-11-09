@@ -58,8 +58,8 @@ function fixture(state: UserDeletionState = activeState): Fixture {
   repo.findSessionStart.mockImplementation(async () =>
     Result.ok(Option.some(new Date(Date.now() - HOUR))),
   );
-  repo.markPendingDeletion.mockImplementation(async () => Result.ok());
-  repo.clearPendingDeletion.mockImplementation(async () => Result.ok());
+  repo.markPendingDeletion.mockImplementation(async () => Result.ok(true));
+  repo.clearPendingDeletion.mockImplementation(async () => Result.ok(true));
   repo.findUsersReadyForWipe.mockImplementation(async () => Result.ok([]));
   repo.executeWipe.mockImplementation(async () => {
     timeline.push("wipe");
@@ -147,6 +147,23 @@ describe("RgpdService", () => {
       expect(result.getError().code).toBe("ACCOUNT_REAUTH_REQUIRED");
     });
 
+    it("given a concurrent request already marked the account, announces nothing twice", async () => {
+      const until = new Date(Date.now() + 7 * 24 * HOUR);
+      const f = fixture();
+      f.repo.markPendingDeletion.mockImplementation(async () => Result.ok(false));
+      f.repo.getUserDeletionState
+        .mockImplementationOnce(async () => Result.ok(Option.some(activeState)))
+        .mockImplementationOnce(async () =>
+          Result.ok(Option.some({ ...activeState, pendingDeletionUntil: Option.some(until) })),
+        );
+
+      const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
+
+      expect(result.getValue().pendingDeletionUntil).toBe(until.toISOString());
+      expect(enqueuedEvents(f.outbox)).toHaveLength(0);
+      expect(f.email.sendTemplate).not.toHaveBeenCalled();
+    });
+
     it("given a deletion already pending, returns its date without re-marking", async () => {
       const until = new Date(Date.now() + 24 * HOUR);
       const f = fixture({ ...activeState, pendingDeletionUntil: Option.some(until) });
@@ -159,6 +176,32 @@ describe("RgpdService", () => {
   });
 
   describe("cancelAccountDeletion", () => {
+    it("given the grace period has elapsed, refuses the cancellation and clears nothing", async () => {
+      const f = fixture({
+        ...activeState,
+        pendingDeletionUntil: Option.some(new Date(Date.now() - 1000)),
+      });
+
+      const result = await f.service().cancelAccountDeletion({ userId: "u1" });
+
+      expect(result.getError().code).toBe("ACCOUNT_DELETION_CANCEL_CONFLICT");
+      expect(f.repo.clearPendingDeletion).not.toHaveBeenCalled();
+      expect(enqueuedEvents(f.outbox)).toHaveLength(0);
+    });
+
+    it("given the sweep took the account between the read and the write, refuses the cancellation", async () => {
+      const f = fixture({
+        ...activeState,
+        pendingDeletionUntil: Option.some(new Date(Date.now() + HOUR)),
+      });
+      f.repo.clearPendingDeletion.mockImplementation(async () => Result.ok(false));
+
+      const result = await f.service().cancelAccountDeletion({ userId: "u1" });
+
+      expect(result.getError().code).toBe("ACCOUNT_DELETION_CANCEL_CONFLICT");
+      expect(enqueuedEvents(f.outbox)).toHaveLength(0);
+    });
+
     it("given a pending deletion, clears it and announces the cancellation", async () => {
       const f = fixture({
         ...activeState,

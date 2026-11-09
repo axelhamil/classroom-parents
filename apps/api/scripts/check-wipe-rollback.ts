@@ -26,6 +26,7 @@ import { type IInstrumentation, Result } from "@packages/ddd-kit";
 import {
   authSchema,
   db,
+  emailSchema,
   eq,
   inArray,
   or,
@@ -59,7 +60,20 @@ const graceId = probe("grace");
 const googleOnlyId = probe("google-only");
 const staleId = probe("stale");
 const bystanderId = probe("bystander");
-const probeIds = [rolledBackId, erasedId, graceId, googleOnlyId, staleId, bystanderId];
+const lateCancelId = probe("late-cancel");
+const acceptedCancelId = probe("accepted-cancel");
+const doubleClickId = probe("double-click");
+const probeIds = [
+  rolledBackId,
+  erasedId,
+  graceId,
+  googleOnlyId,
+  staleId,
+  bystanderId,
+  lateCancelId,
+  acceptedCancelId,
+  doubleClickId,
+];
 const emailOf = (id: string) =>
   id === rolledBackId ? `${PROBE_MARKER}-${id}@example.com` : `${id}@example.com`;
 
@@ -67,9 +81,11 @@ const checks = checkRecorder();
 const { check } = checks;
 
 const revokedWhileUserExisted: boolean[] = [];
+const duringRevocation = new Map<string, () => Promise<void>>();
 const childConnections: IChildConnections = {
   revokeAll: async (userId) => {
     revokedWhileUserExisted.push((await userRow(userId)) !== undefined);
+    await duringRevocation.get(userId)?.();
     return Result.ok({ revoked: 2, failed: 0 });
   },
 };
@@ -115,6 +131,30 @@ async function seedOutbox(id: string): Promise<void> {
     path: "/me/delete",
     method: "POST",
   });
+}
+
+async function seedEmail(id: string): Promise<void> {
+  await db.insert(emailSchema.emailMessage).values({
+    id: `${id}-email-${crypto.randomUUID()}`,
+    kind: "template",
+    template: "delete_requested",
+    toAddress: emailOf(id),
+    subject: "probe",
+    payload: { name: "Wipe Probe" },
+  });
+}
+
+async function emailTemplatesTo(id: string): Promise<(string | null)[]> {
+  const rows = await db
+    .select({ template: emailSchema.emailMessage.template })
+    .from(emailSchema.emailMessage)
+    .where(eq(emailSchema.emailMessage.toAddress, emailOf(id)));
+
+  return rows.map((row) => row.template);
+}
+
+async function eventTypesNaming(id: string): Promise<string[]> {
+  return (await outboxRowsNaming(id)).map((row) => row.eventType);
 }
 
 async function userRow(id: string) {
@@ -244,6 +284,8 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   });
   await seedOutbox(erasedId);
   await seedOutbox(bystanderId);
+  await seedEmail(erasedId);
+  await seedEmail(bystanderId);
   revokedWhileUserExisted.length = 0;
 
   const result = await buildService().executeAccountWipe({ userId: erasedId, now: new Date() });
@@ -273,6 +315,78 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
     rows,
   );
   check("another user's outbox rows are kept", (await outboxRowsNaming(bystanderId)).length === 2);
+
+  const templates = await emailTemplatesTo(erasedId);
+  check(
+    "only the deletion confirmation is still queued to the erased address",
+    JSON.stringify(templates) === JSON.stringify(["delete_completed"]),
+    templates,
+  );
+  check(
+    "another user's queued emails are kept",
+    (await emailTemplatesTo(bystanderId)).length === 1,
+  );
+}
+
+async function checkCancelAndSweepNeverBothWin(): Promise<void> {
+  const elapsed = { pendingDeletionUntil: new Date(Date.now() - 1000), sessionAgeMs: HOUR };
+  await seedUser(lateCancelId, elapsed);
+  await seedUser(acceptedCancelId, elapsed);
+  const service = buildService();
+
+  let lateCancel = "not called";
+  duringRevocation.set(lateCancelId, async () => {
+    const cancelled = await service.cancelAccountDeletion({ userId: lateCancelId });
+    lateCancel = cancelled.isSuccess ? "ok" : cancelled.getError().code;
+  });
+  await service.executeAccountWipe({ userId: lateCancelId, now: new Date() });
+  check(
+    "a cancel after the deadline is refused while the sweep erases the account",
+    lateCancel === "ACCOUNT_DELETION_CANCEL_CONFLICT" &&
+      (await userRow(lateCancelId)) === undefined,
+    lateCancel,
+  );
+
+  duringRevocation.set(acceptedCancelId, async () => {
+    await db
+      .update(authSchema.user)
+      .set({ pendingDeletionUntil: null })
+      .where(eq(authSchema.user.id, acceptedCancelId));
+  });
+  const wipe = await service.executeAccountWipe({ userId: acceptedCancelId, now: new Date() });
+  check(
+    "a cancel accepted while the sweep revokes keeps the account",
+    wipe.isSuccess && (await userRow(acceptedCancelId)) !== undefined,
+    wipe.isFailure ? wipe.getError() : wipe.getValue(),
+  );
+  check(
+    "the kept account is not announced as deleted",
+    !(await eventTypesNaming(acceptedCancelId)).includes(EventTypes.USER_DELETED),
+  );
+}
+
+async function checkDoubleRequestIsAnnouncedOnce(): Promise<void> {
+  await seedUser(doubleClickId, { pendingDeletionUntil: null, sessionAgeMs: 10 * 60_000 });
+  const service = buildService();
+  const request = { userId: doubleClickId, sessionId: `${doubleClickId}-session` };
+
+  const [first, second] = await Promise.all([
+    service.requestAccountDeletion(request),
+    service.requestAccountDeletion(request),
+  ]);
+
+  const requested = (await eventTypesNaming(doubleClickId)).filter(
+    (type) => type === EventTypes.USER_DELETION_REQUESTED,
+  );
+  check(
+    "two simultaneous requests give one date, one event and one email",
+    first.isSuccess &&
+      second.isSuccess &&
+      first.getValue().pendingDeletionUntil === second.getValue().pendingDeletionUntil &&
+      requested.length === 1 &&
+      (await emailTemplatesTo(doubleClickId)).length === 1,
+    { requested, emails: await emailTemplatesTo(doubleClickId) },
+  );
 }
 
 async function checkGracePeriodIsKept(): Promise<void> {
@@ -338,6 +452,10 @@ async function main(): Promise<void> {
   await checkGracePeriodIsKept();
   console.log("[4] a Google-only parent can request the deletion");
   await checkGoogleOnlyParentCanRequestDeletion();
+  console.log("[5] a cancel and the sweep never both win");
+  await checkCancelAndSweepNeverBothWin();
+  console.log("[6] a double request is announced once");
+  await checkDoubleRequestIsAnnouncedOnce();
 
   await cleanup();
 

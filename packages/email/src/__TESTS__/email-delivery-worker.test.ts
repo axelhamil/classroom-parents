@@ -291,6 +291,25 @@ describe("EmailDeliveryWorker.drainOnce", () => {
     expect(uow.outcome()).toBe("committed");
   });
 
+  it("the exhausted event names no recipient, not even hashed", async () => {
+    claims([row({ id: "1", attempts: 4 })]);
+    batch = async () => ({
+      data: null,
+      error: { kind: "retryable", statusCode: 503, message: "down" },
+    });
+
+    await worker().drainOnce();
+
+    const [exhausted] = enqueuedEvents(outbox);
+    expect(Object.keys(exhausted?.payload ?? {}).sort()).toEqual([
+      "actorUserId",
+      "attempts",
+      "lastError",
+      "messageId",
+      "template",
+    ]);
+  });
+
   it("a dead replay that fails again stays dead and emits nothing", async () => {
     claims([row({ id: "1", status: "dead", attempts: 6 })]);
     batch = async () => ({

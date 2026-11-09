@@ -352,7 +352,6 @@ export class EmailDeliveryWorker {
       {
         messageId: row.id,
         template: row.template.toNull(),
-        toHash: await sha256Hex(row.toAddress),
         attempts: row.attempts,
         lastError,
         actorUserId: null,

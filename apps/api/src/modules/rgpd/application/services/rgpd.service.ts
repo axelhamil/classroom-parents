@@ -50,6 +50,12 @@ export interface ProcessPendingDeletionsOutput {
   truncated: boolean;
 }
 
+const DELETION_ALREADY_RUNNING: RgpdError = {
+  code: "ACCOUNT_DELETION_CANCEL_CONFLICT",
+  message:
+    "Le délai d'annulation est passé : la suppression de votre compte est en cours et ne peut plus être annulée.",
+};
+
 export class RgpdService {
   constructor(
     private readonly rgpd: IRgpdRepository,
@@ -84,7 +90,7 @@ export class RgpdService {
         const until = new Date(Date.now() + this.settings.gracePeriodDays * 24 * 60 * 60 * 1000);
         const txResult = await this.transactions.run(async () => {
           const marked = await this.rgpd.markPendingDeletion(input.userId, until);
-          if (marked.isFailure) return marked;
+          if (marked.isFailure || !marked.getValue()) return marked;
           await emitEvent(
             this.outbox,
             EventTypes.USER_DELETION_REQUESTED,
@@ -93,9 +99,10 @@ export class RgpdService {
             { userId: input.userId, pendingDeletionUntil: until },
             {},
           );
-          return Result.ok<RgpdError>();
+          return marked;
         });
         if (txResult.isFailure) return Result.fail(txResult.getError());
+        if (!txResult.getValue()) return this.currentPendingDeletion(input.userId);
 
         const cancelUrl = `${this.settings.appUrl}/settings/account`;
         const sent = await this.email.sendTemplate(
@@ -133,10 +140,13 @@ export class RgpdService {
             message: "no pending deletion to cancel",
           });
         const pendingUntil = state.pendingDeletionUntil.unwrap();
+        const now = new Date();
+        if (pendingUntil <= now) return Result.fail(DELETION_ALREADY_RUNNING);
 
         const txResult = await this.transactions.run(async () => {
-          const cleared = await this.rgpd.clearPendingDeletion(input.userId);
-          if (cleared.isFailure) return cleared;
+          const cleared = await this.rgpd.clearPendingDeletion(input.userId, now);
+          if (cleared.isFailure) return Result.fail<void, RgpdError>(cleared.getError());
+          if (!cleared.getValue()) return Result.fail<void, RgpdError>(DELETION_ALREADY_RUNNING);
           await emitEvent(
             this.outbox,
             EventTypes.USER_DELETION_CANCELLED,
@@ -192,7 +202,7 @@ export class RgpdService {
         let inner: Result<ExecuteWipeOutput, RgpdError>;
         try {
           inner = await this.transactions.run(async () => {
-            const wipe = await this.rgpd.executeWipe(input.userId);
+            const wipe = await this.rgpd.executeWipe(input.userId, originalEmail, input.now);
             if (wipe.isFailure) return wipe;
             if (wipe.getValue().alreadyWiped) return wipe;
 
@@ -336,6 +346,19 @@ export class RgpdService {
         });
       },
     );
+  }
+
+  private async currentPendingDeletion(
+    userId: string,
+  ): Promise<Result<RequestAccountDeletionOutput, RgpdError>> {
+    const stateResult = await this.loadDeletionState(userId);
+    if (stateResult.isFailure) return Result.fail(stateResult.getError());
+
+    const pending = stateResult.getValue().pendingDeletionUntil;
+    if (pending.isNone())
+      return Result.fail({ code: "ACCOUNT_DELETION_NOT_FOUND", message: "no pending deletion" });
+
+    return Result.ok({ pendingDeletionUntil: pending.unwrap().toISOString() });
   }
 
   private async ensureFreshSession(
