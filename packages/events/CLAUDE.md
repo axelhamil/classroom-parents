@@ -1,18 +1,17 @@
 # events rules
 
-The single event catalog: every domain event type, its payload schema, retention, visibility, public description and notification mapping. Auto-loaded under `packages/events/`. Cross-cutting rules 6 and 7 (every state change emits, every payload names its actor): `/CLAUDE.md`. Emit mechanics, outbox, dispatcher, subscribers: `apps/api/CLAUDE.md`, skill `events-outbox`, `docs/EVENTS.md`.
+The single event catalog: every domain event type, its payload schema, retention, visibility and public description, plus the `UserStreamMessage` sent on the per-user SSE stream. Auto-loaded under `packages/events/`. Cross-cutting rules 6 and 7 (every state change emits, every payload names its actor): `/CLAUDE.md`. Emit mechanics, outbox, dispatcher, subscribers: `apps/api/CLAUDE.md`, skill `events-outbox`, `docs/EVENTS.md`.
 
 ## Layout
 
 ```
 src/
-  event-types.ts          `EventTypes` (const object), `ALL_EVENT_TYPES`, subscription matching (`matchesSubscription`)
+  event-types.ts          `EventTypes` (const object), `ALL_EVENT_TYPES`, `isKnownEventType`
   payloads.ts             one Zod payload per type, `PayloadByEventType`
   retention-map.ts        `RETENTION_MAP: Record<EventType, "operational" | "compliance" | "none">`
-  visibility-map.ts       `VISIBILITY` (`satisfies Record<EventType, ...>`): `public` = webhook-subscribable, `internal` = never exposed
+  visibility-map.ts       `VISIBILITY` (`satisfies Record<EventType, ...>`): `public` = may be shown to the user it concerns, `internal` = never exposed
   event-descriptions.ts   `EVENT_DESCRIPTIONS: Record<EventType, string>`, English only
-  notification-map.ts     optional `NOTIFICATION_MAP` (audience, category, allowed payload fields)
-  json-schema.ts          payload schemas as JSON Schema for the public docs
+  user-stream-message.ts  `UserStreamMessage`, the Zod union pushed on `GET /stream`
 ```
 
 ## Declaring an event
@@ -22,10 +21,8 @@ One new type touches five files; `tsc` names the missing entries in the exhausti
 1. `event-types.ts`: the `EventTypes` entry (`"<group>.<noun>.<past_tense_verb>"`).
 2. `payloads.ts`: the Zod payload and its entry in `PayloadByEventType`.
 3. `retention-map.ts`: the retention class.
-4. `visibility-map.ts`: `public` only if an external webhook consumer may subscribe, otherwise `internal`. **Why**: `public` is a contract with third parties; security and admin events stay `internal`.
+4. `visibility-map.ts`: `public` only if the event may be shown outside the server, otherwise `internal`. **Why**: `public` is a contract with readers outside the api; security events stay `internal`.
 5. `event-descriptions.ts`: one English sentence.
-
-`notification-map.ts` entry only when the event should reach a user's inbox. **Required `fields` list, empty is valid**: what crosses to the browser is chosen, never inherited. A notification stores the whole payload and payloads carry internal handles (invitation tokens, storage keys, subscription ids), so without the list every field added later would ship to the recipient's browser by default.
 
 ## Payload contract
 

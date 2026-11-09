@@ -24,8 +24,7 @@ export function createErrorHandler(instrumentation: IInstrumentation): ErrorHand
   return (err, c) => {
     const requestId = c.get("requestId");
     const userId = c.get("user")?.id;
-    const orgId = c.get("session")?.activeOrganizationId ?? undefined;
-    const trackerContext = { requestId, userId, orgId, path: c.req.path, method: c.req.method };
+    const trackerContext = { requestId, userId, path: c.req.path, method: c.req.method };
 
     const reportServerError = (message: string) => {
       logger.error({ err, requestId, path: c.req.path }, message);

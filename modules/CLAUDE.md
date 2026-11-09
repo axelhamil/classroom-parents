@@ -37,4 +37,4 @@ modules/<name>/
 
 ## Moving a module here
 
-A move keeps `pnpm check:api-shape` green without refreezing: it compares the `AppType` declaration with its frozen copy in `apps/api/shape/` regardless of union and member order and of local import paths, and the `METHOD path` inventory line for line. A drift on a move is a changed HTTP contract, never noise. Refreeze with `pnpm api-shape:update` only for an intended contract change, in the same commit.
+A move keeps the HTTP contract unchanged: same `METHOD path` set (the surface parity test in `apps/api/src/shared/surface/` fails on drift) and the same `AppType` the app type-checks against. A contract change is its own commit, never part of a move.

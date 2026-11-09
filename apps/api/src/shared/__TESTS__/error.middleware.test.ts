@@ -134,7 +134,6 @@ describe("errorHandler", () => {
           path: "/",
           method: "GET",
           userId: undefined,
-          orgId: undefined,
         }),
       );
     });
@@ -153,7 +152,6 @@ describe("errorHandler", () => {
           path: "/",
           method: "GET",
           userId: undefined,
-          orgId: undefined,
         }),
       );
     });
@@ -172,7 +170,6 @@ describe("errorHandler", () => {
           path: "/",
           method: "GET",
           userId: undefined,
-          orgId: undefined,
         }),
       );
     });

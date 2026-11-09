@@ -6,10 +6,10 @@ The database package: Drizzle client, schema, migrations and the transaction ser
 
 ```
 drizzle.config.ts              drizzle-kit config (schema "./src/schema/*", out "./migrations")
-migrations/                    generated SQL, committed
+migrations/                    generated SQL, committed (regenerated as one `0000_*.sql` by T10)
 src/
   config.ts                    `db`, `DbClient`, `Transaction`, `closeDb()` (ends the pool, called by the api shutdown)
-  schema/<topic>.ts            one file per topic (auth, multi-tenant, outbox, audit-log, webhooks, billing, ...), re-exported as `<topic>Schema` from `index.ts`
+  schema/<topic>.ts            one file per topic (auth, email, outbox, rate-limit, sweep), re-exported as `<topic>Schema` from `index.ts`
   db-failure.ts                `dbOperationFailure(code)`: the error a store returns when a query throws
   advisory-lock.ts             `lockForTransaction`, `tryLockForTransaction` (transaction scoped advisory lock)
   services/                    `TransactionService` (the `IUnitOfWork` impl)
@@ -22,7 +22,8 @@ src/
 1. **The package is the only importer of `drizzle-orm`.** Query helpers (`and`, `eq`, `inArray`, `isNull`, `arrayContains`, `sql`, ...) are re-exported from `index.ts`; a consumer imports them from `@packages/drizzle`. A missing helper is added to the re-export list, never imported from `drizzle-orm` in an app. **Why**: one place to swap or pin the ORM, and the workspace boundary stays checkable.
 2. **Typed builder first, raw SQL last.** `select`/`insert`/`update`/`delete` and the helpers cover filters, array operators and row locks (`.for("update", { skipLocked: true })`). A `sql` fragment is acceptable only for DDL, session-scoped tuning (`SET LOCAL ...`) or an operator with no helper (search the exports first), and keeps its columns typed (`${table.col}`). **Why**: the typed builder catches rename and type drift at compile time; raw SQL rots until a runtime exception.
 3. **Every user-owned table carries `userId NOT NULL` + FK `user(id) ON DELETE CASCADE` from its first migration** (directly, or through a parent row that carries it). **Why**: ownership is filtered in the repository `WHERE`, and a missing cascade leaves orphans after an account deletion. The outbox is the exception: it keeps no owner column, so the trail outlives the account.
-4. **A schema change ships with its migration**: `db:push` is dev only, anything reaching `main` goes through `db:generate` + `db:migrate`. Touch an existing schema as little as possible.
+4. **A new table's primary key defaults to `uuid("id").primaryKey().default(sql`uuidv7()`)`** (native in Postgres 18): time-ordered, so inserts avoid the B-tree hotspot of a random uuid. The BetterAuth tables keep their `text` ids, which the library generates.
+5. **A schema change ships with its migration**: `db:push` is dev only, anything reaching `main` goes through `db:generate` + `db:migrate`. Touch an existing schema as little as possible.
 
 ## Unit of work
 

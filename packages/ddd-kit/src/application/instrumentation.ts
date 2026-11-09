@@ -7,7 +7,6 @@ export interface SpanOptions {
 export interface ErrorContext {
   requestId?: string;
   userId?: string;
-  orgId?: string;
   path?: string;
   method?: string;
   metadata?: Record<string, unknown>;

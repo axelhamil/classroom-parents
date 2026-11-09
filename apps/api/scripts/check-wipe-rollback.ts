@@ -26,14 +26,9 @@
  * caps the lock wait with `lock_timeout` so a stuck lock fails fast instead of hanging.
  */
 
-import { checkRecorder, requireLocalDatabase } from "@packages/test/db-check";
+import { checkRecorder, exitUnlessLocalDatabase } from "@packages/test/db-check";
 
-try {
-  requireLocalDatabase(process.env.DATABASE_URL);
-} catch (err) {
-  console.error(`check-wipe-rollback refused to run: ${err instanceof Error ? err.message : err}`);
-  process.exit(1);
-}
+exitUnlessLocalDatabase("check-wipe-rollback", process.env.DATABASE_URL);
 
 import type { IInstrumentation } from "@packages/ddd-kit";
 import { authSchema, db, eq, outboxSchema, sql, TransactionService } from "@packages/drizzle";

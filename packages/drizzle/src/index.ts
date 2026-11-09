@@ -53,6 +53,7 @@ export * as emailSchema from "./schema/email";
 export type { OutboxEventMetadata } from "./schema/outbox";
 export * as outboxSchema from "./schema/outbox";
 export * as rateLimitSchema from "./schema/rate-limit";
+export * as sweepSchema from "./schema/sweep";
 export {
   ambientTransaction,
   type FlushHandler,

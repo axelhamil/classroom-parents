@@ -3,23 +3,29 @@
  * share a row, a claimed row stays hidden until its lease expires, a settle with a
  * stale attempt count writes nothing, deliveries merge instead of overwriting, a dead
  * row is replayed only once due, a type outside the list is never claimed, and an
- * enqueue rolled back with its run leaves neither a row nor a notification.
+ * enqueue rolled back with its run leaves neither a row nor a notification, and the
+ * retention purge removes delivered rows past the cutoff but never a dead one.
  *
  * Every one of these lives in the claim CTE, the settle WHERE or the transaction,
  * which a mocked executor never evaluates.
  */
 
-import { requireLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
+import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
 
-try {
-  requireLocalDatabase(process.env.DATABASE_URL);
-} catch (err) {
-  console.error(`check-outbox-lease refused to run: ${err instanceof Error ? err.message : err}`);
-  process.exit(1);
-}
+exitUnlessLocalDatabase("check-outbox-lease", process.env.DATABASE_URL);
 
 import { Result, uuidv7 } from "@packages/ddd-kit";
-import { and, db, eq, like, or, outboxSchema, TransactionService } from "@packages/drizzle";
+import {
+  and,
+  db,
+  eq,
+  isNotNull,
+  like,
+  lt,
+  or,
+  outboxSchema,
+  TransactionService,
+} from "@packages/drizzle";
 import { EventTypes } from "@packages/events";
 import {
   DrizzleOutboxRepository,
@@ -28,6 +34,8 @@ import {
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { OutboxRecord } from "@packages/outbox/outbox.port";
 import { Client } from "pg";
+import { purgeBatchWithTimeout, requireFilter } from "../src/shared/internal-routes/sweep-purge";
+import { sweepSpans } from "../src/shared/internal-routes/sweep-span";
 
 const PROBE = `check.outbox-lease.${crypto.randomUUID()}`;
 const TYPE_A = `${PROBE}.a`;
@@ -322,6 +330,40 @@ async function main(): Promise<void> {
     pending.isSuccess
       ? { ...pending.getValue(), dueInMs: pending.getValue().dueInMs.toNull() }
       : pending.getError(),
+  );
+
+  await resetProbes();
+  const cutoff = new Date(Date.now() - 24 * 3_600_000);
+  const longAgo = new Date(cutoff.getTime() - 3_600_000);
+  const [deliveredOld = ""] = await seed(1, TYPE_A, { dispatchedAt: longAgo });
+  const [deliveredRecent = ""] = await seed(1, TYPE_A, { dispatchedAt: new Date() });
+  const [deadOld = ""] = await seed(1, TYPE_A, {
+    occurredAt: longAgo,
+    deadAt: longAgo,
+    attempts: 10,
+  });
+  const delivered = and(isNotNull(oe.dispatchedAt), lt(oe.dispatchedAt, cutoff));
+  const purged = await purgeBatchWithTimeout({
+    table: oe,
+    idColumn: oe.id,
+    where: requireFilter(and(delivered, like(oe.eventType, `${PROBE}%`)), PROBE),
+    orderBy: oe.dispatchedAt,
+    batchSize: 100,
+    spans: sweepSpans(instrumentation),
+    uow,
+  });
+  const kept = await db
+    .select({ id: oe.id })
+    .from(oe)
+    .where(like(oe.eventType, `${PROBE}%`));
+  const keptIds = kept.map((row) => row.id);
+  await step(
+    "retention keeps dead undelivered rows and removes delivered ones past the cutoff",
+    purged === 1 &&
+      !keptIds.includes(deliveredOld) &&
+      keptIds.includes(deliveredRecent) &&
+      keptIds.includes(deadOld),
+    { purged, kept: keptIds.length },
   );
 }
 

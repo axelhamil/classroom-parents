@@ -26,8 +26,8 @@ Mounted **outside** the middleware chain (`requestId` / `httpLogger` / `sessionM
       "time": "2026-05-25T15:25:21.780Z"
     },
     {
-      "name": "storage:s3",
-      "result": { "status": "fail", "output": "bucket unreachable", "observedValue": 234, "observedUnit": "ms" },
+      "name": "google:classroom",
+      "result": { "status": "fail", "output": "classroom unreachable", "observedValue": 234, "observedUnit": "ms" },
       "durationMs": 234,
       "critical": false,
       "time": "2026-05-25T15:25:22.007Z"
@@ -44,7 +44,7 @@ Mounted **outside** the middleware chain (`requestId` / `httpLogger` / `sessionM
 | Any non-critical `fail` or `warn` | `warn` | `200` (degraded but functional) |
 | Any **critical** `fail` | `fail` | `503` (truly unhealthy, LB stops routing) |
 
-DB down (critical) = `fail` + 503. Resend / storage hiccup (non-critical) = `warn` + 200. This avoids the "everything red because one dep flickered" trap.
+DB down (critical) = `fail` + 503. Resend / Google hiccup (non-critical) = `warn` + 200. This avoids the "everything red because one dep flickered" trap.
 
 **Prod payload minimal**: outside `NODE_ENV !== "production"`, only the top-level `status` + each check's `status` are returned (no `observedValue`, no `output`, no `durationMs`). Prevents leaking infra timings/error messages publicly.
 
@@ -53,51 +53,51 @@ DB down (critical) = `fail` + 503. Resend / storage hiccup (non-critical) = `war
 Each module **owner of an external dependency** ships its own `XxxHealthProbe` class implementing `OnInit`. inwire's `preload()` (called once after `.build()`) fires `onInit()` and the probe self-registers, no manual wiring list to keep in sync.
 
 ```ts
-// modules/billing/infrastructure/stripe-health-probe.ts
+// apps/api/src/modules/classroom/infrastructure/classroom-health-probe.ts (illustrative)
 import type { OnInit } from "inwire";
 import type { HealthCheckFn, IHealthCheckRegistry } from "../../../shared/ports/health.port";
-import type { IBillingProvider } from "../../../shared/ports/billing.port";
+import type { IClassroomClient } from "../application/ports/classroom-client.port";
 
-export class StripeHealthProbe implements OnInit {
+export class ClassroomHealthProbe implements OnInit {
   constructor(
     private readonly registry: IHealthCheckRegistry,
-    private readonly billing: IBillingProvider,
+    private readonly classroom: IClassroomClient,
   ) {}
 
   onInit(): void {
-    this.registry.register("billing:stripe", this.probe, { critical: false });
+    this.registry.register("google:classroom", this.probe, { critical: false });
   }
 
   private readonly probe: HealthCheckFn = async () => {
     const start = performance.now();
-    const ok = await this.billing.ping();
+    const ok = await this.classroom.ping();
     const observedValue = Math.round(performance.now() - start);
     return ok
       ? { status: "pass", observedValue, observedUnit: "ms" }
-      : { status: "fail", output: "stripe unreachable", observedValue, observedUnit: "ms" };
+      : { status: "fail", output: "classroom unreachable", observedValue, observedUnit: "ms" };
   };
 }
 ```
 
 ```ts
-// modules/billing/module.ts
+// apps/api/src/modules/classroom/module.ts (illustrative)
 declare module "inwire" {
   interface AppDeps {
-    StripeHealthProbe: StripeHealthProbe;
+    ClassroomHealthProbe: ClassroomHealthProbe;
     // …
   }
 }
 
-export const billingModule = defineModule()((b) =>
+export const classroomSyncModule = defineModule()((b) =>
   b
-    .add("IBillingProvider", () => new StripeAdapter())
-    .add("StripeHealthProbe", (c) => new StripeHealthProbe(c.IHealthCheckRegistry, c.IBillingProvider)),
+    .add("IClassroomClient", () => new GoogleClassroomClient())
+    .add("ClassroomHealthProbe", (c) => new ClassroomHealthProbe(c.IHealthCheckRegistry, c.IClassroomClient)),
 );
 ```
 
-That's it. `trash modules/billing` removes both the binding and the probe, no orphan check, no stale registration.
+That's it. `trash apps/api/src/modules/classroom` removes both the binding and the probe, no orphan check, no stale registration.
 
-**Decisor `critical: true` vs `false`**: flip to `true` only if the dep being down makes the api unable to serve **any** request meaningfully. DB = `true` (no business logic without it). Storage, email, billing = `false` (most routes work without them; let the LB keep traffic flowing, alerting handles the degraded state).
+**Decisor `critical: true` vs `false`**: flip to `true` only if the dep being down makes the api unable to serve **any** request meaningfully. DB = `true` (no business logic without it). Google, email = `false` (most routes work without them; let the LB keep traffic flowing, alerting handles the degraded state).
 
 ## Robustness, what's wired in
 
@@ -117,7 +117,7 @@ On `SIGTERM` / `SIGINT`:
 
 The boot refuses a configuration whose worst case exceeds `SHUTDOWN_DEADLINE_MS` (`env-bounds.ts`): `SHUTDOWN_GRACE_PERIOD_MS + 1000 + 2 x SHUTDOWN_STEP_TIMEOUT_MS + SHUTDOWN_WORKERS_TIMEOUT_MS + 2500` (telemetry flush) `+ 1000` (deadline flush), `36000` with the defaults, since a slow but healthy shutdown would then be cut and exit `1`.
 
-**Platform stop timeout**: the delay between `SIGTERM` and `SIGKILL` on the platform must exceed `SHUTDOWN_DEADLINE_MS`, or the platform kills the process mid-drain and the deadline never fires (Coolify: the app's stop grace period, 45 s on `api` in `infra/coolify/services.ts`, see [DEPLOY-COOLIFY.md](DEPLOY-COOLIFY.md); Kubernetes: `terminationGracePeriodSeconds`; Fly: `kill_timeout`).
+**Platform stop timeout**: the delay between `SIGTERM` and `SIGKILL` on the platform must exceed `SHUTDOWN_DEADLINE_MS`, or the platform kills the process mid-drain and the deadline never fires (Kubernetes: `terminationGracePeriodSeconds`; Fly: `kill_timeout`).
 
 **Without this flip**, the pod accepts new requests while terminating → intermittent 502s during every deploy. Visible to end-users.
 
@@ -135,10 +135,6 @@ The steps are declared in `apps/api/src/index.ts` and run by `runShutdown` / `in
 | `SHUTDOWN_DEADLINE_MS` | `36000` | Hard cap of the whole shutdown, exit `1` when reached. Must cover the worst case above and stay below the platform's SIGKILL delay. |
 
 ## Deploy target recipes
-
-### Coolify (`infra/coolify/services.ts`)
-
-The container health check probes `/livez` (`wget -qO- http://127.0.0.1:3000/livez`), so a slow dependency never restarts a healthy process; the deploy gate (`infra/coolify/gates.ts`) asks `/readyz` for a 200 after each deploy. Stop grace 45 s, above `SHUTDOWN_DEADLINE_MS`.
 
 ### Fly.io (`fly.toml`)
 

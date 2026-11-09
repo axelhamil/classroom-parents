@@ -19,7 +19,7 @@ apps/app/
 
 Routing is file-based through `@tanstack/router-plugin/vite`'s `virtualRouteConfig` (`vite.config.ts`), not directory-mounted: `routes.ts` declares the tree once, so the vertical-slice layout (`features/<x>/<x>.route.tsx`) stays intact instead of being flattened into a `src/routes/` directory, and pathless layouts can wrap routes drawn from several features, which a directory cannot express.
 
-`routeTree.gen.ts` is committed so a fresh clone type-checks without a build; regenerate it (`pnpm --filter app build` or the dev server) whenever `routes.ts` changes. **Keep `routes.ts`, `src/router/*.tsx` and `src/features/**/*.route.tsx` in `knip.json`'s `apps/app.entry`** even though the tree is versioned: knip cannot resolve the string paths passed to `virtualRouteConfig`.
+`routeTree.gen.ts` is committed so a fresh clone type-checks without a build; regenerate it (`pnpm --filter app build` or the dev server) whenever `routes.ts` changes. **Keep `routes.ts`, `src/router/*.tsx` and `src/features/**/*.route.tsx` in `knip.jsonc`'s `apps/app.entry`** even though the tree is versioned: knip cannot resolve the string paths passed to `virtualRouteConfig`.
 
 ## Import direction
 
@@ -47,7 +47,7 @@ Files `kebab-case.tsx`; components `PascalCase` named exports; hooks `use-<verb>
 4. Schemas are Zod with `z.infer`, co-located in `features/<x>/<x>.schema.ts`; a schema a second feature needs moves to `shared/<domain>/<noun>.schema.ts`.
 5. **Forms live in `forms/<action>-form.tsx`**, isolated from their host (Card/Sheet/Dialog = layout only; the form owns RHF state, `zodResolver`, validation, submit). Pages compose, forms are reusable across hosts.
 6. Cross-feature reuse is not pre-solved: extract to `packages/ui` if presentational, or promote one feature to own it.
-6. **Area = layout route, not folder.** A multi-page shell is a pathless layout node in `routes.ts` (`_shell`, `settings`) pointing at a `router/*.tsx` component with sidebar, tabs and `<Outlet />`; children nest under it as further entries.
+7. **Area = layout route, not folder.** A multi-page shell is a pathless layout node in `routes.ts` (`_shell`, `settings`) pointing at a `router/*.tsx` component with sidebar, tabs and `<Outlet />`; children nest under it as further entries.
 
 ## Routing: one file per route
 
@@ -110,7 +110,7 @@ Primitives, tokens and their authoring rules live in `packages/ui/CLAUDE.md`. As
    - **Forms and dialogs**: `FormTextField`/`FormCheckboxField`, `DestructiveActionDialog` for destructive confirms, `BottomBanner` for a pinned bottom bar.
 4. **Enum to copy**: a `<noun>-labels.ts` map keyed by the enum and resolved through `t()` (feature root, or `shared/<domain>/` once shared), never an inline ternary in JSX.
 5. **Typography**: text goes through the shadcn typography exports (named, not namespace). The page title is `<TypographyH1 variant="page">`; a settings tab whose card already carries the visible title renders `<TypographyH1 className="sr-only">` so the page keeps exactly one `<h1>`. Never a raw `<h1 className="text-2xl ...">`.
-7. **Page width**: `pageContainerVariants({ width })`; call sites add only `flex`/`gap-*`/`py-*`, never a hand-picked `max-w-*` or `px-*`.
+6. **Page width**: `pageContainerVariants({ width })`; call sites add only `flex`/`gap-*`/`py-*`, never a hand-picked `max-w-*` or `px-*`.
 7. **Theme and dark mode**: `public/theme-init.js` (a symlink to `@packages/web-kit/src/theme/theme-init.js`, because `public/` is served verbatim) sets `.dark` before first paint, `@packages/web-kit/theme/use-theme` owns the choice afterwards; both read the same storage key, stored choice first, system otherwise. **Why a blocking script file and no React-rendered script**: a script tag in the tree needs the nonce threaded through JS, a same-origin file only needs the one Vite already stamps. The toggle uses the View Transitions API with a `prefers-reduced-motion` fallback; the view-transition CSS is in `globals.css`.
 
 ## Accessibility gate

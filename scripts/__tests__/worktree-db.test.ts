@@ -15,7 +15,13 @@ describe("databaseNameFor", () => {
     const name = databaseNameFor(`feat/${"a".repeat(80)}`);
 
     expect(name).toHaveLength(63);
-    expect(name).toMatch(/^classroom_parents_feat_a+$/);
+    expect(name).toMatch(/^classroom_parents_feat_a+_[0-9a-f]{8}$/);
+  });
+
+  it("gives two long branches sharing a prefix two databases", () => {
+    const branch = "feat/children-module-sync-worker-alerts-extraction-phase";
+
+    expect(databaseNameFor(`${branch}-1`)).not.toBe(databaseNameFor(`${branch}-2`));
   });
 });
 
@@ -45,6 +51,18 @@ describe("requireLocalDatabase", () => {
     expect(() =>
       requireLocalDatabase("postgresql://postgres:postgres@localhost:54329/production"),
     ).toThrow(/classroom_parents/);
+  });
+
+  it("rejects a query parameter that pg reads as the host or the port", () => {
+    for (const query of ["host=db.prod.example.com", "hostaddr=10.0.0.5", "port=5432"]) {
+      expect(() => requireLocalDatabase(`${local}?${query}`)).toThrow(/query/);
+    }
+  });
+
+  it("accepts an uppercase LOCALHOST", () => {
+    expect(() =>
+      requireLocalDatabase("postgresql://postgres:postgres@LOCALHOST:54329/classroom_parents"),
+    ).not.toThrow();
   });
 
   it("rejects a missing url", () => {

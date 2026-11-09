@@ -13,7 +13,6 @@ export class SentryInstrumentation implements IInstrumentation {
     Sentry.withScope((scope) => {
       if (context?.requestId) scope.setTag("requestId", context.requestId);
       if (context?.userId) scope.setUser({ id: context.userId });
-      if (context?.orgId) scope.setTag("orgId", context.orgId);
       if (context?.path) scope.setTag("path", context.path);
       if (context?.method) scope.setTag("method", context.method);
       if (context?.metadata) scope.setContext("metadata", context.metadata);

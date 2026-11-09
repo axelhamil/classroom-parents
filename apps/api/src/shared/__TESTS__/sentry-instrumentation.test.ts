@@ -62,7 +62,6 @@ describe("SentryInstrumentation", () => {
       const context = {
         requestId: "req-1",
         userId: "user-1",
-        orgId: "org-1",
         path: "/test",
         method: "GET",
         metadata: { key: "value" },
@@ -74,7 +73,6 @@ describe("SentryInstrumentation", () => {
       expect(captureExceptionMock).toHaveBeenCalledWith(err);
 
       expect(setTagMock).toHaveBeenCalledWith("requestId", "req-1");
-      expect(setTagMock).toHaveBeenCalledWith("orgId", "org-1");
       expect(setTagMock).toHaveBeenCalledWith("path", "/test");
       expect(setTagMock).toHaveBeenCalledWith("method", "GET");
 

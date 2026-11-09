@@ -8,8 +8,13 @@ export function requireLocalDatabase(databaseUrl: string | undefined): void {
   const url = URL.parse(databaseUrl ?? "");
   if (!url) throw new Error("DATABASE_URL is missing or not a URL, run scripts/worktree-db.sh");
 
-  if (!LOCAL_HOSTS.has(url.hostname)) {
-    throw new Error(`DATABASE_URL host must be localhost or 127.0.0.1, got ${url.hostname}`);
+  if (url.search !== "") {
+    throw new Error("DATABASE_URL must carry no query string, pg reads host and port from it");
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (!LOCAL_HOSTS.has(hostname)) {
+    throw new Error(`DATABASE_URL host must be localhost or 127.0.0.1, got ${hostname}`);
   }
 
   if (url.port !== PROJECT_PORT) {
@@ -19,6 +24,15 @@ export function requireLocalDatabase(databaseUrl: string | undefined): void {
   const name = url.pathname.slice(1);
   if (!PROJECT_DATABASE_NAME.test(name)) {
     throw new Error(`DATABASE_URL database must match classroom_parents[_<slug>], got ${name}`);
+  }
+}
+
+export function exitUnlessLocalDatabase(script: string, databaseUrl: string | undefined): void {
+  try {
+    requireLocalDatabase(databaseUrl);
+  } catch (err) {
+    console.error(`${script} refused to run: ${err instanceof Error ? err.message : err}`);
+    process.exit(1);
   }
 }
 

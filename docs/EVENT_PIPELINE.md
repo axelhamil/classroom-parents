@@ -7,8 +7,8 @@ the DX guide (how to declare events, register handlers, retention map), see
 ## The problem this solves
 
 You write business code that changes state in Postgres, and you also want
-*something else* to happen as a consequence, an audit row, a webhook to a
-customer, an email, a search-index sync. The naive "save then send" has a
+*something else* to happen as a consequence, a push alert, an email, a
+message on the user's live stream. The naive "save then send" has a
 hidden flaw: the two writes belong to different systems, and any failure
 between them leaves you inconsistent.
 
@@ -69,7 +69,7 @@ zero divergence.
 │                                                                      │
 │   for each claimed event (OUTBOX_CONCURRENCY in parallel):          │
 │     for each handler not yet in `deliveries`:                       │
-│       audit-log · webhook-fanout · notification-fanout · onEvent    │
+│       every handler declared with onEvent(type, name, ...)          │
 │       each in its own short TX, cut at the handler budget           │
 │                                                                      │
 │     all ok      → markDelivered   (dispatched_at = now())           │
@@ -121,8 +121,7 @@ the pipeline **at-least-once** rather than "best-case fast".
 ## One tier: named handlers
 
 Every consumer of an event is a **named handler** with the same guarantee,
-whether it ships with the stack (`audit-log`, `webhook-fanout`,
-`notification-fanout`) or a module declares it with `onEvent(type, name, ...)`.
+declared by a module with `onEvent(type, name, ...)`.
 None runs inside the claim, so a slow handler holds no lock and a failing one
 cannot undo what another wrote.
 
@@ -204,47 +203,19 @@ Names are stable in the repo; the pattern is what matters.
    process; whatever a dead process claimed comes back when the lease expires.
 4. **Ordering**: events are claimed in `occurred_at` order, but handlers run
    in parallel lanes and across processes, so completion order is not
-   guaranteed. The audit chain follows completion order (its `sequence`), not
-   `occurred_at`. Design handlers accordingly.
+   guaranteed. Design handlers accordingly.
 
 ## Event visibility, public vs internal
 
-Not every event in `@packages/events` is a public contract. An event used only
-for internal coordination (audit trail, delivery telemetry, rate-limit
-tracking) must never reach a customer webhook endpoint or appear in the
-developer-facing catalog, changing its payload would then be a breaking
-change.
-
-`packages/events/src/visibility-map.ts` is the single SSOT that declares every
-event type as either `"public"` or `"internal"`. The decision lives in code,
-not in an admin toggle, because it is a product contract that should go through
-code review, not a configuration change an operator can make by clicking.
-
-Three consumers enforce it:
-
-1. **`WebhookFanoutSubscriber`** (`apps/api/src/modules/webhooks/infrastructure/services/webhook-fanout-subscriber.ts`):
-   calls `isPublicEvent(event.type)` before fan-out; internal events flow to
-   `audit_log` and in-process handlers but are never delivered to customer
-   endpoints.
-
-2. **`/developers/events` catalog** (`apps/app/src/features/developers/`):
-   the public event reference page filters the catalog to `public` events only.
-   Internal events remain invisible to API consumers and cannot accumulate
-   subscribers who depend on a payload that may change.
-
-3. **Webhook subscription picker** (`EventTypePicker` in the webhooks feature):
-   the same filter gates what event types an endpoint can subscribe to. A
-   customer cannot subscribe to `api_token.used` or `security.csrf.rejected`
-   regardless of what they type in the form.
-
-**Adding an event as `"public"` is a breaking-change boundary.** Once
-published, renaming the event type or removing a field from its payload
-requires a deprecation notice. Mark `"internal"` by default; graduate to
-`"public"` only when a customer needs to build against it.
+`packages/events/src/visibility-map.ts` declares every event type `"public"` or
+`"internal"`, in code so the decision goes through review. Internal events
+(security signals, delivery bookkeeping) never leave the server and can be
+reshaped freely; a public event's type string and payload are a contract. Mark
+`"internal"` by default.
 
 ## Going further
 
 - [EVENTS.md](./EVENTS.md): how to declare event types, register handlers,
-  set retention, deploy serverless variants.
+  delivery knobs and retention.
 - The pattern in general: "Pattern: Transactional Outbox" by Chris Richardson
   (microservices.io) is the canonical write-up.

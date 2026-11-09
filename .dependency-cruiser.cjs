@@ -3,7 +3,7 @@ const MODULES = "^modules";
 const LIBS = "^packages/";
 const TESTS = "(\\.test\\.tsx?$|/__TESTS__/|/__tests__/)";
 const FRAMEWORKS =
-  "node_modules/(hono|hono-pino|@hono/[^/]+|drizzle-orm|pg|better-auth|@aws-sdk|resend|stripe|@sentry)(/|$)";
+  "node_modules/(hono|hono-pino|@hono/[^/]+|drizzle-orm|pg|better-auth|resend|@sentry)(/|$)";
 
 module.exports = {
   forbidden: [

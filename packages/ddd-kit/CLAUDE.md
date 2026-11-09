@@ -29,8 +29,8 @@ Framework-free: it imports only Node built-ins, nothing from Drizzle, Hono, Zod 
 | `ValueObject<T, E>` | A typed primitive with validation (`Email`, `Money`, `Slug`); `E` defaults to `string`, set it to a typed code when the caller branches on it. |
 | `WatchedList<T>` | A collection inside an aggregate whose additions and removals the repository persists separately. |
 | `DomainEvent` + `onEvent` + `EventCollector` | An aggregate emits on state change (`addEvent`); the repository hands them over with `EventCollector.collectFrom(aggregate)` once its write succeeded; `run()` flushes them to the outbox. A handler is `onEvent(type, handlerName, factory, { payload })`, auto-discovered; `IEventDispatcher.run(event, handlerName)` runs one named handler and reports its `HandlerOutcome` (a throw, a failed `Result` or an unknown name is a failure); which handlers are still owed is the caller's bookkeeping. Declaring the event type: `packages/events/CLAUDE.md`. |
-| `BaseRepository<T>` | A genuinely global aggregate (audit logs, system config). Rare. |
-| `ScopedRepository<T, TScope>` | An owned aggregate carrying `userId`/`organizationId`; the scope is a `RepoScope` argument, so ownership lives in the repository's `WHERE`, not in a route. |
+| `BaseRepository<T>` | A genuinely global aggregate (system config). Rare. |
+| `ScopedRepository<T, TScope>` | An owned aggregate carrying `userId`; the scope is a `RepoScope` argument, so ownership lives in the repository's `WHERE`, not in a route. |
 | `IInstrumentation`, `ILogger` | Constructor-injected into every I/O class, app or package. |
 
 ## Rules
@@ -41,7 +41,7 @@ Framework-free: it imports only Node built-ins, nothing from Drizzle, Hono, Zod 
 4. **Aggregate**: constructor `protected` (or `private`), built through a static factory on the subclass (`create` for a new one, a rehydrating factory for rows). `addEvent` is `protected`: events come from business methods, never from callers. Mutation is by business method returning `void` or `Result<void, E>`, no setters. `clone(props)` returns the same class and id with its own arrays and watched lists, so editing the clone never edits the original.
 5. **Events must be collected inside a unit of work.** `addEvent()` outside `run()` loses the events (the dev warning comes from `EventCollector.setOutOfContextLogger`; a host that stops releases only its own with `releaseOutOfContextLogger`); a nested `run()` collects into its own scope and hands its events to the outermost run only when it succeeds. Flush mechanics and the rollback contract: `packages/drizzle/CLAUDE.md`.
 6. **A handler parses the payload it reads.** The event comes back from a jsonb row, so `event.payload` is untrusted: pass `{ payload: parser }` built from the event's schema, the body then receives the parsed payload; a malformed one fails the delivery with `"<type> has a malformed payload"` without running the body. **Why**: silently skipping a malformed payload hides a contract drift; a failed delivery is retried, then dead, and visible.
-7. **A scope is a union, not a string**: `RepoScope.user(id)`, `RepoScope.org(id)`, `RepoScope.userInOrg(userId, orgId)`, narrowed with `ScopeOf<"user-in-org">`. A new ownership axis is a new variant here, not an ad hoc argument in a repository.
+7. **A scope is a typed value, not a string**: `RepoScope.user(id)`, narrowed with `ScopeOf<"user">`. Ownership is the user only; a new ownership axis is a new variant of the union here, not an ad hoc argument in a repository.
 
 ## Reference shapes
 
@@ -59,7 +59,7 @@ class Email extends ValueObject<string> {
 }
 const email = Email.create("a@b.co");
 
-type NoteScope = ScopeOf<"user-in-org">;
+type NoteScope = ScopeOf<"user">;
 interface INoteRepository extends ScopedRepository<Note, NoteScope> {}
 ```
 

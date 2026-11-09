@@ -17,3 +17,7 @@ export const EventTypes = {
 export type EventType = (typeof EventTypes)[keyof typeof EventTypes];
 
 export const ALL_EVENT_TYPES: readonly EventType[] = Object.values(EventTypes);
+
+export function isKnownEventType(value: string): value is EventType {
+  return ALL_EVENT_TYPES.some((type) => type === value);
+}

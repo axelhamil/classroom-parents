@@ -1,29 +1,21 @@
 ---
 name: compliance-consent
-description: Use when working on policy versioning, terms acceptance, cookie consent or their sweeps. Trigger on "policy", "CGU", "terms", "consent", "cookie banner", "cc_sid", "RGPD", "acceptance", "requireCurrentPolicies". Not for audit-log or generic security work.
+description: Use when working on RGPD account deletion, the grace period, the account wipe, the legal pages or the sub-processors register. Trigger on "RGPD", "account deletion", "/me/delete", "grace period", "wipe", "pendingDeletionUntil", "legal page", "sub-processors". Not for generic security or auth work (skill auth-server).
 ---
 
-# Compliance infra (policies + cookie consent)
+# Compliance infra (RGPD deletion and legal pages)
 
-Both are **compliance infra, not DDD**. They mirror each other's shape.
+Compliance infra, not DDD: a service over a store, no aggregate.
 
-## Policy versioning (`modules/policies/`)
+## Account deletion (`apps/api/src/modules/rgpd/`)
 
-Records which policy version each user accepted and when.
+- **Routes** (`routes.ts`, mounted on `/me`, CSRF guarded): `POST /me/delete` (`requireAuth`, own rate limit, Zod body) → `RgpdService.requestAccountDeletion`; `DELETE /me/delete` → `cancelAccountDeletion`. Failures become `AppErrorException`, mapped by the central error handler.
+- **Grace period**: a request sets `user.pendingDeletionUntil` to now + `RGPD_GRACE_PERIOD_DAYS` (BetterAuth additional field, `input: false`) and emits `user.deletion.requested`; a cancel clears it and emits `user.deletion.cancelled`. Both in one `uow.run`.
+- **Wipe**: `executeAccountWipe` erases the account and emits `user.deleted`; `processPendingDeletions` walks the expired requests in batches of `RGPD_SWEEP_BATCH_SIZE` within the sweep deadline. No worker calls it yet: the periodic sweep is bound by T10 on the sweep pieces of `shared/internal-routes/` (no HTTP endpoint, no external cron).
+- **Settings** come from `application/config/rgpd-settings.ts` (built from env, validated at boot), never read from `env` inside the service.
+- **Proof**: `rgpd.service.test.ts` (scenarios per rule) and `pnpm --filter api check:wipe-rollback` (a failing wipe rolls the whole unit back against Postgres).
 
-- **`@packages/policies`** is the SSOT (`POLICY_VERSIONS`, `POLICY_TYPES`, `POLICY_CHANGELOG`, `POLICY_URLS`). Bump the version string → every consumer sees the change at compile time. `POLICY_URLS` is the swap point for hosting policy text externally.
-- **`PolicyAcceptanceService.accept(userId, types, ipAddress?)`** writes N rows + emits N `user.policy.accepted` events in one `uow.run` TX, any failure throws (no partial acceptance). `getStaleTypes(userId)` drives the gate. `DrizzlePolicyAcceptanceStore` is fully §8-instrumented.
-- **`requireCurrentPolicies`** (`shared/middleware/policy.middleware.ts`): composable, **not mounted globally**, 409 when any policy is stale. `_shell` `beforeLoad` redirect is the UX gate; this middleware is defense-in-depth.
-- **Sign-up acceptance via `/verify-email` hook**: called from BetterAuth `/verify-email` after-hook AND from `POST /me/policies/accept`. Not at `/sign-up/email` (no session yet; returns synthetic user on duplicate-email).
+## Legal pages and sub-processors (`apps/app`)
 
-## Cookie consent (`modules/consents/`)
-
-Records device-scoped consent (guest→user reconciled at login).
-
-- **`@packages/cookie-consent`** is the SSOT (`CONSENT_CATEGORIES`, `OPTIONAL_CATEGORIES`, `CONSENT_COOKIE_NAME = "cc_sid"`, `COOKIE_CONSENT_VERSION`, grant/refusal TTL). Bump `COOKIE_CONSENT_VERSION` → all users re-prompted.
-- **`ConsentService`**: `record` (append-only, latest wins) · `withdraw` · `getActive` (with subjectId fallback for logged-in users with no record) · `reconcile(subjectId, userId)` (UPDATE `user_id IS NULL` rows, emits `user.cookie_consent.linked` in the same transaction when at least one row changed owner). `DrizzleConsentStore` is §8-instrumented.
-- **Routes `/consents`: public, `optionalAuth`**. **Rate-limit `CONSENT_POST_POLICY` on POST/DELETE only: GET is exempt**: GET is called on every render prefetch; rate-limiting it saturates the window on normal reloads and blocks the consent banner.
-- Cookie `cc_sid`: `httpOnly`, `secure: isProd`, `sameSite: isProd ? "none" : "lax"`, `path: "/"`. **No `__Host-` prefix**, cross-origin deploy requires `sameSite: "none"`, incompatible with `__Host-` (same constraint as the BetterAuth session cookie).
-- **Sweep** (`sweep-consents.route.ts`, HMAC-gated): purges `user_id IS NULL AND expires_at < cutoff` (env `CONSENT_RETENTION_DAYS=365`).
-
-Reconciliation at login uses the `hooks.after` + `ctx.context.newSession` pattern, see skill `auth-server`.
+- Routes under `src/features/legal/` and `src/features/privacy/`, listed once in `src/shared/legal-routes.ts` (footer and a11y gate read it).
+- The sub-processors register is `src/shared/sub-processors.config.ts`, labels in `sub-processor-labels.ts`. A new third party that receives personal data is added there in the same change that wires it.

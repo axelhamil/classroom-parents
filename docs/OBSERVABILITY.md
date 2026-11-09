@@ -9,8 +9,8 @@ classroom-parents ships error tracking + tracing primitives via Sentry on the AP
 - **Tags** auto-populated on every event: `requestId`, `userId`, `orgId`, `path`, `method`.
 - **Payload scrubbing** RGPD-clean by default, `Cookie`, `Authorization`, request body, query string, `email`, `username`, `ip_address` are stripped before transmission, and so are failed-query parameters, URL query strings and emails inside error text, contexts, extra, breadcrumbs and Sentry log lines, plus console breadcrumbs.
 - **Pino integration**: every `logger.warn` / `logger.error` becomes a Sentry breadcrumb attached to the next captured event, and log lines ship as Sentry logs through `beforeSendLog`. Single source of truth for logs.
-- **Repository / service spans**: every Drizzle repo, S3, Resend method is wrapped with a Sentry span (`startSpan`) for distributed tracing. `tracesSampleRate=0` by default keeps overhead near zero; flip > 0 once a tracing backend consumes them.
-- **Request correlation across the stack**: each request's `X-Request-Id` (Hono `requestId()`) flows through an `AsyncLocalStorage` context (`shared/request-context.ts`) and is stamped onto every emitted event (`outbox_event.metadata.requestId`) → copied into `audit_log.request_id`. The same id tags the pino logs and the Sentry event, so an audit entry, its logs, and its error all join on one key, even for events emitted deep inside a BetterAuth hook where the Hono `c` isn't in scope.
+- **Repository / service spans**: every Drizzle repo and email delivery method is wrapped with a Sentry span (`startSpan`) for distributed tracing. `tracesSampleRate=0` by default keeps overhead near zero; flip > 0 once a tracing backend consumes them.
+- **Request correlation across the stack**: each request's `X-Request-Id` (Hono `requestId()`) flows through an `AsyncLocalStorage` context (`shared/request-context.ts`) and is stamped onto every emitted event (`outbox_event.metadata.requestId`). The same id tags the pino logs and the Sentry event, so an event, its logs, and its error all join on one key, even for events emitted deep inside a BetterAuth hook where the Hono `c` isn't in scope.
 - **Release tracking** ties to `GIT_SHA` injected at CI build (shared with the `/livez` payload from Phase 0.2).
 - **Logs by default**: without `SENTRY_DSN`, captured errors go to the process log and zero telemetry leaves the host. Binary on/off via env.
 
@@ -30,7 +30,7 @@ packages/sentry-scrub/src/scrub-event.ts  scrubEvent + scrubBreadcrumb + scrubLo
 apps/api/src/container.ts              Conditional binding: SentryInstrumentation if DSN, else LoggingInstrumentation
 ```
 
-Every repository / external-I/O service receives `IInstrumentation` via constructor injection (inwire). Same pattern as `IEmailService` / `IStorageService`: no service-locator, no module-level singleton, no DI override magic. `trash`-able provider swap = change 1 binding in `container.ts`.
+Every repository / external-I/O service receives `IInstrumentation` via constructor injection (inwire). Same pattern as `IEmailService`: no service-locator, no module-level singleton, no DI override magic. `trash`-able provider swap = change 1 binding in `container.ts`.
 
 For the HTTP error path, `error.middleware.ts` exports a `createErrorHandler(instrumentation)` factory called once in `index.ts` after `di.build()`: avoids any future cycle between the middleware and the container.
 
@@ -114,7 +114,7 @@ export class DrizzleFooRepository implements IFooRepository {
 - **Why logs without `SENTRY_DSN`**: `IInstrumentation` resolves to `LoggingInstrumentation`, a `NoOpInstrumentation` (callback passthrough, no allocation) whose `capture` writes to the process log, because a `catch` in a repository logs nothing itself and a driver error must never vanish.
 - **Tracing dormant**: `SENTRY_TRACES_SAMPLE_RATE=0` (default) means even when `SENTRY_DSN` is set, spans aren't exported, they're recorded in memory by the SDK and dropped. Set > 0 only when a tracing backend consumes them.
 
-Applied to: `DrizzleOutboxRepository`, `DrizzleAuditRepository`, `ResendEmailService`, `DrizzleRgpdRepository`, `S3StorageService`, `DrizzleWebhookEndpointRepository`, `DrizzleWebhookDeliveryRepository`, `AuditQueryService`. Use-case / application services are not wrapped, they orchestrate repos that already are.
+Applied to: `DrizzleOutboxRepository`, `DrizzleEmailQueue`, `DrizzleRgpdRepository`, `DrizzleSweepRunStore`. Use-case / application services are not wrapped, they orchestrate repos that already are.
 
 ## Manual error reporting
 
@@ -140,8 +140,8 @@ this.instrumentation.capture(err, { requestId });
 ```ts
 import { addBreadcrumb, captureError } from "@/shared/observability/sentry";
 
-captureError(err, { feature: "checkout", step: "stripe-redirect" });
-addBreadcrumb("user clicked checkout", { plan: "pro" });
+captureError(err, { feature: "push", step: "subscribe" });
+addBreadcrumb("user enabled push", { platform: "ios" });
 ```
 
 Unexpected query/mutation errors (5xx, network) are already captured globally by the `QueryCache`/`MutationCache` handlers, manual `captureError` is for code paths outside TanStack Query (event listeners, `BroadcastChannel` handlers, fire-and-forget promises). Don't duplicate it inside mutation `onError` callbacks.

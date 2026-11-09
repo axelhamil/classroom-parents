@@ -25,8 +25,6 @@ minutes of CI and one more source of flake.
 
 ## Running it locally
 
-The back office has its own gate on port 4174 (`apps/admin/a11y/`), sharing the helpers in `@packages/test/a11y`.
-
 The gate audits the **preview build** on port 4173, against a live API:
 
 ```sh
@@ -51,8 +49,8 @@ Two things bite when running repeatedly:
 - **`workers` is pinned to `4`, but that is not what keeps the rate limiter
   off this suite.** The bucket a full sweep fills is the **IP**-keyed one
   (`global:<ip>`), not the per-user one: the API nulls the user for
-  `/api/auth/*` (`sessionMiddleware`), so a signed-in page's session and
-  organization queries are counted against the IP, next to every
+  `/api/auth/*` (`sessionMiddleware`), so a signed-in page's session
+  queries are counted against the IP, next to every
   unauthenticated page load. Measured over a full sweep: 61 requests in
   `global:60:global:::1` against a then-60/min ceiling, one over, twice in a
   row, while the per-user bucket sat at 39. Worker count bounds neither: the

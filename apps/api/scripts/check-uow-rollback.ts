@@ -10,14 +10,9 @@
  * together with the outbox row emitted in the same transaction.
  */
 
-import { checkRecorder, requireLocalDatabase } from "@packages/test/db-check";
+import { checkRecorder, exitUnlessLocalDatabase } from "@packages/test/db-check";
 
-try {
-  requireLocalDatabase(process.env.DATABASE_URL);
-} catch (err) {
-  console.error(`check-uow-rollback refused to run: ${err instanceof Error ? err.message : err}`);
-  process.exit(1);
-}
+exitUnlessLocalDatabase("check-uow-rollback", process.env.DATABASE_URL);
 
 import { EventCollector, type IInstrumentation, match, Result } from "@packages/ddd-kit";
 import {
