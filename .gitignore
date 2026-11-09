@@ -1,0 +1,50 @@
+# Dependencies
+**/node_modules
+
+# Build
+**/dist
+**/build
+**/*.tsbuildinfo
+
+# Turbo
+**/.turbo
+
+# Testing
+**/coverage
+**/a11y/.auth
+**/playwright-report
+**/test-results
+
+# Env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs
+**/*.log
+
+# OS / Editor
+**/.DS_Store
+**/*.swp
+**/*.swo
+
+# IDE
+**/.vscode/*
+!**/.vscode/settings.json
+!**/.vscode/extensions.json
+**/.idea
+**/.zed
+
+# Cache
+**/.cache
+**/.tanstack
+**/.pnpm-store
+
+# Claude Code
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+docs/superpowers/
+
+# tsup temp configs
+**/tsup.config.bundled_*.mjs

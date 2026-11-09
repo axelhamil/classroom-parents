@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  HUSKY: 0
+
+jobs:
+  checks:
+    # Same commands, same order as .husky/pre-push, so a push that skipped the
+    # local hook cannot reach a green PR. The real-database checks live in a11y.
+    name: Pre-push chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup
+
+      - name: Biome
+        run: pnpm ci:check
+
+      - name: Check module boundaries
+        run: pnpm check:boundaries
+
+      - name: Bootstrap env files
+        # The hook relies on the local .env files; the api tests validate the env at import.
+        run: pnpm bootstrap
+
+      - name: Build, type-check and unit tests
+        run: pnpm turbo run build type-check test --output-logs=errors-only
+
+      - name: Duplication
+        run: pnpm check:duplication
+
+      - name: Unused code
+        run: pnpm check:unused
+
+  a11y:
+    name: Accessibility gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: classroom_parents
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classroom_parents
+      # The preview server, not the dev server: CORS, CSRF and BetterAuth all read this.
+      CORS_ORIGIN: http://localhost:4173
+      APP_URL: http://localhost:4173
+      # The guard resolves MX records; leaving it on would make the seed depend on DNS.
+      DISPOSABLE_EMAIL_BLOCK_ENABLED: "false"
+      # Pinned explicitly so the CI log states which account the checks run
+      # against. db:seed and the checks resolve it through
+      # apps/api/scripts/seed-account.ts, which holds the same default, so
+      # they stay aligned whether or not this var is set.
+      SEED_EMAIL: dev@example.com
+      # check:sweep-lock signs requests against the ephemeral CI
+      # Postgres above; this key never authenticates a real deployment, so it can
+      # live in the workflow. apps/api/.env.example deliberately ships this var
+      # empty (fail-closed on every /internal/* route, including rgpd-sweep) rather
+      # than a shared placeholder that would ship a working key into every
+      # bootstrapped .env and every environment, staging included.
+      INTERNAL_SIGNING_KEY: ci-only-signing-key-3f9a1c7e2b6d4f80912345
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup
+
+      - name: Bootstrap env files
+        run: pnpm bootstrap
+
+      - name: Push schema
+        run: pnpm db:push
+
+      - name: Check the sweep lease against a real database
+        run: pnpm --filter api check:sweep-lock
+
+      - name: Check the outbox lease claim and settle against a real database
+        # Skip locked, the lease expiry, the stale settle guard and the dead replay
+        # live in the claim CTE and the settle WHERE, which a mocked executor never
+        # evaluates. Seeds and removes its own probe rows.
+        run: pnpm --filter api check:outbox-lease
+
+      - name: Seed the audited account
+        run: pnpm --filter api db:seed
+
+      - name: Check the account-wipe rollback against a real database
+        # Only a real db.transaction can prove Postgres rolled the wipe back when
+        # the confirmation enqueue fails. Creates and removes its own probe user.
+        run: pnpm --filter api check:wipe-rollback
+
+      - name: Check the unit-of-work rollback on a failed Result against a real database
+        # A mocked unit of work only proves the service throws inside db.transaction;
+        # only Postgres proves the earlier write and its outbox row are discarded.
+        run: pnpm --filter api check:uow-rollback
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install Chromium
+        run: pnpm --filter app exec playwright install --with-deps chromium
+
+      - name: Start the API
+        working-directory: apps/api
+        run: |
+          bun src/index.ts > /tmp/api.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:3000/readyz > /dev/null; then
+              echo "api ready"; exit 0
+            fi
+            sleep 1
+          done
+          echo "api never became ready"; cat /tmp/api.log; exit 1
+
+      - name: Audit
+        run: pnpm turbo run check:a11y --filter=app
+
+      - name: API log
+        if: failure()
+        # A failure before the API is started leaves no log; `cat` would then
+        # fail too and bury the real error under a missing-file one.
+        run: cat /tmp/api.log || echo "no api log, the run failed before the API started" 
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: a11y-traces
+          path: apps/app/test-results/
+          retention-days: 7

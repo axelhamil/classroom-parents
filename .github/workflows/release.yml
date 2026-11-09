@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    branches: [dev]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    name: Release
+    if: vars.BOT_CLIENT_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: bot
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOT_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ steps.bot.outputs.token }}
+          target-branch: dev
+
+      - if: steps.release.outputs.release_created
+        uses: actions/checkout@v5
+        with:
+          token: ${{ steps.bot.outputs.token }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Move main to the release
+        if: steps.release.outputs.release_created
+        run: git push origin HEAD:refs/heads/main

@@ -1,0 +1,28 @@
+{
+  "name": "@packages/emails",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@packages/typescript-config": "workspace:*",
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "@packages/test": "workspace:*"
+  },
+  "dependencies": {
+    "@packages/i18n": "workspace:*",
+    "@react-email/render": "^2.1.1",
+    "i18next": "^26.5.11",
+    "react": "^19.3.1",
+    "react-email": "^6.11.4",
+    "react-i18next": "^17.1.9"
+  }
+}

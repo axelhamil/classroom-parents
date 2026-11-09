@@ -1,0 +1,25 @@
+import { authorizeRole, type OrgPermissions } from "@packages/access-control";
+import type { QueryClient } from "@tanstack/react-query";
+import { redirect } from "@tanstack/react-router";
+import { currentMembershipQueryOptions } from "../api/queries/current-membership";
+import { ensureActiveOrgId } from "./use-active-org-id";
+
+interface EnsureOrgPermissionOptions {
+  redirectTo?: string;
+  connector?: "OR" | "AND";
+}
+
+export function ensureOrgPermission(
+  permissions: OrgPermissions,
+  { redirectTo = "/settings/organization", connector }: EnsureOrgPermissionOptions = {},
+) {
+  return async ({ context }: { context: { queryClient: QueryClient } }) => {
+    const organizationId = await ensureActiveOrgId(context.queryClient);
+    const membership = await context.queryClient.ensureQueryData(
+      currentMembershipQueryOptions(organizationId),
+    );
+    if (!authorizeRole(membership?.role, permissions, connector)) {
+      throw redirect({ to: redirectTo });
+    }
+  };
+}

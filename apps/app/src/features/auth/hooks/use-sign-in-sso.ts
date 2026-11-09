@@ -1,0 +1,26 @@
+import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { authClient } from "../../../shared/auth/auth-client";
+import type { EmailRequestInput } from "../auth.schema";
+import { resolveAuthError, ssoCallbackUrl } from "../auth-error";
+
+export function useSignInSso(redirectTo?: string) {
+  const { t } = useTranslation("auth");
+  const { t: tErrors } = useTranslation("errors");
+
+  return useMutation({
+    mutationKey: ["session", "sign-in-sso"],
+    mutationFn: async (input: EmailRequestInput) => {
+      // On success the server responds { url, redirect: true } and better-auth's
+      // built-in redirect fetch-plugin sends the browser to the IdP directly:
+      // there is no local navigation to perform here.
+      const { error } = await authClient.signIn.sso({
+        email: input.email,
+        callbackURL: ssoCallbackUrl(redirectTo),
+      });
+      if (error) throw new Error(resolveAuthError(error, "signIn.ssoFailed", t, tErrors));
+    },
+    onError: (err) => toast.error(err.message),
+  });
+}

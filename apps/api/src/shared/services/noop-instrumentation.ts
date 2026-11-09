@@ -1,0 +1,13 @@
+import type { Breadcrumb, ErrorContext, IInstrumentation, SpanOptions } from "@packages/ddd-kit";
+
+export class NoOpInstrumentation implements IInstrumentation {
+  startSpan<T>(_options: SpanOptions, callback: () => T | Promise<T>): T | Promise<T> {
+    return callback();
+  }
+  capture(_error: unknown, _context?: ErrorContext): void {}
+  addBreadcrumb(_crumb: Breadcrumb): void {}
+  setSpanAttributes(_attributes: Record<string, string | number | boolean>): void {}
+  flush(_timeoutMs: number): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+}

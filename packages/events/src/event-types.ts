@@ -1,0 +1,144 @@
+import { isPublicEvent } from "./visibility-map";
+
+export const EventTypes = {
+  USER_CREATED: "user.created",
+  USER_SIGNED_IN: "user.signed_in",
+  USER_SIGNED_OUT: "user.signed_out",
+  USER_EMAIL_VERIFIED: "user.email_verified",
+  USER_PASSWORD_RESET_REQUESTED: "user.password_reset.requested",
+  USER_PASSWORD_CHANGED: "user.password_changed",
+  USER_MAGIC_LINK_REQUESTED: "user.magic_link.requested",
+  USER_MFA_ENABLED: "user.mfa.enabled",
+  USER_MFA_DISABLED: "user.mfa.disabled",
+  USER_MFA_BACKUP_CODES_REGENERATED: "user.mfa.backup_codes_regenerated",
+  USER_MFA_BACKUP_CODE_USED: "user.mfa.backup_code_used",
+  USER_PASSKEY_ADDED: "user.passkey.added",
+  USER_PASSKEY_REMOVED: "user.passkey.removed",
+  USER_ACCOUNT_LINKED: "user.account.linked",
+  USER_ACCOUNT_UNLINKED: "user.account.unlinked",
+  USER_DELETION_REQUESTED: "user.deletion.requested",
+  USER_DELETION_CANCELLED: "user.deletion.cancelled",
+  USER_DELETED: "user.deleted",
+  USER_PROFILE_UPDATED: "user.profile.updated",
+  USER_EMAIL_CHANGE_REQUESTED: "user.email.change_requested",
+  USER_EXPORT_REQUESTED: "user.export.requested",
+  USER_EXPORT_COMPLETED: "user.export.completed",
+  USER_LOCALE_CHANGED: "user.locale.changed",
+  ORG_CREATED: "org.created",
+  ORG_UPDATED: "org.updated",
+  ORG_DELETED: "org.deleted",
+  ORG_MEMBER_INVITED: "org.member.invited",
+  ORG_MEMBER_JOINED: "org.member.joined",
+  ORG_INVITATION_CANCELLED: "org.invitation.cancelled",
+  ORG_MEMBER_REMOVED: "org.member.removed",
+  ORG_MEMBER_ROLE_CHANGED: "org.member.role_changed",
+  UPLOAD_REQUESTED: "upload.requested",
+  UPLOAD_CONFIRMED: "upload.confirmed",
+  UPLOAD_DELETED: "upload.deleted",
+  WEBHOOK_ENDPOINT_CREATED: "webhook.endpoint.created",
+  WEBHOOK_ENDPOINT_UPDATED: "webhook.endpoint.updated",
+  WEBHOOK_ENDPOINT_DELETED: "webhook.endpoint.deleted",
+  WEBHOOK_TEST: "webhook.test",
+  WEBHOOK_ENDPOINT_SECRET_ROTATED: "webhook.endpoint.secret_rotated",
+  WEBHOOK_ENDPOINT_DISABLED: "webhook.endpoint.disabled",
+  WEBHOOK_DELIVERY_EXHAUSTED: "webhook.delivery.exhausted",
+  WEBHOOK_DELIVERY_REPLAYED: "webhook.delivery.replayed",
+  API_TOKEN_CREATED: "api_token.created",
+  API_TOKEN_REVOKED: "api_token.revoked",
+  API_TOKEN_USED: "api_token.used",
+  USER_POLICY_ACCEPTED: "user.policy.accepted",
+  USER_COOKIE_CONSENT_GRANTED: "user.cookie_consent.granted",
+  USER_COOKIE_CONSENT_WITHDRAWN: "user.cookie_consent.withdrawn",
+  USER_COOKIE_CONSENT_LINKED: "user.cookie_consent.linked",
+  SECURITY_RATE_LIMIT_EXCEEDED: "security.rate_limit.exceeded",
+  SECURITY_CSP_VIOLATION: "security.csp.violation",
+  SECURITY_CSRF_REJECTED: "security.csrf.rejected",
+  SECURITY_PASSWORD_BREACHED: "security.password.breached",
+  SECURITY_SIGNUP_REJECTED: "security.signup.rejected",
+  SECURITY_OPERATOR_AUDIT_ACCESSED: "security.operator.audit_accessed",
+  SECURITY_IMPOSSIBLE_TRAVEL_DETECTED: "security.impossible_travel.detected",
+  SECURITY_GEO_DENIED: "security.geo.denied",
+  BILLING_SUBSCRIPTION_CREATED: "billing.subscription.created",
+  BILLING_SUBSCRIPTION_UPDATED: "billing.subscription.updated",
+  BILLING_SUBSCRIPTION_CANCELLED: "billing.subscription.cancelled",
+  BILLING_PAYMENT_FAILED: "billing.payment.failed",
+  BILLING_QUOTA_EXCEEDED: "billing.quota.exceeded",
+  ADMIN_IMPERSONATION_STARTED: "admin.impersonation.started",
+  ADMIN_IMPERSONATION_STOPPED: "admin.impersonation.stopped",
+  ADMIN_USER_BANNED: "admin.user.banned",
+  ADMIN_USER_UNBANNED: "admin.user.unbanned",
+  ADMIN_USER_PASSWORD_RESET: "admin.user.password_reset",
+  ADMIN_USER_SESSIONS_REVOKED: "admin.user.sessions_revoked",
+  ADMIN_STAFF_ADDED: "admin.staff.added",
+  ADMIN_STAFF_ROLE_CHANGED: "admin.staff.role_changed",
+  ADMIN_STAFF_REVOKED: "admin.staff.revoked",
+  ADMIN_STAFF_OVERRIDE_SET: "admin.staff.override_set",
+  ADMIN_STAFF_OVERRIDE_REVOKED: "admin.staff.override_revoked",
+  ADMIN_OPS_OUTBOX_REQUEUED: "admin.ops.outbox_requeued",
+  ADMIN_OPS_STRIPE_EVENT_REPLAYED: "admin.ops.stripe_event_replayed",
+  ADMIN_PLAN_OVERRIDE_SET: "admin.plan_override.set",
+  ADMIN_PLAN_OVERRIDE_REVOKED: "admin.plan_override.revoked",
+  ADMIN_NOTE_ADDED: "admin.note.added",
+  ADMIN_VIEW_SAVED: "admin.view.saved",
+  ADMIN_VIEW_DELETED: "admin.view.deleted",
+  ADMIN_STEP_UP_VERIFIED: "admin.step_up.verified",
+  ADMIN_STEP_UP_FAILED: "admin.step_up.failed",
+  ADMIN_APPROVAL_REQUESTED: "admin.approval.requested",
+  ADMIN_APPROVAL_DECIDED: "admin.approval.decided",
+  ADMIN_APPROVAL_CANCELLED: "admin.approval.cancelled",
+  ADMIN_APPROVAL_EXPIRED: "admin.approval.expired",
+  ADMIN_APPROVAL_EXECUTED: "admin.approval.executed",
+  ADMIN_APPROVAL_FAILED: "admin.approval.failed",
+  EMAIL_DELIVERY_EXHAUSTED: "email.delivery.exhausted",
+  OUTBOX_EVENT_DEAD: "outbox.event_dead",
+  NOTIFICATION_PREFERENCE_UPDATED: "notification.preference.updated",
+  NOTIFICATION_ORG_PREFERENCE_UPDATED: "notification.org_preference.updated",
+  NOTIFICATION_READ: "notification.read",
+  SSO_PROVIDER_REGISTERED: "sso.provider.registered",
+  SSO_PROVIDER_UPDATED: "sso.provider.updated",
+  SSO_PROVIDER_DELETED: "sso.provider.deleted",
+  SSO_DOMAIN_VERIFIED: "sso.domain.verified",
+  SSO_ENFORCEMENT_CHANGED: "sso.enforcement.changed",
+  SSO_LOGIN_SUCCESS: "sso.login.success",
+  SSO_LOGIN_FAILURE: "sso.login.failure",
+  SCIM_CONNECTION_CREATED: "scim.connection.created",
+  SCIM_CONNECTION_DELETED: "scim.connection.deleted",
+  SCIM_CONNECTION_TOKEN_ROTATED: "scim.connection.token_rotated",
+  SCIM_USER_CREATED: "scim.user.created",
+  SCIM_USER_UPDATED: "scim.user.updated",
+  SCIM_USER_DEACTIVATED: "scim.user.deactivated",
+  SCIM_USER_DEPROVISIONED: "scim.user.deprovisioned",
+} as const;
+
+export type EventType = (typeof EventTypes)[keyof typeof EventTypes];
+
+export const ALL_EVENT_TYPES: readonly EventType[] = Object.values(EventTypes);
+
+export function isKnownEventType(value: string): value is EventType {
+  return ALL_EVENT_TYPES.some((type) => type === value);
+}
+
+export const SUBSCRIBABLE_EVENT_TYPES: readonly EventType[] = ALL_EVENT_TYPES.filter(isPublicEvent);
+
+export function eventGroupOf(eventType: string): string {
+  const dot = eventType.indexOf(".");
+  return dot === -1 ? eventType : eventType.slice(0, dot);
+}
+
+export function matchesSubscription(
+  eventType: EventType,
+  subscriptions: readonly string[],
+): boolean {
+  if (!isPublicEvent(eventType)) return false;
+  if (subscriptions.includes("*")) return true;
+  if (subscriptions.includes(eventType)) return true;
+  return subscriptions.includes(`${eventGroupOf(eventType)}.*`);
+}
+
+export function isSubscribableSelector(value: string): boolean {
+  if (value === "*") return true;
+  if (!value.endsWith(".*")) return SUBSCRIBABLE_EVENT_TYPES.some((type) => type === value);
+
+  const group = value.slice(0, -2);
+  return SUBSCRIBABLE_EVENT_TYPES.some((t) => eventGroupOf(t) === group);
+}

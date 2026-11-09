@@ -1,0 +1,42 @@
+import type { Breadcrumb, ErrorContext, IInstrumentation, SpanOptions } from "@packages/ddd-kit";
+import * as Sentry from "@sentry/bun";
+
+export class SentryInstrumentation implements IInstrumentation {
+  startSpan<T>(options: SpanOptions, callback: () => T | Promise<T>): T | Promise<T> {
+    return Sentry.startSpan(
+      { name: options.name, op: options.op, attributes: options.attributes },
+      () => callback(),
+    );
+  }
+
+  capture(error: unknown, context?: ErrorContext): void {
+    Sentry.withScope((scope) => {
+      if (context?.requestId) scope.setTag("requestId", context.requestId);
+      if (context?.userId) scope.setUser({ id: context.userId });
+      if (context?.orgId) scope.setTag("orgId", context.orgId);
+      if (context?.path) scope.setTag("path", context.path);
+      if (context?.method) scope.setTag("method", context.method);
+      if (context?.metadata) scope.setContext("metadata", context.metadata);
+      Sentry.captureException(error);
+    });
+  }
+
+  addBreadcrumb(crumb: Breadcrumb): void {
+    Sentry.addBreadcrumb({
+      category: crumb.category,
+      message: crumb.message,
+      level: crumb.level,
+      data: crumb.data,
+    });
+  }
+
+  setSpanAttributes(attributes: Record<string, string | number | boolean>): void {
+    // No active span means the caller runs outside any `startSpan` callback: a
+    // legitimate state (a sweep triggered with Sentry disabled), never an error.
+    Sentry.getActiveSpan()?.setAttributes(attributes);
+  }
+
+  flush(timeoutMs: number): Promise<boolean> {
+    return Sentry.flush(timeoutMs);
+  }
+}

@@ -1,0 +1,130 @@
+import { toLocale } from "@packages/i18n";
+import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
+import { PageHeader } from "@packages/ui/components/ui/page-header";
+import { Separator } from "@packages/ui/components/ui/separator";
+import { TextLink } from "@packages/ui/components/ui/text-link";
+import {
+  TypographyH2,
+  TypographyH3,
+  TypographyList,
+  TypographyMuted,
+  TypographyP,
+} from "@packages/ui/components/ui/typography";
+import { cn } from "@packages/ui/libs/utils.js";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import { UntranslatedBodyBanner } from "./components/untranslated-body-banner";
+
+export const Route = createFileRoute("/legal/data-rights")({
+  component: DataRightsPage,
+});
+
+function DataRightsPage() {
+  const { t, i18n } = useTranslation("common");
+  const locale = toLocale(i18n.language);
+  return (
+    <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
+      <PageHeader
+        title={t("legal.dataRights.title")}
+        description={t("legal.dataRights.subtitle")}
+      />
+
+      <Separator />
+
+      <UntranslatedBodyBanner show={locale !== "en"} />
+
+      <section className="flex flex-col gap-3">
+        <TypographyH2>Right to portability (Art. 20)</TypographyH2>
+        <TypographyMuted>
+          Get a copy of your data, machine-readable, free of charge.
+        </TypographyMuted>
+        <TypographyP>
+          From <strong>Settings → Account</strong>, request a data export. We email you a signed
+          download link valid for 7 days. The archive is a JSON document containing your account
+          profile, session metadata, organization memberships, and invitations you sent.
+        </TypographyP>
+        <TypographyMuted>Limited to one export request per 24 hours per account.</TypographyMuted>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <TypographyH2>Right to erasure (Art. 17)</TypographyH2>
+        <TypographyMuted>
+          Delete your account, with a 7-day grace window in case you change your mind.
+        </TypographyMuted>
+        <section className="flex flex-col gap-2">
+          <TypographyH3>What gets deleted</TypographyH3>
+          <TypographyList>
+            <li>Your name and profile image</li>
+            <li>All active sessions, OAuth account links, and passkeys</li>
+            <li>Two-factor authentication factors and backup codes</li>
+            <li>Files you uploaded under your storage prefix</li>
+            <li>Personal organization (auto-created on signup, tied 1:1 to you)</li>
+          </TypographyList>
+        </section>
+        <section className="flex flex-col gap-2">
+          <TypographyH3>What gets anonymized</TypographyH3>
+          <TypographyList>
+            <li>
+              Your user row stays in the database with a placeholder email like{" "}
+              <code>deleted-&lt;uuid&gt;@anonymized.local</code> and a tombstone name. This keeps
+              referential integrity for any historical records that legally must persist.
+            </li>
+            <li>
+              Invitations you sent and team memberships are dropped; references in remaining org
+              rows lose your identifying details.
+            </li>
+          </TypographyList>
+        </section>
+        <section className="flex flex-col gap-2">
+          <TypographyH3>What is retained</TypographyH3>
+          <TypographyList>
+            <li>
+              Audit log entries linked to your past actions are retained for legal compliance, with
+              the actor reference becoming a tombstone (no PII).
+            </li>
+            <li>
+              Organizations where you are a member but not the only owner remain intact; membership
+              rows referencing you are removed.
+            </li>
+          </TypographyList>
+        </section>
+        <section className="flex flex-col gap-2">
+          <TypographyH3>Pre-flight ownership check</TypographyH3>
+          <TypographyP>
+            If you are the sole owner of a non-personal organization that has other members, you
+            must first transfer ownership or delete that organization. We do not auto-transfer
+            ownership: that decision belongs to you.
+          </TypographyP>
+        </section>
+        <section className="flex flex-col gap-2">
+          <TypographyH3>Grace window</TypographyH3>
+          <TypographyP>
+            After confirming deletion, your account enters a <strong>7-day grace window</strong>.
+            You can sign in during this period and cancel the deletion. After the grace expires, the
+            wipe is irreversible.
+          </TypographyP>
+        </section>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <TypographyH2>Right to access, rectification, restriction, objection</TypographyH2>
+        <TypographyP>
+          For other rights guaranteed by RGPD Art. 15/16/18/21 (including correcting inaccurate
+          data, restricting processing, or objecting to specific uses), contact your data protection
+          officer. (Replace this paragraph with your DPO contact details when forking this
+          boilerplate.)
+        </TypographyP>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <TypographyH2>Related legal pages</TypographyH2>
+        <TextLink asChild>
+          <Link to="/legal/sub-processors">Sub-processor disclosure (RGPD Art. 28)</Link>
+        </TextLink>
+        <TextLink asChild>
+          <Link to="/legal/accessibility">Accessibility statement (EAA Art. 14)</Link>
+        </TextLink>
+      </section>
+    </main>
+  );
+}

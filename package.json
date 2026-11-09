@@ -1,0 +1,50 @@
+{
+  "name": "classroom-parents",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "type-check": "turbo type-check",
+    "check": "biome check .",
+    "fix": "biome check --write .",
+    "ci:check": "biome ci .",
+    "check:duplication": "jscpd ./packages ./modules ./apps/api/src ./apps/app/src",
+    "check:unused": "knip",
+    "check:boundaries": "depcruise apps packages modules --config .dependency-cruiser.cjs",
+    "db:push": "turbo db:push",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "turbo db:migrate",
+    "db:seed": "turbo db:seed",
+    "db:studio": "turbo db:studio",
+    "ui:add": "turbo ui:add",
+    "bootstrap": "bash scripts/bootstrap.sh",
+    "clean": "rm -rf node_modules .turbo apps/*/.turbo packages/*/.turbo modules/*/.turbo apps/api/dist apps/app/dist",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.3",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@packages/typescript-config": "workspace:*",
+    "dependency-cruiser": "^18.7.0",
+    "husky": "^9.1.7",
+    "jscpd": "^5.4.2",
+    "knip": "^6.43.0",
+    "lint-staged": "^17.6.0",
+    "turbo": "^2.11.10"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "biome check --write --no-errors-on-unmatched"
+    ],
+    "*.{json,css,scss,html}": [
+      "biome format --write --no-errors-on-unmatched"
+    ]
+  },
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=26.13.0"
+  }
+}

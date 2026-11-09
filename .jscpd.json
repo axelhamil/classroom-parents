@@ -1,0 +1,20 @@
+{
+  "threshold": 3,
+  "reporters": ["console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/.turbo/**",
+    "**/pnpm-lock.yaml",
+    "**/*.d.ts",
+    "**/__TESTS__/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/routeTree.gen.ts"
+  ],
+  "format": ["typescript", "javascript", "tsx", "jsx"],
+  "minLines": 10,
+  "minTokens": 70,
+  "absolute": true
+}

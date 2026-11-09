@@ -1,0 +1,89 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "apps/api": {
+      "entry": [
+        "src/container.ts",
+        "src/shared/middleware/*.ts",
+        "src/shared/db/quota-reservation.ts",
+        "src/shared/internal-routes/internal-fetch.ts",
+        "src/modules/*/module.ts",
+        "src/modules/*/routes.ts",
+        "src/modules/*/internal.routes.ts",
+        "src/cron/*.ts"
+      ],
+      "project": ["**/*.ts"],
+      "ignoreDependencies": ["pino-pretty"]
+    },
+    "apps/app": {
+      "entry": [
+        "routes.ts",
+        "src/router/*.tsx",
+        "src/features/**/*.route.tsx",
+        "src/shared/api/api-client.ts",
+        "src/shared/api/mutations/*.ts",
+        "src/shared/api/queries/*.ts",
+        "src/shared/auth/feature-gate.tsx",
+        "src/shared/auth/plan-gate.tsx",
+        "src/shared/auth/quota-gate.tsx",
+        "src/shared/observability/noop.ts",
+        "src/shared/observability/sentry.ts",
+        "a11y/*.setup.ts",
+        "a11y/*.spec.ts"
+      ],
+      "project": ["**/*.ts", "**/*.tsx"]
+    },
+    "packages/ddd-kit": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/drizzle": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/i18n": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/access-control": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/ui": {
+      "entry": ["src/**/*.tsx", "src/**/*.ts"],
+      "project": ["src/**/*.ts", "src/**/*.tsx"]
+    },
+    "packages/web-kit": {
+      "entry": ["src/**/*.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/test": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/outbox": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/email": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/http": {
+      "project": ["src/**/*.ts"]
+    },
+    "modules/*": {
+      "project": ["**/*.ts"]
+    }
+  },
+  "ignoreBinaries": ["src/index.ts"],
+  "ignoreDependencies": [
+    "@packages/test",
+    "@packages/typescript-config",
+    "lint-staged",
+    "tailwindcss"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "unlisted": "off",
+    "unresolved": "off",
+    "optionalPeerDependencies": "off",
+    "exports": "warn",
+    "types": "warn",
+    "duplicates": "off"
+  }
+}

@@ -1,0 +1,81 @@
+import { throwApiError } from "@packages/web-kit/api/errors/api-error";
+import { mutationOptions } from "@tanstack/react-query";
+import type { InferRequestType, InferResponseType } from "hono/client";
+import { api } from "../api-client";
+
+const $presign = api.uploads.presign.$post;
+const $confirm = api.uploads.confirm.$post;
+const $delete = api.uploads.$delete;
+
+type PresignBody = InferRequestType<typeof $presign>["json"];
+type ConfirmResponse = InferResponseType<typeof $confirm, 200>;
+
+export interface CreateUploadInput {
+  file: File;
+  scope?: PresignBody["scope"];
+  expiresInSeconds?: PresignBody["expiresInSeconds"];
+}
+
+function sanitizeFilename(name: string): string {
+  const deaccented = name.normalize("NFKD").replace(/\p{Diacritic}/gu, "");
+  const lastDot = deaccented.lastIndexOf(".");
+  const ext = lastDot > 0 ? deaccented.slice(lastDot + 1).replace(/[^\w]/g, "") : "";
+  const base =
+    (lastDot > 0 ? deaccented.slice(0, lastDot) : deaccented)
+      .replace(/[^\w\-. ]+/g, "-")
+      .replace(/[-\s]+/g, "-")
+      .replace(/^[-.\s]+|[-.\s]+$/g, "") || "file";
+  return (ext ? `${base}.${ext}` : base).slice(0, 200);
+}
+
+export async function createUpload({
+  file,
+  scope,
+  expiresInSeconds,
+}: CreateUploadInput): Promise<ConfirmResponse> {
+  const contentType = file.type || "application/octet-stream";
+
+  const presignRes = await $presign({
+    json: {
+      filename: sanitizeFilename(file.name),
+      contentType,
+      size: file.size,
+      ...(scope ? { scope } : {}),
+      ...(expiresInSeconds ? { expiresInSeconds } : {}),
+    },
+  });
+  if (!presignRes.ok) await throwApiError(presignRes, "presignUpload");
+
+  const presigned = await presignRes.json();
+
+  const putRes = await fetch(presigned.url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": contentType,
+      "Content-Length": String(file.size),
+    },
+    body: file,
+  });
+  if (!putRes.ok) throw new Error(`Upload failed: HTTP ${putRes.status}`);
+
+  const confirmRes = await $confirm({
+    json: {
+      key: presigned.key,
+      expectedSize: presigned.expectedSize,
+      expectedContentType: presigned.expectedContentType,
+    },
+  });
+  if (!confirmRes.ok) await throwApiError(confirmRes, "confirmUpload");
+
+  return confirmRes.json();
+}
+
+export const createUploadMutationOptions = mutationOptions({
+  mutationKey: ["uploads", "create"] as const,
+  mutationFn: createUpload,
+});
+
+export async function deleteUploadByUrl(url: string): Promise<void> {
+  const res = await $delete({ json: { url } });
+  if (!res.ok) await throwApiError(res, "deleteUpload");
+}

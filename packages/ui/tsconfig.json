@@ -1,0 +1,10 @@
+{
+  "extends": "@packages/typescript-config/react.json",
+  "compilerOptions": {
+    "paths": {
+      "/src/*": ["./src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "**/*.native.tsx"]
+}

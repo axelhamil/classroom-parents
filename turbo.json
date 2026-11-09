@@ -1,0 +1,134 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "agentGuidance": false,
+  "ui": "tui",
+  "globalDependencies": [
+    "biome.json",
+    "pnpm-workspace.yaml",
+    "**/.env",
+    "**/.env.local",
+    "**/.env.production"
+  ],
+  "globalEnv": [
+    "NODE_ENV",
+    "PORT",
+    "DATABASE_URL",
+    "CORS_ORIGIN",
+    "APP_URL",
+    "ADMIN_URL",
+    "AUTH_COOKIE_DOMAIN",
+    "BETTER_AUTH_*",
+    "RESEND_*",
+    "INTERNAL_*",
+    "RGPD_*",
+    "S3_*",
+    "STORAGE_*",
+    "VITE_*"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**",
+        "schemas/**",
+        "common/**",
+        "package.json",
+        "tsconfig*.json",
+        "tsup.config.ts",
+        "vite.config.ts",
+        "drizzle.config.ts"
+      ],
+      "outputs": ["dist/**", "build/**", "!dist/**/*.map"],
+      "env": ["DATABASE_URL"],
+      "passThroughEnv": ["DATABASE_URL"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "interruptible": true,
+      "env": ["DATABASE_URL"]
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**",
+        "schemas/**",
+        "scripts/**",
+        "common/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/__TESTS__/**",
+        "package.json",
+        "tsconfig*.json",
+        "vitest.config.*"
+      ],
+      "outputs": []
+    },
+    "test:watch": {
+      "cache": false,
+      "persistent": true,
+      "interruptible": true
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**",
+        "schemas/**",
+        "scripts/**",
+        "common/**",
+        "a11y/**",
+        "package.json",
+        "tsconfig*.json"
+      ],
+      "outputs": []
+    },
+    "check:a11y": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": ["A11Y_BASE_URL", "A11Y_APP_URL", "SEED_EMAIL", "SEED_PASSWORD"]
+    },
+    "format": {
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "db:generate": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "db:push": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "db:seed": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true,
+      "interruptible": true,
+      "env": ["DATABASE_URL"]
+    },
+    "db:migrate": {
+      "dependsOn": ["db:generate"],
+      "cache": false,
+      "outputs": ["drizzle/migrations/**"],
+      "env": ["DATABASE_URL"]
+    },
+    "ui:add": {
+      "cache": false,
+      "interactive": true
+    }
+  }
+}

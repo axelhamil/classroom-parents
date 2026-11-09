@@ -1,0 +1,101 @@
+import { descriptionFor, eventGroupOf, SUBSCRIBABLE_EVENT_TYPES } from "@packages/events";
+import { Checkbox } from "@packages/ui/components/ui/checkbox";
+import { Label } from "@packages/ui/components/ui/label";
+import { TypographyInline, TypographyMuted } from "@packages/ui/components/ui/typography";
+import { useTranslation } from "react-i18next";
+
+export interface EventGroup {
+  group: string;
+  wildcard: string;
+  events: readonly string[];
+}
+
+export function groupedSubscribableEvents(): EventGroup[] {
+  const byGroup = new Map<string, string[]>();
+  for (const type of SUBSCRIBABLE_EVENT_TYPES) {
+    const group = eventGroupOf(type);
+    const list = byGroup.get(group) ?? [];
+    list.push(type);
+    byGroup.set(group, list);
+  }
+  return [...byGroup.entries()].map(([group, events]) => ({
+    group,
+    wildcard: `${group}.*`,
+    events,
+  }));
+}
+
+interface EventTypePickerProps {
+  value: string[];
+  onChange: (next: string[]) => void;
+}
+
+export function EventTypePicker({ value, onChange }: EventTypePickerProps) {
+  const { t } = useTranslation("settings");
+  const groups = groupedSubscribableEvents();
+  const selected = new Set(value);
+  const allSelected = selected.has("*");
+
+  const toggle = (selector: string, on: boolean) => {
+    const next = new Set(selected);
+
+    if (on) next.add(selector);
+    else next.delete(selector);
+
+    onChange([...next]);
+  };
+
+  return (
+    <div className="flex max-h-96 flex-col gap-4 overflow-y-auto">
+      <Label>
+        <Checkbox
+          className="shrink-0"
+          checked={allSelected}
+          onCheckedChange={(c) => toggle("*", c === true)}
+        />
+        {t("webhooks.eventTypePicker.allEvents")}
+      </Label>
+      {allSelected && (
+        <TypographyMuted>{t("webhooks.eventTypePicker.allEventsNote")}</TypographyMuted>
+      )}
+      {groups.map((g) => {
+        const groupSelected = selected.has(g.wildcard);
+
+        return (
+          <fieldset key={g.group} className="flex flex-col gap-2" disabled={allSelected}>
+            <Label>
+              <Checkbox
+                checked={groupSelected}
+                onCheckedChange={(c) => toggle(g.wildcard, c === true)}
+              />
+              {t("webhooks.eventTypePicker.groupWildcard", { group: g.group })}
+            </Label>
+            {groupSelected && !allSelected && (
+              <TypographyMuted>{t("webhooks.eventTypePicker.groupNote")}</TypographyMuted>
+            )}
+            <div className="ml-6 flex flex-col gap-1">
+              {g.events.map((type) => (
+                <Label key={type} className="items-start">
+                  <Checkbox
+                    className="mt-0.5 shrink-0"
+                    checked={groupSelected || allSelected || selected.has(type)}
+                    disabled={groupSelected}
+                    onCheckedChange={(c) => toggle(type, c === true)}
+                  />
+                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                    <TypographyInline font="mono" size="sm" className="break-all">
+                      {type}
+                    </TypographyInline>
+                    <TypographyInline tone="muted" size="sm">
+                      {descriptionFor(type)}
+                    </TypographyInline>
+                  </span>
+                </Label>
+              ))}
+            </div>
+          </fieldset>
+        );
+      })}
+    </div>
+  );
+}

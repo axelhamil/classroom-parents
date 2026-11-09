@@ -1,0 +1,134 @@
+import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
+import { type EmailTemplateKey, renderTemplate } from "@packages/emails";
+import { DEFAULT_LOCALE } from "@packages/i18n";
+import type {
+  EmailBody,
+  EmailError,
+  EmailRecipient,
+  EmailTemplates,
+  IEmailService,
+  SendTemplateOptions,
+  TemplateVariables,
+} from "./email.port";
+import type { EmailMessageInsert, IEmailQueue } from "./email-queue.port";
+
+/**
+ * Positional per-row key derived from the batch key. Only a fallback: the suffix
+ * shifts when a batch is rebuilt from a partially successful set, which is why a
+ * recipient's own `idempotencyKey` always wins over it.
+ */
+function batchRowKey(options: SendTemplateOptions | undefined, index: number): Option<string> {
+  const batchKey = options?.idempotencyKey;
+  if (!batchKey) return Option.none();
+
+  return Option.some(`${batchKey}#${index}`);
+}
+
+export class QueuedEmailService implements IEmailService {
+  constructor(
+    private readonly queue: IEmailQueue,
+    private readonly instrumentation: IInstrumentation,
+  ) {}
+
+  async sendTemplate<K extends keyof EmailTemplates>(
+    template: K,
+    to: string,
+    variables: EmailTemplates[K] & TemplateVariables,
+    options?: SendTemplateOptions,
+  ): Promise<Result<void, EmailError>> {
+    return this.instrumentation.startSpan({ name: "QueuedEmailService > sendTemplate" }, () =>
+      this.sendTemplateBatch(template, [{ to, variables, locale: options?.locale }], options),
+    );
+  }
+
+  async sendTemplateBatch<K extends keyof EmailTemplates>(
+    template: K,
+    recipients: EmailRecipient<K>[],
+    options?: SendTemplateOptions,
+  ): Promise<Result<void, EmailError>> {
+    return this.instrumentation.startSpan(
+      {
+        name: "QueuedEmailService > sendTemplateBatch",
+        attributes: { template: String(template) },
+      },
+      async () => {
+        const rows: EmailMessageInsert[] = [];
+        for (const [index, r] of recipients.entries()) {
+          const locale = r.locale ?? DEFAULT_LOCALE;
+          const rendered = await renderTemplate(
+            template as EmailTemplateKey,
+            r.variables as never,
+            locale,
+          );
+          rows.push({
+            kind: "template",
+            template: Option.some(String(template)),
+            toAddress: r.to,
+            subject: rendered.subject,
+            locale,
+            payload: r.variables,
+            idempotencyKey: r.idempotencyKey
+              ? Option.some(r.idempotencyKey)
+              : batchRowKey(options, index),
+          });
+        }
+        return this.enqueue(rows);
+      },
+    );
+  }
+
+  async sendRaw(
+    to: string,
+    subject: string,
+    body: EmailBody,
+    options?: SendTemplateOptions,
+  ): Promise<Result<void, EmailError>> {
+    return this.instrumentation.startSpan({ name: "QueuedEmailService > sendRaw" }, () =>
+      this.sendRawBatch([{ to, subject, body }], options),
+    );
+  }
+
+  async sendRawBatch(
+    messages: Array<{ to: string; subject: string; body: EmailBody }>,
+    options?: SendTemplateOptions,
+  ): Promise<Result<void, EmailError>> {
+    return this.instrumentation.startSpan(
+      { name: "QueuedEmailService > sendRawBatch" },
+      async () => {
+        const rows: EmailMessageInsert[] = messages.map((m, index) => ({
+          kind: "raw" as const,
+          template: Option.none(),
+          toAddress: m.to,
+          subject: m.subject,
+          locale: DEFAULT_LOCALE,
+          payload: m.body,
+          idempotencyKey: batchRowKey(options, index),
+        }));
+        return this.enqueue(rows);
+      },
+    );
+  }
+
+  private async enqueue(rows: EmailMessageInsert[]): Promise<Result<void, EmailError>> {
+    const result = await this.queue.enqueue(rows);
+    if (result.isFailure) {
+      return Result.fail({
+        code: "EMAIL_PROVIDER_FAILURE",
+        message: result.getError().message,
+      });
+    }
+
+    const { written } = result.getValue();
+    if (rows.length > 0 && written === 0) {
+      // Every row was suppressed (idempotency conflict on all of them). A 0-of-N write is
+      // indistinguishable from success to the caller unless we surface it, and a caller
+      // that believes an email was queued when nothing was written (e.g. the RGPD deletion
+      // confirmation) must not commit on that false premise.
+      return Result.fail({
+        code: "EMAIL_PROVIDER_FAILURE",
+        message: `email enqueue fully suppressed: 0 of ${rows.length} row(s) written`,
+      });
+    }
+    return Result.ok();
+  }
+}

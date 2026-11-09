@@ -1,0 +1,35 @@
+import { CopyIcon } from "lucide-react";
+import type * as React from "react";
+
+import { cn } from "../../libs/utils";
+import { IconButton } from "./icon-button";
+import { Panel } from "./panel";
+
+interface CopyableValueProps extends Omit<React.ComponentProps<"div">, "onCopy"> {
+  value: string;
+  copyLabel: string;
+  onCopied?: () => void;
+}
+
+function CopyableValue({ value, copyLabel, onCopied, className, ...props }: CopyableValueProps) {
+  // `onCopied` waits for the write: a denied clipboard permission must not
+  // confirm a copy that never happened.
+  const copy = () => {
+    void navigator.clipboard.writeText(value).then(() => onCopied?.());
+  };
+
+  return (
+    <Panel
+      tone="muted"
+      className={cn("flex items-center gap-2 font-mono text-sm break-all", className)}
+      {...props}
+    >
+      <span className="flex-1">{value}</span>
+      <IconButton variant="ghost" onClick={copy} label={copyLabel}>
+        <CopyIcon className="size-4" />
+      </IconButton>
+    </Panel>
+  );
+}
+
+export { CopyableValue };

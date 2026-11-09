@@ -1,0 +1,104 @@
+import { Button } from "@packages/ui/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@packages/ui/components/ui/command";
+import { InitialsAvatar } from "@packages/ui/components/ui/initials-avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@packages/ui/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@packages/ui/components/ui/tooltip";
+import { useTruncationTooltip } from "@packages/ui/components/ui/truncated-text";
+import { TypographyInline, TypographySmall } from "@packages/ui/components/ui/typography";
+import { toastError } from "@packages/web-kit/api/errors/toast";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { activeOrgQueryOptions } from "../api/queries/active-org";
+import { orgsListQueryOptions } from "../api/queries/orgs-list";
+import { useSetActiveOrg } from "../auth/use-set-active-org";
+import { initialsOf } from "../utils";
+
+export function OrgSwitcher() {
+  const { t } = useTranslation("common");
+  const navigate = useNavigate();
+  const { data: orgs = [] } = useQuery(orgsListQueryOptions);
+  const { data: activeOrg } = useQuery(activeOrgQueryOptions);
+  const { switchOrg, isPending } = useSetActiveOrg();
+  const [open, setOpen] = useState(false);
+  const activeOrgLabel = activeOrg?.name ?? t("orgSwitcher.selectPlaceholder");
+  const name = useTruncationTooltip<HTMLElement>(activeOrgLabel);
+
+  const handleSwitch = async (organizationId: string) => {
+    setOpen(false);
+    if (organizationId === activeOrg?.id) return;
+    try {
+      await switchOrg(organizationId);
+    } catch (err) {
+      toastError(err, t("orgSwitcher.switchFailed"));
+      return;
+    }
+    void navigate({ to: "/dashboard" });
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Tooltip {...name.tooltipProps}>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-9 min-w-0 shrink gap-2 px-2">
+              <InitialsAvatar initials={activeOrg ? initialsOf(activeOrg.name) : "?"} />
+              <TypographySmall ref={name.ref} className="min-w-0 max-w-32 truncate">
+                {activeOrgLabel}
+              </TypographySmall>
+              <TypographyInline tone="muted" className="flex">
+                <ChevronsUpDown className="size-3.5" />
+              </TypographyInline>
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{activeOrgLabel}</TooltipContent>
+      </Tooltip>
+      <PopoverContent align="start" className="w-64 p-0">
+        <Command>
+          <CommandInput placeholder={t("orgSwitcher.searchPlaceholder")} />
+          <CommandList>
+            <CommandEmpty>{t("orgSwitcher.noResults")}</CommandEmpty>
+            <CommandGroup heading={t("orgSwitcher.heading")}>
+              {orgs.map((org) => (
+                <CommandItem
+                  key={org.id}
+                  value={`${org.name} ${org.slug}`}
+                  onSelect={() => void handleSwitch(org.id)}
+                  disabled={isPending}
+                >
+                  <InitialsAvatar size="xs" initials={initialsOf(org.name)} />
+                  <span className="min-w-0 flex-1 break-words">{org.name}</span>
+                  {org.id === activeOrg?.id && (
+                    <TypographyInline tone="muted" className="flex">
+                      <Check className="size-4" />
+                    </TypographyInline>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem asChild>
+                <Link to="/org/new" onClick={() => setOpen(false)}>
+                  <Plus />
+                  {t("orgSwitcher.newOrganization")}
+                </Link>
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}

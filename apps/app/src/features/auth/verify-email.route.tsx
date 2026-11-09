@@ -1,0 +1,84 @@
+import { TypographyMuted } from "@packages/ui/components/ui/typography";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import { z } from "zod";
+import { sessionQueryOptions } from "../../shared/api/queries/session";
+import { redirectSearchSchema } from "../../shared/auth/safe-redirect";
+import { AuthShell, AuthShellFooter } from "./components/auth-shell";
+import { useConsumeToken } from "./hooks/use-consume-token";
+import { useVerifyEmail } from "./hooks/use-verify-email";
+
+const verifyEmailSearchSchema = redirectSearchSchema.extend({
+  token: z.string().min(1).optional(),
+});
+
+export const Route = createFileRoute("/verify-email")({
+  validateSearch: verifyEmailSearchSchema,
+  beforeLoad: async ({ context, search }) => {
+    if (search.token) return;
+    const session = await context.queryClient
+      .ensureQueryData(sessionQueryOptions)
+      .catch(() => null);
+    if (session) throw redirect({ to: "/dashboard" });
+  },
+  component: VerifyEmailPage,
+});
+
+function VerifyEmailPage() {
+  const { token, redirect: redirectTo } = Route.useSearch();
+  return token ? <ConsumeToken token={token} redirectTo={redirectTo} /> : <CheckInbox />;
+}
+
+interface ConsumeTokenProps {
+  token: string;
+  redirectTo: string | undefined;
+}
+
+function ConsumeToken({ token, redirectTo }: ConsumeTokenProps) {
+  const { t } = useTranslation("auth");
+  const mutation = useVerifyEmail(redirectTo);
+  useConsumeToken(token, mutation.mutate);
+
+  if (mutation.isError) return <VerifyEmailError message={mutation.error.message} />;
+
+  return (
+    <AuthShell title={t("verifyEmail.verifyingTitle")} description={t("verifyEmail.oneMoment")}>
+      <TypographyMuted>{t("verifyEmail.hangTight")}</TypographyMuted>
+    </AuthShell>
+  );
+}
+
+interface VerifyEmailErrorProps {
+  message: string;
+}
+
+function VerifyEmailError({ message }: VerifyEmailErrorProps) {
+  const { t } = useTranslation("auth");
+  return (
+    <AuthShell
+      title={t("verifyEmail.failedTitle")}
+      description={message}
+      footer={<AuthShellFooter link={<Link to="/sign-in">{t("backToSignIn")}</Link>} />}
+    >
+      <TypographyMuted>{t("verifyEmail.expiredOrUsed")}</TypographyMuted>
+    </AuthShell>
+  );
+}
+
+function CheckInbox() {
+  const { t } = useTranslation("auth");
+  return (
+    <AuthShell
+      title={t("verifyEmail.checkInboxTitle")}
+      description={t("verifyEmail.checkInboxDescription")}
+      footer={
+        <AuthShellFooter
+          lead={t("verifyEmail.wrongEmail")}
+          link={<Link to="/sign-up">{t("verifyEmail.signUpAgain")}</Link>}
+        />
+      }
+    >
+      <TypographyMuted>{t("verifyEmail.expiryHelp")}</TypographyMuted>
+    </AuthShell>
+  );
+}

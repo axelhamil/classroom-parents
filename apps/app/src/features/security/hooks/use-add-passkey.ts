@@ -1,0 +1,40 @@
+import { toAuthClientError } from "@packages/web-kit/api/errors/api-error";
+import { toastError } from "@packages/web-kit/api/errors/toast";
+import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
+import { PASSKEY_CANCELLED } from "@packages/web-kit/observability/error-classifier";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { passkeysQueryOptions } from "../../../shared/api/queries/passkeys";
+import { authClient } from "../../../shared/auth/auth-client";
+import type { AddPasskeyInput } from "../security.schema";
+
+export function useAddPasskey() {
+  const { t } = useTranslation("settings");
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["passkeys", "add"],
+    mutationFn: async (input: AddPasskeyInput) => {
+      const result = await authClient.passkey.addPasskey({ name: input.name });
+      if (!result?.error) return;
+
+      if (result.error.message?.toLowerCase().includes("not allowed")) {
+        throw new Error(PASSKEY_CANCELLED);
+      }
+
+      throw toAuthClientError(result.error, t("passkeys.addFailed"));
+    },
+    onSuccess: async () => {
+      toast.success(t("passkeys.addedToast"));
+      await queryClient.invalidateQueries({
+        queryKey: passkeysQueryOptions.queryKey,
+      });
+    },
+    onError: (err) => {
+      if (err.message === PASSKEY_CANCELLED) return;
+
+      toastError(err, errorFallback("addPasskey"));
+    },
+  });
+}

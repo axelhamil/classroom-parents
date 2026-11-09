@@ -1,0 +1,64 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@packages/ui/components/ui/button";
+import { Form } from "@packages/ui/components/ui/form";
+import { FormCheckboxField } from "@packages/ui/components/ui/form-checkbox-field";
+import { FormTextField } from "@packages/ui/components/ui/form-text-field";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { type SignInInput, signInSchema } from "../../../shared/auth/auth.schema";
+import { usePasswordRevealLabels } from "../../../shared/i18n/use-password-reveal-labels";
+import { useSignIn } from "../hooks/use-sign-in";
+
+interface SignInFormProps {
+  redirectTo?: string;
+  passkeyAutofill: boolean;
+}
+
+export function SignInForm({ redirectTo, passkeyAutofill }: SignInFormProps) {
+  const { t } = useTranslation("auth");
+  const revealLabels = usePasswordRevealLabels();
+  const mutation = useSignIn(redirectTo);
+
+  const form = useForm<SignInInput>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { email: "", password: "", rememberMe: true },
+  });
+
+  return (
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
+        className="flex flex-col gap-4"
+        noValidate
+      >
+        <FormTextField
+          control={form.control}
+          name="email"
+          label={t("emailField.label")}
+          type="email"
+          autoComplete={passkeyAutofill ? "username webauthn" : "username"}
+          placeholder={t("emailField.placeholder")}
+        />
+
+        <FormTextField
+          control={form.control}
+          name="password"
+          label={t("signIn.passwordLabel")}
+          type="password"
+          {...revealLabels}
+          autoComplete="current-password"
+          placeholder={t("signIn.passwordPlaceholder")}
+        />
+
+        <FormCheckboxField
+          control={form.control}
+          name="rememberMe"
+          label={t("signIn.rememberMe")}
+        />
+        <Button type="submit" className="w-full" disabled={mutation.isPending}>
+          {mutation.isPending ? t("signIn.pending") : t("signIn.submit")}
+        </Button>
+      </form>
+    </Form>
+  );
+}

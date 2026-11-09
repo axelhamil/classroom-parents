@@ -1,0 +1,358 @@
+export default {
+  byCode: {
+    ACCOUNT_EXPORT_RATE_LIMITED: "Vous pourrez demander un nouvel export dans 24 heures.",
+    ACCOUNT_PASSWORD_REQUIRED: "Confirmez avec votre mot de passe.",
+    ACCOUNT_DELETION_BLOCKED:
+      "Réglez la propriété de vos organisations avant de supprimer votre compte.",
+    ACCOUNT_DELETION_LAST_MANAGER_FORBIDDEN:
+      "Nommez un autre responsable de l'équipe avant de supprimer votre compte.",
+    ACCOUNT_DELETION_NOT_FOUND: "Aucune suppression à annuler.",
+    ACCOUNT_PASSWORD_INVALID: "Mot de passe invalide.",
+    TWO_FACTOR_REQUIRED: "Confirmez avec votre mot de passe ou votre code d'authentification.",
+    TWO_FACTOR_INVALID: "Code d'authentification invalide.",
+    SSO_PLAN_REQUIRED: "Votre forfait n'inclut pas le SSO.",
+    ORGANIZATION_SEAT_PAYMENT_REQUIRED:
+      "Cette organisation n'a plus de place libre. Un propriétaire ou un administrateur doit passer à un forfait supérieur ou retirer un membre.",
+    SSO_ORGANIZATION_REQUIRED: "Aucune organisation active.",
+    SCIM_CONNECTION_NOT_FOUND: "Cette organisation n'a aucune connexion d'annuaire à déconnecter.",
+    SCIM_CONNECTION_PROVIDER_FAILURE:
+      "La connexion à l'annuaire n'a pas pu être mise à jour. Réessayez dans un instant.",
+    INVALID_EMAIL_OR_PASSWORD: "Adresse e-mail ou mot de passe invalide.",
+    INVALID_EMAIL: "Saisissez une adresse e-mail valide.",
+    INVALID_PASSWORD: "Mot de passe invalide.",
+    USER_NOT_FOUND: "Aucun compte ne correspond à ces informations.",
+    USER_EMAIL_NOT_FOUND: "Aucun compte ne correspond à cette adresse e-mail.",
+    USER_ALREADY_EXISTS: "Un compte existe déjà pour cette adresse e-mail.",
+    USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
+      "Un compte existe déjà pour cette adresse e-mail. Utilisez-en une autre.",
+    EMAIL_NOT_VERIFIED: "Vérifiez votre adresse e-mail avant de vous connecter.",
+    EMAIL_ALREADY_VERIFIED: "Cette adresse e-mail est déjà vérifiée.",
+    EMAIL_CAN_NOT_BE_UPDATED: "Cette adresse e-mail ne peut pas être utilisée.",
+    EMAIL_MISMATCH: "Cette adresse e-mail ne correspond pas à cette demande.",
+    PASSWORD_TOO_SHORT: "Ce mot de passe est trop court.",
+    PASSWORD_TOO_LONG: "Ce mot de passe est trop long.",
+    PASSWORD_ALREADY_SET: "Ce compte possède déjà un mot de passe.",
+    USER_ALREADY_HAS_PASSWORD: "Confirmez avec votre mot de passe actuel.",
+    INVALID_TOKEN: "Ce lien est invalide.",
+    TOKEN_EXPIRED: "Ce lien a expiré. Demandez-en un nouveau.",
+    SESSION_EXPIRED: "Votre session a expiré. Reconnectez-vous pour continuer.",
+    SESSION_NOT_FRESH: "Reconnectez-vous pour confirmer cette modification.",
+    CREDENTIAL_ACCOUNT_NOT_FOUND:
+      "Ce compte n'a pas de mot de passe. Utilisez la méthode de connexion que vous avez configurée.",
+    ACCOUNT_NOT_FOUND: "Compte introuvable.",
+    SOCIAL_ACCOUNT_ALREADY_LINKED: "Ce compte est déjà lié à un autre utilisateur.",
+    FAILED_TO_CREATE_USER: "Nous n'avons pas pu créer votre compte. Veuillez réessayer.",
+    FAILED_TO_CREATE_SESSION: "Nous n'avons pas pu vous connecter. Veuillez réessayer.",
+    REQUEST_INVALID:
+      "Certaines informations saisies sont invalides. Vérifiez le formulaire et réessayez.",
+    OTP_NOT_ENABLED: "Les codes à usage unique ne sont pas activés sur ce compte.",
+    OTP_HAS_EXPIRED: "Ce code a expiré. Demandez-en un nouveau.",
+    TOTP_NOT_ENABLED: "Aucune application d'authentification n'est configurée sur ce compte.",
+    TWO_FACTOR_NOT_ENABLED: "La double authentification n'est pas activée sur ce compte.",
+    BACKUP_CODES_NOT_ENABLED: "Aucun code de secours n'est configuré sur ce compte.",
+    INVALID_BACKUP_CODE: "Ce code de secours est invalide ou a déjà été utilisé.",
+    INVALID_CODE:
+      "Ce code est incorrect. Vérifiez votre application d'authentification et réessayez.",
+    TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: "Trop de tentatives. Demandez un nouveau code.",
+    ACCOUNT_TEMPORARILY_LOCKED:
+      "Trop de tentatives échouées. Votre compte est temporairement verrouillé. Réessayez plus tard.",
+    INVALID_TWO_FACTOR_COOKIE: "Cette étape de vérification a expiré. Reconnectez-vous.",
+    CHALLENGE_NOT_FOUND: "Cette tentative de clé d'accès a expiré. Réessayez.",
+    YOU_ARE_NOT_ALLOWED_TO_REGISTER_THIS_PASSKEY:
+      "Cette clé d'accès ne peut pas être enregistrée ici.",
+    FAILED_TO_VERIFY_REGISTRATION: "Nous n'avons pas pu enregistrer cette clé d'accès. Réessayez.",
+    PASSKEY_NOT_FOUND: "Cette clé d'accès n'existe plus.",
+    AUTHENTICATION_FAILED: "Votre appareil n'a pas pu confirmer votre identité. Réessayez.",
+    UNABLE_TO_CREATE_SESSION: "Nous n'avons pas pu vous connecter. Veuillez réessayer.",
+    FAILED_TO_UPDATE_PASSKEY: "Nous n'avons pas pu mettre à jour cette clé d'accès. Réessayez.",
+    PREVIOUSLY_REGISTERED: "Cette clé d'accès est déjà enregistrée sur ce compte.",
+    REGISTRATION_CANCELLED: "La configuration de la clé d'accès a été annulée.",
+    AUTH_CANCELLED: "La connexion par clé d'accès a été annulée.",
+    SESSION_REQUIRED: "Connectez-vous avant d'ajouter une clé d'accès.",
+    YOU_ARE_NOT_ALLOWED_TO_CREATE_A_NEW_ORGANIZATION:
+      "Vous n'avez pas la permission de créer une organisation.",
+    YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS:
+      "Vous avez atteint le nombre maximum d'organisations.",
+    ORGANIZATION_ALREADY_EXISTS: "Une organisation portant ce nom existe déjà.",
+    ORGANIZATION_SLUG_ALREADY_TAKEN: "Cette adresse d'organisation est déjà prise.",
+    ORGANIZATION_NOT_FOUND: "Organisation introuvable.",
+    API_TOKEN_ORGANIZATION_NOT_FOUND:
+      "Basculez sur cette organisation avant de créer un jeton pour elle.",
+    USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION:
+      "Cet utilisateur n'est pas membre de cette organisation.",
+    YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION:
+      "Vous n'avez pas la permission de modifier cette organisation.",
+    YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION:
+      "Vous n'avez pas la permission de supprimer cette organisation.",
+    NO_ACTIVE_ORGANIZATION: "Sélectionnez d'abord une organisation.",
+    USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION:
+      "Cet utilisateur est déjà membre de cette organisation.",
+    MEMBER_NOT_FOUND: "Membre introuvable.",
+    ROLE_NOT_FOUND: "Rôle introuvable.",
+    YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER:
+      "Transférez la propriété avant de partir : vous en êtes l'unique propriétaire.",
+    YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER:
+      "Une organisation doit conserver au moins un propriétaire.",
+    YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER:
+      "Vous n'avez pas la permission de retirer ce membre.",
+    YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER:
+      "Vous n'avez pas la permission de modifier ce membre.",
+    YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION:
+      "Vous n'avez pas la permission d'inviter des personnes dans cette organisation.",
+    USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION: "Cette personne a déjà été invitée.",
+    INVITATION_NOT_FOUND: "Cette invitation n'existe plus.",
+    YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION:
+      "Cette invitation a été envoyée à une autre adresse.",
+    EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION:
+      "Vérifiez votre adresse e-mail avant de répondre à cette invitation.",
+    EMAIL_VERIFICATION_REQUIRED_FOR_INVITATION:
+      "Vérifiez votre adresse e-mail pour consulter vos invitations.",
+    YOU_ARE_NOT_ALLOWED_TO_CANCEL_THIS_INVITATION:
+      "Vous n'avez pas la permission d'annuler cette invitation.",
+    INVITER_IS_NO_LONGER_A_MEMBER_OF_THE_ORGANIZATION:
+      "La personne à l'origine de votre invitation n'est plus membre de cette organisation.",
+    YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE:
+      "Vous n'avez pas la permission d'inviter quelqu'un avec ce rôle.",
+    FAILED_TO_RETRIEVE_INVITATION:
+      "Nous n'avons pas pu charger cette invitation. Veuillez réessayer.",
+    INVITATION_LIMIT_REACHED: "Vous avez atteint la limite d'invitations pour cette organisation.",
+    ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: "Cette organisation a atteint sa limite de membres.",
+    YOU_ARE_NOT_ALLOWED_TO_ACCESS_THIS_ORGANIZATION:
+      "Vous n'avez pas la permission d'accéder à cette organisation.",
+    YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION: "Vous n'êtes pas membre de cette organisation.",
+    ADMIN_STAFF_FORBIDDEN: "Cet espace est réservé à l'équipe de la plateforme.",
+    ADMIN_REAUTH_REQUIRED:
+      "Confirmez cette action avec un code de votre application d'authentification.",
+    ADMIN_STEP_UP_MFA_FORBIDDEN:
+      "Activez l'authentification à deux facteurs pour confirmer cette action.",
+    ADMIN_PASSWORD_RESET_UNAVAILABLE:
+      "L'email de réinitialisation n'a pas pu être envoyé. Les sessions de l'utilisateur ont été fermées, réessayez.",
+    ADMIN_OPS_PROVIDER_FAILURE: "Les données d'exploitation n'ont pas pu être lues. Réessayez.",
+    ADMIN_VIEW_NOT_FOUND: "Cette vue enregistrée n'existe plus.",
+    ADMIN_VIEW_PROVIDER_FAILURE:
+      "Les vues enregistrées n'ont pas pu être lues ou modifiées. Réessayez.",
+    ADMIN_ORG_NOT_FOUND: "Cette organisation n'existe plus.",
+    ADMIN_NOTE_PROVIDER_FAILURE: "Les notes n'ont pas pu être lues ou enregistrées. Réessayez.",
+    PLAN_OVERRIDE_PROVIDER_FAILURE: "Le forfait forcé n'a pas pu être lu ou enregistré. Réessayez.",
+    ADMIN_PLAN_OVERRIDE_NOT_FOUND: "Cette organisation n'a pas de forfait forcé actif.",
+    ADMIN_PLAN_OVERRIDE_ALREADY_SET_CONFLICT:
+      "Un collègue vient de forcer un forfait sur cette organisation. Rechargez et vérifiez.",
+    ADMIN_STRIPE_UNAVAILABLE: "Stripe n'est pas configuré sur cette plateforme.",
+    ADMIN_STRIPE_EVENT_NOT_FOUND:
+      "Cet événement Stripe n'est pas enregistré : il n'est jamais arrivé ou sa ligne a été purgée après la durée de conservation.",
+    ADMIN_STRIPE_REPLAY_BLOCKED:
+      "La plateforme ne traite pas ce type d'événement, le rejouer ne changerait rien.",
+    ADMIN_STRIPE_REPLAY_CONFLICT:
+      "Cet événement a déjà été rejoué ou un collègue est en train de le rejouer. Rechargez la liste.",
+    ADMIN_STRIPE_REPLAY_PROVIDER_FAILURE:
+      "Le rejeu a échoué. La raison figure sur la ligne de l'événement, réessayez une fois corrigée.",
+    STRIPE_EVENT_PROVIDER_FAILURE:
+      "Les événements Stripe n'ont pas pu être lus ou enregistrés. Réessayez.",
+    STRIPE_EVENT_EXPIRED_NOT_FOUND:
+      "Stripe ne détient plus cet événement, il les conserve 30 jours. Renvoyez-le depuis le tableau de bord Stripe si besoin.",
+    STRIPE_PROVIDER_FAILURE: "Stripe n'a pas répondu. Réessayez dans un instant.",
+    SWEEP_RUN_PROVIDER_FAILURE: "Les tâches planifiées n'ont pas pu être lues. Réessayez.",
+    ADMIN_STEP_UP_CODE_INVALID:
+      "Ce code n'est pas valide. Vérifiez votre application d'authentification.",
+    ADMIN_STEP_UP_REPLAY_INVALID: "Ce code a déjà servi. Attendez le suivant.",
+    ADMIN_STEP_UP_SESSION_NOT_FOUND: "Cette session est terminée. Reconnectez-vous.",
+    ADMIN_APPROVAL_SUBJECT_DECISION_FORBIDDEN:
+      "Personne ne décide une demande qui concerne son propre compte.",
+    ADMIN_APPROVAL_REQUESTER_LOST_CONFLICT:
+      "Le demandeur n'a plus ce pouvoir, la demande est donc close.",
+    ADMIN_STAFF_ROLE_CHANGED_CONFLICT:
+      "Les accès de cette personne ont changé depuis la demande. Refaites-la.",
+    ADMIN_APPROVAL_ALREADY_PENDING_CONFLICT:
+      "Une autre demande sur cette personne est déjà en attente. Décidez-la ou annulez-la, puis recommencez.",
+    ADMIN_STAFF_GRANT_NOT_HELD_FORBIDDEN:
+      "Vous ne pouvez pas donner une permission que vous n'avez pas. Demandez à un collègue qui la détient.",
+    ADMIN_STAFF_OVERRIDE_EXPIRED_CONFLICT:
+      "La date de fin de ce changement est passée. Recommencez avec une date ultérieure.",
+    ADMIN_APPROVAL_NOT_FOUND: "Cette demande d'approbation n'existe plus.",
+    ADMIN_APPROVAL_SELF_SUBJECT_FORBIDDEN:
+      "Vous ne pouvez pas demander cette action sur votre propre compte.",
+    ADMIN_APPROVAL_SELF_DECISION_FORBIDDEN: "Une autre personne doit trancher cette demande.",
+    ADMIN_APPROVAL_PERMISSION_FORBIDDEN:
+      "Vous n'avez plus la permission requise par cette demande.",
+    ADMIN_APPROVAL_DECIDED_CONFLICT: "Cette demande a déjà été traitée.",
+    ADMIN_APPROVAL_EXPIRED_CONFLICT:
+      "Cette demande a expiré. Refaites-la si elle reste nécessaire.",
+    ADMIN_APPROVAL_PARAMS_INVALID: "La demande enregistrée n'est plus valide.",
+    ADMIN_USER_NOT_FOUND: "Ce compte n'existe plus.",
+    ADMIN_USER_SELF_BAN_FORBIDDEN: "Vous ne pouvez pas suspendre votre propre compte.",
+    ADMIN_IMPERSONATION_FORBIDDEN: "Vous ne pouvez pas voir le produit avec ce compte.",
+    ADMIN_IMPERSONATION_SELF_FORBIDDEN:
+      "Vous êtes déjà connecté avec votre propre compte. Choisissez un autre compte pour voir le produit.",
+    ADMIN_STOP_IMPERSONATION_FORBIDDEN: "L'emprunt d'identité n'a pas pu être arrêté.",
+    ADMIN_STAFF_MFA_FORBIDDEN:
+      "Activez l'authentification à deux facteurs pour utiliser l'espace de l'équipe.",
+    ADMIN_STAFF_PERMISSION_FORBIDDEN: "Votre rôle dans l'équipe ne permet pas cette action.",
+    ADMIN_STAFF_SELF_CHANGE_FORBIDDEN:
+      "Demandez à un autre responsable de modifier votre propre accès.",
+    ADMIN_STAFF_LISTED_FORBIDDEN:
+      "L'accès de cette personne vient de la configuration du serveur. Modifiez plutôt PLATFORM_ADMIN_IDS.",
+    ADMIN_STAFF_LAST_MANAGER_FORBIDDEN:
+      "C'est le dernier responsable. Ajoutez-en un autre avant de modifier cet accès.",
+    ADMIN_STAFF_NOT_FOUND: "Cette personne ne fait pas partie de l'équipe.",
+    ADMIN_STAFF_OVERRIDE_NOT_FOUND: "Ce changement de permission n'existe plus.",
+    ADMIN_USER_STAFF_TARGET_FORBIDDEN:
+      "Seule une personne qui gère l'équipe peut agir sur un de ses membres.",
+    IMPERSONATION_ACTION_FORBIDDEN:
+      "Cette action est indisponible pendant l'emprunt d'identité d'un autre utilisateur.",
+    POLICY_ACCEPTANCE_REQUIRED:
+      "Nos conditions ont été mises à jour. Acceptez la nouvelle version pour continuer.",
+    CAPTCHA_REQUIRED: "Validez le captcha, puis réessayez.",
+    SECURITY_GEO_FORBIDDEN:
+      "L'accès n'est pas disponible depuis votre réseau ou votre région. Désactivez tout VPN ou proxy et réessayez, ou contactez le support.",
+  },
+  byStatus: {
+    "400": "Certaines informations saisies sont invalides. Vérifiez le formulaire et réessayez.",
+    "401": "Veuillez vous reconnecter.",
+    "403": "Vous n'avez pas la permission d'effectuer cette action.",
+    "404": "Introuvable.",
+    "409": "Cette action entre en conflit avec l'état actuel. Actualisez et réessayez.",
+    "422": "Certaines informations saisies sont invalides. Vérifiez le formulaire et réessayez.",
+    "429": "Trop de requêtes. Patientez un instant avant de réessayer.",
+  },
+  bySuffix: {
+    RATE_LIMITED: "Trop de requêtes. Patientez un instant avant de réessayer.",
+    QUOTA_EXCEEDED: "Vous avez atteint la limite de votre offre.",
+    PAYMENT_REQUIRED: "Votre offre n'inclut pas cette fonctionnalité.",
+    NOT_FOUND: "Introuvable.",
+    FORBIDDEN: "Vous n'avez pas la permission d'effectuer cette action.",
+    UNAUTHORIZED: "Veuillez vous reconnecter.",
+    REQUIRED: "Une confirmation supplémentaire est requise.",
+    BLOCKED: "Action bloquée.",
+    INVALID: "Saisie invalide.",
+    INTEGRITY_FAILED: "Le contrôle d'intégrité a échoué. Veuillez réessayer.",
+    PROVIDER_FAILURE: "Le service est temporairement indisponible. Veuillez réessayer.",
+    UNAVAILABLE: "Le service est temporairement indisponible. Veuillez réessayer.",
+    TIMEOUT: "La requête a expiré. Veuillez réessayer.",
+  },
+  rateLimit: {
+    retryInSeconds_one: "Réessayez dans {{count}} seconde.",
+    retryInSeconds_other: "Réessayez dans {{count}} secondes.",
+    retryInMinutes_one: "Réessayez dans {{count}} minute.",
+    retryInMinutes_other: "Réessayez dans {{count}} minutes.",
+    retryInHours_one: "Réessayez dans {{count}} heure.",
+    retryInHours_other: "Réessayez dans {{count}} heures.",
+  },
+  validation: {
+    required: "Ce champ est obligatoire.",
+    invalidEmail: "Saisissez une adresse e-mail valide.",
+    invalidUrl: "Saisissez une URL valide.",
+    invalidFormat: "Format invalide.",
+    totpCode: "Saisissez le code à 6 chiffres de votre application d'authentification.",
+    backupCode: "Saisissez un code de secours valide.",
+    httpsUrl: "Saisissez une URL https valide.",
+    bareDomain: "Saisissez uniquement le nom de domaine, sans https:// ni chemin.",
+    tooSmall: "Doit contenir au moins {{minimum}} caractères.",
+    tooBig: "Doit contenir au plus {{maximum}} caractères.",
+    tooFewItems: "Sélectionnez au moins {{minimum}}.",
+    passwordsMismatch: "Les mots de passe ne correspondent pas.",
+    acceptPolicies: "Vous devez accepter les politiques requises.",
+    invalidEventSelection: "Contient un événement inconnu ou non abonnable.",
+  },
+  fallback: {
+    acceptPolicies: "Échec de l'acceptation des politiques",
+    cancelAccountDeletion: "Échec de l'annulation",
+    markNotificationsRead: "Échec du marquage des notifications comme lues",
+    markAllNotificationsRead: "Échec du marquage de toutes les notifications comme lues",
+    updateNotificationPreference: "Échec de la mise à jour de la préférence de notification",
+    updateOrgNotificationPreference:
+      "Échec de la mise à jour de la préférence de notification de l'organisation",
+    openBillingPortal: "Échec de l'ouverture du portail de facturation",
+    recordConsent: "Échec de l'enregistrement du consentement",
+    requestAccountDeletion: "Échec de la demande de suppression du compte",
+    requestDataExport: "Échec de la demande d'export",
+    verifyStepUp: "Échec de la vérification de ce code",
+    stopImpersonation: "Échec de l'arrêt de l'emprunt d'identité",
+    withdrawConsent: "Échec du retrait du consentement",
+    loadPlans: "Échec du chargement des forfaits",
+    loadConsent: "Échec du chargement du consentement",
+    loadNotifications: "Échec du chargement des notifications",
+    loadUnreadCount: "Échec du chargement du nombre de notifications non lues",
+    loadNotificationPreferences: "Échec du chargement des préférences de notification",
+    loadOrgNotificationPreferences:
+      "Échec du chargement des préférences de notification de l'organisation",
+    loadPolicies: "Échec du chargement des politiques",
+    loadSession: "Échec de la vérification de votre session",
+    loadSubscription: "Échec du chargement de l'abonnement",
+    loadPasskeys: "Échec du chargement des clés d'accès",
+    loadSessions: "Échec du chargement des sessions",
+    createApiToken: "Échec de la création du jeton API",
+    revokeApiToken: "Échec de la révocation du jeton API",
+    loadApiTokens: "Échec du chargement des jetons API",
+    createWebhookEndpoint: "Échec de la création du point de terminaison webhook",
+    updateWebhookEndpoint: "Échec de la mise à jour du point de terminaison webhook",
+    deleteWebhookEndpoint: "Échec de la suppression du point de terminaison webhook",
+    replayWebhookDelivery: "Échec du rejeu de la livraison",
+    rotateWebhookSecret: "Échec de la rotation du secret",
+    sendWebhookTestEvent: "Échec de l'envoi de l'événement de test",
+    loadWebhookEndpoints: "Échec du chargement des points de terminaison webhook.",
+    loadWebhookDeliveries: "Échec du chargement des livraisons.",
+    loadWebhookDeliveryDetail: "Échec du chargement du détail de la livraison",
+    registerOidcProvider: "Échec de l'enregistrement du fournisseur OIDC",
+    registerSamlProvider: "Échec de l'enregistrement du fournisseur SAML",
+    verifySsoDomain: "Échec de la vérification du domaine",
+    generateScimToken: "Échec de la génération du jeton SCIM",
+    loadScimConnection: "Échec du chargement de la connexion à l'annuaire",
+    disconnectScim: "Échec de la déconnexion de l'annuaire",
+    invalidServerResponse: "Réponse invalide du serveur",
+    updateSsoEnforcement: "Échec de la mise à jour de l'imposition du SSO",
+    loadSsoProviders: "Échec du chargement des fournisseurs SSO",
+    loadSsoVerificationToken: "Échec du chargement du jeton de vérification",
+    banUser: "Échec de la suspension du compte",
+    unbanUser: "Échec de la réactivation du compte",
+    revokeUserSessions: "Échec de la révocation des sessions",
+    resetUserPassword: "Échec de l'envoi de la réinitialisation du mot de passe",
+    startImpersonation: "Échec du démarrage de l'emprunt d'identité",
+    loadAdminUsers: "Échec du chargement des comptes",
+    loadAdminUser: "Échec du chargement du compte",
+    loadAdminOrgs: "Échec du chargement des organisations",
+    loadAdminOrg: "Échec du chargement de l'organisation",
+    updateAdminOrgSsoEnforcement: "Échec de la mise à jour de l'imposition du SSO",
+    loadStaff: "Échec du chargement de l'équipe",
+    setStaffRole: "Échec du changement de rôle",
+    revokeStaff: "Échec du retrait de l'équipe",
+    loadStaffOverrides: "Échec du chargement des changements de permissions",
+    setStaffOverride: "Échec de l'enregistrement du changement de permission",
+    removeStaffOverride: "Échec du retrait du changement de permission",
+    loadApprovals: "Échec du chargement des approbations",
+    loadApproval: "Échec du chargement de cette demande",
+    loadDeadLetters: "Échec du chargement des événements morts",
+    loadSweeps: "Échec du chargement des tâches planifiées",
+    loadStripeEvents: "Échec du chargement des événements Stripe",
+    requeueOutbox: "Échec de la relance de ces événements",
+    replayStripeEvent: "Échec du rejeu de cet événement",
+    setPlanOverride: "Échec de l'enregistrement de ce forfait forcé",
+    revokePlanOverride: "Échec de la fin de ce forfait forcé",
+    loadStaffNotes: "Échec du chargement des notes",
+    loadInbox: "Échec du chargement de votre boîte de réception",
+    loadSavedViews: "Échec du chargement de vos vues enregistrées",
+    saveView: "Échec de l'enregistrement de cette vue",
+    deleteView: "Échec de la suppression de cette vue",
+    addStaffNote: "Échec de l'ajout de cette note",
+    decideApproval: "Échec de l'enregistrement de la décision",
+    cancelApproval: "Échec de l'annulation de cette demande",
+    loadAuditLog: "Échec du chargement du journal d'audit",
+    verifyAuditChain: "Échec de la vérification de la chaîne",
+    updateAvatar: "Échec de la mise à jour de l'avatar",
+    changeEmail: "Échec de la demande de changement d'e-mail",
+    updateProfile: "Échec de la mise à jour du profil",
+    addPasskey: "Impossible d'ajouter cette clé d'accès. Veuillez réessayer.",
+    deletePasskey: "Impossible de supprimer cette clé d'accès. Veuillez réessayer.",
+    enableTwoFactor: "Impossible d'activer la double authentification. Veuillez réessayer.",
+    disableTwoFactor: "Impossible de désactiver la double authentification. Veuillez réessayer.",
+    verifyTwoFactorSetup: "Impossible de vérifier ce code. Veuillez réessayer.",
+    regenerateBackupCodes: "Impossible de régénérer vos codes de récupération. Veuillez réessayer.",
+    revokeSession: "Échec de la révocation de la session",
+    revokeOtherSessions: "Échec de la révocation des sessions",
+    setLocale: "Échec de la mise à jour de la langue",
+    preflightDeletion: "Impossible de vérifier si le compte peut être supprimé",
+    presignUpload: "Échec de la préparation de l'envoi",
+    confirmUpload: "Échec de la confirmation de l'envoi",
+    deleteUpload: "Échec de la suppression du fichier",
+    upgradeSubscription: "Échec du lancement de la mise à niveau",
+  },
+} as const;

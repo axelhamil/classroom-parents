@@ -1,0 +1,21 @@
+import { formatApiError } from "@packages/web-kit/api/errors/messages";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { requestDataExportMutationOptions } from "../../../shared/api/mutations/request-data-export";
+import { sessionQueryOptions } from "../../../shared/api/queries/session";
+
+export function useRequestExport() {
+  const { t } = useTranslation("settings");
+  const { t: tErrors } = useTranslation("errors");
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    ...requestDataExportMutationOptions,
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: sessionQueryOptions.queryKey });
+      toast.success(t("dataExport.requestedToast"));
+    },
+    onError: (err) => toast.error(formatApiError(err, t("dataExport.requestFailed"), tErrors)),
+  });
+}

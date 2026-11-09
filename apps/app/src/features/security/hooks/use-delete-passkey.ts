@@ -1,0 +1,28 @@
+import { toAuthClientError } from "@packages/web-kit/api/errors/api-error";
+import { toastError } from "@packages/web-kit/api/errors/toast";
+import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { passkeysQueryOptions } from "../../../shared/api/queries/passkeys";
+import { authClient } from "../../../shared/auth/auth-client";
+
+export function useDeletePasskey() {
+  const { t } = useTranslation("settings");
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationKey: ["passkeys", "delete"],
+    mutationFn: async (id: string) => {
+      const { error } = await authClient.passkey.deletePasskey({ id });
+      if (error) throw toAuthClientError(error, t("passkeys.removeFailed"));
+    },
+    onSuccess: async () => {
+      toast.success(t("passkeys.removedToast"));
+      await queryClient.invalidateQueries({
+        queryKey: passkeysQueryOptions.queryKey,
+      });
+    },
+    onError: (err) => toastError(err, errorFallback("deletePasskey")),
+  });
+}

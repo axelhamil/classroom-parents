@@ -1,0 +1,40 @@
+import type { AnyPgColumn, AnyPgTable } from "@packages/drizzle";
+import {
+  ambientTransaction,
+  count,
+  eq,
+  lockForTransaction,
+  resolveExecutor,
+} from "@packages/drizzle";
+import type { QuotaKey } from "../entitlements";
+import { assertQuota } from "../middleware/billing.middleware";
+
+export async function countScopedRows(
+  table: AnyPgTable,
+  orgColumn: AnyPgColumn,
+  orgId: string,
+): Promise<number> {
+  const rows = await resolveExecutor()
+    .select({ n: count() })
+    .from(table)
+    .where(eq(orgColumn, orgId));
+  return rows[0]?.n ?? 0;
+}
+
+export async function reserveQuota(
+  orgId: string,
+  key: QuotaKey,
+  limit: number | null,
+  countFn: () => Promise<number>,
+): Promise<void> {
+  if (limit === null) return;
+  if (ambientTransaction().isNone()) {
+    throw new Error(
+      "reserveQuota must run inside uow.run: its lock lives as long as the transaction",
+    );
+  }
+
+  await lockForTransaction(`${orgId}:${key}`);
+  const used = await countFn();
+  assertQuota(used, limit);
+}
