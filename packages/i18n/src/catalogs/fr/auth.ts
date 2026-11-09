@@ -1,4 +1,10 @@
 export default {
+  login: {
+    title: "Échéances Classroom",
+    promise: "Je ne rate plus aucune échéance scolaire.",
+    readOnly:
+      "Lecture seule : l'application lit les annonces de la classe et n'écrit jamais dans Classroom.",
+  },
   signIn: {
     submit: "Se connecter",
     pending: "Connexion…",

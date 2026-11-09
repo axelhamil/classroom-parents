@@ -16,6 +16,11 @@ const badgeVariants = cva(
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
+        assessment: "bg-category-assessment-tint text-category-assessment",
+        homework: "bg-category-homework-tint text-category-homework",
+        schoolTrip: "bg-category-school-trip-tint text-category-school-trip",
+        swimming: "bg-category-swimming-tint text-category-swimming",
+        documentDue: "bg-category-document-due-tint text-category-document-due",
       },
     },
     defaultVariants: {

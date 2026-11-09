@@ -19,7 +19,7 @@ export const Route = createFileRoute("/verify-email")({
     const session = await context.queryClient
       .ensureQueryData(sessionQueryOptions)
       .catch(() => null);
-    if (session) throw redirect({ to: "/dashboard" });
+    if (session) throw redirect({ to: "/" });
   },
   component: VerifyEmailPage,
 });

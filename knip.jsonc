@@ -31,7 +31,10 @@
         "a11y/*.setup.ts",
         "a11y/*.spec.ts"
       ],
-      "project": ["**/*.ts", "**/*.tsx"]
+      "project": ["**/*.ts", "**/*.tsx"],
+      // Installed by the front foundation (T11), the only front task allowed to add dependencies:
+      // the event list virtualises its rows (T13) and the screen tests drive taps (T12 to T15).
+      "ignoreDependencies": ["@tanstack/react-virtual", "@testing-library/user-event"]
     },
     "packages/ddd-kit": {
       "project": ["src/**/*.ts"]

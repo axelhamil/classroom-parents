@@ -13,8 +13,10 @@ interaction checks a rule engine cannot see. Runs on every PR
   CLAUDE.md rule; this is what makes it enforceable.
 - **Keyboard**: every `/sign-in` control is reachable in DOM order, and the
   setup itself signs in without a mouse.
-- **Focus trap**: the command palette keeps focus for ten Tab presses and
-  releases it on Escape.
+- **Mobile shell**: the bottom navigation stays inside a 390, 768 and 1440 px
+  viewport with no horizontal overflow, and every section is reachable from it
+  with `aria-current="page"` on the active tab. `/login` at 390 px keeps one
+  `<main>`, one `<h1>` and no blocking violation (`shell.spec.ts`).
 - **Reduced motion**: `prefers-reduced-motion: reduce` skips the theme view
   transition entirely (asserted through a `MutationObserver`, since the
   transition leaves no trace once it ends).

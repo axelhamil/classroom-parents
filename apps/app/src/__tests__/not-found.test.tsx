@@ -13,7 +13,7 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
 }));
 
-const SHELL_HEADER = /<header(?![^>]*data-slot="page-header")/;
+const SHELL_NAV = /<nav[^>]*aria-label="Navigation principale"/;
 
 async function renderUnknownUrl() {
   const i18n = await createI18n({ locale: "fr", resources: frCatalog });
@@ -47,7 +47,7 @@ describe("unknown url", () => {
     expect(html).toContain("<h1");
     expect(html).toContain("Page introuvable");
     expect(html).toMatch(/<a[^>]*href="\/"[^>]*>Revenir à l(&#x27;|')accueil<\/a>/);
-    expect(html).not.toMatch(SHELL_HEADER);
+    expect(html).not.toMatch(SHELL_NAV);
   });
 
   it("given a signed in user, when the app renders a path no route matches, then it shows the not found page inside the app shell", async () => {
@@ -58,7 +58,7 @@ describe("unknown url", () => {
 
     const html = await renderUnknownUrl();
 
-    expect(html).toMatch(SHELL_HEADER);
+    expect(html).toMatch(SHELL_NAV);
     expect(html).toContain("Page introuvable");
     expect(html.match(/<main/g)).toHaveLength(1);
     expect(html.match(/<h1/g)).toHaveLength(1);

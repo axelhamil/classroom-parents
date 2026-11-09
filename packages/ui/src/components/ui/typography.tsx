@@ -3,11 +3,11 @@ import type * as React from "react";
 
 import { cn } from "../../libs/utils";
 
-const typographyH1Variants = cva("scroll-m-20 font-semibold tracking-tight", {
+const typographyH1Variants = cva("scroll-m-20 font-display font-bold tracking-tight", {
   variants: {
     variant: {
-      hero: "text-center text-3xl text-balance",
-      page: "text-left text-2xl",
+      hero: "text-center text-4xl leading-tight text-balance",
+      page: "text-left text-3xl leading-tight",
     },
   },
   defaultVariants: { variant: "hero" },

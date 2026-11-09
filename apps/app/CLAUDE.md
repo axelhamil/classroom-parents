@@ -12,7 +12,7 @@ apps/app/
   src/
     main.tsx                    createRoot + <AppProviders />
     router.tsx                  createRouter({ routeTree, context: { queryClient }, ...ROUTER_DEFAULTS from web-kit }). routeTree.gen.ts is generated but versioned
-    router/                     One file per layout/gate (`__root`, `_guest`, `_protected`, `_shell`, `settings`) + non-route leaves (`index.route.tsx`, `settings-index.route.tsx`)
+    router/                     One file per layout/gate (`__root`, `_guest`, `_protected`, `_shell`)
     shared/                     Cross-cutting (no business): api client, auth, i18n, observability, legal (see "Shared")
     features/<feature>/         Sub-domain: a vertical slice (see "Features")
 ```
@@ -29,7 +29,7 @@ Routing is file-based through `@tanstack/router-plugin/vite`'s `virtualRouteConf
 - `router/*.tsx` → `shared/`, `@packages/*` (features import FROM here)
 - `features/<x>/` (route-owning) → `router/*.tsx`, `shared/`, `@packages/*`, `features/<library-feature>/`
 - `features/<library-feature>/` → `shared/`, `@packages/*`. Never imports from other features.
-- `shared/<sub>/` → `shared/<sibling>/`, `shared/env.ts`, `shared/utils.ts` (no upward imports)
+- `shared/<sub>/` → `shared/<sibling>/`, `shared/env.ts` (no upward imports)
 
 **Placement decisor, two questions.** Before writing a component under `features/<x>/`, ask: (1) *is it mounted by the shell or any `shared/` code?* (2) *will a second route-owning feature render it?* Either yes → it belongs in `shared/<domain>/`. **Why**: both answers make the feature location structurally impossible, since `shared/` may never import `features/` and two route-owning features may never import each other. Group it as `shared/<domain>/` (like `auth/`, `legal/`) once it spans more than a component or two. *Cross-cutting* is not *reusable*: reusable and presentational → `@packages/ui`; cross-cutting and app-aware → `shared/`.
 
@@ -47,7 +47,7 @@ Files `kebab-case.tsx`; components `PascalCase` named exports; hooks `use-<verb>
 4. Schemas are Zod with `z.infer`, co-located in `features/<x>/<x>.schema.ts`; a schema a second feature needs moves to `shared/<domain>/<noun>.schema.ts`.
 5. **Forms live in `forms/<action>-form.tsx`**, isolated from their host (Card/Sheet/Dialog = layout only; the form owns RHF state, `zodResolver`, validation, submit). Pages compose, forms are reusable across hosts.
 6. Cross-feature reuse is not pre-solved: extract to `packages/ui` if presentational, or promote one feature to own it.
-7. **Area = layout route, not folder.** A multi-page shell is a pathless layout node in `routes.ts` (`_shell`, `settings`) pointing at a `router/*.tsx` component with sidebar, tabs and `<Outlet />`; children nest under it as further entries.
+7. **Area = layout route, not folder.** A multi-page shell is a pathless layout node in `routes.ts` (`_shell`) pointing at a `router/*.tsx` component with its navigation and `<Outlet />`; children nest under it as further entries.
 
 ## Routing: one file per route
 
@@ -115,7 +115,7 @@ Primitives, tokens and their authoring rules live in `packages/ui/CLAUDE.md`. As
 
 ## Accessibility gate
 
-**Exactly one `<main>` and one `<h1>` per rendered page.** `__root.tsx` and the pathless gates never wrap in landmarks: they are passthroughs (`component: Outlet`) or, when every child shares one page width, a plain container around the `Outlet` (the `settings` layout). Each `<feature>.route.tsx` owns its `<header>`/`<main>`/`<footer>`. This is a CI gate (`.github/workflows/ci.yml`): a new page needs one entry in `a11y/pages.ts` (axe in light and dark, exactly one `<main>` and one `<h1>`); a new interactive primitive puts its keyboard contract in the interaction spec (`a11y/interaction.spec.ts`).
+**Exactly one `<main>` and one `<h1>` per rendered page.** `__root.tsx` and the pathless gates never wrap in landmarks: they are passthroughs (`component: Outlet`) or, when every child shares one page width, a plain container around the `Outlet`. Each `<feature>.route.tsx` owns its `<header>`/`<main>`/`<footer>`. This is a CI gate (`.github/workflows/ci.yml`): a new page needs one entry in `a11y/pages.ts` (axe in light and dark, exactly one `<main>` and one `<h1>`); a new interactive primitive puts its keyboard contract in the interaction spec (`a11y/interaction.spec.ts`).
 
 ## i18n
 
@@ -129,10 +129,11 @@ Primitives, tokens and their authoring rules live in `packages/ui/CLAUDE.md`. As
 
 - `api/`: the app's `api` and `queryClient` instances (built by the `@packages/web-kit` factories), `queries/`, `mutations/` (`api-error`, `messages`, `toast` are in `@packages/web-kit/api/errors/`).
 - `auth/`: auth-client, `auth-broadcast`, `safe-redirect`, `use-refresh-session`, `use-sign-out`, `use-cancel-deletion`, `*.schema.ts`.
-- `components/`: cross-feature UI (app-shell, command-palette, contextual-tabs, user-menu, legal-footer, deletion-pending-banner, ...).
-- `legal/`, `legal-routes.ts`, `sub-processors.config.ts`, `sub-processor-labels.ts`: the legal surface shared by the shell and the legal pages. `LEGAL_ROUTES` is the one list read by `legal-footer.tsx` and `command-palette.tsx`: never duplicate it.
+- `components/`: cross-feature UI (legal-footer, deletion-pending-banner, theme-toggle, not-found-page, ...).
+- `layout/`: the mobile shell (`app-shell`, `bottom-nav` with its four tabs, `screen` for a titled page). `pwa/`: service worker registration and `useInstallState`. `stream/`: `useAppUserStream`, the user SSE stream that invalidates the `events` and `children` queries.
+- `legal/`, `legal-routes.ts`, `sub-processors.config.ts`, `sub-processor-labels.ts`: the legal surface shared by the shell and the legal pages. `LEGAL_ROUTES` is the one list read by `legal-footer.tsx`: never duplicate it.
 - `i18n/`: app-side translation hooks. The i18next boot, global Zod error map, `getErrorsT` and `errorFallback` are in `@packages/web-kit/i18n/`.
-- `observability/`: see below. `app-providers.tsx` (provider tree), `env.ts` (validated env), `utils.ts` (pure helpers). The typed cross-tab channel under `auth-broadcast` is `@packages/web-kit/broadcast-channel`.
+- `observability/`: see below. `app-providers.tsx` (provider tree), `env.ts` (validated env). The typed cross-tab channel under `auth-broadcast` is `@packages/web-kit/broadcast-channel`.
 
 ## Observability
 

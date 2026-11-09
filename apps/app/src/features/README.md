@@ -7,7 +7,7 @@ Two flavors of feature:
 - **Route-owning** (most): exposes a single `<name>.route.tsx` at feature root for each URL, route definition and page component in one file.
   - `<name>.route.tsx`: `export const Route = createFileRoute("/full/path/id")({ beforeLoad, validateSearch, component: <Name>Page })`, with `function <Name>Page() { ... }` defined **below it, never exported**. The route id is a string literal, checked through `Register`: it must match the id the route has in `apps/app/routes.ts`. Access route context/search/params via `Route.useRouteContext()` / `Route.useSearch()` / `Route.useParams()`.
   - A new route also needs one entry added to `apps/app/routes.ts` (the `virtualRouteConfig` tree): the file alone renders nothing.
-  - Examples: `auth/sign-in.route.tsx`, `dashboard/dashboard.route.tsx`, `privacy/privacy.route.tsx`.
+  - Examples: `auth/sign-in.route.tsx`, `events/events.route.tsx`, `privacy/privacy.route.tsx`.
 - **Library** (zero-route compositional bundles): no `.route.tsx`, only components/forms/hooks designed to be composed by a route-owning feature's route file. Example: `rgpd/` (account deletion card). A route-owning route file MAY import from a library feature; the reverse is forbidden.
 
 The route id lives in `createFileRoute("/full/path/id")` and the tree wiring in `apps/app/routes.ts`; the page component must stay **internal and unexported**: `autoCodeSplitting` only chunks a component local to its route file, so exporting it silently pulls it back into the main bundle.

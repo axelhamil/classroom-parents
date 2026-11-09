@@ -9,10 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './router/__root'
-import { Route as routerIndexDotrouteRouteImport } from './router/index.route'
 import { Route as routerGuestRouteImport } from './router/_guest'
 import { Route as routerProtectedRouteImport } from './router/_protected'
 import { Route as featuresAuthVerifyEmailDotrouteRouteImport } from './features/auth/verify-email.route'
+import { Route as featuresAuthLoginDotrouteRouteImport } from './features/auth/login.route'
 import { Route as featuresAuthSignInDotrouteRouteImport } from './features/auth/sign-in.route'
 import { Route as featuresAuthSignUpDotrouteRouteImport } from './features/auth/sign-up.route'
 import { Route as routerShellRouteImport } from './router/_shell'
@@ -22,16 +22,16 @@ import { Route as featuresLegalDataRightsDotrouteRouteImport } from './features/
 import { Route as featuresLegalPrivacyPolicyDotrouteRouteImport } from './features/legal/privacy-policy.route'
 import { Route as featuresLegalSubProcessorsDotrouteRouteImport } from './features/legal/sub-processors.route'
 import { Route as featuresLegalTermsDotrouteRouteImport } from './features/legal/terms.route'
-import { Route as featuresDashboardDashboardDotrouteRouteImport } from './features/dashboard/dashboard.route'
-import { Route as routerSettingsRouteImport } from './router/settings'
-import { Route as routerSettingsIndexDotrouteRouteImport } from './router/settings-index.route'
+import { Route as featuresEventsEventsDotrouteRouteImport } from './features/events/events.route'
+import { Route as featuresChildrenChildrenDotrouteRouteImport } from './features/children/children.route'
+import { Route as featuresHistoryHistoryDotrouteRouteImport } from './features/history/history.route'
+import { Route as featuresSettingsSettingsDotrouteRouteImport } from './features/settings/settings.route'
+import { Route as featuresChildrenLinkErrorDotrouteRouteImport } from './features/children/link-error.route'
+import { Route as featuresChildrenNewChildDotrouteRouteImport } from './features/children/new-child.route'
+import { Route as featuresEventsEventDetailDotrouteRouteImport } from './features/events/event-detail.route'
 import { Route as featuresPrivacyPrivacyDotrouteRouteImport } from './features/privacy/privacy.route'
+import { Route as featuresEventsEventEditDotrouteRouteImport } from './features/events/event-edit.route'
 
-const routerIndexDotrouteRoute = routerIndexDotrouteRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const routerGuestRoute = routerGuestRouteImport.update({
   id: '/_guest',
   getParentRoute: () => rootRouteImport,
@@ -45,6 +45,12 @@ const featuresAuthVerifyEmailDotrouteRoute =
     id: '/verify-email',
     path: '/verify-email',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const featuresAuthLoginDotrouteRoute =
+  featuresAuthLoginDotrouteRouteImport.update({
+    id: '/login',
+    path: '/login',
+    getParentRoute: () => routerGuestRoute,
   } as any)
 const featuresAuthSignInDotrouteRoute =
   featuresAuthSignInDotrouteRouteImport.update({
@@ -98,33 +104,65 @@ const featuresLegalTermsDotrouteRoute =
     path: '/legal/terms',
     getParentRoute: () => rootRouteImport,
   } as any)
-const featuresDashboardDashboardDotrouteRoute =
-  featuresDashboardDashboardDotrouteRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => routerShellRoute,
-  } as any)
-const routerSettingsRoute = routerSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => routerShellRoute,
-} as any)
-const routerSettingsIndexDotrouteRoute =
-  routerSettingsIndexDotrouteRouteImport.update({
+const featuresEventsEventsDotrouteRoute =
+  featuresEventsEventsDotrouteRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => routerSettingsRoute,
+    getParentRoute: () => routerShellRoute,
+  } as any)
+const featuresChildrenChildrenDotrouteRoute =
+  featuresChildrenChildrenDotrouteRouteImport.update({
+    id: '/children',
+    path: '/children',
+    getParentRoute: () => routerShellRoute,
+  } as any)
+const featuresHistoryHistoryDotrouteRoute =
+  featuresHistoryHistoryDotrouteRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => routerShellRoute,
+  } as any)
+const featuresSettingsSettingsDotrouteRoute =
+  featuresSettingsSettingsDotrouteRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => routerShellRoute,
+  } as any)
+const featuresChildrenLinkErrorDotrouteRoute =
+  featuresChildrenLinkErrorDotrouteRouteImport.update({
+    id: '/children/link-error',
+    path: '/children/link-error',
+    getParentRoute: () => routerShellRoute,
+  } as any)
+const featuresChildrenNewChildDotrouteRoute =
+  featuresChildrenNewChildDotrouteRouteImport.update({
+    id: '/children/new',
+    path: '/children/new',
+    getParentRoute: () => routerShellRoute,
+  } as any)
+const featuresEventsEventDetailDotrouteRoute =
+  featuresEventsEventDetailDotrouteRouteImport.update({
+    id: '/events/$eventId',
+    path: '/events/$eventId',
+    getParentRoute: () => routerShellRoute,
   } as any)
 const featuresPrivacyPrivacyDotrouteRoute =
   featuresPrivacyPrivacyDotrouteRouteImport.update({
-    id: '/privacy',
-    path: '/privacy',
-    getParentRoute: () => routerSettingsRoute,
+    id: '/settings/privacy',
+    path: '/settings/privacy',
+    getParentRoute: () => routerShellRoute,
+  } as any)
+const featuresEventsEventEditDotrouteRoute =
+  featuresEventsEventEditDotrouteRouteImport.update({
+    id: '/events/$eventId/edit',
+    path: '/events/$eventId/edit',
+    getParentRoute: () => routerShellRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof routerIndexDotrouteRoute
   '/verify-email': typeof featuresAuthVerifyEmailDotrouteRoute
+  '/': typeof featuresEventsEventsDotrouteRoute
+  '/login': typeof featuresAuthLoginDotrouteRoute
   '/sign-in': typeof featuresAuthSignInDotrouteRoute
   '/sign-up': typeof featuresAuthSignUpDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
@@ -133,14 +171,19 @@ export interface FileRoutesByFullPath {
   '/legal/privacy-policy': typeof featuresLegalPrivacyPolicyDotrouteRoute
   '/legal/sub-processors': typeof featuresLegalSubProcessorsDotrouteRoute
   '/legal/terms': typeof featuresLegalTermsDotrouteRoute
-  '/dashboard': typeof featuresDashboardDashboardDotrouteRoute
-  '/settings': typeof routerSettingsRouteWithChildren
-  '/settings/': typeof routerSettingsIndexDotrouteRoute
+  '/children': typeof featuresChildrenChildrenDotrouteRoute
+  '/history': typeof featuresHistoryHistoryDotrouteRoute
+  '/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
+  '/children/new': typeof featuresChildrenNewChildDotrouteRoute
+  '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof routerIndexDotrouteRoute
   '/verify-email': typeof featuresAuthVerifyEmailDotrouteRoute
+  '/': typeof featuresEventsEventsDotrouteRoute
+  '/login': typeof featuresAuthLoginDotrouteRoute
   '/sign-in': typeof featuresAuthSignInDotrouteRoute
   '/sign-up': typeof featuresAuthSignUpDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
@@ -149,16 +192,21 @@ export interface FileRoutesByTo {
   '/legal/privacy-policy': typeof featuresLegalPrivacyPolicyDotrouteRoute
   '/legal/sub-processors': typeof featuresLegalSubProcessorsDotrouteRoute
   '/legal/terms': typeof featuresLegalTermsDotrouteRoute
-  '/dashboard': typeof featuresDashboardDashboardDotrouteRoute
-  '/settings': typeof routerSettingsIndexDotrouteRoute
+  '/children': typeof featuresChildrenChildrenDotrouteRoute
+  '/history': typeof featuresHistoryHistoryDotrouteRoute
+  '/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
+  '/children/new': typeof featuresChildrenNewChildDotrouteRoute
+  '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof routerIndexDotrouteRoute
   '/verify-email': typeof featuresAuthVerifyEmailDotrouteRoute
   '/_guest': typeof routerGuestRouteWithChildren
   '/_protected': typeof routerProtectedRouteWithChildren
+  '/_guest/login': typeof featuresAuthLoginDotrouteRoute
   '/_guest/sign-in': typeof featuresAuthSignInDotrouteRoute
   '/_guest/sign-up': typeof featuresAuthSignUpDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
@@ -168,16 +216,22 @@ export interface FileRoutesById {
   '/legal/sub-processors': typeof featuresLegalSubProcessorsDotrouteRoute
   '/legal/terms': typeof featuresLegalTermsDotrouteRoute
   '/_protected/_shell': typeof routerShellRouteWithChildren
-  '/_protected/_shell/dashboard': typeof featuresDashboardDashboardDotrouteRoute
-  '/_protected/_shell/settings': typeof routerSettingsRouteWithChildren
-  '/_protected/_shell/settings/': typeof routerSettingsIndexDotrouteRoute
+  '/_protected/_shell/': typeof featuresEventsEventsDotrouteRoute
+  '/_protected/_shell/children': typeof featuresChildrenChildrenDotrouteRoute
+  '/_protected/_shell/history': typeof featuresHistoryHistoryDotrouteRoute
+  '/_protected/_shell/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/_protected/_shell/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
+  '/_protected/_shell/children/new': typeof featuresChildrenNewChildDotrouteRoute
+  '/_protected/_shell/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/_protected/_shell/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/_protected/_shell/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/verify-email'
+    | '/'
+    | '/login'
     | '/sign-in'
     | '/sign-up'
     | '/legal/accessibility'
@@ -186,14 +240,19 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/sub-processors'
     | '/legal/terms'
-    | '/dashboard'
+    | '/children'
+    | '/history'
     | '/settings'
-    | '/settings/'
+    | '/children/link-error'
+    | '/children/new'
+    | '/events/$eventId'
     | '/settings/privacy'
+    | '/events/$eventId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/verify-email'
+    | '/'
+    | '/login'
     | '/sign-in'
     | '/sign-up'
     | '/legal/accessibility'
@@ -202,15 +261,20 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/sub-processors'
     | '/legal/terms'
-    | '/dashboard'
+    | '/children'
+    | '/history'
     | '/settings'
+    | '/children/link-error'
+    | '/children/new'
+    | '/events/$eventId'
     | '/settings/privacy'
+    | '/events/$eventId/edit'
   id:
     | '__root__'
-    | '/'
     | '/verify-email'
     | '/_guest'
     | '/_protected'
+    | '/_guest/login'
     | '/_guest/sign-in'
     | '/_guest/sign-up'
     | '/legal/accessibility'
@@ -220,14 +284,18 @@ export interface FileRouteTypes {
     | '/legal/sub-processors'
     | '/legal/terms'
     | '/_protected/_shell'
-    | '/_protected/_shell/dashboard'
+    | '/_protected/_shell/'
+    | '/_protected/_shell/children'
+    | '/_protected/_shell/history'
     | '/_protected/_shell/settings'
-    | '/_protected/_shell/settings/'
+    | '/_protected/_shell/children/link-error'
+    | '/_protected/_shell/children/new'
+    | '/_protected/_shell/events/$eventId'
     | '/_protected/_shell/settings/privacy'
+    | '/_protected/_shell/events/$eventId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  routerIndexDotrouteRoute: typeof routerIndexDotrouteRoute
   featuresAuthVerifyEmailDotrouteRoute: typeof featuresAuthVerifyEmailDotrouteRoute
   routerGuestRoute: typeof routerGuestRouteWithChildren
   routerProtectedRoute: typeof routerProtectedRouteWithChildren
@@ -241,13 +309,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof routerIndexDotrouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_guest': {
       id: '/_guest'
       path: ''
@@ -268,6 +329,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/verify-email'
       preLoaderRoute: typeof featuresAuthVerifyEmailDotrouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_guest/login': {
+      id: '/_guest/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof featuresAuthLoginDotrouteRouteImport
+      parentRoute: typeof routerGuestRoute
     }
     '/_guest/sign-in': {
       id: '/_guest/sign-in'
@@ -332,43 +400,80 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof featuresLegalTermsDotrouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_protected/_shell/dashboard': {
-      id: '/_protected/_shell/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof featuresDashboardDashboardDotrouteRouteImport
+    '/_protected/_shell/': {
+      id: '/_protected/_shell/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof featuresEventsEventsDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
+    '/_protected/_shell/children': {
+      id: '/_protected/_shell/children'
+      path: '/children'
+      fullPath: '/children'
+      preLoaderRoute: typeof featuresChildrenChildrenDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
+    '/_protected/_shell/history': {
+      id: '/_protected/_shell/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof featuresHistoryHistoryDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
     '/_protected/_shell/settings': {
       id: '/_protected/_shell/settings'
       path: '/settings'
       fullPath: '/settings'
-      preLoaderRoute: typeof routerSettingsRouteImport
+      preLoaderRoute: typeof featuresSettingsSettingsDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
-    '/_protected/_shell/settings/': {
-      id: '/_protected/_shell/settings/'
-      path: '/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof routerSettingsIndexDotrouteRouteImport
-      parentRoute: typeof routerSettingsRoute
+    '/_protected/_shell/children/link-error': {
+      id: '/_protected/_shell/children/link-error'
+      path: '/children/link-error'
+      fullPath: '/children/link-error'
+      preLoaderRoute: typeof featuresChildrenLinkErrorDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
+    '/_protected/_shell/children/new': {
+      id: '/_protected/_shell/children/new'
+      path: '/children/new'
+      fullPath: '/children/new'
+      preLoaderRoute: typeof featuresChildrenNewChildDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
+    '/_protected/_shell/events/$eventId': {
+      id: '/_protected/_shell/events/$eventId'
+      path: '/events/$eventId'
+      fullPath: '/events/$eventId'
+      preLoaderRoute: typeof featuresEventsEventDetailDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
     }
     '/_protected/_shell/settings/privacy': {
       id: '/_protected/_shell/settings/privacy'
-      path: '/privacy'
+      path: '/settings/privacy'
       fullPath: '/settings/privacy'
       preLoaderRoute: typeof featuresPrivacyPrivacyDotrouteRouteImport
-      parentRoute: typeof routerSettingsRoute
+      parentRoute: typeof routerShellRoute
+    }
+    '/_protected/_shell/events/$eventId/edit': {
+      id: '/_protected/_shell/events/$eventId/edit'
+      path: '/events/$eventId/edit'
+      fullPath: '/events/$eventId/edit'
+      preLoaderRoute: typeof featuresEventsEventEditDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
     }
   }
 }
 
 interface routerGuestRouteChildren {
+  featuresAuthLoginDotrouteRoute: typeof featuresAuthLoginDotrouteRoute
   featuresAuthSignInDotrouteRoute: typeof featuresAuthSignInDotrouteRoute
   featuresAuthSignUpDotrouteRoute: typeof featuresAuthSignUpDotrouteRoute
 }
 
 const routerGuestRouteChildren: routerGuestRouteChildren = {
+  featuresAuthLoginDotrouteRoute: featuresAuthLoginDotrouteRoute,
   featuresAuthSignInDotrouteRoute: featuresAuthSignInDotrouteRoute,
   featuresAuthSignUpDotrouteRoute: featuresAuthSignUpDotrouteRoute,
 }
@@ -377,29 +482,30 @@ const routerGuestRouteWithChildren = routerGuestRoute._addFileChildren(
   routerGuestRouteChildren,
 )
 
-interface routerSettingsRouteChildren {
-  routerSettingsIndexDotrouteRoute: typeof routerSettingsIndexDotrouteRoute
-  featuresPrivacyPrivacyDotrouteRoute: typeof featuresPrivacyPrivacyDotrouteRoute
-}
-
-const routerSettingsRouteChildren: routerSettingsRouteChildren = {
-  routerSettingsIndexDotrouteRoute: routerSettingsIndexDotrouteRoute,
-  featuresPrivacyPrivacyDotrouteRoute: featuresPrivacyPrivacyDotrouteRoute,
-}
-
-const routerSettingsRouteWithChildren = routerSettingsRoute._addFileChildren(
-  routerSettingsRouteChildren,
-)
-
 interface routerShellRouteChildren {
-  featuresDashboardDashboardDotrouteRoute: typeof featuresDashboardDashboardDotrouteRoute
-  routerSettingsRoute: typeof routerSettingsRouteWithChildren
+  featuresEventsEventsDotrouteRoute: typeof featuresEventsEventsDotrouteRoute
+  featuresChildrenChildrenDotrouteRoute: typeof featuresChildrenChildrenDotrouteRoute
+  featuresHistoryHistoryDotrouteRoute: typeof featuresHistoryHistoryDotrouteRoute
+  featuresSettingsSettingsDotrouteRoute: typeof featuresSettingsSettingsDotrouteRoute
+  featuresChildrenLinkErrorDotrouteRoute: typeof featuresChildrenLinkErrorDotrouteRoute
+  featuresChildrenNewChildDotrouteRoute: typeof featuresChildrenNewChildDotrouteRoute
+  featuresEventsEventDetailDotrouteRoute: typeof featuresEventsEventDetailDotrouteRoute
+  featuresPrivacyPrivacyDotrouteRoute: typeof featuresPrivacyPrivacyDotrouteRoute
+  featuresEventsEventEditDotrouteRoute: typeof featuresEventsEventEditDotrouteRoute
 }
 
 const routerShellRouteChildren: routerShellRouteChildren = {
-  featuresDashboardDashboardDotrouteRoute:
-    featuresDashboardDashboardDotrouteRoute,
-  routerSettingsRoute: routerSettingsRouteWithChildren,
+  featuresEventsEventsDotrouteRoute: featuresEventsEventsDotrouteRoute,
+  featuresChildrenChildrenDotrouteRoute: featuresChildrenChildrenDotrouteRoute,
+  featuresHistoryHistoryDotrouteRoute: featuresHistoryHistoryDotrouteRoute,
+  featuresSettingsSettingsDotrouteRoute: featuresSettingsSettingsDotrouteRoute,
+  featuresChildrenLinkErrorDotrouteRoute:
+    featuresChildrenLinkErrorDotrouteRoute,
+  featuresChildrenNewChildDotrouteRoute: featuresChildrenNewChildDotrouteRoute,
+  featuresEventsEventDetailDotrouteRoute:
+    featuresEventsEventDetailDotrouteRoute,
+  featuresPrivacyPrivacyDotrouteRoute: featuresPrivacyPrivacyDotrouteRoute,
+  featuresEventsEventEditDotrouteRoute: featuresEventsEventEditDotrouteRoute,
 }
 
 const routerShellRouteWithChildren = routerShellRoute._addFileChildren(
@@ -419,7 +525,6 @@ const routerProtectedRouteWithChildren = routerProtectedRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  routerIndexDotrouteRoute: routerIndexDotrouteRoute,
   featuresAuthVerifyEmailDotrouteRoute: featuresAuthVerifyEmailDotrouteRoute,
   routerGuestRoute: routerGuestRouteWithChildren,
   routerProtectedRoute: routerProtectedRouteWithChildren,

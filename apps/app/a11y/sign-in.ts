@@ -3,5 +3,5 @@ import type { Page } from "@playwright/test";
 
 export async function signIn(page: Page): Promise<void> {
   await submitCredentials(page, SEED_EMAIL, SEED_PASSWORD);
-  await page.waitForURL(/\/dashboard/);
+  await page.waitForURL((url) => url.pathname === "/");
 }

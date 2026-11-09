@@ -17,7 +17,7 @@ export const PUBLIC_PAGES: readonly AuditedPage[] = [
  * signed-in destination is listed directly instead.
  */
 export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
-  { name: "dashboard", path: "/dashboard" },
+  { name: "events", path: "/" },
   { name: "privacy settings", path: "/settings/privacy" },
   { name: "not found (signed in)", path: "/no-such-page" },
 ];

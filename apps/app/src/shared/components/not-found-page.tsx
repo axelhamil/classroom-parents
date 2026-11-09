@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../api/queries/session";
-import { AppShell } from "./app-shell";
+import { AppShell } from "../layout/app-shell";
 
 export function NotFoundPage() {
   const { t } = useTranslation();
@@ -24,5 +24,5 @@ export function NotFoundPage() {
 
   if (!session) return page;
 
-  return <AppShell user={session.user}>{page}</AppShell>;
+  return <AppShell>{page}</AppShell>;
 }

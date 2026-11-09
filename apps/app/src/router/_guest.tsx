@@ -6,7 +6,7 @@ export const Route = createFileRoute("/_guest")({
     const session = await context.queryClient
       .ensureQueryData(sessionQueryOptions)
       .catch(() => null);
-    if (session) throw redirect({ to: "/dashboard" });
+    if (session) throw redirect({ to: "/" });
   },
   component: Outlet,
 });

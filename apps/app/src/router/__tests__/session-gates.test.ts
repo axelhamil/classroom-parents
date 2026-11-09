@@ -5,7 +5,6 @@ import { sessionQueryOptions } from "../../shared/api/queries/session";
 import { refetchSession } from "../../shared/auth/use-refresh-session";
 import { Route as GuestRoute } from "../_guest";
 import { Route as ProtectedRoute } from "../_protected";
-import { Route as IndexRoute } from "../index.route";
 
 const getSession = vi.hoisted(() => vi.fn());
 
@@ -27,16 +26,12 @@ function newQueryClient() {
 function runProtected(queryClient: QueryClient) {
   return ProtectedRoute.options.beforeLoad?.({
     context: { queryClient },
-    location: { href: "/dashboard" },
+    location: { href: "/history" },
   } as never);
 }
 
 function runGuest(queryClient: QueryClient) {
   return GuestRoute.options.beforeLoad?.({ context: { queryClient } } as never);
-}
-
-function runIndex(queryClient: QueryClient) {
-  return IndexRoute.options.beforeLoad?.({ context: { queryClient } } as never);
 }
 
 async function rejection(run: Promise<unknown> | unknown) {
@@ -73,10 +68,13 @@ describe("session gates", () => {
     expect(isRedirect(await rejection(runProtected(newQueryClient())))).toBe(true);
   });
 
-  it("given no session, when a protected page loads, then it redirects to sign-in", async () => {
+  it("given no session, when a protected page loads, then it redirects to the login page", async () => {
     getSession.mockResolvedValue({ data: null, error: null });
 
-    expect(isRedirect(await rejection(runProtected(newQueryClient())))).toBe(true);
+    const error = await rejection(runProtected(newQueryClient()));
+
+    expect(isRedirect(error)).toBe(true);
+    expect(error).toMatchObject({ options: { to: "/login" } });
   });
 
   it("given a known session, when a refetch is rate limited, then the session survives", async () => {
@@ -95,14 +93,6 @@ describe("session gates", () => {
     getSession.mockResolvedValue(failure(429));
 
     expect(await rejection(runGuest(newQueryClient()))).toBeUndefined();
-  });
-
-  it("given a failing session check, when the root loads, then it sends the visitor to the sign-in form", async () => {
-    getSession.mockResolvedValue(failure(503));
-
-    const error = await rejection(runIndex(newQueryClient()));
-
-    expect(error).toMatchObject({ options: { to: "/sign-in" } });
   });
 
   it("given a signed out cache, when the post sign-in refetch fails, then the guard reads the fresh session", async () => {

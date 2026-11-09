@@ -6,17 +6,6 @@ import { sessionQueryOptions } from "../api/queries/session";
 import { broadcastAuthChange } from "./auth-broadcast";
 import { authClient } from "./auth-client";
 
-/**
- * One binding for every surface that offers sign-out (user menu, command
- * palette), so the displayed hint and the key the palette listens for cannot
- * drift apart.
- */
-export const SIGN_OUT_SHORTCUT = {
-  display: "⇧⌘Q",
-  match: (event: KeyboardEvent) =>
-    event.shiftKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "q",
-};
-
 export function useSignOut() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -34,7 +23,7 @@ export function useSignOut() {
 
       broadcastAuthChange({ identityChanged: true });
 
-      void navigate({ to: "/sign-in" });
+      void navigate({ to: "/login" });
     },
     onError: (err) => toastError(err, t("userMenu.signOutFailed")),
   });

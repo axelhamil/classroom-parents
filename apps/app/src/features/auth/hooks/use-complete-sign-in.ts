@@ -21,7 +21,7 @@ export function useCompleteSignIn(): (redirectTo?: string) => Promise<void> {
         return;
       }
 
-      void navigate({ to: redirectTo ?? "/dashboard" });
+      void navigate({ to: redirectTo ?? "/" });
     },
     [refreshSession, navigate],
   );

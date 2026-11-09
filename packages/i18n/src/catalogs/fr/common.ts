@@ -1,5 +1,5 @@
 export default {
-  brand: "classroom-parents",
+  brand: "Échéances Classroom",
   actions: {
     save: "Enregistrer",
     cancel: "Annuler",
@@ -14,6 +14,13 @@ export default {
     admin: "Administrateur",
     member: "Membre",
   },
+  nav: {
+    label: "Navigation principale",
+    events: "Échéances",
+    history: "Historique",
+    children: "Enfants",
+    settings: "Réglages",
+  },
   errorBoundary: {
     title: "Une erreur est survenue",
     body: "Cette page n'a pas pu se charger. Essayez de la recharger.",
@@ -23,57 +30,6 @@ export default {
     description:
       "Cette page n'existe pas ou a été déplacée. Vérifiez l'adresse, ou revenez à l'accueil.",
     backHome: "Revenir à l'accueil",
-  },
-  nav: {
-    dashboard: "Tableau de bord",
-    settings: "Paramètres",
-  },
-  shell: {
-    brandLabel: "App",
-    search: "Rechercher...",
-    openCommandPalette: "Ouvrir la palette de commandes",
-    logoAlt: "Logo de l'application",
-  },
-  commandPalette: {
-    title: "Palette de commandes",
-    description: "Recherchez une page ou une action à exécuter.",
-    searchPlaceholder: "Rechercher des pages, actions, organisations...",
-    noResults: "Aucun résultat.",
-    actionFailed: "L'action a échoué",
-    groups: {
-      navigate: "Naviguer",
-      switchOrganization: "Changer d'organisation",
-      legal: "Légal & confidentialité",
-      actions: "Actions",
-    },
-    nav: {
-      organization: "Paramètres : organisation",
-      billing: "Paramètres : facturation",
-      webhooks: "Paramètres : webhooks",
-      account: "Paramètres : compte",
-      privacy: "Paramètres : confidentialité",
-      eventCatalog: "Développeurs : catalogue d'événements",
-    },
-    organizationActive: "actif",
-    theme: {
-      light: "Thème : clair",
-      dark: "Thème : sombre",
-      system: "Thème : système",
-      active: "actif",
-    },
-    copyOrgSlug: "Copier l'identifiant de l'organisation",
-    orgSlugCopiedToast: "Identifiant de l'organisation copié dans le presse-papiers",
-  },
-  contextualTabs: {
-    ariaLabel: "Sections des paramètres",
-    organization: "Organisation",
-    billing: "Facturation",
-    webhooks: "Webhooks",
-    sso: "Authentification unique",
-    account: "Compte",
-    notifications: "Notifications",
-    privacy: "Confidentialité",
-    apiTokens: "Jetons API",
   },
   orgSwitcher: {
     searchPlaceholder: "Rechercher une organisation...",
@@ -268,20 +224,6 @@ export default {
       activity: "Activité",
       unknown: "Autre",
     },
-  },
-  dashboard: {
-    welcome: "Ravi de vous revoir, {{name}}",
-    subtitle: "Voici ce qui se passe aujourd'hui.",
-    gettingStartedTitle: "Prise en main",
-    gettingStartedDescription: "Configurez votre espace de travail.",
-    gettingStartedBody:
-      "Invitez vos collègues, configurez la facturation et lancez-vous. Tout se trouve dans les Paramètres.",
-    activityTitle: "Activité",
-    activityDescription: "Événements récents dans votre espace de travail.",
-    activityEmpty: "Rien pour l'instant. Votre activité apparaîtra ici.",
-    usageTitle: "Utilisation",
-    usageDescription: "Quota et limites pour la période en cours.",
-    usageEmpty: "Branchez la mesure d'usage dès qu'une ressource facturable existe.",
   },
   orgNew: {
     title: "Créer une organisation",

@@ -1,4 +1,8 @@
 export default {
+  home: {
+    title: "Réglages",
+    description: "Rappels, installation sur le téléphone et données personnelles.",
+  },
   account: {
     title: "Paramètres du compte",
     profileTitle: "Profil",
