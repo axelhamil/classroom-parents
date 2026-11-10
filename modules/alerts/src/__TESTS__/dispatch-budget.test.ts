@@ -23,7 +23,42 @@ import { WebPushSender } from "../infrastructure/adapters/web-push.sender";
 import { existingAlert, PARENT, paris } from "../testing/alert.fixture";
 
 const SEND_TIMEOUT = 200;
-const SCHEDULING_SLACK = 400;
+
+interface Deadline {
+  owner: "push" | "email";
+  armedAt: number;
+  controller: AbortController;
+  dueAt: number;
+}
+
+function virtualClock() {
+  let now = 0;
+  const deadlines: Deadline[] = [];
+
+  return {
+    deadlines,
+    now: () => now,
+    deadlineFor:
+      (owner: Deadline["owner"]) =>
+      (ms: number): AbortSignal => {
+        const controller = new AbortController();
+        deadlines.push({ owner, armedAt: now, controller, dueAt: now + ms });
+        return controller.signal;
+      },
+    armed: (owner: Deadline["owner"], at: number) =>
+      deadlines.filter((deadline) => deadline.owner === owner && deadline.armedAt === at).length,
+    advanceTo(at: number) {
+      now = at;
+      for (const deadline of deadlines)
+        if (deadline.dueAt <= at && !deadline.controller.signal.aborted)
+          deadline.controller.abort(new DOMException("deadline", "TimeoutError"));
+    },
+  };
+}
+
+async function settleUntil(condition: () => boolean): Promise<void> {
+  while (!condition()) await new Promise((resolve) => setImmediate(resolve));
+}
 
 let server: Server | undefined;
 const sockets = new Set<Socket>();
@@ -71,7 +106,8 @@ function browserKeys() {
 }
 
 describe("dispatch budget under silent providers", () => {
-  it("given a full batch whose push service and mail provider never answer, then the batch hands back within its waves of push plus email timeouts", async () => {
+  it("given a full batch whose push service and mail provider never answer, then the batch hands back once its waves of push plus email timeouts have elapsed on the clock", async () => {
+    const clock = virtualClock();
     const endpoint = await silentPushService();
     const vapid = generateVAPIDKeys();
     const batch: ClaimedAlert[] = Array.from({ length: DISPATCH_BATCH }, (_, i) => {
@@ -126,9 +162,16 @@ describe("dispatch budget under silent providers", () => {
           vapidSubject: "mailto:alerts@example.com",
         },
         SEND_TIMEOUT,
+        clock.deadlineFor("push"),
       ),
       new ResendAlertEmailSender(
-        resendBatchSender(hangingMailProvider, instrumentation, mockPort<ILogger>(), SEND_TIMEOUT),
+        resendBatchSender(
+          hangingMailProvider,
+          instrumentation,
+          mockPort<ILogger>(),
+          SEND_TIMEOUT,
+          clock.deadlineFor("email"),
+        ),
         "alerts@example.com",
         instrumentation,
         mockPort<ILogger>(),
@@ -140,13 +183,25 @@ describe("dispatch budget under silent providers", () => {
       instrumentation,
     );
     const waves = Math.ceil(DISPATCH_BATCH / DISPATCH_CONCURRENCY);
-    const started = performance.now();
+    let handedBack = false;
 
-    const result = await service.runOnce(paris("2026-11-13", "18:00"));
+    const run = service.runOnce(paris("2026-11-13", "18:00")).finally(() => {
+      handedBack = true;
+    });
+    for (let wave = 0; wave < waves; wave += 1) {
+      const waveStart = wave * (SEND_TIMEOUT + SEND_TIMEOUT);
+      await settleUntil(() => clock.armed("push", waveStart) === DISPATCH_CONCURRENCY);
+      clock.advanceTo(waveStart + SEND_TIMEOUT);
+      await settleUntil(
+        () => clock.armed("email", waveStart + SEND_TIMEOUT) === DISPATCH_CONCURRENCY,
+      );
+      expect(handedBack).toBe(false);
+      clock.advanceTo(waveStart + SEND_TIMEOUT + SEND_TIMEOUT);
+    }
+    const result = await run;
 
-    expect(performance.now() - started).toBeLessThan(
-      waves * (SEND_TIMEOUT + SEND_TIMEOUT) + SCHEDULING_SLACK,
-    );
+    expect(clock.now()).toBe(waves * (SEND_TIMEOUT + SEND_TIMEOUT));
+    expect(clock.deadlines).toHaveLength(DISPATCH_BATCH * 2);
     expect(result.getValue()).toEqual({ claimed: DISPATCH_BATCH, sent: 0, emailed: 0, missed: 0 });
     expect(alerts.addFailure).toHaveBeenCalledTimes(DISPATCH_BATCH);
   });

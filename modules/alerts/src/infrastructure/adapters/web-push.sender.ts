@@ -24,6 +24,7 @@ export class WebPushSender implements IPushSender {
       "vapidPublicKey" | "vapidPrivateKey" | "vapidSubject"
     >,
     private readonly timeoutMs: number = SEND_TIMEOUT_MS,
+    private readonly deadline: (ms: number) => AbortSignal = (ms) => AbortSignal.timeout(ms),
   ) {}
 
   async send(
@@ -33,7 +34,7 @@ export class WebPushSender implements IPushSender {
   ): Promise<Result<void, PushFailure>> {
     const host = new URL(target.endpoint).host;
     return this.instrumentation.startSpan({ name: "WebPushSender > send" }, async () => {
-      const signal = AbortSignal.timeout(this.timeoutMs);
+      const signal = this.deadline(this.timeoutMs);
       try {
         const status = await this.instrumentation.startSpan(
           {

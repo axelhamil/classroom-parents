@@ -442,6 +442,7 @@ export function resendBatchSender(
   instrumentation: IInstrumentation,
   logger: ILogger,
   timeoutMs: number = EMAIL_SEND_TIMEOUT_SECONDS * 1000,
+  deadline: (ms: number) => AbortSignal = (ms) => AbortSignal.timeout(ms),
 ): BatchSender {
   const timedOut: BatchError = {
     kind: "retryable",
@@ -469,7 +470,7 @@ export function resendBatchSender(
           },
         },
         async () => {
-          const signal = AbortSignal.timeout(timeoutMs);
+          const signal = deadline(timeoutMs);
           try {
             const res = await client.batch.send(entries as never, {
               batchValidation: "permissive",
