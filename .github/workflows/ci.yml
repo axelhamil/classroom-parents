@@ -86,7 +86,7 @@ jobs:
   a11y:
     name: Accessibility gate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -216,6 +216,13 @@ jobs:
 
       - name: Audit
         run: pnpm turbo run check:a11y --filter=app
+
+      - name: Walk the parent journey in a browser
+        # Fake providers, real api and Postgres: sign-in, linking, a reminder pushed at its
+        # due instant, an edit and a delete that survive a resync, a school block, a
+        # disconnection, then no row naming the parent once the account wipe ran. Starts its
+        # own api, control server and preview on 3183, 3189 and 4183, apart from the audit's.
+        run: pnpm --filter app check:journey
 
       - name: API log
         if: failure()
