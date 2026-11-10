@@ -7,7 +7,7 @@ import {
 } from "@packages/ui/components/ui/description-list";
 import { Panel } from "@packages/ui/components/ui/panel";
 import {
-  TypographyH3,
+  TypographyH2,
   TypographyInline,
   TypographyList,
   TypographyOrderedList,
@@ -20,7 +20,7 @@ import { Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { type LinkConfig, linkConfigQueryOptions } from "../api/children.queries";
-import type { SchoolErrorKind } from "../school-error";
+import type { SchoolBlockKind } from "../school-error";
 
 const STEP_KEYS = [
   "school.steps.console",
@@ -30,10 +30,10 @@ const STEP_KEYS = [
 ] as const;
 
 export interface SchoolProcedureProps {
-  kind: SchoolErrorKind;
+  kind: SchoolBlockKind;
 }
 
-function procedureText(t: TFunction<"children">, kind: SchoolErrorKind, config: LinkConfig) {
+function procedureText(t: TFunction<"children">, kind: SchoolBlockKind, config: LinkConfig) {
   return [
     t(`school.kinds.${kind}`),
     "",
@@ -65,7 +65,7 @@ export function SchoolProcedure({ kind }: SchoolProcedureProps) {
     <Panel tone="muted" size="md" className="flex flex-col gap-4">
       <TypographyP>{t(`school.kinds.${kind}`)}</TypographyP>
 
-      <TypographyH3>{t("school.title")}</TypographyH3>
+      <TypographyH2 variant="section">{t("school.title")}</TypographyH2>
       <TypographyOrderedList>
         {STEP_KEYS.map((key) => (
           <li key={key}>{t(key)}</li>

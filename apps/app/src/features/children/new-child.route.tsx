@@ -12,10 +12,9 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Screen } from "../../shared/layout/screen";
 import {
-  ADD_CHILD_ROUND_TRIP,
+  ADD_CHILD,
   discardLinkedAccountsMutationOptions,
   registerChildMutationOptions,
-  startChildLinkMutationOptions,
   syncChildMutationOptions,
 } from "./api/children.mutations";
 import {
@@ -26,6 +25,7 @@ import {
 import { newChildSearchSchema } from "./children.schema";
 import { AddChildExplainer } from "./components/add-child-explainer";
 import { ChildCard } from "./components/child-card";
+import { useStartChildLink } from "./hooks/use-start-child-link";
 
 export const Route = createFileRoute("/_protected/_shell/children/new")({
   validateSearch: newChildSearchSchema,
@@ -33,15 +33,6 @@ export const Route = createFileRoute("/_protected/_shell/children/new")({
 });
 
 const unusableLinksSchema = z.object({ unusableLinkedAccountIds: z.array(z.string()).min(1) });
-
-function useStartChildLink() {
-  const { t } = useTranslation("children");
-
-  return useMutation({
-    ...startChildLinkMutationOptions,
-    onError: (error) => toastError(error, t("reconnect.failed")),
-  });
-}
 
 function NewChildPage() {
   const { t } = useTranslation("children");
@@ -53,10 +44,7 @@ function NewChildPage() {
       {linked === 1 ? (
         <LinkedAccountStep />
       ) : (
-        <AddChildExplainer
-          starting={start.isPending}
-          onStart={() => start.mutate(ADD_CHILD_ROUND_TRIP)}
-        />
+        <AddChildExplainer starting={start.isPending} onStart={() => start.mutate(ADD_CHILD)} />
       )}
     </Screen>
   );
@@ -91,7 +79,7 @@ function LinkedAccountStep() {
   });
   const discard = useMutation({
     ...discardLinkedAccountsMutationOptions,
-    onSuccess: () => start.mutate(ADD_CHILD_ROUND_TRIP),
+    onSuccess: () => start.mutate(ADD_CHILD),
     onError: (error) => toastError(error, t("reconnect.failed")),
   });
   const autoRegistered = useRef(false);
@@ -105,11 +93,7 @@ function LinkedAccountStep() {
   }, [onlyAccount, register.mutate]);
 
   const retry = (
-    <Button
-      variant="outline"
-      disabled={start.isPending}
-      onClick={() => start.mutate(ADD_CHILD_ROUND_TRIP)}
-    >
+    <Button variant="outline" disabled={start.isPending} onClick={() => start.mutate(ADD_CHILD)}>
       {t("new.retry")}
     </Button>
   );
@@ -195,8 +179,10 @@ function FirstSync({ childId }: FirstSyncProps) {
     ...childrenQueryOptions,
     select: (children) => children.find((candidate) => candidate.id === childId),
   }).data;
-  const running = !child || child.syncing || (child.status === "connected" && !child.lastSyncedAt);
-  const firstEvent = useQuery(firstEventQueryOptions(childId, !running)).data;
+  const connected = child?.status === "connected";
+  const ready = connected && !child.syncing && Boolean(child.lastSyncedAt);
+  const running = !child || (connected && !ready);
+  const firstEvent = useQuery(firstEventQueryOptions(childId, ready)).data;
 
   return (
     <section aria-labelledby="first-sync-title" className="flex flex-col gap-4">
@@ -206,9 +192,8 @@ function FirstSync({ childId }: FirstSyncProps) {
 
       {child && <ChildCard child={child} />}
 
-      {running ? (
-        <Pending label={t("firstSync.running")} />
-      ) : (
+      {running && <Pending label={t("firstSync.running")} />}
+      {ready && (
         <div aria-live="polite" className="flex flex-col gap-1">
           <TypographyP>{t("firstSync.done")}</TypographyP>
           <TypographyMuted>

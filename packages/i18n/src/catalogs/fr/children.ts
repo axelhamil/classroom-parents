@@ -86,6 +86,11 @@ export default {
   linkError: {
     title: "Connexion refusée",
     description: "Le compte de votre enfant n'a pas pu être relié.",
+    kinds: {
+      already_linked: "Ce compte Google est déjà relié à un autre compte de l'application.",
+      link_refused:
+        "Ce compte Google n'a pas pu être relié. Réessayez en choisissant le compte de l'élève.",
+    },
     retry: "Réessayer",
   },
   school: {

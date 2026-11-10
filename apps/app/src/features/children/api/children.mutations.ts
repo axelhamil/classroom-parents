@@ -5,7 +5,7 @@ import type { InferRequestType, InferResponseType } from "hono/client";
 import { api } from "../../../shared/api/api-client";
 import { queryClient } from "../../../shared/api/query-client";
 import { authClient } from "../../../shared/auth/auth-client";
-import { linkConfigQueryOptions } from "./children.queries";
+import { childrenQueryOptions, linkConfigQueryOptions } from "./children.queries";
 
 const $register = api.children.$post;
 const $sync = api.sync[":childId"].$post;
@@ -19,28 +19,42 @@ type ReconnectedChild = InferResponseType<typeof $reconnect, 200>;
 type RenamedChild = InferResponseType<typeof $rename, 200>;
 export type RenameChildInput = { id: string } & InferRequestType<typeof $rename>["json"];
 
-export interface StartChildLinkInput {
-  callbackPath: string;
-  errorPath: string;
+export type ChildLinkRoundTrip = { reconnectChildId: string | null };
+
+export const ADD_CHILD: ChildLinkRoundTrip = { reconnectChildId: null };
+
+const LINK_ERROR_PATH = "/children/link-error";
+
+function roundTripPaths({ reconnectChildId }: ChildLinkRoundTrip) {
+  if (reconnectChildId === null) {
+    return { callbackPath: "/children/new?linked=1", errorPath: LINK_ERROR_PATH };
+  }
+
+  return {
+    callbackPath: `/children?reconnect=${reconnectChildId}`,
+    errorPath: `${LINK_ERROR_PATH}?reconnect=${reconnectChildId}`,
+  };
 }
 
-export const LINK_ERROR_PATH = "/children/link-error";
+async function childEmail(childId: string | null): Promise<string | undefined> {
+  if (childId === null) return undefined;
+  const children = await queryClient.ensureQueryData(childrenQueryOptions);
 
-export const ADD_CHILD_ROUND_TRIP: StartChildLinkInput = {
-  callbackPath: "/children/new?linked=1",
-  errorPath: LINK_ERROR_PATH,
-};
+  return children.find((child) => child.id === childId)?.googleEmail;
+}
 
 export const startChildLinkMutationOptions = mutationOptions({
   mutationKey: ["children", "link", "start"] as const,
-  mutationFn: async ({ callbackPath, errorPath }: StartChildLinkInput): Promise<void> => {
+  mutationFn: async (roundTrip: ChildLinkRoundTrip): Promise<void> => {
     const config = await queryClient.fetchQuery(linkConfigQueryOptions);
+    const { callbackPath, errorPath } = roundTripPaths(roundTrip);
     const origin = window.location.origin;
     const { error } = await authClient.linkSocial({
       provider: config.providerId,
       scopes: config.scopes,
       callbackURL: new URL(callbackPath, origin).href,
       errorCallbackURL: new URL(errorPath, origin).href,
+      loginHint: await childEmail(roundTrip.reconnectChildId),
     });
     if (error) throw toAuthClientError(error, errorFallback("linkChild"));
   },

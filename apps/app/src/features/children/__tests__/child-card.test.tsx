@@ -3,7 +3,7 @@ import { frCatalog } from "@packages/i18n";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fakeApi, renderApp, resetApp } from "./render-app";
+import { fakeApi, renderApp, resetApp } from "../../../__tests__/render-app";
 
 vi.mock("../../../shared/auth/auth-client", () => ({
   authClient: { getSession: vi.fn(), linkSocial: vi.fn() },

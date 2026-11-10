@@ -36,6 +36,18 @@ describe("classifySchoolError", () => {
     expect(classifySchoolError(child("blocked_by_school"))).toBe("admin_blocked");
   });
 
+  it("given the Google account is linked to another parent of the app, then it is an existing link, not a school block", () => {
+    expect(
+      classifySchoolError(new URLSearchParams("error=account_already_linked_to_different_user")),
+    ).toBe("already_linked");
+  });
+
+  it("given the app could not link the Google account, then it is a refused link, not a school block", () => {
+    expect(classifySchoolError(new URLSearchParams("error=unable_to_link_account"))).toBe(
+      "link_refused",
+    );
+  });
+
   it("given nothing recognisable, then the cause is unknown", () => {
     expect(classifySchoolError(new URLSearchParams("error=server_error"))).toBe("unknown");
     expect(classifySchoolError(new URLSearchParams())).toBe("unknown");

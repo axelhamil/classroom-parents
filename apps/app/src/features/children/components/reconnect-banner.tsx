@@ -1,10 +1,8 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
-import { toastError } from "@packages/web-kit/api/errors/toast";
-import { useMutation } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { LINK_ERROR_PATH, startChildLinkMutationOptions } from "../api/children.mutations";
+import { useStartChildLink } from "../hooks/use-start-child-link";
 
 export interface ReconnectBannerProps {
   childId: string;
@@ -13,10 +11,7 @@ export interface ReconnectBannerProps {
 
 export function ReconnectBanner({ childId, message }: ReconnectBannerProps) {
   const { t } = useTranslation("children");
-  const start = useMutation({
-    ...startChildLinkMutationOptions,
-    onError: (error) => toastError(error, t("reconnect.failed")),
-  });
+  const start = useStartChildLink();
 
   return (
     <Alert>
@@ -25,12 +20,7 @@ export function ReconnectBanner({ childId, message }: ReconnectBannerProps) {
         {message}
         <Button
           disabled={start.isPending}
-          onClick={() =>
-            start.mutate({
-              callbackPath: `/children?reconnect=${childId}`,
-              errorPath: LINK_ERROR_PATH,
-            })
-          }
+          onClick={() => start.mutate({ reconnectChildId: childId })}
         >
           {start.isPending ? t("reconnect.pending") : t("reconnect.action")}
         </Button>

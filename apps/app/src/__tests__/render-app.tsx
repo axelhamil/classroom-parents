@@ -5,9 +5,9 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { vi } from "vitest";
-import { router } from "../../../router";
-import { sessionQueryOptions } from "../../../shared/api/queries/session";
-import { queryClient } from "../../../shared/api/query-client";
+import { router } from "../router";
+import { sessionQueryOptions } from "../shared/api/queries/session";
+import { queryClient } from "../shared/api/query-client";
 
 export interface ApiCall {
   method: string;
@@ -55,9 +55,16 @@ export function fakeApi(routes: FakeRoutes): ApiCall[] {
   return calls;
 }
 
-export async function renderApp(url: string): Promise<{ unmount: () => void }> {
+export interface RenderAppOptions {
+  signedIn?: boolean;
+}
+
+export async function renderApp(
+  url: string,
+  { signedIn = true }: RenderAppOptions = {},
+): Promise<{ unmount: () => void }> {
   const i18n = await createI18n({ locale: "fr", resources: frCatalog });
-  queryClient.setQueryData(sessionQueryOptions.queryKey, SIGNED_IN);
+  queryClient.setQueryData(sessionQueryOptions.queryKey, signedIn ? SIGNED_IN : null);
   const appRouter = createRouter({
     ...router.options,
     history: createMemoryHistory({ initialEntries: [url] }),
