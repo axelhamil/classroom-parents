@@ -239,6 +239,23 @@ describe("runOnce", () => {
     });
   });
 
+  it("given the provider rejects the email for good, then the alert is missed at once with ALERT_MISSED", async () => {
+    givenSubscriptions([]);
+    email.send.mockResolvedValue(
+      Result.fail<void, AlertsError>({ code: "ALERT_EMAIL_INVALID", message: "rejected" }),
+    );
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toMatchObject({ missed: 1, emailed: 0 });
+    expect(settledStatus()).toBe("missed");
+    expect(alerts.addFailure).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
+      EventTypes.ALERT_DELIVERY_FAILED,
+      EventTypes.ALERT_MISSED,
+    ]);
+  });
+
   it("given a re-armed occurrence whose earlier occurrence failed four times, then one email failure does not miss it", async () => {
     givenClaimed({ version: 2 }, 0);
     givenSubscriptions([]);
@@ -288,6 +305,27 @@ describe("runOnce", () => {
     expect(deadlines.forUser).toHaveBeenCalledWith(PARENT, ALERT_EVENT);
     expect(settledStatus()).toBe("skipped");
     expect(push.send).not.toHaveBeenCalled();
+  });
+
+  it("given the homework was turned in after the claim, then the alert is skipped with ALERT_SKIPPED and nothing is sent", async () => {
+    deadlines.forUser.mockResolvedValue(
+      Result.ok<Option<EventDeadline>, AppError>(
+        Option.some({
+          deadlineAt: paris("2026-11-15", "23:59"),
+          deadlineDate: "2026-11-15",
+          done: true,
+        }),
+      ),
+    );
+
+    await service.runOnce(NOW);
+
+    expect(settledStatus()).toBe("skipped");
+    expect(push.send).not.toHaveBeenCalled();
+    expect(email.send).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
+      EventTypes.ALERT_SKIPPED,
+    ]);
   });
 });
 

@@ -1,8 +1,9 @@
-import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
+import type { IInstrumentation, ILogger, IUnitOfWork } from "@packages/ddd-kit";
+import { type ResendBatchClient, resendBatchSender } from "@packages/email/email-delivery-worker";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
-import { Resend } from "resend";
 import type { AlertsSettings } from "./application/config/alerts-settings";
+import { SEND_TIMEOUT_MS } from "./application/config/dispatch-budget";
 import type { IAlertContextReader } from "./application/ports/alert-context-reader.port";
 import type { IAlertEmailSender } from "./application/ports/alert-email-sender.port";
 import type { IAlertRepository } from "./application/ports/alert-repository.port";
@@ -19,6 +20,8 @@ import { DrizzlePushSubscriptionRepository } from "./infrastructure/repositories
 
 export interface AlertsPrerequisites {
   IInstrumentation: IInstrumentation;
+  ILogger: ILogger;
+  IResendClient: ResendBatchClient | null;
   ITransactionService: IUnitOfWork;
   IOutboxRepository: IOutboxRepository;
   IEventDeadlines: IEventDeadlines;
@@ -41,7 +44,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
       "IAlertEmailSender",
       (c): IAlertEmailSender =>
         new ResendAlertEmailSender(
-          c.alertsSettings.resendApiKey ? new Resend(c.alertsSettings.resendApiKey) : null,
+          resendBatchSender(c.IResendClient, c.IInstrumentation, c.ILogger, SEND_TIMEOUT_MS),
           c.alertsSettings.emailFrom,
           c.IInstrumentation,
         ),

@@ -1,10 +1,5 @@
 import { type IInstrumentation, Result } from "@packages/ddd-kit";
-import {
-  type PushSubscription,
-  type RequestOptions,
-  sendNotification,
-  WebPushError,
-} from "web-push";
+import { generateRequestDetails } from "web-push";
 import type { AlertsSettings } from "../../application/config/alerts-settings";
 import { SEND_TIMEOUT_MS } from "../../application/config/dispatch-budget";
 import type {
@@ -17,12 +12,6 @@ import type {
 
 const GONE_STATUSES = new Set([404, 410]);
 
-type SendNotification = (
-  subscription: PushSubscription,
-  payload: string,
-  options: RequestOptions,
-) => Promise<unknown>;
-
 export class WebPushSender implements IPushSender {
   constructor(
     private readonly instrumentation: IInstrumentation,
@@ -30,7 +19,7 @@ export class WebPushSender implements IPushSender {
       AlertsSettings,
       "vapidPublicKey" | "vapidPrivateKey" | "vapidSubject"
     >,
-    private readonly deliver: SendNotification = sendNotification,
+    private readonly timeoutMs: number = SEND_TIMEOUT_MS,
   ) {}
 
   async send(
@@ -40,39 +29,61 @@ export class WebPushSender implements IPushSender {
   ): Promise<Result<void, PushFailure>> {
     const host = new URL(target.endpoint).host;
     return this.instrumentation.startSpan({ name: "WebPushSender > send" }, async () => {
+      const signal = AbortSignal.timeout(this.timeoutMs);
       try {
-        await this.instrumentation.startSpan(
+        const status = await this.instrumentation.startSpan(
           {
             name: "POST push service",
             op: "http.client",
             attributes: { "server.address": host },
           },
-          () =>
-            this.deliver(
-              { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },
-              JSON.stringify(payload),
-              {
-                vapidDetails: {
-                  subject: this.settings.vapidSubject,
-                  publicKey: this.settings.vapidPublicKey,
-                  privateKey: this.settings.vapidPrivateKey,
-                },
-                urgency: options.urgency,
-                TTL: options.ttlSeconds,
-                topic: options.topic,
-                timeout: SEND_TIMEOUT_MS,
-              },
-            ),
+          () => this.post(target, payload, options, signal),
         );
-        return Result.ok();
-      } catch (err) {
-        const status = err instanceof WebPushError ? String(err.statusCode) : "network";
-        if (err instanceof WebPushError && GONE_STATUSES.has(err.statusCode))
-          return Result.fail("PUSH_GONE");
+        if (status >= 200 && status < 300) return Result.ok();
+        if (GONE_STATUSES.has(status)) return Result.fail("PUSH_GONE");
 
-        this.instrumentation.capture(new Error(`push failed ${status} ${host}`));
-        return Result.fail("PUSH_FAILED");
+        return this.failed(String(status), host);
+      } catch {
+        return this.failed(signal.aborted ? "timeout" : "network", host);
       }
     });
+  }
+
+  private async post(
+    target: PushTarget,
+    payload: PushPayload,
+    options: PushOptions,
+    signal: AbortSignal,
+  ): Promise<number> {
+    const request = generateRequestDetails(
+      { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },
+      JSON.stringify(payload),
+      {
+        vapidDetails: {
+          subject: this.settings.vapidSubject,
+          publicKey: this.settings.vapidPublicKey,
+          privateKey: this.settings.vapidPrivateKey,
+        },
+        urgency: options.urgency,
+        TTL: options.ttlSeconds,
+        topic: options.topic,
+      },
+    );
+    const headers = Object.fromEntries(
+      Object.entries(request.headers).map(([name, value]) => [name, String(value)]),
+    );
+    const response = await fetch(request.endpoint, {
+      method: request.method,
+      headers,
+      body: request.body,
+      signal,
+    });
+    await response.body?.cancel();
+    return response.status;
+  }
+
+  private failed(reason: string, host: string): Result<void, PushFailure> {
+    this.instrumentation.capture(new Error(`push failed ${reason} ${host}`));
+    return Result.fail("PUSH_FAILED");
   }
 }

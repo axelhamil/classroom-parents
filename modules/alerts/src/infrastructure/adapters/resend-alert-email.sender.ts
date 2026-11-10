@@ -1,5 +1,5 @@
-import { type IInstrumentation, Result } from "@packages/ddd-kit";
-import { SEND_TIMEOUT_MS } from "../../application/config/dispatch-budget";
+import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
+import type { BatchSender } from "@packages/email/email-delivery-worker";
 import type {
   AlertEmailContent,
   IAlertEmailSender,
@@ -35,67 +35,37 @@ function alertEmail(content: AlertEmailContent) {
   return { subject, text, html };
 }
 
-export interface AlertMailError {
-  name: string;
-  message: string;
-  statusCode: number | null;
-}
-
-export interface AlertMailClient {
-  emails: {
-    send(
-      payload: { from: string; to: string; subject: string; text: string; html: string },
-      options: { idempotencyKey: string; signal: AbortSignal },
-    ): Promise<{ error: AlertMailError | null }>;
-  };
-}
-
-const ALREADY_SENT = "invalid_idempotent_request";
-
 export class ResendAlertEmailSender implements IAlertEmailSender {
   constructor(
-    private readonly client: AlertMailClient | null,
+    private readonly sender: BatchSender,
     private readonly from: string,
     private readonly instrumentation: IInstrumentation,
   ) {}
 
   async send(to: string, content: AlertEmailContent): Promise<Result<void, AlertsError>> {
     return this.instrumentation.startSpan({ name: "ResendAlertEmailSender > send" }, async () => {
-      if (!this.client) {
-        this.instrumentation.addBreadcrumb({ message: "alert email not delivered: no API key" });
-        return Result.ok();
-      }
-
-      const client = this.client;
       const idempotencyKey = `alert-${content.alertId}-v${content.version}`;
-      try {
-        const { error } = await this.instrumentation.startSpan(
-          {
-            name: "POST https://api.resend.com/emails",
-            op: "http.client",
-            attributes: { "http.method": "POST", "server.address": "api.resend.com" },
-          },
-          () =>
-            client.emails.send(
-              { from: this.from, to, ...alertEmail(content) },
-              { idempotencyKey, signal: AbortSignal.timeout(SEND_TIMEOUT_MS) },
-            ),
-        );
-        if (!error || error.name === ALREADY_SENT) return Result.ok();
+      const result = await this.sender.batchSend(
+        [{ from: this.from, to, ...alertEmail(content) }],
+        Option.some(idempotencyKey),
+      );
+      const refused = result.errors?.[0];
+      if (refused) return Result.fail(emailFailure("ALERT_EMAIL_INVALID", refused.message));
+      if (!result.error || result.error.kind === "conflict") return Result.ok();
+      if (result.error.kind === "rejected")
+        return Result.fail(emailFailure("ALERT_EMAIL_INVALID", result.error.message));
 
-        return Result.fail(providerFailure(`${error.name} ${error.statusCode ?? ""}`.trim()));
-      } catch (err) {
-        const reason = err instanceof Error ? err.name : "network";
-        this.instrumentation.capture(new Error(`alert email failed: ${reason}`));
-        return Result.fail(providerFailure(reason));
-      }
+      return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", result.error.message));
     });
   }
 }
 
-function providerFailure(reason: string): AlertsError {
+function emailFailure(
+  code: "ALERT_EMAIL_INVALID" | "ALERT_PROVIDER_FAILURE",
+  reason: string,
+): AlertsError {
   return {
-    code: "ALERT_PROVIDER_FAILURE",
+    code,
     message: `alert email not sent: ${reason}`,
     metadata: { emailCode: reason },
   };

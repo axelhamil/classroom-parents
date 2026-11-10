@@ -120,7 +120,8 @@ export class AlertDispatchService {
 
     const shown = await this.deadlines.forUser(alert.get("userId"), alert.get("eventId"));
     if (shown.isFailure) return Result.fail(shown.getError());
-    if (shown.getValue().isNone()) return this.skip(alert, lease);
+    const deadline = shown.getValue();
+    if (deadline.isNone() || deadline.unwrap().done) return this.skip(alert, lease);
 
     const pushed = await this.pushAll(alert, context);
     if (pushed.isFailure) return Result.fail(pushed.getError());
@@ -238,7 +239,8 @@ export class AlertDispatchService {
       if (recorded.isFailure) return Result.fail(recorded.getError());
 
       await this.emitFailure(alert, "email", code);
-      if (failures + 1 < MAX_EMAIL_FAILURES) {
+      const retryable = code !== "ALERT_EMAIL_INVALID";
+      if (retryable && failures + 1 < MAX_EMAIL_FAILURES) {
         const counted = await this.alerts.addFailure(lease);
         return counted.map((): Delivered => "none");
       }

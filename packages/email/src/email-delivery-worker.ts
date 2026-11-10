@@ -67,11 +67,11 @@ export interface EmailDeliveryOptions {
   from?: string;
 }
 
-interface BatchSender {
+export interface BatchSender {
   batchSend(entries: BatchEntry[], idempotencyKey: Option<string>): Promise<BatchResult>;
 }
 
-interface ResendBatchClient {
+export interface ResendBatchClient {
   batch: {
     send(
       entries: never,

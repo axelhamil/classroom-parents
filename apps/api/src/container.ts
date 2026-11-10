@@ -3,7 +3,11 @@ import { getRateLimitDbClient, TransactionService } from "@packages/drizzle";
 import { DrizzleEmailQueue } from "@packages/email/drizzle-email-queue";
 import type { IEmailService } from "@packages/email/email.port";
 import { QueuedEmailService } from "@packages/email/email.service";
-import { EmailDeliveryWorker, resendBatchSender } from "@packages/email/email-delivery-worker";
+import {
+  EmailDeliveryWorker,
+  type ResendBatchClient,
+  resendBatchSender,
+} from "@packages/email/email-delivery-worker";
 import type { IEmailQueue } from "@packages/email/email-queue.port";
 import { ALL_EVENT_TYPES } from "@packages/events";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
@@ -42,6 +46,7 @@ declare module "inwire" {
     ITransactionService: IUnitOfWork & OutermostUnitOfWork;
     IEmailQueue: IEmailQueue;
     IEmailService: IEmailService;
+    IResendClient: ResendBatchClient | null;
     IOutboxRepository: IOutboxRepository;
     IInstrumentation: IInstrumentation;
     IRateLimiter: IRateLimiter & IRateLimitUsage;
@@ -58,6 +63,9 @@ export const di = container()
     "IInstrumentation",
     (): IInstrumentation =>
       env.SENTRY_DSN ? new SentryInstrumentation() : new LoggingInstrumentation(logger),
+  )
+  .add("IResendClient", (): ResendBatchClient | null =>
+    env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null,
   )
   .add(
     "IOutboxRepository",
@@ -90,11 +98,7 @@ export const di = container()
           deadReplayWindowHours: env.EMAIL_DEAD_REPLAY_WINDOW_HOURS,
           from: env.RESEND_FROM,
         },
-        resendBatchSender(
-          env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null,
-          c.IInstrumentation,
-          logger,
-        ),
+        resendBatchSender(c.IResendClient, c.IInstrumentation, logger),
       ),
   )
   .add(

@@ -52,6 +52,11 @@ const timeAfterDeadline: AlertsError = {
   message: "L'alerte doit sonner avant l'échéance. Choisissez un moment plus tôt.",
 };
 
+const eventDone: AlertsError = {
+  code: "ALERT_EVENT_DONE_CONFLICT",
+  message: "Cette échéance est déjà faite, elle n'a plus besoin d'alerte.",
+};
+
 function alertDeadline(deadline: EventDeadline): AlertDeadline {
   return { at: deadline.deadlineAt, date: deadline.deadlineDate };
 }
@@ -96,7 +101,7 @@ export class AlertPlanningService {
   ): Promise<Result<AlertDto, PlanningError>> {
     return this.span("setUserAlert", () =>
       this.transactions.run(async (): Promise<Result<AlertDto, PlanningError>> => {
-        const deadline = await this.ownedDeadline(userId, eventId);
+        const deadline = await this.armableDeadline(userId, eventId);
         if (deadline.isFailure) return Result.fail(deadline.getError());
 
         const time = AlertTime.fromParisWallTime(wall.date, wall.time);
@@ -119,7 +124,7 @@ export class AlertPlanningService {
   async clear(userId: string, eventId: string): Promise<Result<void, PlanningError>> {
     return this.span("clear", () =>
       this.transactions.run(async (): Promise<Result<void, PlanningError>> => {
-        const deadline = await this.ownedDeadline(userId, eventId);
+        const deadline = await this.armableDeadline(userId, eventId);
         if (deadline.isFailure) return Result.fail(deadline.getError());
 
         const found = await this.alerts.findOwned(userId, eventId);
@@ -210,6 +215,17 @@ export class AlertPlanningService {
     if (deadline.isFailure) return Result.fail(deadline.getError());
 
     return deadline.getValue().toResult(alertNotFound);
+  }
+
+  private async armableDeadline(
+    userId: string,
+    eventId: string,
+  ): Promise<Result<EventDeadline, PlanningError>> {
+    const deadline = await this.ownedDeadline(userId, eventId);
+    if (deadline.isFailure) return deadline;
+    if (deadline.getValue().done) return Result.fail(eventDone);
+
+    return deadline;
   }
 
   private async alertFor(

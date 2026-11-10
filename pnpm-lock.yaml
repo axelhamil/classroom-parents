@@ -489,6 +489,9 @@ importers:
       '@packages/drizzle':
         specifier: workspace:*
         version: link:../../packages/drizzle
+      '@packages/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@packages/events':
         specifier: workspace:*
         version: link:../../packages/events
@@ -507,9 +510,6 @@ importers:
       inwire:
         specifier: ^4.0.1
         version: 4.0.1
-      resend:
-        specifier: ^6.35.0
-        version: 6.35.0(@react-email/render@2.1.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       web-push:
         specifier: ^4.0.0
         version: 4.0.0(supports-color@8.1.1)

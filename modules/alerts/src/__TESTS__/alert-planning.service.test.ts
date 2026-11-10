@@ -287,6 +287,31 @@ describe("a done deadline", () => {
 
     expect(alerts.save).not.toHaveBeenCalled();
   });
+
+  it("given a done homework whose alert was cancelled, when the parent sets a time, then ALERT_EVENT_DONE_CONFLICT and nothing is armed", async () => {
+    givenAlert(existingAlert({ status: "skipped" }));
+    givenEvent(deadlineOn("2026-11-22", undefined, true));
+
+    const result = await service.setUserAlert(PARENT, ALERT_EVENT, {
+      date: "2026-11-20",
+      time: "18:00",
+    });
+
+    expect(result.getError().code).toBe("ALERT_EVENT_DONE_CONFLICT");
+    expect(alerts.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given a done homework whose alert was cancelled, when the parent resets it to the default, then ALERT_EVENT_DONE_CONFLICT and nothing is armed", async () => {
+    givenAlert(existingAlert({ status: "skipped" }));
+    givenEvent(deadlineOn("2026-11-22", undefined, true));
+
+    const result = await service.clear(PARENT, ALERT_EVENT);
+
+    expect(result.getError().code).toBe("ALERT_EVENT_DONE_CONFLICT");
+    expect(alerts.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
 });
 
 describe("cancel", () => {
