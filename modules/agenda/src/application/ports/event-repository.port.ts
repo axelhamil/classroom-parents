@@ -34,6 +34,8 @@ export interface EventPage {
   nextCursor: Option<string>;
 }
 
+export type CourseworkCourses = { courseId: string } | { outsideCourseIds: string[] };
+
 export interface IEventRepository {
   insertIfAbsent(event: AgendaEvent): Promise<Result<boolean, AgendaError>>;
 
@@ -48,7 +50,7 @@ export interface IEventRepository {
   lockLiveCoursework(
     userId: string,
     childId: string,
-    courseId: string,
+    courses: CourseworkCourses,
   ): Promise<Result<AgendaEvent[], AgendaError>>;
 
   findOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;

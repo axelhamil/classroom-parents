@@ -33,10 +33,20 @@ export interface CourseworkIngestRequest {
   presentIds: string[];
 }
 
+export interface CourseworkWithdrawRequest {
+  userId: string;
+  childId: string;
+  activeCourseIds: string[];
+}
+
 export interface IEventIngest {
   ingest(request: IngestRequest): Promise<Result<{ created: number }, AppError>>;
 
   ingestCoursework(
     request: CourseworkIngestRequest,
   ): Promise<Result<{ created: number }, AppError>>;
+
+  withdrawCourseworkOutside(
+    request: CourseworkWithdrawRequest,
+  ): Promise<Result<{ withdrawn: number }, AppError>>;
 }

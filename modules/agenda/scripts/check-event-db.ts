@@ -393,15 +393,33 @@ run(async () => {
   );
   await ingestCoursework(a, aNoe, [], { complete: false, presentIds: [] });
   await step(
-    "a partial listing without the coursework retires nothing",
-    (await rowsOf(aNoe, "w-noe-27"))[0]?.deletedAt === null &&
+    "a partial listing without the coursework withdraws nothing",
+    (await rowsOf(aNoe, "w-noe-27"))[0]?.withdrawnAt === null &&
       (await noeUpcoming()) === sameIds(ann26.id, w27.id),
   );
   await ingestCoursework(a, aNoe, [], { complete: true, presentIds: [] });
+  const [withdrawn27] = await rowsOf(aNoe, "w-noe-27");
   await step(
-    "a complete listing without the coursework retires it and its announcement deadline reappears",
-    (await rowsOf(aNoe, "w-noe-27"))[0]?.deletedAt !== null &&
+    "a complete listing without the coursework withdraws it and its announcement deadline reappears",
+    withdrawn27?.withdrawnAt !== null &&
+      withdrawn27?.deletedAt === null &&
       cancelled.includes(w27.id) &&
+      (await noeUpcoming()) === sameIds(ann26.id, ann27.id),
+  );
+  await ingestCoursework(a, aNoe, [homework({ id: "w-noe-27", deadlineDate: "2030-01-27" })]);
+  await step(
+    "a withdrawn coursework listed and dated again comes back and hides its day's announcement",
+    (await rowsOf(aNoe, "w-noe-27"))[0]?.withdrawnAt === null &&
+      (await noeUpcoming()) === sameIds(ann26.id, w27.id),
+  );
+  await ingestService.withdrawCourseworkOutside({
+    userId: a,
+    childId: aNoe,
+    activeCourseIds: ["course-2"],
+  });
+  await step(
+    "the coursework of a course no longer listed is withdrawn and its announcement reappears",
+    (await rowsOf(aNoe, "w-noe-27"))[0]?.withdrawnAt !== null &&
       (await noeUpcoming()) === sameIds(ann26.id, ann27.id),
   );
 

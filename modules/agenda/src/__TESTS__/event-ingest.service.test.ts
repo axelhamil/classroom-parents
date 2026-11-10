@@ -75,14 +75,17 @@ beforeEach(() => {
     Result.ok(Option.fromNullable(stored.get(`${childId}|coursework|${courseworkId}|0`))),
   );
   repo.save.mockResolvedValue(Result.ok());
-  repo.lockLiveCoursework.mockImplementation(async (_userId, childId, courseId) =>
+  repo.lockLiveCoursework.mockImplementation(async (_userId, childId, courses) =>
     Result.ok(
       [...stored.values()].filter(
         (event) =>
           event.get("childId") === childId &&
-          event.get("courseId") === courseId &&
+          ("courseId" in courses
+            ? event.get("courseId") === courses.courseId
+            : !courses.outsideCourseIds.includes(event.get("courseId"))) &&
           event.get("source").value === "coursework" &&
-          event.get("deletedAt").isNone(),
+          event.get("deletedAt").isNone() &&
+          event.get("withdrawnAt").isNone(),
       ),
     ),
   );
@@ -241,7 +244,7 @@ describe("ingestCoursework", () => {
     const result = await ingestCoursework([homework()]);
 
     const row = courseworkRow();
-    expect(result.getValue()).toEqual({ created: 1, updated: 0, rejected: 0, removed: 0 });
+    expect(result.getValue()).toEqual({ created: 1, updated: 0, rejected: 0, withdrawn: 0 });
     expect(row?.get("source").value).toBe("coursework");
     expect(row?.get("category").value).toBe("homework");
     expect(row?.get("status").value).toBe("confirmed");
@@ -267,7 +270,7 @@ describe("ingestCoursework", () => {
       homework({ title: "Exercices p. 44", deadlineDate: "2026-11-23" }),
     ]);
 
-    expect(result.getValue()).toEqual({ created: 0, updated: 1, rejected: 0, removed: 0 });
+    expect(result.getValue()).toEqual({ created: 0, updated: 1, rejected: 0, withdrawn: 0 });
     expect(courseworkRow()?.get("title").value).toBe("Exercices p. 44");
     expect(courseworkRow()?.get("deadline").value.date).toBe("2026-11-23");
     expect(planner.replan).toHaveBeenCalledWith(
@@ -323,7 +326,7 @@ describe("ingestCoursework", () => {
 
     const result = await ingestCoursework([homework({ deadlineDate: "2026-11-23" })]);
 
-    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0, removed: 0 });
+    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0, withdrawn: 0 });
     expect(repo.save).not.toHaveBeenCalled();
     expect(updatedFields()).toEqual([]);
   });
@@ -333,7 +336,7 @@ describe("ingestCoursework", () => {
 
     const result = await ingestCoursework([homework()]);
 
-    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0, removed: 0 });
+    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0, withdrawn: 0 });
     expect(repo.save).not.toHaveBeenCalled();
   });
 
@@ -344,7 +347,7 @@ describe("ingestCoursework", () => {
       homework({ id: "w3" }),
     ]);
 
-    expect(result.getValue()).toEqual({ created: 1, updated: 0, rejected: 2, removed: 0 });
+    expect(result.getValue()).toEqual({ created: 1, updated: 0, rejected: 2, withdrawn: 0 });
     expect(courseworkRow("w3")).toBeDefined();
     expect(uow.outcome()).toBe("committed");
   });
@@ -358,38 +361,92 @@ describe("ingestCoursework", () => {
     expect(repo.insertIfAbsent).not.toHaveBeenCalled();
   });
 
-  it("given a complete listing without a stored coursework, then its event is retired and its alert cancelled", async () => {
+  it("given a complete listing without a stored coursework, then it is withdrawn, not deleted, and its alert cancelled", async () => {
     await ingestCoursework([homework({ id: "w1" }), homework({ id: "w2" })]);
 
     const result = await ingestCoursework([homework({ id: "w2" })]);
 
-    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0, removed: 1 });
-    expect(courseworkRow("w1")?.get("deletedAt").isSome()).toBe(true);
-    expect(courseworkRow("w2")?.get("deletedAt").isNone()).toBe(true);
-    expect(planner.cancel).toHaveBeenCalledWith(courseworkRow("w1")?.id.value);
-    expect(
-      enqueuedEvents(outbox)
-        .filter(({ eventType }) => eventType === EventTypes.EVENT_DELETED)
-        .map(({ aggregateId }) => aggregateId),
-    ).toEqual([courseworkRow("w1")?.id.value ?? ""]);
+    const w1 = courseworkRow("w1");
+    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0, withdrawn: 1 });
+    expect(w1?.get("withdrawnAt").isSome()).toBe(true);
+    expect(w1?.get("deletedAt").isNone()).toBe(true);
+    expect(courseworkRow("w2")?.get("withdrawnAt").isNone()).toBe(true);
+    expect(planner.cancel).toHaveBeenCalledWith(w1?.id.value);
+    expect(updatedFields()).toEqual([["withdrawn"]]);
   });
 
-  it("given a coursework still listed but no longer dated in the window, then its event stays", async () => {
+  it("given a withdrawn coursework listed and dated again, then it comes back with its alert", async () => {
     await ingestCoursework([homework({ id: "w1" })]);
+    await ingestCoursework([]);
+    planner.planDefault.mockClear();
 
-    const result = await ingestCoursework([], { complete: true, presentIds: ["w1"] });
+    const result = await ingestCoursework([homework({ id: "w1", deadlineDate: "2026-11-23" })]);
 
-    expect(result.getValue().removed).toBe(0);
-    expect(courseworkRow("w1")?.get("deletedAt").isNone()).toBe(true);
+    const w1 = courseworkRow("w1");
+    expect(result.getValue()).toEqual({ created: 0, updated: 1, rejected: 0, withdrawn: 0 });
+    expect(w1?.get("withdrawnAt").isNone()).toBe(true);
+    expect(w1?.get("deadline").value.date).toBe("2026-11-23");
+    expect(planner.planDefault).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: w1?.id.value, deadlineDate: "2026-11-23" }),
+    );
   });
 
-  it("given a partial listing, then nothing is retired", async () => {
+  it("given a withdrawn coursework that comes back already turned in, then it returns without an alert", async () => {
+    await ingestCoursework([homework({ id: "w1" })]);
+    await ingestCoursework([]);
+    planner.planDefault.mockClear();
+
+    await ingestCoursework([homework({ id: "w1", done: true })]);
+
+    expect(courseworkRow("w1")?.get("withdrawnAt").isNone()).toBe(true);
+    expect(planner.planDefault).not.toHaveBeenCalled();
+  });
+
+  it("given a partial listing, then nothing is withdrawn", async () => {
     await ingestCoursework([homework({ id: "w1" })]);
 
     const result = await ingestCoursework([], { complete: false, presentIds: [] });
 
-    expect(result.getValue().removed).toBe(0);
-    expect(courseworkRow("w1")?.get("deletedAt").isNone()).toBe(true);
+    expect(result.getValue().withdrawn).toBe(0);
+    expect(courseworkRow("w1")?.get("withdrawnAt").isNone()).toBe(true);
     expect(planner.cancel).not.toHaveBeenCalled();
+  });
+});
+
+describe("withdrawCourseworkOutside", () => {
+  it("given the child's active courses, then the coursework of the other courses is withdrawn", async () => {
+    await ingestCoursework([homework({ id: "w1" })]);
+    await service.ingestCoursework({
+      userId: PARENT,
+      childId: CHILD,
+      courseId: "course-2",
+      items: [homework({ id: "w2" })],
+      complete: true,
+      presentIds: ["w2"],
+    });
+
+    const result = await service.withdrawCourseworkOutside({
+      userId: PARENT,
+      childId: CHILD,
+      activeCourseIds: ["course-1"],
+    });
+
+    expect(result.getValue()).toEqual({ withdrawn: 1 });
+    expect(courseworkRow("w1")?.get("withdrawnAt").isNone()).toBe(true);
+    expect(courseworkRow("w2")?.get("withdrawnAt").isSome()).toBe(true);
+    expect(planner.cancel).toHaveBeenCalledWith(courseworkRow("w2")?.id.value);
+  });
+
+  it("given a child that is not the parent's, then EVENT_CHILD_NOT_FOUND and nothing is withdrawn", async () => {
+    children.isOwnedBy.mockResolvedValue(Result.ok(false));
+
+    const result = await service.withdrawCourseworkOutside({
+      userId: PARENT,
+      childId: CHILD,
+      activeCourseIds: [],
+    });
+
+    expect(result.getError().code).toBe("EVENT_CHILD_NOT_FOUND");
+    expect(repo.lockLiveCoursework).not.toHaveBeenCalled();
   });
 });

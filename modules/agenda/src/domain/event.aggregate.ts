@@ -11,9 +11,9 @@ export const EDITABLE_FIELDS = ["title", "description", "category", "deadline"] 
 
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 
-export type EventField = EditableField | "status" | "done";
+export type EventField = EditableField | "status" | "done" | "withdrawn";
 
-export type EventRefusal = "deleted";
+export type EventRefusal = "deleted" | "withdrawn";
 
 export interface AgendaEventProps {
   userId: string;
@@ -33,6 +33,7 @@ export interface AgendaEventProps {
   editedAt: Option<Date>;
   editedFields: EditableField[];
   deletedAt: Option<Date>;
+  withdrawnAt: Option<Date>;
   createdAt: Date;
 }
 
@@ -82,6 +83,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
         editedAt: Option.none(),
         editedFields: [],
         deletedAt: Option.none(),
+        withdrawnAt: Option.none(),
         createdAt: now,
       },
       new EventId(),
@@ -120,6 +122,10 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
       this._props.done = state.done;
       fields.push("done");
     }
+    if (this._props.withdrawnAt.isSome()) {
+      this._props.withdrawnAt = Option.none();
+      fields.push("withdrawn");
+    }
     return Result.ok(fields);
   }
 
@@ -146,6 +152,14 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     if (this._props.deletedAt.isSome()) return Result.fail("deleted");
 
     this._props.status = EventStatus.confirmed();
+    return Result.ok();
+  }
+
+  withdraw(now: Date): Result<void, EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+    if (this._props.withdrawnAt.isSome()) return Result.fail("withdrawn");
+
+    this._props.withdrawnAt = Option.some(now);
     return Result.ok();
   }
 

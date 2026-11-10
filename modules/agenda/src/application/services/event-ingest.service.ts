@@ -16,7 +16,11 @@ import { EventSource } from "../../domain/value-objects/event-source.vo";
 import type { EventTitle } from "../../domain/value-objects/event-title.vo";
 import type { IAlertPlanner, PlannedDeadline } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
-import type { AgendaError, IEventRepository } from "../ports/event-repository.port";
+import type {
+  AgendaError,
+  CourseworkCourses,
+  IEventRepository,
+} from "../ports/event-repository.port";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 
 export interface IngestedEvent {
@@ -62,7 +66,17 @@ export interface CourseworkIngestOutput {
   created: number;
   updated: number;
   rejected: number;
-  removed: number;
+  withdrawn: number;
+}
+
+export interface CourseworkWithdrawInput {
+  userId: string;
+  childId: string;
+  activeCourseIds: string[];
+}
+
+export interface CourseworkWithdrawOutput {
+  withdrawn: number;
 }
 
 type IngestError = AgendaError | AppError;
@@ -144,7 +158,7 @@ export class EventIngestService {
             created: 0,
             updated: 0,
             rejected: 0,
-            removed: 0,
+            withdrawn: 0,
           };
           for (const item of input.items) {
             const parsed = this.parseCoursework(item);
@@ -161,36 +175,58 @@ export class EventIngestService {
           }
           if (!input.complete) return Result.ok<CourseworkIngestOutput, IngestError>(outcome);
 
-          const removed = await this.retireUnlisted(input);
-          return removed.map((count) => ({ ...outcome, removed: count }));
+          const withdrawn = await this.withdrawLive(
+            input,
+            { courseId: input.courseId },
+            input.presentIds,
+          );
+          return withdrawn.map((count) => ({ ...outcome, withdrawn: count }));
         });
       },
     );
   }
 
-  private async retireUnlisted(input: CourseworkIngestInput): Promise<Result<number, IngestError>> {
-    const live = await this.events.lockLiveCoursework(input.userId, input.childId, input.courseId);
+  async withdrawCourseworkOutside(
+    input: CourseworkWithdrawInput,
+  ): Promise<Result<CourseworkWithdrawOutput, IngestError>> {
+    return this.instrumentation.startSpan(
+      { name: "EventIngestService > withdrawCourseworkOutside", op: "function" },
+      async () => {
+        const owned = await this.children.isOwnedBy(input.userId, input.childId);
+        if (owned.isFailure) return Result.fail(owned.getError());
+        if (!owned.getValue()) return Result.fail(childNotFound);
+
+        return this.transactions.run(async () => {
+          const withdrawn = await this.withdrawLive(
+            input,
+            { outsideCourseIds: input.activeCourseIds },
+            [],
+          );
+          return withdrawn.map((count) => ({ withdrawn: count }));
+        });
+      },
+    );
+  }
+
+  private async withdrawLive(
+    { userId, childId }: { userId: string; childId: string },
+    courses: CourseworkCourses,
+    presentIds: string[],
+  ): Promise<Result<number, IngestError>> {
+    const live = await this.events.lockLiveCoursework(userId, childId, courses);
     if (live.isFailure) return Result.fail(live.getError());
 
-    const listed = new Set(input.presentIds);
-    let removed = 0;
+    const listed = new Set(presentIds);
+    let withdrawn = 0;
     for (const event of live.getValue()) {
       if (listed.has(event.get("announcementId"))) continue;
-      if (event.delete(this.clock()).isFailure) continue;
+      if (event.withdraw(this.clock()).isFailure) continue;
 
-      const saved = await this.events.save(event);
+      const saved = await this.saveFollowed(event, ["withdrawn"]);
       if (saved.isFailure) return Result.fail(saved.getError());
-
-      const cancelled = await this.alerts.cancel(event.id.value);
-      if (cancelled.isFailure) return Result.fail(cancelled.getError());
-
-      await emitEvent(this.outbox, EventTypes.EVENT_DELETED, "event", event.id.value, {
-        userId: event.get("userId"),
-        eventId: event.id.value,
-      });
-      removed += 1;
+      withdrawn += 1;
     }
-    return Result.ok(removed);
+    return Result.ok(withdrawn);
   }
 
   private parseCoursework(item: IngestedCoursework): Option<ParsedCoursework> {
@@ -257,9 +293,11 @@ export class EventIngestService {
   }
 
   private async realert(event: AgendaEvent, fields: EventField[]): Promise<Result<void, AppError>> {
+    if (event.get("withdrawnAt").isSome()) return this.alerts.cancel(event.id.value);
     if (event.get("done") && fields.includes("done")) return this.alerts.cancel(event.id.value);
     if (event.get("done")) return Result.ok();
-    if (fields.includes("done")) return this.alerts.planDefault(plannedDeadline(event));
+    if (fields.includes("withdrawn") || fields.includes("done"))
+      return this.alerts.planDefault(plannedDeadline(event));
     if (fields.includes("deadline")) return this.alerts.replan(plannedDeadline(event));
 
     return Result.ok();

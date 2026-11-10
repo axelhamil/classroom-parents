@@ -99,6 +99,7 @@ const ingest: IEventIngest = {
     return Result.ok({ created: 1 });
   },
   ingestCoursework: async () => Result.ok({ created: 0 }),
+  withdrawCourseworkOutside: async () => Result.ok({ withdrawn: 0 }),
 };
 
 const syncState: IChildSyncState = {

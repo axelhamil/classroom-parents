@@ -17,7 +17,9 @@ export const agendaEvents = defineEventContribution({
     }),
     "agenda.event.updated": EventRef.extend({
       fields: z
-        .array(z.enum(["title", "description", "category", "deadline", "status", "done"]))
+        .array(
+          z.enum(["title", "description", "category", "deadline", "status", "done", "withdrawn"]),
+        )
         .min(1),
     }),
     "agenda.event.deleted": EventRef,

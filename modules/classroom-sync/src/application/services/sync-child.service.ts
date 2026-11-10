@@ -118,6 +118,25 @@ interface CourseRead {
   presentIds: string[];
 }
 
+interface CourseList {
+  courses: Course[];
+  complete: boolean;
+}
+
+function trackCuts(scope: ReadScope): { scope: ReadScope; cut: Set<ClassroomListing> } {
+  const cut = new Set<ClassroomListing>();
+  return {
+    cut,
+    scope: {
+      mayContinue: () => scope.mayContinue(),
+      truncated: (listing) => {
+        cut.add(listing);
+        scope.truncated(listing);
+      },
+    },
+  };
+}
+
 interface GoogleAccess {
   token: string;
   scope: ReadScope;
@@ -164,8 +183,9 @@ export class SyncChildService {
         if (token.isFailure) return this.failed(lease, now, providerFailure("jeton Google"));
 
         const scope = this.readScope(lease);
+        const listing = trackCuts(scope);
         const courses = await this.withRetry(() =>
-          this.classroom.listCourses(token.getValue(), scope),
+          this.classroom.listCourses(token.getValue(), listing.scope),
         );
         if (courses.isFailure) return this.courseListFailed(lease, courses.getError().code, now);
 
@@ -173,7 +193,7 @@ export class SyncChildService {
           input,
           lease,
           { token: token.getValue(), scope },
-          courses.getValue(),
+          { courses: courses.getValue(), complete: !listing.cut.has("courses") },
           now,
         );
       },
@@ -184,7 +204,7 @@ export class SyncChildService {
     input: SyncChildInput,
     lease: SyncLease,
     access: GoogleAccess,
-    courses: Course[],
+    { courses, complete }: CourseList,
     now: Date,
   ): Promise<Result<SyncReport, SyncError>> {
     const reads = await runPooled(courses, COURSE_CONCURRENCY, (course) =>
@@ -210,6 +230,8 @@ export class SyncChildService {
     );
     if ([...saved, ...extracted].some(({ kind }) => kind === "lease_lost"))
       return Result.fail(leaseLost);
+    if (complete && (await this.withdrawOutside(input, lease, courses)).kind === "lease_lost")
+      return Result.fail(leaseLost);
 
     return this.finish(input, lease, now, {
       courses: courses.length,
@@ -232,14 +254,7 @@ export class SyncChildService {
   ): Promise<Result<CourseRead, CourseFailure>> {
     if (!(await scope.mayContinue())) return Result.fail("lease_lost");
 
-    const cut = new Set<ClassroomListing>();
-    const courseScope: ReadScope = {
-      mayContinue: () => scope.mayContinue(),
-      truncated: (listing) => {
-        cut.add(listing);
-        scope.truncated(listing);
-      },
-    };
+    const { scope: courseScope, cut } = trackCuts(scope);
     const [listed, coursework, turnedIn] = await Promise.all([
       this.withRetry(() =>
         this.classroom.listAnnouncements(token, course.id, windowStart(now), courseScope),
@@ -258,7 +273,10 @@ export class SyncChildService {
       pending: pending.getValue(),
       coursework: this.courseworkDeadlines(coursework.getValue(), turnedIn.getValue(), now),
       courseworkComplete: !cut.has("coursework"),
-      presentIds: coursework.getValue().map(({ id }) => id),
+      presentIds: coursework
+        .getValue()
+        .filter(({ due }) => due.isSome())
+        .map(({ id }) => id),
     });
   }
 
@@ -343,6 +361,29 @@ export class SyncChildService {
     if (saved.getError().code === leaseLost.code) return { kind: "lease_lost" };
 
     this.instrumentation.capture(saved.getError(), { metadata: { childId: input.childId } });
+    return { kind: "failed" };
+  }
+
+  private async withdrawOutside(
+    input: SyncChildInput,
+    lease: SyncLease,
+    courses: Course[],
+  ): Promise<SyncOutcome> {
+    const withdrawn = await this.transactions.run(async (): Promise<Result<number, AppError>> => {
+      const held = await this.leaseStillHeld(lease);
+      if (held.isFailure) return Result.fail(held.getError());
+
+      const done = await this.events.withdrawCourseworkOutside({
+        userId: input.userId,
+        childId: input.childId,
+        activeCourseIds: courses.map(({ id }) => id),
+      });
+      return done.map(({ withdrawn }) => withdrawn);
+    });
+    if (withdrawn.isSuccess) return { kind: "done", created: 0 };
+    if (withdrawn.getError().code === leaseLost.code) return { kind: "lease_lost" };
+
+    this.instrumentation.capture(withdrawn.getError(), { metadata: { childId: input.childId } });
     return { kind: "failed" };
   }
 

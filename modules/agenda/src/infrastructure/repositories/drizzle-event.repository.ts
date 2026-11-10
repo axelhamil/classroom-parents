@@ -11,6 +11,7 @@ import {
   isNull,
   lt,
   notExists,
+  notInArray,
   resolveExecutor,
   type SQL,
   sql,
@@ -19,6 +20,7 @@ import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/h
 import { agendaEvent } from "../../../schemas/event.schema";
 import {
   type AgendaError,
+  type CourseworkCourses,
   type EventFilter,
   type EventPage,
   eventNotFound,
@@ -77,6 +79,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         editedAt: Option.fromNullable(row.editedAt),
         editedFields: row.editedFields,
         deletedAt: Option.fromNullable(row.deletedAt),
+        withdrawnAt: Option.fromNullable(row.withdrawnAt),
         createdAt: row.createdAt,
       },
       id.getValue(),
@@ -99,11 +102,16 @@ function mutableColumns(event: AgendaEvent) {
     editedAt: event.get("editedAt").toNull(),
     editedFields: event.get("editedFields"),
     deletedAt: event.get("deletedAt").toNull(),
+    withdrawnAt: event.get("withdrawnAt").toNull(),
   };
 }
 
-function ownedAlive(userId: string): SQL | undefined {
+function ownedUndeleted(userId: string): SQL | undefined {
   return and(eq(agendaEvent.userId, userId), isNull(agendaEvent.deletedAt));
+}
+
+function ownedAlive(userId: string): SQL | undefined {
+  return and(ownedUndeleted(userId), isNull(agendaEvent.withdrawnAt));
 }
 
 const coursework = alias(agendaEvent, "coursework");
@@ -118,6 +126,7 @@ function notShadowedByCoursework(exec: ReturnType<typeof resolveExecutor>): SQL 
           sql`${agendaEvent.source} = 'announcement'`,
           sql`${coursework.source} = 'coursework'`,
           isNull(coursework.deletedAt),
+          isNull(coursework.withdrawnAt),
           eq(coursework.childId, agendaEvent.childId),
           eq(coursework.courseId, agendaEvent.courseId),
           eq(coursework.deadlineDate, agendaEvent.deadlineDate),
@@ -190,7 +199,7 @@ export class DrizzleEventRepository implements IEventRepository {
         const query = exec
           .update(agendaEvent)
           .set(mutableColumns(event))
-          .where(and(eq(agendaEvent.id, event.id.value), ownedAlive(event.get("userId"))))
+          .where(and(eq(agendaEvent.id, event.id.value), ownedUndeleted(event.get("userId"))))
           .returning({ id: agendaEvent.id });
         const updated = await this.instrumentation.startSpan(
           { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
@@ -249,7 +258,7 @@ export class DrizzleEventRepository implements IEventRepository {
   async lockLiveCoursework(
     userId: string,
     childId: string,
-    courseId: string,
+    courses: CourseworkCourses,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -263,9 +272,12 @@ export class DrizzleEventRepository implements IEventRepository {
               and(
                 eq(agendaEvent.userId, userId),
                 eq(agendaEvent.childId, childId),
-                eq(agendaEvent.courseId, courseId),
+                "courseId" in courses
+                  ? eq(agendaEvent.courseId, courses.courseId)
+                  : notInArray(agendaEvent.courseId, courses.outsideCourseIds),
                 sql`${agendaEvent.source} = 'coursework'`,
                 isNull(agendaEvent.deletedAt),
+                isNull(agendaEvent.withdrawnAt),
               ),
             )
             .for("update");

@@ -111,6 +111,9 @@ export function syncHarness(): SyncHarness {
   ingest.ingestCoursework.mockImplementation(async ({ items }) =>
     Result.ok<{ created: number }, AppError>({ created: items.length }),
   );
+  ingest.withdrawCourseworkOutside.mockResolvedValue(
+    Result.ok<{ withdrawn: number }, AppError>({ withdrawn: 0 }),
+  );
   state.holdsLease.mockResolvedValue(Result.ok<boolean, AppError>(true));
   state.markSynced.mockResolvedValue(Result.ok<AppError>());
   state.markSyncFailed.mockResolvedValue(Result.ok<AppError>());

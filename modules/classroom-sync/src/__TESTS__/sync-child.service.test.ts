@@ -465,7 +465,7 @@ describe("syncChild, Classroom coursework (D13)", () => {
     expect(titles[1]).toBe("Devoir w2");
   });
 
-  it("sends every read course with the coursework ids Classroom still lists", async () => {
+  it("sends every read course with the dated coursework ids Classroom still lists", async () => {
     h.givenCourses({ maths: [], art: [] });
     h.givenCoursework([
       coursework("w1", "maths", { date: "2026-11-19" }),
@@ -482,7 +482,7 @@ describe("syncChild, Classroom coursework (D13)", () => {
       ]),
     );
     expect(listings).toEqual({
-      maths: { items: ["w1"], complete: true, presentIds: ["w1", "w2", "old"] },
+      maths: { items: ["w1"], complete: true, presentIds: ["w1", "old"] },
       art: { items: [], complete: true, presentIds: [] },
     });
   });
@@ -589,6 +589,71 @@ describe("syncChild, Classroom coursework (D13)", () => {
     expect(result.getValue().failedCoursework).toBe(1);
     expect(result.getValue().newAnnouncements).toBe(1);
     expect(h.state.markSynced).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("syncChild, coursework of courses no longer listed", () => {
+  const withdrawals = () =>
+    h.ingest.withdrawCourseworkOutside.mock.calls.map(([request]) => request);
+
+  it("withdraws the coursework outside the active courses after a complete course list", async () => {
+    h.givenCourses({ maths: [], art: [] });
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.isSuccess).toBe(true);
+    expect(withdrawals()).toEqual([
+      { userId: CHILD.userId, childId: CHILD.childId, activeCourseIds: ["maths", "art"] },
+    ]);
+  });
+
+  it("withdraws nothing when the course list hit the page cap", async () => {
+    h.client.listCourses.mockImplementation(async (_token, scope) => {
+      scope.truncated("courses");
+      return Result.ok<Course[], ClassroomError>([{ id: "maths" }]);
+    });
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.ingest.withdrawCourseworkOutside).not.toHaveBeenCalled();
+  });
+
+  it("withdraws nothing when the course list fails", async () => {
+    h.client.listCourses.mockResolvedValue(
+      Result.fail<Course[], ClassroomError>({ code: "CLASSROOM_PROVIDER_FAILURE", message: "503" }),
+    );
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.ingest.withdrawCourseworkOutside).not.toHaveBeenCalled();
+  });
+
+  it("withdraws nothing once the lease is lost", async () => {
+    h.givenCourses({ maths: [] });
+    h.client.listTurnedIn.mockImplementation(async () => {
+      h.state.holdsLease.mockResolvedValue(Result.ok<boolean, AppError>(false));
+      return Result.ok<string[], ClassroomError>([]);
+    });
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_LEASE_CONFLICT");
+    expect(h.ingest.withdrawCourseworkOutside).not.toHaveBeenCalled();
+  });
+
+  it("keeps the sync successful when the withdrawal fails", async () => {
+    h.givenCourses({ maths: [] });
+    h.ingest.withdrawCourseworkOutside.mockResolvedValue(
+      Result.fail<{ withdrawn: number }, AppError>({
+        code: "EVENT_PROVIDER_FAILURE",
+        message: "db",
+      }),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.isSuccess).toBe(true);
+    expect(h.state.markSynced).toHaveBeenCalled();
   });
 });
 

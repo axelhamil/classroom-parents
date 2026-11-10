@@ -40,6 +40,7 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       editedAt: Option.none(),
       editedFields: [],
       deletedAt: Option.none(),
+      withdrawnAt: Option.none(),
       createdAt: new Date("2026-11-09T07:05:00.000Z"),
     },
     new EventId(),

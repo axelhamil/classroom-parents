@@ -48,6 +48,7 @@ export const agendaEvent = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -59,7 +60,9 @@ export const agendaEvent = pgTable(
     ),
     index("event_coursework_day_idx")
       .on(table.childId, table.courseId, table.deadlineDate)
-      .where(sql`${table.source} = 'coursework' and ${table.deletedAt} is null`),
+      .where(
+        sql`${table.source} = 'coursework' and ${table.deletedAt} is null and ${table.withdrawnAt} is null`,
+      ),
     index("event_user_deadline_idx")
       .on(table.userId, table.deadlineAt)
       .where(sql`${table.deletedAt} is null`),
