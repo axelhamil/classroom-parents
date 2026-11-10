@@ -2,37 +2,30 @@ import { type IInstrumentation, type IUnitOfWork, Option, Result } from "@packag
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import {
-  ChildAccount,
-  DISCONNECT_LEASE_MS,
-  type ManualSyncRefusal,
-  SYNC_LEASE_MS,
-} from "../../domain/child-account.aggregate";
+import { ChildAccount, DISCONNECT_LEASE_MS } from "../../domain/child-account.aggregate";
 import { CHILD_LABEL_MAX, ChildLabel } from "../../domain/value-objects/child-label.vo";
-import type { ChildStatusValue, ReconnectCause } from "../../domain/value-objects/child-status.vo";
 import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 import { CHILD_PROVIDER_ID } from "../config/child-provider";
 import type { ChildrenSettings } from "../config/children-settings";
 import { type ChildDto, type LinkableAccount, toChildDto } from "../dto/child.dto";
-import { invalidGrant } from "../errors/children-errors";
+import { accountNotLinked, childNotFound } from "../errors/children-errors";
 import type {
   ChildrenError,
   DisconnectingChild,
-  DueChild,
   IChildRepository,
   SyncLease,
 } from "../ports/child-repository.port";
-import type { IGoogleCredentialStore } from "../ports/google-credential-store.port";
 import type {
   IGoogleLinkedAccounts,
   LinkedGoogleAccount,
 } from "../ports/google-linked-accounts.port";
-import type { GoogleProfile, IGoogleOAuthClient } from "../ports/google-oauth-client.port";
+import type { GoogleProfile } from "../ports/google-oauth-client.port";
 import type { ILinkedAccountEraser } from "../ports/linked-account-eraser.port";
+import type { GoogleAccessService } from "./google-access.service";
+import { ownedChild } from "./owned-child";
 
 type ErrorCode = ChildrenError["code"];
 
-const ACCESS_TOKEN_SKEW_MS = 60_000;
 const DEFAULT_LABEL = "Enfant";
 
 export interface RegisterChildInput {
@@ -50,26 +43,11 @@ export interface ResumeOutput {
   failed: number;
 }
 
-export type ManualSyncClaim =
-  | { outcome: "started"; lease: SyncLease; label: string }
-  | { outcome: "running" }
-  | { outcome: "throttled" };
-
 const UNUSABLE_LINK: readonly ErrorCode[] = [
   "CHILD_SCOPES_MISSING",
   "CHILD_REFRESH_TOKEN_MISSING",
   "CHILD_TOKEN_INVALID_GRANT",
 ];
-
-const notFound: ChildrenError = {
-  code: "CHILD_NOT_FOUND",
-  message: "Cet enfant n'existe pas ou n'est plus relié à votre compte.",
-};
-
-const notLinked: ChildrenError = {
-  code: "CHILD_ACCOUNT_NOT_LINKED",
-  message: "Ce compte Google n'est pas relié à votre compte. Ajoutez-le de nouveau.",
-};
 
 const scopesMissing: ChildrenError = {
   code: "CHILD_SCOPES_MISSING",
@@ -88,13 +66,6 @@ const alreadyConnected: ChildrenError = {
   message: "Ce compte Google est déjà relié à l'un de vos enfants.",
 };
 
-const SYNC_BLOCKED_MESSAGES: Record<Exclude<ChildStatusValue, "connected">, string> = {
-  disconnecting: "Cet enfant est en cours de déconnexion.",
-  needs_reconnect: "Reconnectez le compte Google de cet enfant pour relancer la synchronisation.",
-  blocked_by_school:
-    "L'école bloque l'accès à Classroom pour ce compte. Transmettez-lui la procédure affichée sur la fiche de l'enfant.",
-};
-
 const revokeUnconfirmed: ChildrenError = {
   code: "CHILD_PROVIDER_FAILURE",
   message:
@@ -110,8 +81,7 @@ export class ChildConnectionService {
   constructor(
     private readonly children: IChildRepository,
     private readonly linkedAccounts: IGoogleLinkedAccounts,
-    private readonly credentials: IGoogleCredentialStore,
-    private readonly google: IGoogleOAuthClient,
+    private readonly googleAccess: Pick<GoogleAccessService, "profileOf" | "revokeGrant">,
     private readonly eraser: ILinkedAccountEraser,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
@@ -154,7 +124,7 @@ export class ChildConnectionService {
 
         const usable = this.usability(account);
         const profile = usable.isSuccess
-          ? await this.profileOf(userId, account.linkedAccountId)
+          ? await this.googleAccess.profileOf(userId, account.linkedAccountId)
           : Result.fail<GoogleProfile, ChildrenError>(usable.getError());
         if (profile.isSuccess) {
           linkable.push({
@@ -218,7 +188,7 @@ export class ChildConnectionService {
       if (usable.isFailure)
         return Result.fail(await this.refuseLink(userId, input.linkedAccountId, usable.getError()));
 
-      const profile = await this.profileOf(userId, input.linkedAccountId);
+      const profile = await this.googleAccess.profileOf(userId, input.linkedAccountId);
       if (profile.isFailure)
         return Result.fail(
           await this.refuseLink(userId, input.linkedAccountId, profile.getError()),
@@ -254,15 +224,15 @@ export class ChildConnectionService {
   async reconnect(userId: string, childId: string): Promise<Result<ChildDto, ChildrenError>> {
     return this.span("reconnect", () =>
       this.transactions.run(async () => {
-        const found = await this.ownedChild(userId, childId);
+        const found = await ownedChild(this.children, userId, childId);
         if (found.isFailure) return Result.fail(found.getError());
         const child = found.getValue();
-        if (child.isDisconnecting()) return Result.fail(notFound);
+        if (child.isDisconnecting()) return Result.fail(childNotFound);
 
         const usable = await this.usableLinkedAccount(userId, child.get("linkedAccountId"));
         if (usable.isFailure) return Result.fail(usable.getError());
 
-        if (child.reconnect(this.clock()).isFailure) return Result.fail(notFound);
+        if (child.reconnect(this.clock()).isFailure) return Result.fail(childNotFound);
         const saved = await this.children.save(child);
         if (saved.isFailure) return Result.fail(saved.getError());
 
@@ -282,7 +252,7 @@ export class ChildConnectionService {
         const label = this.parseLabel(rawLabel);
         if (label.isFailure) return Result.fail(label.getError());
 
-        const found = await this.ownedChild(userId, childId);
+        const found = await ownedChild(this.children, userId, childId);
         if (found.isFailure) return Result.fail(found.getError());
         const child = found.getValue();
 
@@ -302,7 +272,7 @@ export class ChildConnectionService {
   async disconnect(userId: string, childId: string): Promise<Result<void, ChildrenError>> {
     return this.span("disconnect", async () => {
       const begun = await this.transactions.run(async () => {
-        const found = await this.ownedChild(userId, childId);
+        const found = await ownedChild(this.children, userId, childId);
         if (found.isFailure)
           return Result.fail<Option<DisconnectingChild>, ChildrenError>(found.getError());
 
@@ -354,104 +324,6 @@ export class ChildConnectionService {
     });
   }
 
-  async accessTokenFor(childId: string): Promise<Result<string, ChildrenError>> {
-    return this.span("accessTokenFor", async () => {
-      const found = await this.children.findForSystem(childId);
-      if (found.isFailure) return Result.fail(found.getError());
-      if (found.getValue().isNone()) return Result.fail(notFound);
-      const child = found.getValue().unwrap();
-
-      const token = await this.liveAccessToken(child.get("userId"), child.get("linkedAccountId"));
-      if (token.isSuccess || token.getError().code !== "CHILD_TOKEN_INVALID_GRANT") return token;
-
-      const marked = await this.markNeedsReconnect(childId, "invalid_grant");
-      if (marked.isFailure)
-        this.instrumentation.capture(marked.getError(), { metadata: { childId } });
-      return token;
-    });
-  }
-
-  async markNeedsReconnect(
-    childId: string,
-    cause: ReconnectCause,
-  ): Promise<Result<void, ChildrenError>> {
-    return this.span("markNeedsReconnect", () =>
-      this.transactions.run(async () => {
-        const found = await this.children.findForSystem(childId);
-        if (found.isFailure) return Result.fail(found.getError());
-        if (found.getValue().isNone()) return Result.fail(notFound);
-        const child = found.getValue().unwrap();
-
-        if (child.markNeedsReconnect(cause).isFailure) return Result.ok<ChildrenError>();
-
-        const saved = await this.children.save(child);
-        if (saved.isFailure) return saved;
-
-        await emitEvent(this.outbox, EventTypes.CHILD_NEEDS_RECONNECT, "child", childId, {
-          userId: child.get("userId"),
-          childId,
-          cause,
-          actorUserId: null,
-        });
-        return Result.ok<ChildrenError>();
-      }),
-    );
-  }
-
-  async isOwnedBy(userId: string, childId: string): Promise<Result<boolean, ChildrenError>> {
-    return this.span("isOwnedBy", async () => {
-      const found = await this.children.findOwnedShared(userId, childId);
-
-      return found.map((child) => child.map((owned) => !owned.isDisconnecting()).unwrapOr(false));
-    });
-  }
-
-  async claimDueForSync(limit: number, now: Date): Promise<Result<DueChild[], ChildrenError>> {
-    return this.span("claimDueForSync", () => this.children.claimDue(limit, now, SYNC_LEASE_MS));
-  }
-
-  async claimManualSync(
-    userId: string,
-    childId: string,
-    now: Date,
-  ): Promise<Result<ManualSyncClaim, ChildrenError>> {
-    return this.span("claimManualSync", () =>
-      this.transactions.run(async () => {
-        const found = await this.ownedChild(userId, childId);
-        if (found.isFailure) return Result.fail(found.getError());
-        const child = found.getValue();
-
-        const requested = child.requestManualSync(now);
-        if (requested.isFailure) return this.refusedManualSync(child, requested.getError());
-
-        const saved = await this.children.save(child);
-        if (saved.isFailure) return Result.fail(saved.getError());
-
-        return Result.ok<ManualSyncClaim, ChildrenError>({
-          outcome: "started",
-          lease: { childId, lease: child.get("syncLease") },
-          label: child.get("label").value,
-        });
-      }),
-    );
-  }
-
-  async holdsLease(lease: SyncLease): Promise<Result<boolean, ChildrenError>> {
-    return this.span("holdsLease", () => this.children.holdsLease(lease));
-  }
-
-  async markSynced(
-    lease: SyncLease,
-    at: Date,
-    nextSyncAt: Date,
-  ): Promise<Result<void, ChildrenError>> {
-    return this.span("markSynced", () => this.children.markSynced(lease, at, nextSyncAt));
-  }
-
-  async markSyncFailed(lease: SyncLease, nextSyncAt: Date): Promise<Result<void, ChildrenError>> {
-    return this.span("markSyncFailed", () => this.children.markSyncFailed(lease, nextSyncAt));
-  }
-
   private span<T>(method: string, work: () => Promise<T>): Promise<T> {
     return this.instrumentation.startSpan(
       { name: `ChildConnectionService > ${method}`, op: "function" },
@@ -475,21 +347,9 @@ export class ChildConnectionService {
   ): Promise<Result<void, ChildrenError>> {
     const found = await this.linkedAccounts.find(userId, linkedAccountId);
     if (found.isFailure) return Result.fail(found.getError());
-    if (found.getValue().isNone()) return Result.fail(notLinked);
+    if (found.getValue().isNone()) return Result.fail(accountNotLinked);
 
     return this.usability(found.getValue().unwrap());
-  }
-
-  private refusedManualSync(
-    child: ChildAccount,
-    refusal: ManualSyncRefusal,
-  ): Result<ManualSyncClaim, ChildrenError> {
-    const status = child.get("status").value;
-    if (refusal === "unavailable" && status !== "connected")
-      return Result.fail({ code: "CHILD_SYNC_BLOCKED", message: SYNC_BLOCKED_MESSAGES[status] });
-    if (refusal === "running") return Result.ok({ outcome: "running" });
-
-    return Result.ok({ outcome: "throttled" });
   }
 
   private async refuseLink(
@@ -531,7 +391,7 @@ export class ChildConnectionService {
   private async finishDisconnect(target: DisconnectingChild): Promise<Result<void, ChildrenError>> {
     const { userId, childId, linkedAccountId } = target;
     const lease: SyncLease = { childId, lease: target.lease };
-    const revoked = await this.revokeStoredGrant(userId, linkedAccountId);
+    const revoked = await this.googleAccess.revokeGrant(userId, linkedAccountId);
     if (revoked.isFailure) {
       this.instrumentation.capture(revoked.getError(), { userId });
       const released = await this.children.releaseLease(lease, this.clock());
@@ -567,7 +427,7 @@ export class ChildConnectionService {
       if (locked.isFailure)
         return Result.fail<Option<DisconnectingChild>, ChildrenError>(locked.getError());
       if (locked.getValue().isNone())
-        return Result.fail<Option<DisconnectingChild>, ChildrenError>(notLinked);
+        return Result.fail<Option<DisconnectingChild>, ChildrenError>(accountNotLinked);
 
       return this.beginDisconnect(locked.getValue().unwrap());
     });
@@ -581,7 +441,7 @@ export class ChildConnectionService {
     userId: string,
     linkedAccountId: string,
   ): Promise<Result<void, ChildrenError>> {
-    const revoked = await this.revokeStoredGrant(userId, linkedAccountId);
+    const revoked = await this.googleAccess.revokeGrant(userId, linkedAccountId);
     if (revoked.isFailure) {
       this.instrumentation.capture(revoked.getError(), { userId });
       return Result.fail(revokeUnconfirmed);
@@ -590,7 +450,7 @@ export class ChildConnectionService {
     return this.transactions.run(async (): Promise<Result<void, ChildrenError>> => {
       const erased = await this.eraser.delete(userId, linkedAccountId);
       if (erased.isFailure) return Result.fail(erased.getError());
-      if (erased.getValue().isNone()) return Result.fail(notLinked);
+      if (erased.getValue().isNone()) return Result.fail(accountNotLinked);
 
       await emitEvent(this.outbox, EventTypes.USER_ACCOUNT_UNLINKED, "account", linkedAccountId, {
         userId,
@@ -599,64 +459,6 @@ export class ChildConnectionService {
       });
       return Result.ok();
     });
-  }
-
-  private async revokeStoredGrant(
-    userId: string,
-    linkedAccountId: string,
-  ): Promise<Result<void, ChildrenError>> {
-    const read = await this.credentials.read(userId, linkedAccountId);
-    if (read.isFailure) return Result.fail(read.getError());
-
-    const grant = read.getValue().flatMap((stored) => stored.refreshToken.or(stored.accessToken));
-    if (grant.isNone()) return Result.ok();
-
-    return this.google.revoke(grant.unwrap());
-  }
-
-  private async ownedChild(
-    userId: string,
-    childId: string,
-  ): Promise<Result<ChildAccount, ChildrenError>> {
-    const found = await this.children.findOwned(userId, childId);
-    if (found.isFailure) return Result.fail(found.getError());
-
-    return found.getValue().toResult(notFound);
-  }
-
-  private async liveAccessToken(
-    userId: string,
-    linkedAccountId: string,
-  ): Promise<Result<string, ChildrenError>> {
-    const read = await this.credentials.read(userId, linkedAccountId);
-    if (read.isFailure) return Result.fail(read.getError());
-    if (read.getValue().isNone()) return Result.fail(notLinked);
-    const stored = read.getValue().unwrap();
-
-    const freshUntil = this.clock().getTime() + ACCESS_TOKEN_SKEW_MS;
-    const live = stored.accessToken.filter(() =>
-      stored.accessTokenExpiresAt.map((at) => at.getTime() > freshUntil).unwrapOr(false),
-    );
-    if (live.isSome()) return Result.ok(live.unwrap());
-    if (stored.refreshToken.isNone()) return Result.fail(invalidGrant);
-
-    const refreshed = await this.google.refresh(stored.refreshToken.unwrap());
-    if (refreshed.isFailure) return Result.fail(refreshed.getError());
-
-    const replaced = await this.credentials.replace(userId, linkedAccountId, refreshed.getValue());
-    if (replaced.isFailure) return Result.fail(replaced.getError());
-
-    return Result.ok(refreshed.getValue().accessToken);
-  }
-
-  private async profileOf(
-    userId: string,
-    linkedAccountId: string,
-  ): Promise<Result<GoogleProfile, ChildrenError>> {
-    const token = await this.liveAccessToken(userId, linkedAccountId);
-    if (token.isFailure) return Result.fail(token.getError());
-
-    return this.google.profile(token.getValue());
   }
 
   private labelFor(

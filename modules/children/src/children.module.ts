@@ -11,6 +11,8 @@ import type { IGoogleLinkedAccounts } from "./application/ports/google-linked-ac
 import type { IGoogleOAuthClient } from "./application/ports/google-oauth-client.port";
 import type { ILinkedAccountEraser } from "./application/ports/linked-account-eraser.port";
 import { ChildConnectionService } from "./application/services/child-connection.service";
+import { ChildSyncService } from "./application/services/child-sync.service";
+import { GoogleAccessService } from "./application/services/google-access.service";
 import { DrizzleGoogleCredentialStore } from "./infrastructure/adapters/drizzle-google-credential.store";
 import { DrizzleGoogleLinkedAccounts } from "./infrastructure/adapters/drizzle-google-linked-accounts";
 import { DrizzleLinkedAccountEraser } from "./infrastructure/adapters/drizzle-linked-account.eraser";
@@ -50,13 +52,33 @@ export const childrenModule = defineModule<ChildrenPrerequisites>()((b) =>
         new GoogleOAuthClient(c.IInstrumentation, c.childrenSettings, fetch),
     )
     .add(
+      "ChildSyncService",
+      (c) =>
+        new ChildSyncService(
+          c.IChildRepository,
+          c.ITransactionService,
+          c.IOutboxRepository,
+          c.IInstrumentation,
+        ),
+    )
+    .add(
+      "GoogleAccessService",
+      (c) =>
+        new GoogleAccessService(
+          c.IChildRepository,
+          c.IGoogleCredentialStore,
+          c.IGoogleOAuthClient,
+          c.ChildSyncService,
+          c.IInstrumentation,
+        ),
+    )
+    .add(
       "ChildConnectionService",
       (c) =>
         new ChildConnectionService(
           c.IChildRepository,
           c.IGoogleLinkedAccounts,
-          c.IGoogleCredentialStore,
-          c.IGoogleOAuthClient,
+          c.GoogleAccessService,
           c.ILinkedAccountEraser,
           c.ITransactionService,
           c.IOutboxRepository,

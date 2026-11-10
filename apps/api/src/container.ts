@@ -157,7 +157,7 @@ export const di = container()
   )
   .addModule(healthModule)
   .addModule(childrenModule)
-  .add("IChildOwnership", (c) => childOwnershipFor(c.ChildConnectionService))
+  .add("IChildOwnership", (c) => childOwnershipFor(c.ChildSyncService))
   .add(
     "IAlertPlanner",
     (): IAlertPlanner => alertPlannerFor((): AlertPlanner => di.AlertPlanningService),
@@ -170,12 +170,18 @@ export const di = container()
   )
   .addModule(alertsModule)
   .addModule(extractionModule)
-  .add("IChildAccessTokens", (c) => childAccessTokensFor(c.ChildConnectionService))
+  .add("IChildAccessTokens", (c) => childAccessTokensFor(c.GoogleAccessService))
   .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))
   .add("IEventIngest", (c) => eventIngestFor(c.EventIngestService))
-  .add("IDueChildren", (c) => dueChildrenFor(c.ChildConnectionService))
-  .add("IChildSyncState", (c) => childSyncStateFor(c.ChildConnectionService))
-  .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService))
+  .add("IDueChildren", (c) => dueChildrenFor(c.ChildSyncService))
+  .add("IChildSyncState", (c) => childSyncStateFor(c.ChildSyncService))
+  .add("IManualSyncGate", (c) =>
+    manualSyncGateFor({
+      list: (userId) => c.ChildConnectionService.list(userId),
+      claimManualSync: (userId, childId, now) =>
+        c.ChildSyncService.claimManualSync(userId, childId, now),
+    }),
+  )
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .addModule(rgpdModule)

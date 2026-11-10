@@ -6,6 +6,8 @@ import type { IEventDeadlines } from "@modules/alerts/application/ports/event-de
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
+import type { ChildSyncService } from "@modules/children/application/services/child-sync.service";
+import type { GoogleAccessService } from "@modules/children/application/services/google-access.service";
 import type { IAnnouncementExtractor } from "@modules/classroom-sync/application/ports/announcement-extractor.port";
 import type { IChildAccessTokens } from "@modules/classroom-sync/application/ports/child-access-tokens.port";
 import type { IChildSyncState } from "@modules/classroom-sync/application/ports/child-sync-state.port";
@@ -18,6 +20,7 @@ import { type AppError, Result } from "@packages/ddd-kit";
 import type { IChildConnections } from "../modules/rgpd/application/ports/child-connections.port";
 
 type Children<K extends keyof ChildConnectionService> = Pick<ChildConnectionService, K>;
+type ChildSync<K extends keyof ChildSyncService> = Pick<ChildSyncService, K>;
 
 const RECONNECT_CODES: ReadonlySet<ChildrenError["code"]> = new Set([
   "CHILD_TOKEN_INVALID_GRANT",
@@ -41,7 +44,7 @@ function withLeaseConflict(error: ChildrenError): AppError {
   return { code: "SYNC_LEASE_CONFLICT", message: error.message };
 }
 
-export function childOwnershipFor(children: Children<"isOwnedBy">): IChildOwnership {
+export function childOwnershipFor(children: ChildSync<"isOwnedBy">): IChildOwnership {
   return { isOwnedBy: (userId, childId) => children.isOwnedBy(userId, childId) };
 }
 
@@ -94,7 +97,7 @@ export function eventIngestFor(
   };
 }
 
-export function dueChildrenFor(children: Children<"claimDueForSync">): IDueChildren {
+export function dueChildrenFor(children: ChildSync<"claimDueForSync">): IDueChildren {
   return {
     claimDue: async (limit, now) =>
       (await children.claimDueForSync(limit, now)).map((due) =>
@@ -103,7 +106,9 @@ export function dueChildrenFor(children: Children<"claimDueForSync">): IDueChild
   };
 }
 
-export function childAccessTokensFor(children: Children<"accessTokenFor">): IChildAccessTokens {
+export function childAccessTokensFor(
+  children: Pick<GoogleAccessService, "accessTokenFor">,
+): IChildAccessTokens {
   return {
     accessTokenFor: async (childId) => {
       const token = await children.accessTokenFor(childId);
@@ -117,7 +122,7 @@ export function childAccessTokensFor(children: Children<"accessTokenFor">): IChi
 }
 
 export function childSyncStateFor(
-  children: Children<"holdsLease" | "markSynced" | "markSyncFailed" | "markNeedsReconnect">,
+  children: ChildSync<"holdsLease" | "markSynced" | "markSyncFailed" | "markNeedsReconnect">,
 ): IChildSyncState {
   return {
     holdsLease: (lease) => children.holdsLease(lease),
@@ -129,7 +134,9 @@ export function childSyncStateFor(
   };
 }
 
-export function manualSyncGateFor(children: Children<"list" | "claimManualSync">): IManualSyncGate {
+export function manualSyncGateFor(
+  children: Children<"list"> & ChildSync<"claimManualSync">,
+): IManualSyncGate {
   return {
     childIdsOf: async (userId) =>
       (await children.list(userId))

@@ -40,6 +40,8 @@ import type {
   IGoogleOAuthClient,
 } from "../src/application/ports/google-oauth-client.port";
 import { ChildConnectionService } from "../src/application/services/child-connection.service";
+import { ChildSyncService } from "../src/application/services/child-sync.service";
+import { GoogleAccessService } from "../src/application/services/google-access.service";
 import { DrizzleGoogleCredentialStore } from "../src/infrastructure/adapters/drizzle-google-credential.store";
 import { DrizzleGoogleLinkedAccounts } from "../src/infrastructure/adapters/drizzle-google-linked-accounts";
 import { DrizzleLinkedAccountEraser } from "../src/infrastructure/adapters/drizzle-linked-account.eraser";
@@ -83,11 +85,20 @@ const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const transactions = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check-child-db" });
 });
-const service = new ChildConnectionService(
-  new DrizzleChildRepository(instrumentation),
-  new DrizzleGoogleLinkedAccounts(instrumentation),
+const childRepository = new DrizzleChildRepository(instrumentation);
+const sync = new ChildSyncService(childRepository, transactions, outbox, instrumentation);
+const access = new GoogleAccessService(
+  childRepository,
   new DrizzleGoogleCredentialStore(sealing, instrumentation),
   google,
+  sync,
+  instrumentation,
+  () => T0,
+);
+const service = new ChildConnectionService(
+  childRepository,
+  new DrizzleGoogleLinkedAccounts(instrumentation),
+  access,
   new DrizzleLinkedAccountEraser(instrumentation),
   transactions,
   outbox,
@@ -186,7 +197,7 @@ async function ownershipUnderSharedLease(
         if (arrived === writers) allArrived();
         await barrier;
 
-        return service.isOwnedBy(userId, childId);
+        return sync.isOwnedBy(userId, childId);
       }),
     ),
   );
@@ -241,7 +252,7 @@ run(async () => {
   );
   await step(
     "A cannot start a sync of B's child",
-    codeOf(await service.claimManualSync(a, bChild, T0)) === "CHILD_NOT_FOUND",
+    codeOf(await sync.claimManualSync(a, bChild, T0)) === "CHILD_NOT_FOUND",
   );
   await step(
     "A cannot disconnect B's child, whose account row stays",
@@ -251,7 +262,7 @@ run(async () => {
       revoked.length === 0,
   );
 
-  const token = await service.accessTokenFor(bChild);
+  const token = await access.accessTokenFor(bChild);
   const bStored = await accountRow(bAccount);
   await step(
     "an expired token is refreshed, served in clear and stored sealed",
@@ -261,8 +272,8 @@ run(async () => {
       bStored.refreshToken === `${SEAL}1//b-tom`,
   );
 
-  const workerClaim = await service.claimDueForSync(1000, T0);
-  const duringLease = await service.claimManualSync(a, aChild, new Date(T0.getTime() + 5_000));
+  const workerClaim = await sync.claimDueForSync(1000, T0);
+  const duringLease = await sync.claimManualSync(a, aChild, new Date(T0.getTime() + 5_000));
   await step(
     "a manual sync during the worker's lease answers running, never a second sync",
     workerClaim.isSuccess &&
@@ -273,8 +284,8 @@ run(async () => {
 
   const duringLeaseAt = new Date(T0.getTime() + 5_000);
   const reconnected = await service.reconnect(a, aChild);
-  const reclaimed = await service.claimDueForSync(1000, duringLeaseAt);
-  const manualAfterReconnect = await service.claimManualSync(a, aChild, duringLeaseAt);
+  const reclaimed = await sync.claimDueForSync(1000, duringLeaseAt);
+  const manualAfterReconnect = await sync.claimManualSync(a, aChild, duringLeaseAt);
   await step(
     "a reconnect during the worker's lease keeps it: no second claim, a manual sync answers running",
     reconnected.isSuccess &&
@@ -288,7 +299,7 @@ run(async () => {
     ? workerClaim.getValue().find((d) => d.childId === aChild)
     : undefined;
   const afterCrash = new Date(T0.getTime() + LEASE_MS);
-  const takeover = await service.claimManualSync(a, aChild, afterCrash);
+  const takeover = await sync.claimManualSync(a, aChild, afterCrash);
   const takeoverClaim = takeover.isSuccess ? takeover.getValue() : undefined;
   await step(
     "once the worker's lease has expired, a manual sync takes over with a new lease",
@@ -299,8 +310,8 @@ run(async () => {
   if (workerLease === undefined || takeoverClaim?.outcome !== "started")
     throw new Error("no lease to fence");
 
-  const staleHeld = await service.holdsLease(workerLease);
-  const currentHeld = await service.holdsLease(takeoverClaim.lease);
+  const staleHeld = await sync.holdsLease(workerLease);
+  const currentHeld = await sync.holdsLease(takeoverClaim.lease);
   await step(
     "only the current lease holder holds the lease, the late worker does not",
     staleHeld.isSuccess &&
@@ -312,10 +323,10 @@ run(async () => {
   const concurrentWrites = await Promise.all(
     Array.from({ length: 6 }, () =>
       transactions.run(async () => {
-        const held = await service.holdsLease(takeoverClaim.lease);
+        const held = await sync.holdsLease(takeoverClaim.lease);
         if (held.isFailure) return held;
 
-        return service.isOwnedBy(a, aChild);
+        return sync.isOwnedBy(a, aChild);
       }),
     ),
   );
@@ -325,7 +336,7 @@ run(async () => {
     concurrentWrites.map((owned) => (owned.isSuccess ? owned.getValue() : owned.getError().code)),
   );
 
-  const late = await service.markSynced(workerLease, afterCrash, new Date(T0.getTime() + 3600_000));
+  const late = await sync.markSynced(workerLease, afterCrash, new Date(T0.getTime() + 3600_000));
   const afterLate = await childRow(aChild);
   await step(
     "the late worker's end of sync is refused and leaves the new sync untouched",
@@ -334,7 +345,7 @@ run(async () => {
       afterLate.lastSyncedAt === null,
   );
   const failedAt = new Date(T0.getTime() + 12 * 60_000);
-  const failed = await service.markSyncFailed(takeoverClaim.lease, failedAt);
+  const failed = await sync.markSyncFailed(takeoverClaim.lease, failedAt);
   const afterFailure = await childRow(aChild);
   await step(
     "the current lease holder's markSyncFailed sets the next sync and clears syncing",
@@ -345,8 +356,8 @@ run(async () => {
 
   const racedAt = new Date(afterCrash.getTime() + 61_000);
   const manual = await Promise.all([
-    service.claimManualSync(a, aChild, racedAt),
-    service.claimManualSync(a, aChild, racedAt),
+    sync.claimManualSync(a, aChild, racedAt),
+    sync.claimManualSync(a, aChild, racedAt),
   ]);
   const outcomes = manual.map((r) => (r.isSuccess ? r.getValue().outcome : codeOf(r)));
   await step(
@@ -358,8 +369,8 @@ run(async () => {
     .map((r) => (r.isSuccess ? r.getValue() : undefined))
     .find((c) => c?.outcome === "started");
   if (started?.outcome !== "started") throw new Error("no started manual sync");
-  await service.markSynced(started.lease, racedAt, new Date(T0.getTime() + 20 * 60_000));
-  const soon = await service.claimManualSync(a, aChild, new Date(racedAt.getTime() + 30_000));
+  await sync.markSynced(started.lease, racedAt, new Date(T0.getTime() + 20 * 60_000));
+  const soon = await sync.claimManualSync(a, aChild, new Date(racedAt.getTime() + 30_000));
   await step(
     "a manual sync requested 30 s after the last one is throttled",
     soon.isSuccess && soon.getValue().outcome === "throttled",
@@ -380,8 +391,8 @@ run(async () => {
       : [];
 
   const [first, second] = await Promise.all([
-    service.claimDueForSync(1000, claimAt),
-    service.claimDueForSync(1000, claimAt),
+    sync.claimDueForSync(1000, claimAt),
+    sync.claimDueForSync(1000, claimAt),
   ]);
   const firstIds = mine(first);
   const secondIds = mine(second);
@@ -393,23 +404,23 @@ run(async () => {
   );
   await step(
     "a claimed child is not claimable again before the lease ends",
-    mine(await service.claimDueForSync(1000, new Date(claimAt.getTime() + LEASE_MS - 1000)))
-      .length === 0,
+    mine(await sync.claimDueForSync(1000, new Date(claimAt.getTime() + LEASE_MS - 1000))).length ===
+      0,
   );
   await step(
     "a crashed sync is claimable again once the lease ends",
-    mine(await service.claimDueForSync(1000, new Date(claimAt.getTime() + LEASE_MS))).length ===
+    mine(await sync.claimDueForSync(1000, new Date(claimAt.getTime() + LEASE_MS))).length ===
       probeIds.size,
   );
 
-  await service.markNeedsReconnect(bChild, "school_blocked");
+  await sync.markNeedsReconnect(bChild, "school_blocked");
   await step(
     "a manual sync on a child blocked by its school is refused with CHILD_SYNC_BLOCKED",
-    codeOf(await service.claimManualSync(b, bChild, claimAt)) === "CHILD_SYNC_BLOCKED",
+    codeOf(await sync.claimManualSync(b, bChild, claimAt)) === "CHILD_SYNC_BLOCKED",
   );
   await step(
     "a blocked child is never claimed",
-    mine(await service.claimDueForSync(1000, new Date(claimAt.getTime() + 3 * LEASE_MS))).every(
+    mine(await sync.claimDueForSync(1000, new Date(claimAt.getTime() + 3 * LEASE_MS))).every(
       (id) => id !== bChild,
     ) && (await childRow(bChild))?.cause === "school_blocked",
   );
@@ -452,7 +463,7 @@ run(async () => {
   );
   await step(
     "a disconnecting child is never claimed for a sync",
-    !(await service.claimDueForSync(1000, new Date(T0.getTime() + 1000 * LEASE_MS)))
+    !(await sync.claimDueForSync(1000, new Date(T0.getTime() + 1000 * LEASE_MS)))
       .getValue()
       .some((d) => d.childId === stuck),
   );
