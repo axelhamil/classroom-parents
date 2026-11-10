@@ -1,40 +1,61 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
+import {
+  type ApiCall,
+  json,
+  queryClient,
+  renderAppAt,
+  resetApp,
+  stubApi,
+} from "../../../__tests__/app-harness";
+import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
 }));
 
 const EVENT = {
-  id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
-  childId: "8d0c1f4e-6a51-4c55-9c39-3a1f1e0b7a11",
+  ...EVENT_BASE,
   title: "Contrôle de mathématiques sur les fractions",
   description: "Réviser le chapitre 3.",
   category: "assessment",
   deadlineDate: "2027-03-26",
   deadlineTime: "08:30",
   deadlineAt: "2027-03-26T07:30:00.000Z",
-  status: "confirmed",
-  source: "announcement",
-  done: false,
-  announcementUrl: "https://classroom.google.com/c/abc/p/def",
-  receivedAt: "2026-11-05T10:00:00.000Z",
-  edited: false,
 };
 
 const EDIT_PATH = `/events/${EVENT.id}/edit`;
 
-function givenEvent(patchResponse: () => Response = () => json({ ...EVENT, edited: true })) {
+const DEADLINE_REFUSED =
+  "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59, hors de 02:00 à 02:59 le jour du passage à l'heure d'été.";
+
+const deadlineRefused = () =>
+  json({ error: { code: "EVENT_DEADLINE_INVALID", message: "invalid deadline" } }, 400);
+
+function givenEvent(
+  patchResponse: () => Response = () => json({ ...EVENT, edited: true }),
+  detail: () => Response = () => json(EVENT),
+) {
   return stubApi(({ method, url }) => {
-    if (url.pathname === `/events/${EVENT.id}` && method === "GET") return json(EVENT);
+    if (url.pathname === `/events/${EVENT.id}` && method === "GET") return detail();
     if (url.pathname === `/events/${EVENT.id}` && method === "PATCH") return patchResponse();
     if (url.pathname === `/events/${EVENT.id}/alert`) return json({ alert: null });
     if (url.pathname === "/children") return json([]);
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     return undefined;
   });
+}
+
+const EDITED_BY_YOU = "Modifié par vous : Classroom ne le mettra plus à jour.";
+
+function descriptionOf(label: string): string {
+  const ids = screen.getByLabelText(label).getAttribute("aria-describedby")?.split(" ") ?? [];
+
+  return ids
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .join("")
+    .trim();
 }
 
 function patches(calls: ApiCall[]): ApiCall[] {
@@ -114,10 +135,8 @@ describe("event edit form", () => {
     );
   });
 
-  it("given the API refuses the deadline, then its message shows on the date field", async () => {
-    givenEvent(() =>
-      json({ error: { code: "EVENT_DEADLINE_INVALID", message: "invalid deadline" } }, 400),
-    );
+  it("given the API refuses a changed date, then its message shows on the date field", async () => {
+    givenEvent(deadlineRefused);
     await renderAppAt(EDIT_PATH);
     await openForm();
 
@@ -125,12 +144,21 @@ describe("event edit form", () => {
     fireEvent.change(screen.getByLabelText("Pour le"), { target: { value: "2027-03-28" } });
     save();
 
-    expect(
-      await screen.findByText(
-        "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59.",
-      ),
-    ).toBeDefined();
+    expect(await screen.findByText(DEADLINE_REFUSED)).toBeDefined();
     expect(screen.getByLabelText("Pour le").getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("given the API refuses a time skipped by the spring change, then its message shows on the time field", async () => {
+    givenEvent(deadlineRefused);
+    await renderAppAt(EDIT_PATH);
+    await openForm();
+
+    fireEvent.change(screen.getByLabelText("Heure (facultative)"), { target: { value: "02:30" } });
+    save();
+
+    expect(await screen.findByText(DEADLINE_REFUSED)).toBeDefined();
+    expect(screen.getByLabelText("Heure (facultative)").getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByLabelText("Pour le").getAttribute("aria-invalid")).toBe("false");
   });
 
   it("given unsaved changes, when the parent leaves, then the app asks first and keeps the page on stay", async () => {
@@ -147,5 +175,55 @@ describe("event edit form", () => {
     await waitFor(() => expect(dialog.isConnected).toBe(false));
     expect(router.state.location.pathname).toBe(EDIT_PATH);
     expect(screen.getByDisplayValue("Contrôle reporté")).toBeDefined();
+  });
+
+  it("given a background reload fails, then the typing stays and a non-blocking message shows", async () => {
+    let detailFails = false;
+    givenEvent(undefined, () => (detailFails ? json({ code: "HTTP_500" }, 500) : json(EVENT)));
+    await renderAppAt(EDIT_PATH);
+    await openForm();
+
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Contrôle reporté" } });
+    detailFails = true;
+    await act(() => queryClient.invalidateQueries({ queryKey: ["events"] }));
+
+    expect(
+      await screen.findByText(
+        "La fiche n'a pas pu être rechargée. Votre saisie est conservée.",
+        undefined,
+        { timeout: 3000 },
+      ),
+    ).toBeDefined();
+    expect(screen.getByDisplayValue("Contrôle reporté")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toHaveProperty("disabled", false);
+  });
+
+  it("given the leave dialog open, when the parent presses Escape, then it closes and the page stays", async () => {
+    givenEvent();
+    const router = await renderAppAt(EDIT_PATH);
+    await openForm();
+
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "Contrôle reporté" } });
+    void router.navigate({ to: "/history" });
+    const dialog = await screen.findByRole("alertdialog", { name: "Quitter sans enregistrer ?" });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    await waitFor(() => expect(dialog.isConnected).toBe(false));
+    expect(router.state.location.pathname).toBe(EDIT_PATH);
+    expect(screen.getByDisplayValue("Contrôle reporté")).toBeDefined();
+  });
+
+  it("given the title and the deadline edited before, then only those fields say they no longer follow Classroom", async () => {
+    givenEvent(undefined, () =>
+      json({ ...EVENT, edited: true, editedFields: ["title", "deadline"] }),
+    );
+    await renderAppAt(EDIT_PATH);
+    await openForm();
+
+    expect(descriptionOf("Titre")).toBe(EDITED_BY_YOU);
+    expect(descriptionOf("Pour le")).toBe(EDITED_BY_YOU);
+    expect(descriptionOf("Heure (facultative)")).toBe(EDITED_BY_YOU);
+    expect(descriptionOf("Description")).toBe("");
+    expect(descriptionOf("Type")).toBe("");
   });
 });

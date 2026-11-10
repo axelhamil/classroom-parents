@@ -181,6 +181,21 @@ describe("replan", () => {
     });
   });
 
+  it("given a parent's alert sent 1 day before at 02:30, when the deadline moves to the day after the spring change, then the new occurrence falls at 03:30 Paris", async () => {
+    givenAlert(
+      existingAlert({ status: "sent", origin: "user", date: "2026-11-14", time: "02:30" }),
+    );
+    givenEvent(deadlineOn("2027-03-29"));
+
+    await service.replan(planned);
+
+    expect(saved()?.get("time").value).toEqual({
+      date: "2027-03-28",
+      time: "03:30",
+      at: new Date("2027-03-28T01:30:00.000Z"),
+    });
+  });
+
   it("given a parent's alert already sent 3 days before, when the deadline moves to a day whose 3 days before is past, then the new occurrence is not planned", async () => {
     givenAlert(
       existingAlert({ status: "sent", origin: "user", date: "2026-11-12", time: "07:30" }),
@@ -382,6 +397,18 @@ describe("setUserAlert", () => {
     });
 
     expect(result.getError().code).toBe("ALERT_IN_PAST");
+  });
+
+  it("given a time skipped by the spring change, then ALERT_TIME_INVALID and nothing is saved", async () => {
+    givenEvent(deadlineOn("2027-03-30"));
+
+    const result = await service.setUserAlert(PARENT, ALERT_EVENT, {
+      date: "2027-03-28",
+      time: "02:30",
+    });
+
+    expect(result.getError().code).toBe("ALERT_TIME_INVALID");
+    expect(alerts.save).not.toHaveBeenCalled();
   });
 
   it("given a date that does not exist, then ALERT_TIME_INVALID", async () => {

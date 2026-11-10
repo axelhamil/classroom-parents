@@ -27,7 +27,7 @@ const invalidCategory: AgendaError = {
 const invalidDeadline: AgendaError = {
   code: "EVENT_DEADLINE_INVALID",
   message:
-    "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59.",
+    "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59, hors de 02:00 à 02:59 le jour du passage à l'heure d'été.",
 };
 
 export function parseTitle(raw: string): Result<EventTitle, AgendaError> {
@@ -47,4 +47,11 @@ export function parseCategory(raw: string): Result<EventCategory, AgendaError> {
 
 export function parseDeadline(date: string, time?: string): Result<EventDeadline, AgendaError> {
   return EventDeadline.fromParisWallTime(date, time).mapError(() => invalidDeadline);
+}
+
+export function parseComputedDeadline(
+  date: string,
+  time?: string,
+): Result<EventDeadline, AgendaError> {
+  return EventDeadline.fromComputedParisWallTime(date, time).mapError(() => invalidDeadline);
 }

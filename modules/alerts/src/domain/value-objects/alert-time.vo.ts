@@ -1,5 +1,9 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
-import { utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
+import {
+  utcToZonedWall,
+  zonedWallTimeToUtc,
+  zonedWallTimeToUtcShifted,
+} from "@packages/ddd-kit/zoned-time";
 import { z } from "zod";
 
 export const ALERT_TIME_ZONE = "Europe/Paris";
@@ -57,7 +61,14 @@ export class AlertTime extends ValueObject<AlertTimeValue> {
     const date = daysBefore(deadlineDate, days);
     if (date.isFailure) return Result.fail(date.getError());
 
-    return AlertTime.fromParisWallTime(date.getValue(), time);
+    const shifted = zonedWallTimeToUtcShifted(date.getValue(), time, ALERT_TIME_ZONE);
+    if (shifted.isFailure)
+      return Result.fail(
+        `${date.getValue()} ${time} is not a Paris wall time (${shifted.getError()})`,
+      );
+
+    const { at, wall } = shifted.getValue();
+    return AlertTime.create({ date: wall.date, time: wall.time, at });
   }
 
   static fromInstant(instant: Date): Result<AlertTime> {

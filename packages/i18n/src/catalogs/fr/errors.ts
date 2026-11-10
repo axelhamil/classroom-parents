@@ -15,7 +15,7 @@ export default {
     EVENT_DESCRIPTION_INVALID: "La description doit contenir au plus 2 000 caractères.",
     EVENT_CATEGORY_INVALID: "Choisissez un type dans la liste.",
     EVENT_DEADLINE_INVALID:
-      "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59.",
+      "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59, hors de 02:00 à 02:59 le jour du passage à l'heure d'été.",
     ALERT_IN_PAST: "Ce moment est déjà passé : choisissez un jour et une heure à venir.",
     ALERT_AFTER_DEADLINE: "Le rappel doit tomber avant l'échéance.",
     ALERT_TIME_INVALID: "Choisissez un jour et une heure valides.",

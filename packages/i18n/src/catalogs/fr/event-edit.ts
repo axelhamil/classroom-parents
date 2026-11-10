@@ -1,6 +1,8 @@
 export default {
   title: "Modifier l'échéance",
   loading: "Chargement de l'échéance",
+  editedByYou: "Modifié par vous : Classroom ne le mettra plus à jour.",
+  refreshError: "La fiche n'a pas pu être rechargée. Votre saisie est conservée.",
   fields: {
     title: "Titre",
     description: "Description",

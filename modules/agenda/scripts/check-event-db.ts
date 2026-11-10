@@ -294,6 +294,28 @@ run(async () => {
       codeOf(await edits.remove(a, trip.id)) === "EVENT_NOT_FOUND",
   );
 
+  const d = await createUser("d");
+  const dChild = await createChild(d, "eva");
+  await ingest(d, dChild, "ann-dst", [
+    extracted({ title: "Heure d'été", deadlineDate: "2030-03-31", deadlineTime: "02:30" }),
+  ]);
+  const [dst] = await rowsOf(dChild, "ann-dst");
+  if (!dst) throw new Error("DST row missing");
+  await step(
+    "an extracted time skipped by the spring change is stored shifted, time and instant agreeing",
+    dst.deadlineTime?.slice(0, 5) === "03:30" &&
+      dst.deadlineAt.toISOString() === "2030-03-31T01:30:00.000Z",
+    { deadlineTime: dst.deadlineTime, deadlineAt: dst.deadlineAt.toISOString() },
+  );
+  const refusedDst = await edits.edit(d, dst.id, { deadlineTime: "02:30" });
+  const [dstAfter] = await rowsOf(dChild, "ann-dst");
+  await step(
+    "a time skipped by the spring change typed by the parent is refused and nothing changes",
+    codeOf(refusedDst) === "EVENT_DEADLINE_INVALID" &&
+      dstAfter?.deadlineTime?.slice(0, 5) === "03:30" &&
+      dstAfter.editedAt === null,
+  );
+
   await ingest(a, aTom, "ann-split", [
     extracted({ title: "Demain", deadlineDate: "2030-01-16" }),
     extracted({ title: "Ce matin", deadlineDate: "2030-01-15", deadlineTime: "08:00" }),

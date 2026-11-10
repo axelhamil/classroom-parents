@@ -13,6 +13,8 @@ import { router } from "../router";
 import { sessionQueryOptions } from "../shared/api/queries/session";
 import { queryClient } from "../shared/api/query-client";
 
+export { queryClient };
+
 export interface ApiCall {
   method: string;
   url: URL;

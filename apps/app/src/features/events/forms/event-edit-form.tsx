@@ -13,6 +13,7 @@ import { Button } from "@packages/ui/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -67,7 +68,10 @@ function patchOf(
   };
 }
 
-function fieldOf(code: string | undefined): keyof EventEditInput | null {
+function fieldOf(
+  code: string | undefined,
+  dirty: Partial<Readonly<FieldNamesMarkedBoolean<EventEditInput>>>,
+): keyof EventEditInput | null {
   switch (code) {
     case "EVENT_TITLE_INVALID":
       return "title";
@@ -76,7 +80,7 @@ function fieldOf(code: string | undefined): keyof EventEditInput | null {
     case "EVENT_CATEGORY_INVALID":
       return "category";
     case "EVENT_DEADLINE_INVALID":
-      return "deadlineDate";
+      return dirty.deadlineDate ? "deadlineDate" : "deadlineTime";
     default:
       return null;
   }
@@ -98,6 +102,8 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
     defaultValues: valuesOf(event),
   });
   const { isDirty, dirtyFields } = form.formState;
+  const frozenNote = (field: EventItem["editedFields"][number]) =>
+    event.editedFields.includes(field) ? t("editedByYou") : undefined;
   const released = useRef(false);
   const leave = (next: () => void) => {
     released.current = true;
@@ -107,7 +113,7 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
     ...editEventMutationOptions,
     onSuccess: (saved) => leave(() => onSaved(saved)),
     onError: (error) => {
-      const field = fieldOf(apiErrorFields(error).code);
+      const field = fieldOf(apiErrorFields(error).code, form.formState.dirtyFields);
       if (!field) return toastError(error, errorFallback("editEvent"));
 
       form.setError(field, { message: formatApiError(error, errorFallback("editEvent"), tErrors) });
@@ -129,7 +135,12 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
         className="flex flex-col gap-4"
         noValidate
       >
-        <FormTextField control={form.control} name="title" label={t("fields.title")} />
+        <FormTextField
+          control={form.control}
+          name="title"
+          label={t("fields.title")}
+          description={frozenNote("title")}
+        />
         <FormField
           control={form.control}
           name="description"
@@ -139,6 +150,9 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
               <FormControl>
                 <Textarea {...field} />
               </FormControl>
+              {frozenNote("description") && (
+                <FormDescription>{frozenNote("description")}</FormDescription>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -163,6 +177,9 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
                   ))}
                 </SelectContent>
               </Select>
+              {frozenNote("category") && (
+                <FormDescription>{frozenNote("category")}</FormDescription>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -173,12 +190,14 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
             name="deadlineDate"
             type="date"
             label={t("fields.deadlineDate")}
+            description={frozenNote("deadline")}
           />
           <FormTextField
             control={form.control}
             name="deadlineTime"
             type="time"
             label={t("fields.deadlineTime")}
+            description={frozenNote("deadline")}
           />
         </div>
         <div className="flex flex-wrap gap-2">
@@ -195,14 +214,19 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
           />
         </div>
       </form>
-      <AlertDialog open={blocker.status === "blocked"}>
+      <AlertDialog
+        open={blocker.status === "blocked"}
+        onOpenChange={(open) => {
+          if (!open) blocker.reset?.();
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("leave.title")}</AlertDialogTitle>
             <AlertDialogDescription>{t("leave.description")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={blocker.reset}>{t("leave.stay")}</AlertDialogCancel>
+            <AlertDialogCancel>{t("leave.stay")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={blocker.proceed}>
               {t("leave.confirm")}
             </AlertDialogAction>

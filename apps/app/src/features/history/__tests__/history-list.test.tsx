@@ -23,6 +23,7 @@ function pastEvent(index: number, deadlineDate: string, title: string) {
     announcementUrl: "https://classroom.google.com/c/abc/p/def",
     receivedAt: "2026-09-05T10:00:00.000Z",
     edited: false,
+    editedFields: [],
   };
 }
 

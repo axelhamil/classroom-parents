@@ -201,6 +201,20 @@ describe("ingest", () => {
     expect(stored.size).toBe(0);
   });
 
+  it("given an extracted time skipped by the spring change, then the first valid time is stored and alerted", async () => {
+    await ingest([extracted({ deadlineDate: "2027-03-28", deadlineTime: "02:30" })]);
+
+    const row = [...stored.values()][0];
+    expect(row?.get("deadline").value).toEqual({
+      date: "2027-03-28",
+      time: "03:30",
+      at: new Date("2027-03-28T01:30:00.000Z"),
+    });
+    expect(planner.planDefault).toHaveBeenCalledWith(
+      expect.objectContaining({ deadlineDate: "2027-03-28", deadlineTime: "03:30" }),
+    );
+  });
+
   it("given an unknown category, then EVENT_CATEGORY_INVALID is returned", async () => {
     const result = await ingest([extracted({ category: "party" })]);
 
@@ -277,6 +291,16 @@ describe("ingestCoursework", () => {
     expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
       EventTypes.EVENT_CREATED,
     ]);
+  });
+
+  it("given a coursework due at a time skipped by the spring change, then the first valid time is stored", async () => {
+    await ingestCoursework([homework({ deadlineDate: "2027-03-28", deadlineTime: "02:30" })]);
+
+    expect(courseworkRow()?.get("deadline").value).toEqual({
+      date: "2027-03-28",
+      time: "03:30",
+      at: new Date("2027-03-28T01:30:00.000Z"),
+    });
   });
 
   it("given a coursework already turned in, then it is stored as done and no alert is planned", async () => {

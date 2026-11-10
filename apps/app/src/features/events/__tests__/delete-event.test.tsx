@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
+import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 import { queryClient } from "../../../shared/api/query-client";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
@@ -9,19 +10,12 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 }));
 
 const EVENT = {
-  id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
-  childId: "8d0c1f4e-6a51-4c55-9c39-3a1f1e0b7a11",
+  ...EVENT_BASE,
   title: "Sortie à la médiathèque",
   description: "",
   category: "school_trip",
   deadlineDate: "2026-11-19",
   deadlineAt: "2026-11-19T23:00:00.000Z",
-  status: "confirmed",
-  source: "announcement",
-  done: false,
-  announcementUrl: "https://classroom.google.com/c/abc/p/def",
-  receivedAt: "2026-11-05T10:00:00.000Z",
-  edited: false,
 };
 const DETAIL_PATH = `/events/${EVENT.id}`;
 

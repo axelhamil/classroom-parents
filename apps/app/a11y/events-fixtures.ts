@@ -40,6 +40,7 @@ export const REVIEW_EVENT = {
   announcementUrl: "https://classroom.google.com/c/abc/p/def",
   receivedAt: new Date().toISOString(),
   edited: false,
+  editedFields: [],
 };
 
 export const EVENTS = [

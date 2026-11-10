@@ -33,7 +33,7 @@ function EventEditPage() {
     );
   }
 
-  if (query.isError) {
+  if (query.isLoadingError) {
     const notFound = apiErrorFields(query.error).status === 404;
 
     return (
@@ -51,6 +51,7 @@ function EventEditPage() {
 
   return (
     <Screen title={t("title")}>
+      {query.isRefetchError && <LoadErrorAlert message={t("refreshError")} />}
       <EventEditForm
         event={query.data}
         onSaved={(saved) => {

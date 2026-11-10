@@ -1,12 +1,18 @@
 import { Result } from "./result";
 
-interface ZonedWall {
+export interface ZonedWall {
   date: string;
   time: string;
 }
 
+export interface ShiftedZonedTime {
+  at: Date;
+  wall: ZonedWall;
+}
+
 type ZonedTimeError =
   | "ZONED_TIME_INVALID_WALL_TIME"
+  | "ZONED_TIME_NONEXISTENT_WALL_TIME"
   | "ZONED_TIME_INVALID_TIME_ZONE"
   | "ZONED_TIME_INVALID_INSTANT";
 
@@ -92,11 +98,16 @@ function requestedWallAsUtcMs(date: string, time: string): Result<number, ZonedT
   return Result.ok(wall.getTime());
 }
 
-export function zonedWallTimeToUtc(
+interface WallCandidates {
+  existing: number | undefined;
+  shifted: number;
+}
+
+function wallCandidates(
   date: string,
   time: string,
   timeZone: string,
-): Result<Date, ZonedTimeError> {
+): Result<WallCandidates, ZonedTimeError> {
   const requested = requestedWallAsUtcMs(date, time);
   if (requested.isFailure) return Result.fail(requested.getError());
 
@@ -112,7 +123,37 @@ export function zonedWallTimeToUtc(
     (instant) => wallAsUtcMs(formatter, instant) === wall,
   );
 
-  return Result.ok(new Date(existing ?? wall - offsetBefore));
+  return Result.ok({ existing, shifted: wall - offsetBefore });
+}
+
+export function zonedWallTimeToUtc(
+  date: string,
+  time: string,
+  timeZone: string,
+): Result<Date, ZonedTimeError> {
+  const candidates = wallCandidates(date, time, timeZone);
+  if (candidates.isFailure) return Result.fail(candidates.getError());
+
+  const { existing } = candidates.getValue();
+  if (existing === undefined) return Result.fail("ZONED_TIME_NONEXISTENT_WALL_TIME");
+
+  return Result.ok(new Date(existing));
+}
+
+export function zonedWallTimeToUtcShifted(
+  date: string,
+  time: string,
+  timeZone: string,
+): Result<ShiftedZonedTime, ZonedTimeError> {
+  const candidates = wallCandidates(date, time, timeZone);
+  if (candidates.isFailure) return Result.fail(candidates.getError());
+
+  const { existing, shifted } = candidates.getValue();
+  const at = new Date(existing ?? shifted);
+  const wall = utcToZonedWall(at, timeZone);
+  if (wall.isFailure) return Result.fail(wall.getError());
+
+  return Result.ok({ at, wall: wall.getValue() });
 }
 
 export function utcToZonedWall(instant: Date, timeZone: string): Result<ZonedWall, ZonedTimeError> {

@@ -8,6 +8,8 @@ const WORST_CASE_EVENT = {
   description:
     "Apporter le maillot 🩱🏊‍♀️ et lire https://classroom.google.com/c/MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkw/a/MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkw/details?authuser=1",
   deadlineTime: "08:30",
+  edited: true,
+  editedFields: ["title", "description", "category", "deadline"],
 };
 
 test.describe("event edit on a phone", () => {
@@ -23,6 +25,9 @@ test.describe("event edit on a phone", () => {
 
       await expect(page.getByLabel("Titre")).toHaveValue(REVIEW_EVENT.title);
       await expect(page.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
+      await expect(page.getByLabel("Titre")).toHaveAccessibleDescription(
+        "Modifié par vous : Classroom ne le mettra plus à jour.",
+      );
       await expect(page.locator("main")).toHaveCount(1);
       await expect(page.locator("h1")).toHaveCount(1);
       expect(
@@ -63,5 +68,20 @@ test.describe("event edit on a phone", () => {
     await dialog.getByRole("button", { name: "Rester" }).click();
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/events/${REVIEW_EVENT.id}/edit$`));
+  });
+
+  test("Escape closes the leave dialog and keeps the page", async ({ page }) => {
+    await serveFamily(page, { children: [LEA], events: [], detail: WORST_CASE_EVENT });
+    await page.goto(`/events/${REVIEW_EVENT.id}/edit`);
+
+    await page.getByLabel("Titre").fill("Sortie au musée");
+    await page.getByRole("button", { name: "Annuler" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Quitter sans enregistrer ?" });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`/events/${REVIEW_EVENT.id}/edit$`));
+    await expect(page.getByLabel("Titre")).toHaveValue("Sortie au musée");
   });
 });

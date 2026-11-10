@@ -58,6 +58,7 @@ describe("edit", () => {
     expect(result.getValue()).toMatchObject({
       deadlineDate: "2026-11-26",
       deadlineAt: "2026-11-26T22:59:00.000Z",
+      editedFields: ["deadline"],
     });
     expect(repo.save.mock.calls[0]?.[0].get("editedAt")).toEqual(Option.some(NOW));
     expect(planner.replan).toHaveBeenCalledWith({
@@ -115,6 +116,11 @@ describe("edit", () => {
     ],
     ["an unknown category", { category: "party" }, "EVENT_CATEGORY_INVALID"],
     ["a date that does not exist", { deadlineDate: "2026-11-31" }, "EVENT_DEADLINE_INVALID"],
+    [
+      "a time skipped by the spring change",
+      { deadlineDate: "2027-03-28", deadlineTime: "02:30" },
+      "EVENT_DEADLINE_INVALID",
+    ],
   ];
 
   it.each(refusals)(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { utcToZonedWall, zonedWallTimeToUtc } from "../index";
+import { utcToZonedWall, zonedWallTimeToUtc, zonedWallTimeToUtcShifted } from "../index";
 
 const PARIS = "Europe/Paris";
 
@@ -38,8 +38,24 @@ describe("zoned wall time", () => {
     expect(utcToZonedWall(new Date(utc), PARIS).getValue()).toEqual({ date, time });
   });
 
-  it("moves a wall time skipped by the spring change forward by the gap", () => {
-    expect(instantOf("2027-03-28", "02:30")).toBe("2027-03-28T01:30:00.000Z");
+  it("rejects a wall time skipped by the spring change", () => {
+    expect(zonedWallTimeToUtc("2027-03-28", "02:30", PARIS).getError()).toBe(
+      "ZONED_TIME_NONEXISTENT_WALL_TIME",
+    );
+  });
+
+  it("shifts a computed wall time skipped by the spring change to the first valid wall time", () => {
+    expect(zonedWallTimeToUtcShifted("2027-03-28", "02:30", PARIS).getValue()).toEqual({
+      at: new Date("2027-03-28T01:30:00.000Z"),
+      wall: { date: "2027-03-28", time: "03:30" },
+    });
+  });
+
+  it("keeps a computed wall time that exists as it is", () => {
+    expect(zonedWallTimeToUtcShifted("2027-03-28", "18:00", PARIS).getValue()).toEqual({
+      at: new Date("2027-03-28T16:00:00.000Z"),
+      wall: { date: "2027-03-28", time: "18:00" },
+    });
   });
 
   it("resolves a wall time repeated by the autumn change to its first occurrence", () => {
@@ -48,7 +64,9 @@ describe("zoned wall time", () => {
 
   it("resolves the transitions of a zone more than 12 hours ahead of UTC", () => {
     expect(instantOf("2026-04-05", "03:00", "Pacific/Chatham")).toBe("2026-04-04T13:15:00.000Z");
-    expect(instantOf("2026-09-27", "02:50", "Pacific/Chatham")).toBe("2026-09-26T14:05:00.000Z");
+    expect(
+      zonedWallTimeToUtcShifted("2026-09-27", "02:50", "Pacific/Chatham").getValue().at,
+    ).toEqual(new Date("2026-09-26T14:05:00.000Z"));
   });
 
   it("reads midnight as 00:00, not 24:00", () => {

@@ -23,6 +23,7 @@ const EVENT = {
   announcementUrl: "https://classroom.google.com/c/abc/p/def",
   receivedAt: "2026-11-05T10:00:00.000Z",
   edited: false,
+  editedFields: [],
 };
 
 function givenFamily(children: unknown[], events: { status: string }[]): ApiCall[] {

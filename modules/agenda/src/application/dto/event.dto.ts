@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AgendaEvent } from "../../domain/event.aggregate";
+import type { AgendaEvent, EditableField } from "../../domain/event.aggregate";
 import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
 import type { EventSourceValue } from "../../domain/value-objects/event-source.vo";
 import type { EventStatusValue } from "../../domain/value-objects/event-status.vo";
@@ -19,6 +19,7 @@ export interface EventDto {
   announcementUrl: string;
   receivedAt: string;
   edited: boolean;
+  editedFields: EditableField[];
 }
 
 export interface EventDeadlineDto {
@@ -65,6 +66,7 @@ export function toEventDto(event: AgendaEvent): EventDto {
     announcementUrl: event.get("announcementUrl"),
     receivedAt: event.get("receivedAt").toISOString(),
     edited: event.get("editedAt").isSome(),
+    editedFields: event.get("editedFields"),
   };
 }
 

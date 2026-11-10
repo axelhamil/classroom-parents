@@ -53,6 +53,7 @@ describe("list", () => {
           announcementUrl: "https://classroom.google.com/c/course-1/p/announcement-1",
           receivedAt: "2026-11-09T07:00:00.000Z",
           edited: false,
+          editedFields: [],
         },
       ],
       nextCursor: "next",

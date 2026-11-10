@@ -1,5 +1,5 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
-import { zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
+import { zonedWallTimeToUtc, zonedWallTimeToUtcShifted } from "@packages/ddd-kit/zoned-time";
 import { z } from "zod";
 
 export const AGENDA_TIME_ZONE = "Europe/Paris";
@@ -29,6 +29,17 @@ export class EventDeadline extends ValueObject<EventDeadlineValue> {
     if (at.isFailure) return Result.fail(at.getError());
 
     return EventDeadline.create({ date, time, at: at.getValue() });
+  }
+
+  static fromComputedParisWallTime(date: string, time?: string): Result<EventDeadline> {
+    if (time === undefined) return EventDeadline.fromParisWallTime(date);
+
+    const shifted = zonedWallTimeToUtcShifted(date, time, AGENDA_TIME_ZONE);
+    if (shifted.isFailure)
+      return Result.fail(`${date} ${time} is not a Paris wall time (${shifted.getError()})`);
+
+    const { at, wall } = shifted.getValue();
+    return EventDeadline.create({ date: wall.date, time: wall.time, at });
   }
 
   protected validate(value: EventDeadlineValue): Result<EventDeadlineValue> {

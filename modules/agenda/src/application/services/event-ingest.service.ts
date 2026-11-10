@@ -24,7 +24,7 @@ import type {
   IEventRepository,
 } from "../ports/event-repository.port";
 import { alertAnnouncementsOn, courseDayOf, leftItsDay } from "./alert-planning";
-import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
+import { parseCategory, parseComputedDeadline, parseDescription, parseTitle } from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
 
 export interface IngestedEvent {
@@ -232,7 +232,7 @@ export class EventIngestService {
 
   private parseCoursework(item: IngestedCoursework): Option<ParsedCoursework> {
     const title = parseTitle(item.title);
-    const deadline = parseDeadline(item.deadlineDate, item.deadlineTime);
+    const deadline = parseComputedDeadline(item.deadlineDate, item.deadlineTime);
     if (title.isSuccess && deadline.isSuccess)
       return Option.some({ item, title: title.getValue(), deadline: deadline.getValue() });
 
@@ -326,7 +326,7 @@ export class EventIngestService {
       if (description.isFailure) return Result.fail(description.getError());
       const category = parseCategory(raw.category);
       if (category.isFailure) return Result.fail(category.getError());
-      const deadline = parseDeadline(raw.deadlineDate, raw.deadlineTime);
+      const deadline = parseComputedDeadline(raw.deadlineDate, raw.deadlineTime);
       if (deadline.isFailure) return Result.fail(deadline.getError());
 
       built.push(

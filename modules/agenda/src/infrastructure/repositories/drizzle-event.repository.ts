@@ -50,7 +50,10 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const title = EventTitle.create(row.title);
   const description = EventDescription.create(row.description);
   const category = EventCategory.create(row.category);
-  const deadline = EventDeadline.fromParisWallTime(row.deadlineDate, row.deadlineTime?.slice(0, 5));
+  const deadline = EventDeadline.fromComputedParisWallTime(
+    row.deadlineDate,
+    row.deadlineTime?.slice(0, 5),
+  );
   const status = EventStatus.create(row.status);
   const source = EventSource.create(row.source);
   if (source.isFailure) return Result.fail(source.getError());
