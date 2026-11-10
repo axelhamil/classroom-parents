@@ -11,7 +11,8 @@
   "scripts": {
     "test": "bun test --isolate",
     "type-check": "tsc --noEmit",
-    "check": "biome check ."
+    "check": "biome check .",
+    "check:sync-db": "bun --env-file=../../packages/drizzle/.env scripts/check-sync-db.ts"
   },
   "dependencies": {
     "@packages/ddd-kit": "workspace:*",
