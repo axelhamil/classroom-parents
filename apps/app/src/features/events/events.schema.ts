@@ -1,5 +1,9 @@
+import {
+  EVENT_CATEGORIES,
+  EVENT_DESCRIPTION_MAX,
+  EVENT_TITLE_MAX,
+} from "@packages/events/agenda-contract";
 import { z } from "zod";
-import { EVENT_CATEGORIES } from "../../shared/events/event-labels";
 
 export const alertTimeSchema = z.object({
   date: z.iso.date(),
@@ -7,9 +11,6 @@ export const alertTimeSchema = z.object({
 });
 
 export type AlertTimeInput = z.infer<typeof alertTimeSchema>;
-
-export const EVENT_TITLE_MAX = 120;
-export const EVENT_DESCRIPTION_MAX = 2000;
 
 export const eventEditSchema = z.object({
   title: z.string().trim().min(1).max(EVENT_TITLE_MAX),

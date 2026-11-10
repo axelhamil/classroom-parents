@@ -1,12 +1,5 @@
+import type { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
 import type { EventItem } from "../api/queries/events";
-
-export const EVENT_CATEGORIES = [
-  "assessment",
-  "homework",
-  "school_trip",
-  "swimming",
-  "document_due",
-] as const;
 
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 

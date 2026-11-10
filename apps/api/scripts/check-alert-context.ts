@@ -10,7 +10,7 @@ exitUnlessLocalDatabase("check-alert-context", process.env.DATABASE_URL);
 
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { alert } from "@modules/alerts/schemas/alert.schema";
-import { childAccount } from "@modules/children/schemas/child.schema";
+import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { authSchema, db, like } from "@packages/drizzle";
 import { AlertContextQuery } from "../src/queries/alert-context.query";
 
@@ -25,34 +25,13 @@ async function familyWithEvent(
   deadline: { date: string; time: string | null },
 ): Promise<{ userId: string; eventId: string }> {
   const userId = `${probe}-${name}`;
-  const accountId = `${userId}-account`;
-  await db.insert(authSchema.user).values({ id: userId, name, email: `${userId}@example.com` });
-  await db.insert(authSchema.account).values({
-    id: accountId,
-    accountId: `sub-${accountId}`,
-    providerId: "google-classroom",
-    userId,
-    updatedAt: NOW,
-  });
-  const [child] = await db
-    .insert(childAccount)
-    .values({
-      userId,
-      linkedAccountId: accountId,
-      googleEmail: `${name}@school.example`,
-      label: `Enfant ${name}`,
-      status: "connected",
-      connectedAt: NOW,
-      nextSyncAt: NOW,
-    })
-    .returning({ id: childAccount.id });
-  if (!child) throw new Error(`child of ${name} not created`);
+  const childId = await seedParentWithChild({ userId, name, at: NOW, label: `Enfant ${name}` });
 
   const [event] = await db
     .insert(agendaEvent)
     .values({
       userId,
-      childId: child.id,
+      childId,
       announcementId: `announcement-${name}`,
       ordinal: 0,
       courseId: "course-1",

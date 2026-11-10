@@ -1,7 +1,6 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
+import { EVENT_TITLE_MAX } from "@packages/events/agenda-contract";
 import { z } from "zod";
-
-export const EVENT_TITLE_MAX = 120;
 
 export const eventTitleSchema = z.string().trim().min(1).max(EVENT_TITLE_MAX);
 

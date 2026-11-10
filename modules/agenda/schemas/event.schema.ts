@@ -1,5 +1,6 @@
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { authSchema } from "@packages/drizzle";
+import { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -14,7 +15,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { EDITABLE_FIELDS } from "../src/domain/event.aggregate";
-import { EVENT_CATEGORIES } from "../src/domain/value-objects/event-category.vo";
 import { EVENT_SOURCES } from "../src/domain/value-objects/event-source.vo";
 import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
 

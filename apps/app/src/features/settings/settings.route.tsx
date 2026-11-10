@@ -7,6 +7,7 @@ import { Screen } from "../../shared/layout/screen";
 import { DeleteAccountCard } from "./components/delete-account-card";
 import { PushCard } from "./components/push-card";
 import { SignOutCard } from "./components/sign-out-card";
+import { settingsSearchSchema } from "./settings.schema";
 
 const DATA_LINKS = [
   { to: "/settings/privacy", key: "links.privacy" },
@@ -15,12 +16,14 @@ const DATA_LINKS = [
 ] as const;
 
 export const Route = createFileRoute("/_protected/_shell/settings")({
+  validateSearch: settingsSearchSchema,
   component: SettingsPage,
 });
 
 function SettingsPage() {
   const { t } = useTranslation("settings");
   const { user } = Route.useRouteContext();
+  const { reauth, error } = Route.useSearch();
 
   return (
     <Screen title={t("home.title")} description={t("home.description")}>
@@ -39,7 +42,7 @@ function SettingsPage() {
         </ul>
       </SettingsSection>
       <SignOutCard />
-      <DeleteAccountCard />
+      <DeleteAccountCard reauthError={reauth ? (error ?? reauth) : undefined} />
     </Screen>
   );
 }

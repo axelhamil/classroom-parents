@@ -8,23 +8,16 @@ import { fileURLToPath } from "node:url";
 import { makeSignature } from "better-auth/crypto";
 import { auth } from "../src/auth";
 import { env } from "../src/shared/env";
-import { seedEmail } from "./seed-account";
+import { seedEmail, seedParent } from "./seed-account";
 
-const GOOGLE_SIGN_UP = { method: "oauth", oauth: { providerId: "google" } };
 const STORAGE_STATE = fileURLToPath(new URL("../../app/a11y/.auth/state.json", import.meta.url));
 
 const context = await auth.$context;
 const email = seedEmail();
 
-const existing = await context.internalAdapter.findUserByEmail(email);
-const user =
-  existing?.user ??
-  (await context.internalAdapter.createUser(
-    { email, name: "Dev User", emailVerified: true },
-    GOOGLE_SIGN_UP,
-  ));
+const userId = await seedParent(email, "Dev User");
 
-const session = await context.internalAdapter.createSession(user.id);
+const session = await context.internalAdapter.createSession(userId);
 const signature = await makeSignature(session.token, context.secret);
 const { name, attributes } = context.authCookies.sessionToken;
 
@@ -47,5 +40,5 @@ const storageState = {
 await mkdir(dirname(STORAGE_STATE), { recursive: true });
 await writeFile(STORAGE_STATE, JSON.stringify(storageState, null, 2));
 
-console.log(JSON.stringify({ seeded: { id: user.id, email }, storageState: STORAGE_STATE }));
+console.log(JSON.stringify({ seeded: { id: userId, email }, storageState: STORAGE_STATE }));
 process.exit(0);

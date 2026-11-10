@@ -1,8 +1,9 @@
+import { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../api/queries/children";
 import type { EventFilters } from "../api/queries/events";
 import { type EventFiltersSearch, eventFiltersSearchSchema } from "./event-filters.schema";
-import { CATEGORY_LABEL_KEYS, EVENT_CATEGORIES } from "./event-labels";
+import { CATEGORY_LABEL_KEYS } from "./event-labels";
 import { FilterChips } from "./filter-chips";
 
 export interface EventFilterBarProps {

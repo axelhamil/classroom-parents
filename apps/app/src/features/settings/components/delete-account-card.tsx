@@ -11,14 +11,19 @@ import { useGoogleReauth } from "../../rgpd/hooks/use-google-reauth";
 import { useRequestDeletion } from "../../rgpd/hooks/use-request-deletion";
 
 const RETURN_PATH = "/settings";
+const GOOGLE_CANCELLED = "access_denied";
 
-export function DeleteAccountCard() {
+export interface DeleteAccountCardProps {
+  reauthError?: string;
+}
+
+export function DeleteAccountCard({ reauthError }: DeleteAccountCardProps) {
   const { data: session } = useQuery(sessionQueryOptions);
   const until = session?.user.pendingDeletionUntil;
 
   if (until) return <ScheduledDeletion until={new Date(until)} />;
 
-  return <RequestDeletion />;
+  return <RequestDeletion reauthError={reauthError} />;
 }
 
 interface ScheduledDeletionProps {
@@ -40,10 +45,18 @@ function ScheduledDeletion({ until }: ScheduledDeletionProps) {
   );
 }
 
-function RequestDeletion() {
+function reauthMessageKey(reauthError: string | undefined) {
+  if (reauthError === undefined) return "deletion.reauth";
+  if (reauthError === GOOGLE_CANCELLED) return "deletion.reauthCancelled";
+
+  return "deletion.reauthCallbackFailed";
+}
+
+function RequestDeletion({ reauthError }: DeleteAccountCardProps) {
   const { t } = useTranslation(["settings", "common"]);
   const deletion = useRequestDeletion();
   const reauth = useGoogleReauth(RETURN_PATH);
+  const reauthRequired = deletion.reauthRequired || reauthError !== undefined;
 
   return (
     <SettingsSection
@@ -51,12 +64,12 @@ function RequestDeletion() {
       title={t("deletion.title")}
       description={t("deletion.description")}
     >
-      {deletion.reauthRequired ? (
+      {reauthRequired ? (
         <>
           <Alert>
             <ShieldAlert />
             <AlertTitle>{t("deletion.reauthTitle")}</AlertTitle>
-            <AlertDescription>{t("deletion.reauth")}</AlertDescription>
+            <AlertDescription>{t(reauthMessageKey(reauthError))}</AlertDescription>
           </Alert>
           <Button
             type="button"

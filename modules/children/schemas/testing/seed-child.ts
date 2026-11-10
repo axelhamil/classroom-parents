@@ -7,9 +7,16 @@ export interface SeedChildInput {
   name: string;
   at: Date;
   syncLease?: number;
+  label?: string;
 }
 
-export async function seedChild({ userId, name, at, syncLease }: SeedChildInput): Promise<string> {
+export async function seedChild({
+  userId,
+  name,
+  at,
+  syncLease,
+  label = name,
+}: SeedChildInput): Promise<string> {
   const linkedAccountId = `${userId}-${name}`;
   await db.insert(authSchema.account).values({
     id: linkedAccountId,
@@ -24,7 +31,7 @@ export async function seedChild({ userId, name, at, syncLease }: SeedChildInput)
       userId,
       linkedAccountId,
       googleEmail: `${name}@school.example`,
-      label: name,
+      label,
       status: "connected",
       connectedAt: at,
       nextSyncAt: at,
@@ -34,4 +41,11 @@ export async function seedChild({ userId, name, at, syncLease }: SeedChildInput)
   if (!child) throw new Error("child not seeded");
 
   return child.id;
+}
+
+export async function seedParentWithChild(input: SeedChildInput): Promise<string> {
+  const { userId, name } = input;
+  await db.insert(authSchema.user).values({ id: userId, name, email: `${userId}@example.com` });
+
+  return seedChild(input);
 }

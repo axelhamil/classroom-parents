@@ -72,6 +72,9 @@ export default {
     reauthAction: "Me reconnecter avec Google",
     reauthPending: "Redirection vers Google…",
     reauthFailed: "La connexion Google n'a pas pu démarrer. Réessayez dans un instant.",
+    reauthCancelled: "Confirmation Google annulée : votre compte n'est pas supprimé.",
+    reauthCallbackFailed:
+      "Google n'a pas pu confirmer votre identité. Votre compte n'est pas supprimé, réessayez.",
     scheduledTitle: "Suppression programmée",
     scheduledDescription:
       "Votre compte sera effacé le {{date}}. Vous pouvez annuler la suppression jusque-là.",

@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./user-stream-message": "./src/user-stream-message.ts"
+    "./user-stream-message": "./src/user-stream-message.ts",
+    "./agenda-contract": "./src/agenda-contract.ts"
   },
   "scripts": {
     "format": "biome format . --write",

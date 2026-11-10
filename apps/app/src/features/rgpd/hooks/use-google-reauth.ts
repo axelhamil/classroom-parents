@@ -1,18 +1,23 @@
 import { toAuthClientError } from "@packages/web-kit/api/errors/api-error";
 import { toastError } from "@packages/web-kit/api/errors/toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { authClient } from "../../../shared/auth/auth-client";
+import { sessionQueryOptions } from "../../../shared/api/queries/session";
+import { signInWithGoogle } from "../../../shared/auth/sign-in-with-google";
+
+export const REAUTH_FAILED = "failed";
 
 export function useGoogleReauth(returnPath: string) {
   const { t } = useTranslation("settings");
+  const { data: session } = useQuery(sessionQueryOptions);
 
   return useMutation({
     mutationKey: ["session", "reauth", "google"],
     mutationFn: async () => {
-      const { error } = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: new URL(returnPath, window.location.origin).href,
+      const { error } = await signInWithGoogle({
+        callbackPath: returnPath,
+        errorPath: `${returnPath}?reauth=${REAUTH_FAILED}`,
+        loginHint: session?.user.email,
       });
       if (error) throw toAuthClientError(error, t("deletion.reauthFailed"));
     },

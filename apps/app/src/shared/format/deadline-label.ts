@@ -5,8 +5,16 @@ const LOCALE = "fr-FR";
 const DAY_MS = 86_400_000;
 const copy = frCatalog.common.deadline;
 
-function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/{{(\w+)}}/g, (match, key: string) => values[key] ?? match);
+type Placeholders<Template extends string> =
+  Template extends `${string}{{${infer Name}}}${infer Rest}` ? Name | Placeholders<Rest> : never;
+
+function fill<Template extends string>(
+  template: Template,
+  values: Record<Placeholders<Template>, string>,
+): string {
+  const byName: Record<string, string> = values;
+
+  return template.replace(/{{(\w+)}}/g, (match, name: string) => byName[name] ?? match);
 }
 
 function capitalize(text: string): string {

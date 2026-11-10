@@ -1,11 +1,9 @@
 import { Result } from "@packages/ddd-kit";
+import { EVENT_DESCRIPTION_MAX, EVENT_TITLE_MAX } from "@packages/events/agenda-contract";
 import { EventCategory, eventCategorySchema } from "../../domain/value-objects/event-category.vo";
 import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
-import {
-  EVENT_DESCRIPTION_MAX,
-  EventDescription,
-} from "../../domain/value-objects/event-description.vo";
-import { EVENT_TITLE_MAX, EventTitle } from "../../domain/value-objects/event-title.vo";
+import { EventDescription } from "../../domain/value-objects/event-description.vo";
+import { EventTitle } from "../../domain/value-objects/event-title.vo";
 import type { AgendaError } from "../ports/event-repository.port";
 
 const invalidTitle: AgendaError = {

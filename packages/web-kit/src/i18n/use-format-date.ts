@@ -5,11 +5,14 @@ export function formatDate(value: Date | string, locale: string): string {
   return new Intl.DateTimeFormat(locale).format(new Date(value));
 }
 
-export function formatDateTime(value: Date | string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
+export type DateStyle = NonNullable<Intl.DateTimeFormatOptions["dateStyle"]>;
+
+export function formatDateTime(
+  value: Date | string,
+  locale: string,
+  dateStyle: DateStyle = "short",
+): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle, timeStyle: "short" }).format(new Date(value));
 }
 
 /**
@@ -26,11 +29,13 @@ export function useFormatDate(): (value: Date | string) => string {
   return useCallback((value: Date | string) => formatDate(value, i18n.language), [i18n.language]);
 }
 
-/** Date + time counterpart of `useFormatDate`. */
-export function useFormatDateTime(): (value: Date | string) => string {
+/** Date + time counterpart of `useFormatDate`, the date short unless the caller asks a longer style. */
+export function useFormatDateTime(
+  dateStyle: DateStyle = "short",
+): (value: Date | string) => string {
   const { i18n } = useTranslation();
   return useCallback(
-    (value: Date | string) => formatDateTime(value, i18n.language),
-    [i18n.language],
+    (value: Date | string) => formatDateTime(value, i18n.language, dateStyle),
+    [i18n.language, dateStyle],
   );
 }

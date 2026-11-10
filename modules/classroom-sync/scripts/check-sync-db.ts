@@ -12,7 +12,7 @@ import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/tes
 exitUnlessLocalDatabase("check-sync-db", process.env.DATABASE_URL);
 
 import { childAccount } from "@modules/children/schemas/child.schema";
-import { seedChild } from "@modules/children/schemas/testing/seed-child";
+import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, type ILogger, Result } from "@packages/ddd-kit";
 import {
   and,
@@ -153,8 +153,7 @@ function post(id: string): Announcement {
 
 async function family(name: string): Promise<{ userId: string; childId: string }> {
   const userId = `${probe}-${name}`;
-  await db.insert(authSchema.user).values({ id: userId, name, email: `${userId}@example.com` });
-  const childId = await seedChild({ userId, name, at: NOW, syncLease: 1 });
+  const childId = await seedParentWithChild({ userId, name, at: NOW, syncLease: 1 });
 
   return { userId, childId };
 }

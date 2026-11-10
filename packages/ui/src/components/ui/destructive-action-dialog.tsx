@@ -23,15 +23,24 @@ type TypedConfirmation =
   | { confirmText: string; confirmTextLabel: ReactNode }
   | { confirmText?: never; confirmTextLabel?: never };
 
-type DestructiveActionDialogProps = TypedConfirmation & {
-  trigger: ReactNode;
-  title: string;
-  description: ReactNode;
-  actionLabel: string;
-  cancelLabel: string;
-  onConfirm: () => void;
-  isPending?: boolean;
-};
+/**
+ * Opened by its own trigger, or by the caller (a navigation blocker) through
+ * `open` and `onOpenChange`.
+ */
+type Opening =
+  | { trigger: ReactNode; open?: never; onOpenChange?: never }
+  | { trigger?: never; open: boolean; onOpenChange: (open: boolean) => void };
+
+type DestructiveActionDialogProps = TypedConfirmation &
+  Opening & {
+    title: string;
+    description: ReactNode;
+    actionLabel: string;
+    cancelLabel: string;
+    onConfirm: () => void;
+    isPending?: boolean;
+    actionVariant?: "default" | "destructive";
+  };
 
 export function DestructiveActionDialog({
   trigger,
@@ -41,17 +50,22 @@ export function DestructiveActionDialog({
   cancelLabel,
   onConfirm,
   isPending = false,
+  actionVariant = "destructive",
   confirmText,
   confirmTextLabel,
+  open: controlledOpen,
+  onOpenChange,
 }: DestructiveActionDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
   const [typed, setTyped] = useState("");
+  const open = controlledOpen ?? ownOpen;
 
   const requiresTyping = Boolean(confirmText);
   const matched = !requiresTyping || typed === confirmText;
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
+    setOwnOpen(next);
+    onOpenChange?.(next);
     if (!next) setTyped("");
   };
 
@@ -65,7 +79,7 @@ export function DestructiveActionDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -88,7 +102,7 @@ export function DestructiveActionDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
+            variant={actionVariant}
             disabled={!matched || isPending}
             onClick={handleConfirm}
           >

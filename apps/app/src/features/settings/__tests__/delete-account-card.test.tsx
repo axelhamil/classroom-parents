@@ -2,7 +2,15 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { byRoute, json, renderWithProviders, stubApi } from "../../../__tests__/app-harness";
+import {
+  byRoute,
+  json,
+  renderAppAt,
+  renderWithProviders,
+  resetApp,
+  stubApi,
+} from "../../../__tests__/app-harness";
+import { ANDROID_CHROME, givenUserAgent } from "../../../__tests__/push-browser";
 import { sessionQueryOptions } from "../../../shared/api/queries/session";
 import { queryClient } from "../../../shared/api/query-client";
 import { DeletionPendingBanner } from "../../../shared/components/deletion-pending-banner";
@@ -104,8 +112,41 @@ describe("DeleteAccountCard", () => {
         ).toMatchObject({
           provider: "google",
           callbackURL: `${window.location.origin}/settings`,
+          errorCallbackURL: `${window.location.origin}/settings?reauth=failed`,
+          loginHint: "parent@example.com",
         }),
       );
+    });
+  });
+
+  describe("given the parent comes back from a Google confirmation that did not go through", () => {
+    beforeEach(() => givenUserAgent(ANDROID_CHROME, false));
+    afterEach(() => {
+      resetApp();
+      vi.restoreAllMocks();
+    });
+
+    it("when they cancelled on Google, then the settings say the account is kept and offer to confirm again", async () => {
+      stubApi(byRoute({ "GET /push/status": () => json({ live: 0 }) }));
+
+      await renderAppAt("/settings?reauth=failed&error=access_denied");
+
+      expect(
+        await screen.findByText("Confirmation Google annulée : votre compte n'est pas supprimé."),
+      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Me reconnecter avec Google" })).toBeTruthy();
+    });
+
+    it("when Google failed, then the settings say so in French", async () => {
+      stubApi(byRoute({ "GET /push/status": () => json({ live: 0 }) }));
+
+      await renderAppAt("/settings?reauth=failed&error=invalid_code");
+
+      expect(
+        await screen.findByText(
+          "Google n'a pas pu confirmer votre identité. Votre compte n'est pas supprimé, réessayez.",
+        ),
+      ).toBeTruthy();
     });
   });
 

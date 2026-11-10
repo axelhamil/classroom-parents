@@ -1,13 +1,6 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
+import { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
 import { z } from "zod";
-
-export const EVENT_CATEGORIES = [
-  "assessment",
-  "homework",
-  "school_trip",
-  "swimming",
-  "document_due",
-] as const;
 
 export const eventCategorySchema = z.enum(EVENT_CATEGORIES);
 

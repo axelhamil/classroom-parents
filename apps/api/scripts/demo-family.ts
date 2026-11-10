@@ -2,12 +2,10 @@ import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-pr
 import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { DATASET_CHILDREN } from "@modules/extraction/eval/classroom-dataset";
 import { authSchema, db } from "@packages/drizzle";
-import { auth } from "../src/auth";
 import { di } from "../src/container";
 import { demoRefreshToken } from "../src/dev/demo-dataset";
 import { GOOGLE_IDENTITY_SCOPES } from "../src/shared/auth/google-scopes";
-
-const GOOGLE_SIGN_UP = { method: "oauth", oauth: { providerId: "google" } };
+import { seedParent } from "./seed-account";
 
 export interface DemoFamily {
   userId: string;
@@ -19,18 +17,6 @@ export function requireFakeProviders(script: string): void {
 
   console.error(`${script} needs FAKE_PROVIDERS=1: it never calls Google or the model`);
   process.exit(1);
-}
-
-async function demoParent(email: string): Promise<string> {
-  const context = await auth.$context;
-  const existing = await context.internalAdapter.findUserByEmail(email);
-  if (existing) return existing.user.id;
-
-  const created = await context.internalAdapter.createUser(
-    { email, name: "Parent démo", emailVerified: true },
-    GOOGLE_SIGN_UP,
-  );
-  return created.id;
 }
 
 async function linkDemoChildren(userId: string, linkPrefix: string): Promise<string[]> {
@@ -51,7 +37,7 @@ async function linkDemoChildren(userId: string, linkPrefix: string): Promise<str
 }
 
 export async function seedDemoFamily(email: string, linkPrefix: string): Promise<DemoFamily> {
-  const userId = await demoParent(email);
+  const userId = await seedParent(email, "Parent démo");
 
   for (const linkedAccountId of await linkDemoChildren(userId, linkPrefix)) {
     const registered = await di.ChildConnectionService.register(userId, { linkedAccountId });

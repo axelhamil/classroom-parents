@@ -20,6 +20,7 @@ import {
 } from "@packages/ui/components/ui/dialog";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
+import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,19 +37,19 @@ export interface ChildCardProps {
 }
 
 function SyncLine({ child }: ChildCardProps) {
-  const { t, i18n } = useTranslation("children");
+  const { t } = useTranslation("children");
+  const formatDateTime = useFormatDateTime("medium");
 
   if (child.status === "disconnecting")
     return <TypographyMuted>{t("card.disconnectingHint")}</TypographyMuted>;
   if (child.syncing) return <TypographyMuted>{t("card.syncing")}</TypographyMuted>;
   if (!child.lastSyncedAt) return <TypographyMuted>{t("card.neverSynced")}</TypographyMuted>;
 
-  const date = new Intl.DateTimeFormat(i18n.language, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(child.lastSyncedAt));
-
-  return <TypographyMuted>{t("card.lastSynced", { date })}</TypographyMuted>;
+  return (
+    <TypographyMuted>
+      {t("card.lastSynced", { date: formatDateTime(child.lastSyncedAt) })}
+    </TypographyMuted>
+  );
 }
 
 export function ChildCard({ child }: ChildCardProps) {

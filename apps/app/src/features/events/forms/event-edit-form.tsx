@@ -1,15 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@packages/ui/components/ui/alert-dialog";
+import { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
 import { Button } from "@packages/ui/components/ui/button";
+import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
 import {
   Form,
   FormControl,
@@ -38,7 +30,7 @@ import { useRef } from "react";
 import { type FieldNamesMarkedBoolean, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { CATEGORY_LABEL_KEYS, EVENT_CATEGORIES } from "../../../shared/events/event-labels";
+import { CATEGORY_LABEL_KEYS } from "../../../shared/events/event-labels";
 import { type EventPatch, editEventMutationOptions } from "../api/events.mutations";
 import { DeleteEventDialog } from "../components/delete-event-dialog";
 import { type EventEditInput, eventEditSchema } from "../events.schema";
@@ -214,25 +206,17 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
           />
         </div>
       </form>
-      <AlertDialog
+      <DestructiveActionDialog
         open={blocker.status === "blocked"}
         onOpenChange={(open) => {
           if (!open) blocker.reset?.();
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("leave.title")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("leave.description")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("leave.stay")}</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={blocker.proceed}>
-              {t("leave.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={t("leave.title")}
+        description={t("leave.description")}
+        actionLabel={t("leave.confirm")}
+        cancelLabel={t("leave.stay")}
+        onConfirm={() => blocker.proceed?.()}
+      />
     </Form>
   );
 }
