@@ -33,6 +33,7 @@ import type {
   Announcement,
   ClassroomError,
   ClassroomErrorCode,
+  ClassroomListing,
   Course,
   Coursework,
   IClassroomClient,
@@ -113,6 +114,8 @@ interface CourseRead {
   courseId: string;
   pending: PendingAnnouncement[];
   coursework: CourseworkDeadline[];
+  courseworkComplete: boolean;
+  presentIds: string[];
 }
 
 interface GoogleAccess {
@@ -198,10 +201,8 @@ export class SyncChildService {
     }
 
     const read = reads.flatMap((course) => (course.isSuccess ? [course.getValue()] : []));
-    const saved = await runPooled(
-      read.filter(({ coursework }) => coursework.length > 0),
-      COURSE_CONCURRENCY,
-      (course) => this.saveCoursework(input, lease, course),
+    const saved = await runPooled(read, COURSE_CONCURRENCY, (course) =>
+      this.saveCoursework(input, lease, course),
     );
     const pending = read.flatMap((course) => course.pending);
     const extracted = await runPooled(pending, EXTRACTION_CONCURRENCY, (item) =>
@@ -231,12 +232,20 @@ export class SyncChildService {
   ): Promise<Result<CourseRead, CourseFailure>> {
     if (!(await scope.mayContinue())) return Result.fail("lease_lost");
 
+    const cut = new Set<ClassroomListing>();
+    const courseScope: ReadScope = {
+      mayContinue: () => scope.mayContinue(),
+      truncated: (listing) => {
+        cut.add(listing);
+        scope.truncated(listing);
+      },
+    };
     const [listed, coursework, turnedIn] = await Promise.all([
       this.withRetry(() =>
-        this.classroom.listAnnouncements(token, course.id, windowStart(now), scope),
+        this.classroom.listAnnouncements(token, course.id, windowStart(now), courseScope),
       ),
-      this.withRetry(() => this.classroom.listCoursework(token, course.id, scope)),
-      this.withRetry(() => this.classroom.listTurnedIn(token, course.id, scope)),
+      this.withRetry(() => this.classroom.listCoursework(token, course.id, courseScope)),
+      this.withRetry(() => this.classroom.listTurnedIn(token, course.id, courseScope)),
     ]);
     const refused = [listed, coursework, turnedIn].find((read) => read.isFailure);
     if (refused?.isFailure) return Result.fail(courseFailure(refused.getError().code));
@@ -248,6 +257,8 @@ export class SyncChildService {
       courseId: course.id,
       pending: pending.getValue(),
       coursework: this.courseworkDeadlines(coursework.getValue(), turnedIn.getValue(), now),
+      courseworkComplete: !cut.has("coursework"),
+      presentIds: coursework.getValue().map(({ id }) => id),
     });
   }
 
@@ -312,7 +323,7 @@ export class SyncChildService {
   private async saveCoursework(
     input: SyncChildInput,
     lease: SyncLease,
-    { courseId, coursework }: CourseRead,
+    { courseId, coursework, courseworkComplete, presentIds }: CourseRead,
   ): Promise<SyncOutcome> {
     const saved = await this.transactions.run(async (): Promise<Result<number, AppError>> => {
       const held = await this.leaseStillHeld(lease);
@@ -323,6 +334,8 @@ export class SyncChildService {
         childId: input.childId,
         courseId,
         items: coursework,
+        complete: courseworkComplete,
+        presentIds,
       });
       return ingested.map(({ created }) => created);
     });

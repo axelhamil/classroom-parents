@@ -29,6 +29,8 @@ export interface CourseworkIngestRequest {
   childId: string;
   courseId: string;
   items: CourseworkDeadline[];
+  complete: boolean;
+  presentIds: string[];
 }
 
 export interface IEventIngest {

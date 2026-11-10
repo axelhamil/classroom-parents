@@ -75,6 +75,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         status: status.getValue(),
         done: row.done,
         editedAt: Option.fromNullable(row.editedAt),
+        editedFields: row.editedFields,
         deletedAt: Option.fromNullable(row.deletedAt),
         createdAt: row.createdAt,
       },
@@ -96,6 +97,7 @@ function mutableColumns(event: AgendaEvent) {
     status: event.get("status").value,
     done: event.get("done"),
     editedAt: event.get("editedAt").toNull(),
+    editedFields: event.get("editedFields"),
     deletedAt: event.get("deletedAt").toNull(),
   };
 }
@@ -115,6 +117,7 @@ function notShadowedByCoursework(exec: ReturnType<typeof resolveExecutor>): SQL 
         and(
           sql`${agendaEvent.source} = 'announcement'`,
           sql`${coursework.source} = 'coursework'`,
+          isNull(coursework.deletedAt),
           eq(coursework.childId, agendaEvent.childId),
           eq(coursework.courseId, agendaEvent.courseId),
           eq(coursework.deadlineDate, agendaEvent.deadlineDate),
@@ -238,6 +241,43 @@ export class DrizzleEventRepository implements IEventRepository {
         } catch (err) {
           this.instrumentation.capture(err);
           return Result.fail(repositoryFailure("lockCoursework"));
+        }
+      },
+    );
+  }
+
+  async lockLiveCoursework(
+    userId: string,
+    childId: string,
+    courseId: string,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleEventRepository > lockLiveCoursework" },
+      async () => {
+        try {
+          const query = exec
+            .select()
+            .from(agendaEvent)
+            .where(
+              and(
+                eq(agendaEvent.userId, userId),
+                eq(agendaEvent.childId, childId),
+                eq(agendaEvent.courseId, courseId),
+                sql`${agendaEvent.source} = 'coursework'`,
+                isNull(agendaEvent.deletedAt),
+              ),
+            )
+            .for("update");
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return this.mapRows(rows, "lockLiveCoursework");
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("lockLiveCoursework"));
         }
       },
     );

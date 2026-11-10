@@ -38,6 +38,7 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       status: EventStatus.create(overrides.status ?? "confirmed").getValue(),
       done: false,
       editedAt: Option.none(),
+      editedFields: [],
       deletedAt: Option.none(),
       createdAt: new Date("2026-11-09T07:05:00.000Z"),
     },

@@ -54,12 +54,15 @@ export interface CourseworkIngestInput {
   childId: string;
   courseId: string;
   items: IngestedCoursework[];
+  complete: boolean;
+  presentIds: string[];
 }
 
 export interface CourseworkIngestOutput {
   created: number;
   updated: number;
   rejected: number;
+  removed: number;
 }
 
 type IngestError = AgendaError | AppError;
@@ -137,7 +140,12 @@ export class EventIngestService {
         if (!owned.getValue()) return Result.fail(childNotFound);
 
         return this.transactions.run(async () => {
-          const outcome: CourseworkIngestOutput = { created: 0, updated: 0, rejected: 0 };
+          const outcome: CourseworkIngestOutput = {
+            created: 0,
+            updated: 0,
+            rejected: 0,
+            removed: 0,
+          };
           for (const item of input.items) {
             const parsed = this.parseCoursework(item);
             if (parsed.isNone()) {
@@ -151,10 +159,38 @@ export class EventIngestService {
             if (applied.getValue() === "created") outcome.created += 1;
             if (applied.getValue() === "updated") outcome.updated += 1;
           }
-          return Result.ok<CourseworkIngestOutput, IngestError>(outcome);
+          if (!input.complete) return Result.ok<CourseworkIngestOutput, IngestError>(outcome);
+
+          const removed = await this.retireUnlisted(input);
+          return removed.map((count) => ({ ...outcome, removed: count }));
         });
       },
     );
+  }
+
+  private async retireUnlisted(input: CourseworkIngestInput): Promise<Result<number, IngestError>> {
+    const live = await this.events.lockLiveCoursework(input.userId, input.childId, input.courseId);
+    if (live.isFailure) return Result.fail(live.getError());
+
+    const listed = new Set(input.presentIds);
+    let removed = 0;
+    for (const event of live.getValue()) {
+      if (listed.has(event.get("announcementId"))) continue;
+      if (event.delete(this.clock()).isFailure) continue;
+
+      const saved = await this.events.save(event);
+      if (saved.isFailure) return Result.fail(saved.getError());
+
+      const cancelled = await this.alerts.cancel(event.id.value);
+      if (cancelled.isFailure) return Result.fail(cancelled.getError());
+
+      await emitEvent(this.outbox, EventTypes.EVENT_DELETED, "event", event.id.value, {
+        userId: event.get("userId"),
+        eventId: event.id.value,
+      });
+      removed += 1;
+    }
+    return Result.ok(removed);
   }
 
   private parseCoursework(item: IngestedCoursework): Option<ParsedCoursework> {

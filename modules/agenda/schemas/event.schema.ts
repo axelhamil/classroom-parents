@@ -13,6 +13,7 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+import { EDITABLE_FIELDS } from "../src/domain/event.aggregate";
 import { EVENT_CATEGORIES } from "../src/domain/value-objects/event-category.vo";
 import { EVENT_SOURCES } from "../src/domain/value-objects/event-source.vo";
 import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
@@ -42,6 +43,10 @@ export const agendaEvent = pgTable(
     status: text("status", { enum: EVENT_STATUSES }).notNull(),
     done: boolean("done").notNull().default(false),
     editedAt: timestamp("edited_at", { withTimezone: true }),
+    editedFields: text("edited_fields", { enum: EDITABLE_FIELDS })
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -54,7 +59,7 @@ export const agendaEvent = pgTable(
     ),
     index("event_coursework_day_idx")
       .on(table.childId, table.courseId, table.deadlineDate)
-      .where(sql`${table.source} = 'coursework'`),
+      .where(sql`${table.source} = 'coursework' and ${table.deletedAt} is null`),
     index("event_user_deadline_idx")
       .on(table.userId, table.deadlineAt)
       .where(sql`${table.deletedAt} is null`),

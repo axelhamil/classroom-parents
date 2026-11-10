@@ -424,6 +424,8 @@ describe("syncChild, Classroom coursework (D13)", () => {
             done: false,
           },
         ],
+        complete: true,
+        presentIds: ["w1"],
       },
     ]);
     expect(h.extractor.extract).not.toHaveBeenCalled();
@@ -463,13 +465,59 @@ describe("syncChild, Classroom coursework (D13)", () => {
     expect(titles[1]).toBe("Devoir w2");
   });
 
+  it("sends every read course with the coursework ids Classroom still lists", async () => {
+    h.givenCourses({ maths: [], art: [] });
+    h.givenCoursework([
+      coursework("w1", "maths", { date: "2026-11-19" }),
+      coursework("w2", "maths"),
+      coursework("old", "maths", { date: "2026-08-01" }),
+    ]);
+
+    await h.service.syncChild(CHILD, NOW);
+
+    const listings = Object.fromEntries(
+      courseworkSent().map(({ courseId, items, complete, presentIds }) => [
+        courseId,
+        { items: items.map(({ id }) => id), complete, presentIds },
+      ]),
+    );
+    expect(listings).toEqual({
+      maths: { items: ["w1"], complete: true, presentIds: ["w1", "w2", "old"] },
+      art: { items: [], complete: true, presentIds: [] },
+    });
+  });
+
+  it("marks a course's coursework listing partial when it hit the page cap", async () => {
+    h.givenCourses({ maths: [] });
+    h.client.listCoursework.mockImplementation(async (_token, _courseId, scope) => {
+      scope.truncated("coursework");
+      return Result.ok<Coursework[], ClassroomError>([]);
+    });
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(courseworkSent().map(({ complete }) => complete)).toEqual([false]);
+  });
+
+  it("keeps a course's coursework listing complete when only its submissions hit the cap", async () => {
+    h.givenCourses({ maths: [] });
+    h.client.listTurnedIn.mockImplementation(async (_token, _courseId, scope) => {
+      scope.truncated("submissions");
+      return Result.ok<string[], ClassroomError>([]);
+    });
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(courseworkSent().map(({ complete }) => complete)).toEqual([true]);
+  });
+
   it("ignores a coursework without a due date", async () => {
     h.givenCourses({ maths: [] });
     h.givenCoursework([coursework("w1", "maths")]);
 
     await h.service.syncChild(CHILD, NOW);
 
-    expect(h.ingest.ingestCoursework).not.toHaveBeenCalled();
+    expect(courseworkSent()[0]?.items).toEqual([]);
   });
 
   it("ignores a coursework due before the 60-day window", async () => {
@@ -581,6 +629,7 @@ describe("syncChild, lease lost while reading", () => {
     expect(result.getError().code).toBe("SYNC_LEASE_CONFLICT");
     expect(callsAfterLoss).toBe(0);
     expect(h.client.listAnnouncements).not.toHaveBeenCalled();
+    expect(h.ingest.ingestCoursework).not.toHaveBeenCalled();
     expect(h.extractor.extract).not.toHaveBeenCalled();
     expect(h.state.markSynced).not.toHaveBeenCalled();
   });

@@ -7,7 +7,11 @@ import type { EventSource } from "./value-objects/event-source.vo";
 import { EventStatus } from "./value-objects/event-status.vo";
 import type { EventTitle } from "./value-objects/event-title.vo";
 
-export type EventField = "title" | "description" | "category" | "deadline" | "status" | "done";
+export const EDITABLE_FIELDS = ["title", "description", "category", "deadline"] as const;
+
+export type EditableField = (typeof EDITABLE_FIELDS)[number];
+
+export type EventField = EditableField | "status" | "done";
 
 export type EventRefusal = "deleted";
 
@@ -27,6 +31,7 @@ export interface AgendaEventProps {
   status: EventStatus;
   done: boolean;
   editedAt: Option<Date>;
+  editedFields: EditableField[];
   deletedAt: Option<Date>;
   createdAt: Date;
 }
@@ -75,6 +80,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
         ...props,
         status: EventStatus.of(needsReview),
         editedAt: Option.none(),
+        editedFields: [],
         deletedAt: Option.none(),
         createdAt: now,
       },
@@ -86,8 +92,8 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     return new AgendaEvent(props, id);
   }
 
-  changedFields(changes: EventChanges): EventField[] {
-    const fields: EventField[] = [];
+  changedFields(changes: EventChanges): EditableField[] {
+    const fields: EditableField[] = [];
     if (changes.title && !changes.title.equals(this._props.title)) fields.push("title");
     if (changes.description && !changes.description.equals(this._props.description))
       fields.push("description");
@@ -101,11 +107,12 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     if (this._props.deletedAt.isSome()) return Result.fail("deleted");
 
     const fields: EventField[] = [];
-    if (this._props.editedAt.isNone() && !state.title.equals(this._props.title)) {
+    const edited = this._props.editedFields;
+    if (!edited.includes("title") && !state.title.equals(this._props.title)) {
       this._props.title = state.title;
       fields.push("title");
     }
-    if (this._props.editedAt.isNone() && !state.deadline.equals(this._props.deadline)) {
+    if (!edited.includes("deadline") && !state.deadline.equals(this._props.deadline)) {
       this._props.deadline = state.deadline;
       fields.push("deadline");
     }
@@ -123,6 +130,10 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
   edit(changes: EventChanges, now: Date): Result<void, EventRefusal> {
     if (this._props.deletedAt.isSome()) return Result.fail("deleted");
 
+    const changed = this.changedFields(changes);
+    this._props.editedFields = EDITABLE_FIELDS.filter(
+      (field) => this._props.editedFields.includes(field) || changed.includes(field),
+    );
     this._props.title = changes.title ?? this._props.title;
     this._props.description = changes.description ?? this._props.description;
     this._props.category = changes.category ?? this._props.category;

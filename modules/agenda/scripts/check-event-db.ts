@@ -4,7 +4,8 @@
  * upcoming and history split on the deadline instant with their filters and keyset cursors,
  * a family never reads, edits, confirms or deletes another family's event, deleting a user
  * cascades its events, a coursework is stored once and follows its teacher until the parent edits
- * it, an announcement deadline on a coursework's course and day stays hidden only while they match,
+ * the field, an announcement deadline on a coursework's course and day stays hidden only while a
+ * live coursework matches, a complete listing retires a coursework the teacher removed,
  * and listUpcoming on 10 000 rows uses event_user_deadline_idx and event_coursework_day_idx.
  */
 
@@ -159,8 +160,20 @@ function homework(overrides: Partial<IngestedCoursework> = {}): IngestedCoursewo
   };
 }
 
-function ingestCoursework(userId: string, childId: string, items: IngestedCoursework[]) {
-  return ingestService.ingestCoursework({ userId, childId, courseId: "course-1", items });
+function ingestCoursework(
+  userId: string,
+  childId: string,
+  items: IngestedCoursework[],
+  listing: { complete: boolean; presentIds?: string[] } = { complete: true },
+) {
+  return ingestService.ingestCoursework({
+    userId,
+    childId,
+    courseId: "course-1",
+    items,
+    complete: listing.complete,
+    presentIds: listing.presentIds ?? items.map(({ id }) => id),
+  });
 }
 
 async function rowsOf(childId: string, announcementId: string) {
@@ -348,6 +361,48 @@ run(async () => {
   await step(
     "after a parent edit the teacher's date is ignored, the done state still follows",
     kept?.deadlineDate === "2030-01-24" && kept.done && cancelled.includes(miaWork.id),
+  );
+
+  const aNoe = await createChild(a, "noe");
+  await ingest(a, aNoe, "ann-noe", [
+    extracted({ title: "Contrôle du 26", deadlineDate: "2030-01-26" }),
+    extracted({ title: "Contrôle du 27", deadlineDate: "2030-01-27" }),
+  ]);
+  const noeWork = [
+    homework({ id: "w-noe-26", deadlineDate: "2030-01-26", done: true }),
+    homework({ id: "w-noe-27", deadlineDate: "2030-01-27" }),
+  ];
+  await ingestCoursework(a, aNoe, noeWork);
+  const [ann26, ann27] = (await rowsOf(aNoe, "ann-noe")).sort((x, y) => x.ordinal - y.ordinal);
+  const [w26] = await rowsOf(aNoe, "w-noe-26");
+  const [w27] = await rowsOf(aNoe, "w-noe-27");
+  if (!ann26 || !ann27 || !w26 || !w27) throw new Error("noe rows missing");
+  const noeUpcoming = async () =>
+    idsOf(await query.listUpcoming(a, { childIds: [aNoe], limit: 10 }, NOW))
+      .sort()
+      .join();
+  const sameIds = (...ids: string[]) => ids.sort().join();
+  await step(
+    "a turned-in coursework still hides the announcement deadline of its day",
+    (await noeUpcoming()) === sameIds(w26.id, w27.id),
+  );
+  await edits.remove(a, w26.id);
+  await step(
+    "once the parent deletes the coursework, the announcement deadline of its day reappears",
+    (await noeUpcoming()) === sameIds(ann26.id, w27.id),
+  );
+  await ingestCoursework(a, aNoe, [], { complete: false, presentIds: [] });
+  await step(
+    "a partial listing without the coursework retires nothing",
+    (await rowsOf(aNoe, "w-noe-27"))[0]?.deletedAt === null &&
+      (await noeUpcoming()) === sameIds(ann26.id, w27.id),
+  );
+  await ingestCoursework(a, aNoe, [], { complete: true, presentIds: [] });
+  await step(
+    "a complete listing without the coursework retires it and its announcement deadline reappears",
+    (await rowsOf(aNoe, "w-noe-27"))[0]?.deletedAt !== null &&
+      cancelled.includes(w27.id) &&
+      (await noeUpcoming()) === sameIds(ann26.id, ann27.id),
   );
 
   const stolen = await ingest(a, bZoe, "ann-stolen", [extracted()]);
