@@ -84,6 +84,20 @@ const undeliveredEmails: PassTarget = {
     and(inArray(emailMessage.status, ["failed", "dead"]), lt(emailMessage.createdAt, cutoff)),
 };
 
+const erasableDeadEmails: PassTarget = {
+  label: "erasable-dead",
+  sweep: EMAIL_RETENTION_LABEL,
+  table: emailMessage,
+  idColumn: emailMessage.id,
+  orderBy: emailMessage.createdAt,
+  before: (cutoff) =>
+    and(
+      eq(emailMessage.eraseOnSettle, true),
+      eq(emailMessage.status, "dead"),
+      lt(emailMessage.createdAt, cutoff),
+    ),
+};
+
 const deliveredEvents: PassTarget = {
   label: "delivered",
   sweep: OUTBOX_RETENTION_LABEL,
@@ -104,6 +118,7 @@ export interface RetentionDeps {
 
 export interface EmailRetentionDeps extends RetentionDeps {
   retentionDays: number;
+  deadReplayWindowHours: number;
 }
 
 function sweep(
@@ -130,6 +145,7 @@ export function sweepOldEmails(deps: EmailRetentionDeps): Promise<SweepResponse>
   return sweep(EMAIL_RETENTION_LABEL, deps, (spans) => [
     retentionPass(sentEmails, deps.retentionDays, spans, deps.uow),
     retentionPass(undeliveredEmails, deps.retentionDays, spans, deps.uow),
+    retentionPass(erasableDeadEmails, deps.deadReplayWindowHours / 24, spans, deps.uow),
   ]);
 }
 

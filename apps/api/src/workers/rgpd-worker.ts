@@ -16,6 +16,7 @@ export interface RgpdWorkerDeps {
 
 export interface RgpdWorkerSettings {
   emailRetentionDays: number;
+  emailDeadReplayWindowHours: number;
   sweepBatchSize: number;
   sweepDeadlineMs: number;
 }
@@ -48,7 +49,11 @@ export function startRgpdWorkers(
     deadlineMs: settings.sweepDeadlineMs,
   };
   const purgeOldEmails = () =>
-    sweepOldEmails({ ...retention, retentionDays: settings.emailRetentionDays });
+    sweepOldEmails({
+      ...retention,
+      retentionDays: settings.emailRetentionDays,
+      deadReplayWindowHours: settings.emailDeadReplayWindowHours,
+    });
   const purgeDeliveredEvents = () => sweepDeliveredOutbox(retention);
 
   return Promise.all([

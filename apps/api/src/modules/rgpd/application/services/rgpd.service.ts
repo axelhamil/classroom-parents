@@ -221,6 +221,7 @@ export class RgpdService {
               { name: originalName },
               {
                 idempotencyKey: `delete-completed/${input.userId}`,
+                eraseOnSettle: true,
               },
             );
             if (notified.isFailure) {

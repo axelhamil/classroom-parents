@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const EMAIL_MESSAGE_STATUSES = ["pending", "sent", "failed", "dead"] as const;
 export const EMAIL_MESSAGE_KINDS = ["template", "raw"] as const;
@@ -22,6 +31,7 @@ export const emailMessage = pgTable(
     providerMessageId: text("provider_message_id"),
     idempotencyKey: text("idempotency_key"),
     batchKey: text("batch_key"),
+    eraseOnSettle: boolean("erase_on_settle").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

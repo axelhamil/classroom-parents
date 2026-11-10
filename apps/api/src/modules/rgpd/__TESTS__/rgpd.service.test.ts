@@ -300,7 +300,7 @@ describe("RgpdService", () => {
         "delete_completed",
         "parent@example.com",
         { name: "Parent" },
-        { idempotencyKey: "delete-completed/u1" },
+        { idempotencyKey: "delete-completed/u1", eraseOnSettle: true },
       );
     });
 

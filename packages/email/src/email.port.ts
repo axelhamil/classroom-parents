@@ -23,6 +23,14 @@ export interface SendTemplateOptions {
    * placeholder that reads like a deliberate choice.
    */
   locale?: Locale;
+  /**
+   * Deletes the queued row, recipient address included, the moment it is sent or refused,
+   * instead of keeping it for the retention window. Dead, it keeps its replays and is
+   * deleted at its final death, when its next replay would fall past the replay window, or
+   * by the retention sweep once past that window, which bounds the address to it. For a message whose recipient must leave no
+   * trace, such as the account deletion confirmation.
+   */
+  eraseOnSettle?: boolean;
 }
 
 export interface EmailRecipient<K extends keyof EmailTemplates> {

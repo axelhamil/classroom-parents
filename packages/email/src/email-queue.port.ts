@@ -12,6 +12,7 @@ export interface EmailMessageInsert {
   locale: Locale;
   payload: unknown;
   idempotencyKey: Option<string>;
+  eraseOnSettle: boolean;
 }
 
 export interface EmailMessageRecord {
@@ -40,9 +41,14 @@ export interface EmailClaimRequest {
   deadReplayWindowHours: number;
 }
 
+export interface SettledLease extends EmailLease {
+  erased: boolean;
+}
+
 export type EmailFailure =
   | { lastError: string; status: "failed" }
-  | { lastError: string; status: "pending" | "dead"; retryAfterSeconds: number };
+  | { lastError: string; status: "pending"; retryAfterSeconds: number }
+  | { lastError: string; status: "dead"; retryAfterSeconds: number; replayWindowHours: number };
 
 export type EmailQueueError = { code: "EMAIL_QUEUE_WRITE_FAILED"; message: string };
 
@@ -60,6 +66,6 @@ export interface IEmailQueue {
   markFailed(
     leases: EmailLease[],
     failure: EmailFailure,
-  ): Promise<Result<EmailLease[], EmailQueueError>>;
+  ): Promise<Result<SettledLease[], EmailQueueError>>;
   release(leases: EmailLease[], delaySeconds?: number): Promise<Result<number, EmailQueueError>>;
 }

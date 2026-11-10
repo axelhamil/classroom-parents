@@ -48,6 +48,7 @@ const rowFixture = (to: string) => ({
   locale: "fr" as const,
   payload: { name: "Ada" },
   idempotencyKey: Option.some(`k/${to}`),
+  eraseOnSettle: false,
 });
 
 describe("DrizzleEmailQueue.enqueue", () => {
@@ -69,6 +70,7 @@ describe("DrizzleEmailQueue.enqueue", () => {
         locale: "fr",
         payload: {},
         idempotencyKey: Option.none(),
+        eraseOnSettle: false,
       },
     ]);
     expect(result.isSuccess).toBe(true);
@@ -110,6 +112,7 @@ describe("DrizzleEmailQueue.enqueue", () => {
         locale: "fr",
         payload: {},
         idempotencyKey: Option.none(),
+        eraseOnSettle: false,
       },
     ]);
     expect(result.isFailure).toBe(true);
@@ -138,13 +141,13 @@ describe("DrizzleEmailQueue.enqueue", () => {
   });
 });
 
-function chainResolving(rows: () => Promise<unknown[]>): unknown {
+function chainResolving(rows: () => Promise<unknown[]>, text = "update email_message"): unknown {
   const chain: unknown = new Proxy(
     {},
     {
       get(_target, property) {
         if (property === "then") return undefined;
-        if (property === "toSQL") return () => ({ sql: "update email_message" });
+        if (property === "toSQL") return () => ({ sql: text });
         if (property === "execute") return rows;
         return () => chain;
       },
@@ -207,7 +210,30 @@ describe("DrizzleEmailQueue.markFailed", () => {
     executor = chainResolving(async () => []);
     const stale = await queue.markFailed([lease], failure);
 
-    expect(written.isSuccess && written.getValue()).toEqual([lease]);
+    expect(written.isSuccess && written.getValue()).toEqual([{ ...lease, erased: false }]);
     expect(stale.isSuccess && stale.getValue()).toEqual([]);
+  });
+});
+
+describe("DrizzleEmailQueue settle spans", () => {
+  it("names a db.query span after the SQL of every settle query", async () => {
+    const instrumentation = mockInstrumentation();
+    const queue = new DrizzleEmailQueue(instrumentation, logger);
+    executor = {
+      update: () => chainResolving(async () => [lease]),
+      delete: () => chainResolving(async () => [], "delete from email_message"),
+    };
+
+    await queue.assignBatch([lease], "batch");
+    await queue.markSent([lease], {});
+
+    const queries = instrumentation.startSpan.mock.calls
+      .map(([options]) => options)
+      .filter((options) => options.op === "db.query");
+    expect(queries.map((options) => options.name)).toEqual([
+      "update email_message",
+      "delete from email_message",
+      "update email_message",
+    ]);
   });
 });

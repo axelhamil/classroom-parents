@@ -5,6 +5,7 @@ import {
   type IUnitOfWork,
   Option,
   type Result,
+  uuidv7,
 } from "@packages/ddd-kit";
 import { type EmailTemplateKey, renderTemplate } from "@packages/emails";
 import { EventTypes } from "@packages/events";
@@ -18,13 +19,14 @@ import {
   unitsWithinLease,
 } from "@packages/outbox/lease-budget";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
+import { scrubText } from "@packages/sentry-scrub";
 import type { ErrorResponse } from "resend";
 import type {
   EmailFailure,
-  EmailLease,
   EmailMessageRecord,
   EmailQueueError,
   IEmailQueue,
+  SettledLease,
 } from "./email-queue.port";
 import { EMAIL_SEND_TIMEOUT_SECONDS, EMAIL_SETTLE_MARGIN_SECONDS } from "./email-timing";
 
@@ -98,6 +100,7 @@ export class EmailDeliveryWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
   private draining = false;
   private stopping = false;
+  private requestId = "";
   private readonly claimLimit: number;
 
   constructor(
@@ -149,6 +152,7 @@ export class EmailDeliveryWorker {
   async drainOnce(): Promise<void> {
     if (this.stopping || this.draining) return;
     this.draining = true;
+    this.requestId = uuidv7();
     return this.instrumentation.startSpan({ name: "EmailDeliveryWorker > drainOnce" }, async () => {
       try {
         const lease = leaseCountdown(this.options.leaseSeconds, CHUNK_BUDGET, this.clock);
@@ -320,27 +324,52 @@ export class EmailDeliveryWorker {
       deadRetrySeconds: this.options.deadRetrySeconds,
     });
 
-    return { lastError, status: dead ? "dead" : "pending", retryAfterSeconds };
+    if (!dead) return { lastError, status: "pending", retryAfterSeconds };
+
+    return {
+      lastError,
+      status: "dead",
+      retryAfterSeconds,
+      replayWindowHours: this.options.deadReplayWindowHours,
+    };
   }
 
-  private async settleFailures(rows: EmailMessageRecord[], failure: EmailFailure): Promise<void> {
-    const settled = await this.uow.run(async (): Promise<Result<EmailLease[], EmailQueueError>> => {
-      const written = await this.queue.markFailed(rows, failure);
-      if (written.isFailure || failure.status === "pending") return written;
+  private async settleFailures(rows: EmailMessageRecord[], reported: EmailFailure): Promise<void> {
+    const failure = { ...reported, lastError: scrubText(reported.lastError) };
+    const settled = await this.uow.run(
+      async (): Promise<Result<SettledLease[], EmailQueueError>> => {
+        const written = await this.queue.markFailed(rows, failure);
+        if (written.isFailure || failure.status === "pending") return written;
 
-      const writtenIds = new Set(written.getValue().map(({ id }) => id));
-      for (const row of rows) {
-        if (writtenIds.has(row.id) && row.status !== "dead")
-          await this.announceExhausted(row, failure.lastError);
-      }
-      return written;
-    });
+        const writtenIds = new Set(written.getValue().map(({ id }) => id));
+        for (const row of rows) {
+          if (writtenIds.has(row.id) && row.status !== "dead")
+            await this.announceExhausted(row, failure.lastError);
+        }
+        return written;
+      },
+    );
     if (settled.isFailure) {
       this.logger.error(
         { err: settled.getError(), messageIds: rows.map(({ id }) => id) },
         "markFailed failed",
       );
+      return;
     }
+    if (failure.status !== "dead") return;
+
+    const erasedIds = new Set(settled.getValue().flatMap(({ id, erased }) => (erased ? [id] : [])));
+    for (const row of rows) if (erasedIds.has(row.id)) this.reportFinalDeath(row);
+  }
+
+  private reportFinalDeath(row: EmailMessageRecord): void {
+    const message = "email erased at its final death, past its replay window, never delivered";
+    const fields = { messageId: row.id, template: row.template.toNull(), attempts: row.attempts };
+    this.logger.warn({ requestId: this.requestId, ...fields }, message);
+    this.instrumentation.capture(new Error(message), {
+      requestId: this.requestId,
+      metadata: fields,
+    });
   }
 
   private async announceExhausted(row: EmailMessageRecord, lastError: string): Promise<void> {

@@ -743,6 +743,9 @@ importers:
       '@packages/outbox':
         specifier: workspace:*
         version: link:../outbox
+      '@packages/sentry-scrub':
+        specifier: workspace:*
+        version: link:../sentry-scrub
       resend:
         specifier: ^6.35.0
         version: 6.35.0(@react-email/render@2.1.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))

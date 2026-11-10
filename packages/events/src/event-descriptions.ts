@@ -14,7 +14,7 @@ export const EVENT_DESCRIPTIONS: Record<EventType, string> = {
   [EventTypes.SECURITY_RATE_LIMIT_EXCEEDED]: "A rate limit was exceeded.",
   [EventTypes.SECURITY_CSRF_REJECTED]: "A request was rejected by CSRF origin checks.",
   [EventTypes.EMAIL_DELIVERY_EXHAUSTED]:
-    "An email exhausted its delivery attempts or was rejected; a dead email is replayed every few hours while still recent.",
+    "An email exhausted its delivery attempts or was rejected; a dead email is replayed every few hours while still recent, and one queued to be erased once settled is deleted at its final death, past that window.",
   [EventTypes.OUTBOX_EVENT_DEAD]:
     "A domain event exhausted its delivery attempts and is now retried every few hours.",
   ...CONTRIBUTED_DESCRIPTIONS,

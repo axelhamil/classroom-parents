@@ -121,7 +121,7 @@ beforeEach(() => {
   queue.markSent.mockImplementation(async (leases: EmailLease[]) => Result.ok(leases));
   queue.markFailed.mockImplementation(async (leases: EmailLease[]) => {
     failedIn.push(UnitOfWorkContext.transaction());
-    return Result.ok(leases);
+    return Result.ok(leases.map((lease) => ({ ...lease, erased: false })));
   });
   queue.release.mockImplementation(async (leases: EmailLease[]) => Result.ok(leases.length));
 });
@@ -280,7 +280,12 @@ describe("EmailDeliveryWorker.drainOnce", () => {
     await worker().drainOnce();
 
     expect(failures()).toEqual([
-      { lastError: "HTTP 503: down", status: "dead", retryAfterSeconds: 21_600 },
+      {
+        lastError: "HTTP 503: down",
+        status: "dead",
+        retryAfterSeconds: 21_600,
+        replayWindowHours: 24,
+      },
     ]);
     expect(enqueuedEvents(outbox).map(({ eventType, payload }) => [eventType, payload])).toEqual([
       [
@@ -310,6 +315,20 @@ describe("EmailDeliveryWorker.drainOnce", () => {
     ]);
   });
 
+  it("a provider error naming the recipient reaches neither the row nor the exhausted event", async () => {
+    claims([row({ id: "1", attempts: 4, toAddress: "parent@x.test" })]);
+    batch = async () => ({
+      data: null,
+      error: { kind: "retryable", statusCode: 503, message: "down for parent@x.test" },
+    });
+
+    await worker().drainOnce();
+
+    const [exhausted] = enqueuedEvents(outbox);
+    expect(failures().map((failure) => failure.lastError)).toEqual(["HTTP 503: down for [email]"]);
+    expect(exhausted?.payload).toMatchObject({ lastError: "HTTP 503: down for [email]" });
+  });
+
   it("a dead replay that fails again stays dead and emits nothing", async () => {
     claims([row({ id: "1", status: "dead", attempts: 6 })]);
     batch = async () => ({
@@ -321,6 +340,63 @@ describe("EmailDeliveryWorker.drainOnce", () => {
 
     expect(failures().map((f) => f.status)).toEqual(["dead"]);
     expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("a dead email erased at its final death is logged and captured with a request id, never its address", async () => {
+    logger.warn.mockClear();
+    claims([row({ id: "1", status: "dead", attempts: 6, toAddress: "parent@x.test" })]);
+    batch = async () => ({
+      data: null,
+      error: { kind: "retryable", statusCode: 503, message: "down for parent@x.test" },
+    });
+    queue.markFailed.mockImplementation(async (leases: EmailLease[]) =>
+      Result.ok(leases.map((lease) => ({ ...lease, erased: true }))),
+    );
+    const instrumentation = mockInstrumentation();
+
+    await worker(OPTIONS, () => now, instrumentation).drainOnce();
+
+    const finalDeaths = logger.warn.mock.calls.filter(([, message]) =>
+      String(message).includes("final death"),
+    );
+    expect(finalDeaths).toEqual([
+      [
+        {
+          requestId: expect.any(String),
+          messageId: "1",
+          template: "delete_completed",
+          attempts: 6,
+        },
+        expect.any(String),
+      ],
+    ]);
+    const [[error, context] = []] = instrumentation.capture.mock.calls;
+    expect(context).toEqual({
+      requestId: expect.any(String),
+      metadata: { messageId: "1", template: "delete_completed", attempts: 6 },
+    });
+    expect(finalDeaths[0]?.[0]).toMatchObject({ requestId: context?.requestId });
+    expect(JSON.stringify([finalDeaths, String(error), context])).not.toContain("parent@x.test");
+  });
+
+  it("a dead email kept for another replay is no final death", async () => {
+    logger.warn.mockClear();
+    claims([row({ id: "1", status: "dead", attempts: 6 })]);
+    batch = async () => ({
+      data: null,
+      error: { kind: "retryable", statusCode: 503, message: "down" },
+    });
+    queue.markFailed.mockImplementation(async (leases: EmailLease[]) =>
+      Result.ok(leases.map((lease) => ({ ...lease, erased: false }))),
+    );
+    const instrumentation = mockInstrumentation();
+
+    await worker(OPTIONS, () => now, instrumentation).drainOnce();
+
+    expect(
+      logger.warn.mock.calls.filter(([, message]) => String(message).includes("final death")),
+    ).toEqual([]);
+    expect(instrumentation.capture).not.toHaveBeenCalled();
   });
 
   it("a non-retryable rejection marks failed and emits in the settle's unit of work", async () => {
@@ -628,7 +704,9 @@ describe("EmailDeliveryWorker batch replay", () => {
       data: null,
       error: { kind: "rejected", statusCode: 422, message: "rejected" },
     });
-    queue.markFailed.mockImplementation(async (leases: EmailLease[]) => Result.ok(leases.slice(1)));
+    queue.markFailed.mockImplementation(async (leases: EmailLease[]) =>
+      Result.ok(leases.slice(1).map((lease) => ({ ...lease, erased: false }))),
+    );
 
     await worker().drainOnce();
 

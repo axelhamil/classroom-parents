@@ -1,0 +1,1 @@
+ALTER TABLE "email_message" ADD COLUMN "erase_on_settle" boolean DEFAULT false NOT NULL;

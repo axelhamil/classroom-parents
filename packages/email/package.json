@@ -26,6 +26,7 @@
     "@packages/events": "workspace:*",
     "@packages/i18n": "workspace:*",
     "@packages/outbox": "workspace:*",
+    "@packages/sentry-scrub": "workspace:*",
     "resend": "^6.35.0"
   },
   "devDependencies": {

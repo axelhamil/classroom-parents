@@ -47,6 +47,7 @@ const periodicLoops = Promise.all([
     di,
     {
       emailRetentionDays: env.EMAIL_RETENTION_DAYS,
+      emailDeadReplayWindowHours: env.EMAIL_DEAD_REPLAY_WINDOW_HOURS,
       sweepBatchSize: env.RGPD_SWEEP_BATCH_SIZE,
       sweepDeadlineMs: env.SWEEP_DEADLINE_MS,
     },

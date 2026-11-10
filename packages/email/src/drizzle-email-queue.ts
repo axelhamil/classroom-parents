@@ -14,6 +14,7 @@ import {
   isDeadDue,
   isDue,
   leasedBy,
+  lte,
   or,
   type PgUpdateSetSource,
   releasedSet,
@@ -31,6 +32,7 @@ import type {
   EmailMessageRecord,
   EmailQueueError,
   IEmailQueue,
+  SettledLease,
 } from "./email-queue.port";
 
 const em = emailSchema.emailMessage;
@@ -115,6 +117,25 @@ function claimQuery(
     .returning({ ...getTableColumns(em), unsettledInBatch: batchSizes.unsettled });
 }
 
+const erasedOnSettle = eq(em.eraseOnSettle, true);
+
+function erasedOnFailure(failure: EmailFailure): SQL | undefined {
+  switch (failure.status) {
+    case "pending":
+      return undefined;
+    case "failed":
+      return erasedOnSettle;
+    case "dead":
+      return and(
+        erasedOnSettle,
+        lte(
+          sql`${em.createdAt} + make_interval(hours => ${failure.replayWindowHours})`,
+          secondsFromNow(failure.retryAfterSeconds),
+        ),
+      );
+  }
+}
+
 function failureChanges(failure: EmailFailure): PgUpdateSetSource<typeof em> {
   const lastError = failure.lastError.slice(0, LAST_ERROR_MAX_LENGTH);
   if (failure.status === "failed") return { status: "failed", lastError, nextAttemptAt: null };
@@ -165,6 +186,7 @@ export class DrizzleEmailQueue implements IEmailQueue {
           attempts: 0,
           nextAttemptAt: null,
           idempotencyKey: r.idempotencyKey.toNull(),
+          eraseOnSettle: r.eraseOnSettle,
         }));
         const query = exec
           .insert(em)
@@ -218,7 +240,7 @@ export class DrizzleEmailQueue implements IEmailQueue {
     leases: EmailLease[],
     providerMessageIds: Record<string, string>,
   ): Promise<Result<EmailLease[], EmailQueueError>> {
-    return this.updateLeased("markSent", leases, () => {
+    return this.updateLeased("markSent", leases, erasedOnSettle, () => {
       const cases = leases.map(
         ({ id }) => sql`WHEN ${em.id} = ${id} THEN ${providerMessageIds[id] ?? null}`,
       );
@@ -237,30 +259,35 @@ export class DrizzleEmailQueue implements IEmailQueue {
     leases: EmailLease[],
     batchKey: string,
   ): Promise<Result<EmailLease[], EmailQueueError>> {
-    return this.updateLeased("assignBatch", leases, () => ({ batchKey }));
+    return this.updateLeased("assignBatch", leases, undefined, () => ({ batchKey }));
   }
 
   private async updateLeased(
     method: string,
     leases: EmailLease[],
+    erasable: SQL | undefined,
     changes: () => PgUpdateSetSource<typeof em>,
-  ): Promise<Result<EmailLease[], EmailQueueError>> {
+  ): Promise<Result<SettledLease[], EmailQueueError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan({ name: `DrizzleEmailQueue > ${method}` }, async () => {
       if (leases.length === 0) return Result.ok([]);
 
       try {
-        const query = exec
-          .update(em)
-          .set(changes())
-          .where(leasedAll(leases))
-          .returning({ id: em.id, attempts: em.attempts });
-        const written = await this.instrumentation.startSpan(
-          { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
-          () => query.execute(),
-        );
+        const settled = { id: em.id, attempts: em.attempts };
+        const erase = erasable
+          ? exec
+              .delete(em)
+              .where(and(leasedAll(leases), erasable))
+              .returning(settled)
+          : undefined;
+        const erased = erase ? await this.traced(erase) : [];
+        const update = exec.update(em).set(changes()).where(leasedAll(leases)).returning(settled);
+        const updated = await this.traced(update);
 
-        return Result.ok(written);
+        return Result.ok([
+          ...erased.map((lease) => ({ ...lease, erased: true })),
+          ...updated.map((lease) => ({ ...lease, erased: false })),
+        ]);
       } catch (err) {
         this.instrumentation.capture(err);
         return fail(err, `${method} failed`);
@@ -268,11 +295,20 @@ export class DrizzleEmailQueue implements IEmailQueue {
     });
   }
 
+  private traced<T>(query: { toSQL: () => { sql: string }; execute: () => Promise<T> }) {
+    return this.instrumentation.startSpan(
+      { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+      () => query.execute(),
+    );
+  }
+
   async markFailed(
     leases: EmailLease[],
     failure: EmailFailure,
-  ): Promise<Result<EmailLease[], EmailQueueError>> {
-    return this.updateLeased("markFailed", leases, () => failureChanges(failure));
+  ): Promise<Result<SettledLease[], EmailQueueError>> {
+    return this.updateLeased("markFailed", leases, erasedOnFailure(failure), () =>
+      failureChanges(failure),
+    );
   }
 
   async release(leases: EmailLease[], delaySeconds = 0): Promise<Result<number, EmailQueueError>> {

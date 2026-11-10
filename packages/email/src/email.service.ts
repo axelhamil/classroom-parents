@@ -70,6 +70,7 @@ export class QueuedEmailService implements IEmailService {
             idempotencyKey: r.idempotencyKey
               ? Option.some(r.idempotencyKey)
               : batchRowKey(options, index),
+            eraseOnSettle: options?.eraseOnSettle ?? false,
           });
         }
         return this.enqueue(rows);
@@ -103,6 +104,7 @@ export class QueuedEmailService implements IEmailService {
           locale: DEFAULT_LOCALE,
           payload: m.body,
           idempotencyKey: batchRowKey(options, index),
+          eraseOnSettle: options?.eraseOnSettle ?? false,
         }));
         return this.enqueue(rows);
       },
