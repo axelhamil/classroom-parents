@@ -1,10 +1,9 @@
+import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
 import { type EventType, EventTypes } from "@packages/events";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError, getOAuthState } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { GOOGLE_CLASSROOM_SCOPES, GOOGLE_IDENTITY_SCOPES } from "./google-scopes";
-
-export const CHILD_PROVIDER_ID = "google-classroom";
 
 interface GoogleClient {
   clientId: string;

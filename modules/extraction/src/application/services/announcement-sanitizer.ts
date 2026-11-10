@@ -1,3 +1,5 @@
+import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
+
 const URL_PATTERN =
   /(?:\bhttps?:\/\/|\bwww\.|\b(?:[a-z0-9-]+\.)+[a-z]{2,}\/)[^\s<>"]*[^\s<>".,;:!?)]/giu;
 const EMAIL_PATTERN = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}/gu;
@@ -41,17 +43,12 @@ const NEVER_A_FIRST_NAME = new Set([
     "sa",
     "son",
   ],
-  ...["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
-  ...["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout"],
-  ...["septembre", "octobre", "novembre", "decembre"],
+  ...FRENCH_WEEKDAYS,
+  ...FRENCH_MONTHS,
 ]);
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function withoutMarks(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "");
 }
 
 function letterPattern(char: string, anyCase: boolean): string {

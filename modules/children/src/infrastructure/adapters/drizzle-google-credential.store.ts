@@ -1,5 +1,6 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import { and, authSchema, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
+import { CHILD_PROVIDER_ID } from "../../application/config/child-provider";
 import type { ChildrenError } from "../../application/ports/child-repository.port";
 import type {
   GoogleCredentials,
@@ -38,6 +39,7 @@ export class DrizzleGoogleCredentialStore implements IGoogleCredentialStore {
               and(
                 eq(authSchema.account.id, linkedAccountId),
                 eq(authSchema.account.userId, userId),
+                eq(authSchema.account.providerId, CHILD_PROVIDER_ID),
               ),
             )
             .limit(1);
@@ -86,6 +88,7 @@ export class DrizzleGoogleCredentialStore implements IGoogleCredentialStore {
               and(
                 eq(authSchema.account.id, linkedAccountId),
                 eq(authSchema.account.userId, userId),
+                eq(authSchema.account.providerId, CHILD_PROVIDER_ID),
               ),
             )
             .returning({ id: authSchema.account.id });

@@ -10,10 +10,10 @@ import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-token-sealing", process.env.DATABASE_URL);
 
+import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
 import { and, authSchema, db, eq } from "@packages/drizzle";
 import { auth } from "../src/auth";
 import { authSecretKey } from "../src/shared/auth/auth-secrets";
-import { CHILD_PROVIDER_ID } from "../src/shared/auth/child-accounts";
 import { openToken } from "../src/shared/auth/token-sealing";
 import { env } from "../src/shared/env";
 import {

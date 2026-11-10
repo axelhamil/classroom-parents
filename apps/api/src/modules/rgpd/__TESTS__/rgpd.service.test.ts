@@ -48,7 +48,7 @@ interface Fixture {
   outbox: PortMock<IOutboxRepository>;
   uow: UnitOfWorkMock;
   timeline: string[];
-  service(unitOfWork?: IUnitOfWork): RgpdService;
+  service(unitOfWork?: IUnitOfWork, clock?: () => Date): RgpdService;
 }
 
 function fixture(state: UserDeletionState = activeState): Fixture {
@@ -56,7 +56,7 @@ function fixture(state: UserDeletionState = activeState): Fixture {
   const repo = mockPort<IRgpdRepository>();
   repo.getUserDeletionState.mockImplementation(async () => Result.ok(Option.some(state)));
   repo.findSessionStart.mockImplementation(async () =>
-    Result.ok(Option.some(new Date(Date.now() - HOUR))),
+    Result.ok(Option.some(new Date(NOW.getTime() - HOUR))),
   );
   repo.markPendingDeletion.mockImplementation(async () => Result.ok(true));
   repo.clearPendingDeletion.mockImplementation(async () => Result.ok(true));
@@ -85,7 +85,7 @@ function fixture(state: UserDeletionState = activeState): Fixture {
     outbox,
     uow,
     timeline,
-    service: (unitOfWork = uow.unitOfWork) =>
+    service: (unitOfWork = uow.unitOfWork, clock = () => NOW) =>
       new RgpdService(
         repo,
         children,
@@ -100,6 +100,7 @@ function fixture(state: UserDeletionState = activeState): Fixture {
           sweepDeadlineMs: 90_000,
         },
         mockPort<ILogger>(),
+        clock,
       ),
   };
 }
@@ -116,7 +117,10 @@ describe("RgpdService", () => {
       const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
 
       expect(result.isSuccess).toBe(true);
-      expect(f.repo.markPendingDeletion).toHaveBeenCalledTimes(1);
+      expect(f.repo.markPendingDeletion).toHaveBeenCalledWith(
+        "u1",
+        new Date(NOW.getTime() + 7 * 24 * HOUR),
+      );
       const [requested] = enqueuedEvents(f.outbox);
       expect(requested?.eventType).toBe(EventTypes.USER_DELETION_REQUESTED);
       expect(readActorId(requested?.payload).unwrapOr("none")).toBe("u1");
@@ -126,7 +130,7 @@ describe("RgpdService", () => {
     it("given a session older than the fresh age, asks to sign in again and schedules nothing", async () => {
       const f = fixture();
       f.repo.findSessionStart.mockImplementation(async () =>
-        Result.ok(Option.some(new Date(Date.now() - 25 * HOUR))),
+        Result.ok(Option.some(new Date(NOW.getTime() - 25 * HOUR))),
       );
 
       const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
@@ -148,7 +152,7 @@ describe("RgpdService", () => {
     });
 
     it("given a concurrent request already marked the account, announces nothing twice", async () => {
-      const until = new Date(Date.now() + 7 * 24 * HOUR);
+      const until = new Date(NOW.getTime() + 7 * 24 * HOUR);
       const f = fixture();
       f.repo.markPendingDeletion.mockImplementation(async () => Result.ok(false));
       f.repo.getUserDeletionState
@@ -165,7 +169,7 @@ describe("RgpdService", () => {
     });
 
     it("given a deletion already pending, returns its date without re-marking", async () => {
-      const until = new Date(Date.now() + 24 * HOUR);
+      const until = new Date(NOW.getTime() + 24 * HOUR);
       const f = fixture({ ...activeState, pendingDeletionUntil: Option.some(until) });
 
       const result = await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
@@ -179,7 +183,7 @@ describe("RgpdService", () => {
     it("given the grace period has elapsed, refuses the cancellation and clears nothing", async () => {
       const f = fixture({
         ...activeState,
-        pendingDeletionUntil: Option.some(new Date(Date.now() - 1000)),
+        pendingDeletionUntil: Option.some(new Date(NOW.getTime() - 1000)),
       });
 
       const result = await f.service().cancelAccountDeletion({ userId: "u1" });
@@ -192,7 +196,7 @@ describe("RgpdService", () => {
     it("given the sweep took the account between the read and the write, refuses the cancellation", async () => {
       const f = fixture({
         ...activeState,
-        pendingDeletionUntil: Option.some(new Date(Date.now() + HOUR)),
+        pendingDeletionUntil: Option.some(new Date(NOW.getTime() + HOUR)),
       });
       f.repo.clearPendingDeletion.mockImplementation(async () => Result.ok(false));
 
@@ -205,7 +209,7 @@ describe("RgpdService", () => {
     it("given a pending deletion, clears it and announces the cancellation", async () => {
       const f = fixture({
         ...activeState,
-        pendingDeletionUntil: Option.some(new Date(Date.now() + HOUR)),
+        pendingDeletionUntil: Option.some(new Date(NOW.getTime() + HOUR)),
       });
 
       const result = await f.service().cancelAccountDeletion({ userId: "u1" });
@@ -419,12 +423,12 @@ describe("RgpdService", () => {
       let reads = 0;
       const clock = () => {
         reads += 1;
-        return reads * 60;
+        return new Date(NOW.getTime() + reads * 60);
       };
 
       const result = await f
-        .service()
-        .processPendingDeletions({ now: NOW, deadlineMs: 100, clock });
+        .service(undefined, clock)
+        .processPendingDeletions({ now: NOW, deadlineMs: 100 });
 
       expect(result.getValue()).toMatchObject({ succeeded: ["u1"], truncated: true });
     });

@@ -19,8 +19,8 @@ import { exitUnlessLocalDatabase, sessionsOf, stepRunner } from "@packages/test/
 
 exitUnlessLocalDatabase("check-child-sign-in", process.env.DATABASE_URL);
 
+import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
 import { and, authSchema, count, db, eq } from "@packages/drizzle";
-import { CHILD_PROVIDER_ID } from "../src/shared/auth/child-accounts";
 import {
   Browser,
   removeProbeUsers,

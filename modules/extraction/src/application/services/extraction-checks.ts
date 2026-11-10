@@ -1,5 +1,6 @@
 import type { ReviewReason } from "../../domain/extracted-event";
 import type { ExtractedCandidate } from "./extraction-output.schema";
+import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
 
 export interface CheckContext {
   source: string;
@@ -8,11 +9,6 @@ export interface CheckContext {
 
 const MAX_DAYS_AHEAD = 400;
 const DAY_MS = 86_400_000;
-const FRENCH_WEEKDAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-const FRENCH_MONTHS = [
-  ...["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout"],
-  ...["septembre", "octobre", "novembre", "decembre"],
-];
 const HOLIDAY_WORDS = /\b(?:vacances|rentree|conges|toussaint|noel|paques)\b/;
 const ROLLED_FROM_PAST_WINDOW_DAYS = 30;
 const WRITTEN_DAY = new RegExp(
@@ -27,9 +23,7 @@ interface WrittenDay {
 }
 
 function normalizeForMatch(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
+  return withoutMarks(text)
     .replace(/[‘’ʼ]/g, "'")
     .replace(/[«»“”„"]/g, " ")
     .toLowerCase()

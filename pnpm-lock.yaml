@@ -216,6 +216,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@modules/children':
+        specifier: workspace:*
+        version: link:../../modules/children
       '@noble/ciphers':
         specifier: ^2.4.0
         version: 2.4.0

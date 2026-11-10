@@ -26,6 +26,7 @@ export const emailMessage = pgTable(
   },
   (table) => [
     uniqueIndex("email_message_idempotency_uidx").on(table.idempotencyKey),
+    index("email_message_to_address_idx").on(table.toAddress),
     index("email_message_pending_idx")
       .on(table.nextAttemptAt, table.createdAt)
       .where(sql`${table.status} = 'pending'`),

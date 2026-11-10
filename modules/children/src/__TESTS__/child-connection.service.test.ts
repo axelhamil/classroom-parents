@@ -278,7 +278,11 @@ describe("register", () => {
 
 describe("reconnect", () => {
   it("given a blocked_by_school child whose account now has scopes and token, then connected, cause cleared, due now and CHILD_CONNECTED", async () => {
-    const blocked = child({ status: ChildStatus.brokenBy("school_blocked"), syncStartedAt: NOW });
+    const blocked = child({
+      status: ChildStatus.brokenBy("school_blocked"),
+      syncStartedAt: new Date(NOW.getTime() - 20 * 60_000),
+      nextSyncAt: new Date(NOW.getTime() - 10 * 60_000),
+    });
     repo.findOwned.mockResolvedValue(ok(Option.some(blocked)));
 
     const result = await service.reconnect(PARENT, blocked.id.value);
@@ -288,6 +292,22 @@ describe("reconnect", () => {
     expect(result.getValue().syncing).toBe(false);
     expect(repo.save).toHaveBeenCalledWith(blocked);
     expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.CHILD_CONNECTED]);
+  });
+
+  it("given a connected child whose sync lease is still running, then its lease is kept and a manual sync answers running", async () => {
+    const syncing = child({
+      syncStartedAt: new Date(NOW.getTime() - 60_000),
+      nextSyncAt: new Date(NOW.getTime() + 9 * 60_000),
+    });
+    repo.findOwned.mockResolvedValue(ok(Option.some(syncing)));
+
+    const result = await service.reconnect(PARENT, syncing.id.value);
+    const manual = await service.claimManualSync(PARENT, syncing.id.value, NOW);
+
+    expect(result.getValue()).toMatchObject({ status: "connected", syncing: true });
+    expect(syncing.get("syncLease")).toBe(4);
+    expect(syncing.get("nextSyncAt")).toEqual(new Date(NOW.getTime() + 9 * 60_000));
+    expect(manual.getValue()).toEqual({ outcome: "running" });
   });
 
   it("given still no refresh token, then CHILD_REFRESH_TOKEN_MISSING and status unchanged", async () => {
@@ -380,6 +400,34 @@ describe("linkable", () => {
 
     expect(result.getValue().map((a) => a.linkedAccountId)).toEqual(["free"]);
     expect(eraser.delete).not.toHaveBeenCalled();
+  });
+
+  it("given Google fails transiently for one account, then the other accounts are still listed", async () => {
+    linked.listForUser.mockResolvedValue(
+      ok([linkedAccount({ linkedAccountId: "flaky" }), linkedAccount({ linkedAccountId: "free" })]),
+    );
+    google.profile
+      .mockResolvedValueOnce(fail<GoogleProfile>("CHILD_PROVIDER_FAILURE"))
+      .mockResolvedValueOnce(
+        ok<GoogleProfile>({ email: "tom@school.example", givenName: Option.none() }),
+      );
+
+    const result = await service.linkable(PARENT);
+
+    expect(result.getValue()).toEqual([
+      { linkedAccountId: "free", googleEmail: "tom@school.example" },
+    ]);
+    expect(eraser.delete).not.toHaveBeenCalled();
+  });
+
+  it("given Google fails transiently for the only account, then CHILD_PROVIDER_FAILURE naming it to retry", async () => {
+    linked.listForUser.mockResolvedValue(ok([linkedAccount({ linkedAccountId: "flaky" })]));
+    google.profile.mockResolvedValue(fail<GoogleProfile>("CHILD_PROVIDER_FAILURE"));
+
+    const result = await service.linkable(PARENT);
+
+    expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
+    expect(result.getError().metadata).toEqual({ retryLinkedAccountIds: ["flaky"] });
   });
 });
 

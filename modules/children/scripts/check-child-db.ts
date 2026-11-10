@@ -26,18 +26,16 @@ import {
 } from "@packages/drizzle";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { childAccount } from "../schemas/child.schema";
+import { CHILD_PROVIDER_ID } from "../src/application/config/child-provider";
 import type { ChildrenError } from "../src/application/ports/child-repository.port";
 import type { TokenSealing } from "../src/application/ports/google-credential-store.port";
-import type {
-  IGoogleLinkedAccounts,
-  LinkedGoogleAccount,
-} from "../src/application/ports/google-linked-accounts.port";
 import type {
   GoogleAccess,
   IGoogleOAuthClient,
 } from "../src/application/ports/google-oauth-client.port";
 import { ChildConnectionService } from "../src/application/services/child-connection.service";
 import { DrizzleGoogleCredentialStore } from "../src/infrastructure/adapters/drizzle-google-credential.store";
+import { DrizzleGoogleLinkedAccounts } from "../src/infrastructure/adapters/drizzle-google-linked-accounts";
 import { DrizzleLinkedAccountEraser } from "../src/infrastructure/adapters/drizzle-linked-account.eraser";
 import { DrizzleChildRepository } from "../src/infrastructure/repositories/drizzle-child.repository";
 
@@ -56,33 +54,6 @@ const sealing: TokenSealing = {
   open: async (sealed) =>
     sealed.startsWith(SEAL) ? Result.ok(sealed.slice(SEAL.length)) : Result.fail("unsealable"),
 };
-
-const linkedAccounts: IGoogleLinkedAccounts = {
-  async find(userId, linkedAccountId) {
-    const rows = await accountsOf(userId);
-    return Result.ok(Option.fromNullable(rows.find((a) => a.linkedAccountId === linkedAccountId)));
-  },
-  async listForUser(userId) {
-    return Result.ok(await accountsOf(userId));
-  },
-};
-
-async function accountsOf(userId: string): Promise<LinkedGoogleAccount[]> {
-  const rows = await db
-    .select()
-    .from(authSchema.account)
-    .where(
-      and(
-        eq(authSchema.account.userId, userId),
-        eq(authSchema.account.providerId, "google-classroom"),
-      ),
-    );
-  return rows.map((row) => ({
-    linkedAccountId: row.id,
-    grantedScopes: (row.scope ?? "").split(/[\s,]+/),
-    hasRefreshToken: row.refreshToken !== null,
-  }));
-}
 
 const revoked: string[] = [];
 let revokedInsideTransaction = 0;
@@ -109,7 +80,7 @@ const google: IGoogleOAuthClient = {
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const service = new ChildConnectionService(
   new DrizzleChildRepository(instrumentation),
-  linkedAccounts,
+  new DrizzleGoogleLinkedAccounts(instrumentation),
   new DrizzleGoogleCredentialStore(sealing, instrumentation),
   google,
   new DrizzleLinkedAccountEraser(instrumentation),
@@ -138,7 +109,7 @@ async function linkAccount(
   await db.insert(authSchema.account).values({
     id,
     accountId: `sub-${id}`,
-    providerId: "google-classroom",
+    providerId: CHILD_PROVIDER_ID,
     userId,
     accessToken: `${SEAL}ya29.${name}`,
     refreshToken: `${SEAL}1//${name}`,
@@ -251,6 +222,19 @@ run(async () => {
       workerClaim.getValue().some((d) => d.childId === aChild) &&
       duringLease.isSuccess &&
       duringLease.getValue().outcome === "running",
+  );
+
+  const duringLeaseAt = new Date(T0.getTime() + 5_000);
+  const reconnected = await service.reconnect(a, aChild);
+  const reclaimed = await service.claimDueForSync(1000, duringLeaseAt);
+  const manualAfterReconnect = await service.claimManualSync(a, aChild, duringLeaseAt);
+  await step(
+    "a reconnect during the worker's lease keeps it: no second claim, a manual sync answers running",
+    reconnected.isSuccess &&
+      reclaimed.isSuccess &&
+      !reclaimed.getValue().some((d) => d.childId === aChild) &&
+      manualAfterReconnect.isSuccess &&
+      manualAfterReconnect.getValue().outcome === "running",
   );
 
   const workerLease = workerClaim.isSuccess
@@ -444,11 +428,13 @@ run(async () => {
     accountId: `sub-${parentSignIn}`,
     providerId: "google",
     userId: a,
+    accessToken: `${SEAL}ya29.parent-own`,
     updatedAt: T0,
   });
   await step(
-    "the parent's own google account can never be discarded as a child link",
+    "the parent's own google account is never discarded nor revoked as a child link",
     codeOf(await service.discardLinked(a, parentSignIn)) === "CHILD_ACCOUNT_NOT_LINKED" &&
+      !revoked.includes("ya29.parent-own") &&
       (await accountRow(parentSignIn)) !== undefined,
   );
 

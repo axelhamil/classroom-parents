@@ -2,6 +2,7 @@ import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import { instrumentedFetch } from "@packages/http/instrumented-fetch";
 import { z } from "zod";
 import type { ChildrenSettings } from "../../application/config/children-settings";
+import { invalidGrant } from "../../application/errors/children-errors";
 import type { ChildrenError } from "../../application/ports/child-repository.port";
 import type {
   GoogleAccess,
@@ -31,11 +32,6 @@ const providerFailure = (operation: string): ChildrenError => ({
   code: "CHILD_PROVIDER_FAILURE",
   message: `Google n'a pas répondu (${operation}). Réessayez dans un instant.`,
 });
-
-const invalidGrant: ChildrenError = {
-  code: "CHILD_TOKEN_INVALID_GRANT",
-  message: "L'accès Google de cet enfant a expiré ou a été retiré. Reconnectez son compte.",
-};
 
 async function jsonBody(response: Response): Promise<unknown> {
   try {

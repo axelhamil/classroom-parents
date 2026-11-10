@@ -40,7 +40,6 @@ export interface ProcessPendingDeletionsInput {
   batchSize?: number;
   dryRun?: boolean;
   deadlineMs?: number;
-  clock?: () => number;
 }
 export interface ProcessPendingDeletionsOutput {
   processed: number;
@@ -66,6 +65,7 @@ export class RgpdService {
     private readonly instrumentation: IInstrumentation,
     private readonly settings: Omit<RgpdSettings, "sweepBatchSize">,
     private readonly logger: ILogger,
+    private readonly clock: () => Date = () => new Date(),
   ) {}
 
   async requestAccountDeletion(
@@ -87,7 +87,9 @@ export class RgpdService {
         const freshness = await this.ensureFreshSession(input);
         if (freshness.isFailure) return Result.fail(freshness.getError());
 
-        const until = new Date(Date.now() + this.settings.gracePeriodDays * 24 * 60 * 60 * 1000);
+        const until = new Date(
+          this.clock().getTime() + this.settings.gracePeriodDays * 24 * 60 * 60 * 1000,
+        );
         const txResult = await this.transactions.run(async () => {
           const marked = await this.rgpd.markPendingDeletion(input.userId, until);
           if (marked.isFailure || !marked.getValue()) return marked;
@@ -140,7 +142,7 @@ export class RgpdService {
             message: "no pending deletion to cancel",
           });
         const pendingUntil = state.pendingDeletionUntil.unwrap();
-        const now = new Date();
+        const now = this.clock();
         if (pendingUntil <= now) return Result.fail(DELETION_ALREADY_RUNNING);
 
         const txResult = await this.transactions.run(async () => {
@@ -289,8 +291,8 @@ export class RgpdService {
             truncated: false,
           });
 
-        const clock = input.clock ?? Date.now;
-        const deadlineAt = clock() + (input.deadlineMs ?? this.settings.sweepDeadlineMs);
+        const deadlineAt =
+          this.clock().getTime() + (input.deadlineMs ?? this.settings.sweepDeadlineMs);
 
         const succeeded: string[] = [];
         const failed: Array<{ userId: string; errorCode: string }> = [];
@@ -300,7 +302,7 @@ export class RgpdService {
           // Checked between wipes, never inside one: executeAccountWipe owns a transaction
           // with cascade deletes, and cutting it short would leave a
           // half-erased account, the one outcome an Art. 17 sweep must never produce.
-          if (clock() >= deadlineAt) {
+          if (this.clock().getTime() >= deadlineAt) {
             truncated = true;
             this.logger.warn(
               {
@@ -369,7 +371,8 @@ export class RgpdService {
 
     const start = startResult.getValue();
     const fresh =
-      start.isSome() && Date.now() - start.unwrap().getTime() < this.settings.freshSessionMaxAgeMs;
+      start.isSome() &&
+      this.clock().getTime() - start.unwrap().getTime() < this.settings.freshSessionMaxAgeMs;
     if (fresh) return Result.ok();
 
     return Result.fail({

@@ -83,7 +83,7 @@ Proven against Postgres by `pnpm --filter api check:outbox-lease` (disjoint conc
 
 ## Retention
 
-Delivered outbox rows and settled emails are derived data. The purge helpers stay in `apps/api/src/shared/internal-routes/` (`sweep-purge`, `sweep-lock`, `sweep-runner`, `sweep-count`, `sweep-span`, `sweep-heartbeat`) with the `sweep_lock` and `sweep_run` tables; the periodic worker that calls them is bound by the host (no HTTP endpoint, no external cron). A purge never deletes a dead outbox row: it removes only rows with `dispatched_at` set and older than the cutoff. Deleting aged derived rows emits nothing (root rule 6 exception).
+Delivered outbox rows and settled emails are derived data. The purge helpers stay in `apps/api/src/shared/internal-routes/` (`sweep-purge`, `sweep-lock`, `sweep-runner`, `sweep-count`, `sweep-span`, `sweep-heartbeat`) with the `sweep_lock` and `sweep_run` tables; the periodic worker that calls them is bound by the host (no HTTP endpoint, no external cron). A retention purge never deletes a dead outbox row: it removes only rows with `dispatched_at` set and older than the cutoff. The RGPD account wipe is another path: it deletes every row whose payload names the user (`userId` or `actorUserId`), dead rows included, and only `user.deleted` remains. Deleting aged derived rows emits nothing (root rule 6 exception).
 
 ## Visibility: public vs internal events
 

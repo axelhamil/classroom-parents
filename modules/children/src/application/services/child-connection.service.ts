@@ -14,6 +14,7 @@ import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 import { CHILD_PROVIDER_ID } from "../config/child-provider";
 import type { ChildrenSettings } from "../config/children-settings";
 import { type ChildDto, type LinkableAccount, toChildDto } from "../dto/child.dto";
+import { invalidGrant } from "../errors/children-errors";
 import type {
   ChildrenError,
   DisconnectingChild,
@@ -87,11 +88,6 @@ const alreadyConnected: ChildrenError = {
   message: "Ce compte Google est déjà relié à l'un de vos enfants.",
 };
 
-const invalidGrant: ChildrenError = {
-  code: "CHILD_TOKEN_INVALID_GRANT",
-  message: "L'accès Google de cet enfant a expiré ou a été retiré. Reconnectez son compte.",
-};
-
 const SYNC_BLOCKED_MESSAGES: Record<Exclude<ChildStatusValue, "connected">, string> = {
   disconnecting: "Cet enfant est en cours de déconnexion.",
   needs_reconnect: "Reconnectez le compte Google de cet enfant pour relancer la synchronisation.",
@@ -146,7 +142,9 @@ export class ChildConnectionService {
       const used = new Set(children.getValue().map((child) => child.get("linkedAccountId")));
       const linkable: LinkableAccount[] = [];
       const unusable: string[] = [];
+      const retry: string[] = [];
       let refused = Option.none<ChildrenError>();
+      let transient = Option.none<ChildrenError>();
       for (const account of accounts.getValue()) {
         if (used.has(account.linkedAccountId)) continue;
 
@@ -162,16 +160,26 @@ export class ChildConnectionService {
           continue;
         }
 
-        if (!UNUSABLE_LINK.includes(profile.getError().code))
-          return Result.fail(profile.getError());
+        if (!UNUSABLE_LINK.includes(profile.getError().code)) {
+          this.instrumentation.capture(profile.getError(), { userId });
+          retry.push(account.linkedAccountId);
+          transient = transient.or(Option.some(profile.getError()));
+          continue;
+        }
         unusable.push(account.linkedAccountId);
         refused = refused.or(Option.some(profile.getError()));
       }
 
-      if (linkable.length === 0 && refused.isSome())
+      if (linkable.length > 0) return Result.ok(linkable);
+      if (refused.isSome())
         return Result.fail({
           ...refused.unwrap(),
           metadata: { unusableLinkedAccountIds: unusable },
+        });
+      if (transient.isSome())
+        return Result.fail({
+          ...transient.unwrap(),
+          metadata: { retryLinkedAccountIds: retry },
         });
       return Result.ok(linkable);
     });

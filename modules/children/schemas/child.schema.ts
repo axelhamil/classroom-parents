@@ -29,5 +29,8 @@ export const childAccount = pgTable(
   (table) => [
     index("child_account_user_idx").on(table.userId),
     index("child_account_due_idx").on(table.nextSyncAt).where(sql`${table.status} = 'connected'`),
+    index("child_account_disconnecting_idx")
+      .on(table.nextSyncAt)
+      .where(sql`${table.status} = 'disconnecting'`),
   ],
 );

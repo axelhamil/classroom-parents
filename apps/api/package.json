@@ -27,6 +27,7 @@
   "dependencies": {
     "@noble/ciphers": "^2.4.0",
     "@noble/hashes": "^2.4.0",
+    "@modules/children": "workspace:*",
     "@packages/ddd-kit": "workspace:*",
     "@packages/drizzle": "workspace:*",
     "@packages/email": "workspace:*",

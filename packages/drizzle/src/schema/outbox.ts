@@ -42,6 +42,12 @@ export const outboxEvent = pgTable(
       .where(isNotNull(table.dispatchedAt)),
     index("outbox_event_type_idx").on(table.eventType),
     index("outbox_event_aggregate_idx").on(table.aggregateType, table.aggregateId),
+    index("outbox_event_payload_user_idx")
+      .on(sql`(${table.payload}->>'userId')`)
+      .where(sql`${table.payload}->>'userId' is not null`),
+    index("outbox_event_payload_actor_idx")
+      .on(sql`(${table.payload}->>'actorUserId')`)
+      .where(sql`${table.payload}->>'actorUserId' is not null`),
   ],
 );
 

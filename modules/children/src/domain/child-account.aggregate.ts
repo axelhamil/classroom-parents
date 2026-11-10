@@ -68,6 +68,8 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     if (this.isDisconnecting()) return Result.fail("disconnecting");
 
     this._props.status = ChildStatus.connected();
+    if (this.isSyncLeased(now)) return Result.ok();
+
     this._props.nextSyncAt = now;
     this._props.syncStartedAt = Option.none();
     this._props.syncLease += 1;
@@ -101,8 +103,7 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
   requestManualSync(now: Date): Result<void, ManualSyncRefusal> {
     if (this._props.status.value !== "connected") return Result.fail("unavailable");
 
-    const leased = this._props.syncStartedAt.isSome() && this._props.nextSyncAt > now;
-    if (leased) return Result.fail("running");
+    if (this.isSyncLeased(now)) return Result.fail("running");
 
     const last = this._props.lastSyncRequestedAt;
     if (last.isSome() && now.getTime() - last.unwrap().getTime() < MANUAL_SYNC_THROTTLE_MS)
@@ -113,5 +114,9 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     this._props.nextSyncAt = new Date(now.getTime() + SYNC_LEASE_MS);
     this._props.syncLease += 1;
     return Result.ok();
+  }
+
+  private isSyncLeased(now: Date): boolean {
+    return this._props.syncStartedAt.isSome() && this._props.nextSyncAt > now;
   }
 }
