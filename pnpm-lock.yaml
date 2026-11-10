@@ -216,6 +216,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@modules/agenda':
+        specifier: workspace:*
+        version: link:../../modules/agenda
       '@modules/children':
         specifier: workspace:*
         version: link:../../modules/children

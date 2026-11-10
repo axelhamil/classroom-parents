@@ -48,6 +48,8 @@ describe("list", () => {
           deadlineTime: "08:30",
           deadlineAt: "2026-11-19T07:30:00.000Z",
           status: "confirmed",
+          source: "announcement",
+          done: false,
           announcementUrl: "https://classroom.google.com/c/course-1/p/announcement-1",
           receivedAt: "2026-11-09T07:00:00.000Z",
           edited: false,

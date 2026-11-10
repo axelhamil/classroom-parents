@@ -759,6 +759,7 @@ describe("claimManualSync", () => {
     expect(result.getValue()).toEqual({
       outcome: "started",
       lease: { childId: owned.id.value, lease: 5 },
+      label: "Léa",
     });
     expect(owned.get("syncStartedAt").unwrap()).toEqual(NOW);
     expect(repo.save).toHaveBeenCalledWith(owned);
@@ -800,4 +801,33 @@ describe("claimManualSync", () => {
       expect(repo.save).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("isOwnedBy", () => {
+  it("given the parent's connected child, then owned, read under the parent's id", async () => {
+    const owned = child();
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await service.isOwnedBy(PARENT, owned.id.value);
+
+    expect(result.getValue()).toBe(true);
+    expect(repo.findOwned).toHaveBeenCalledWith(PARENT, owned.id.value);
+  });
+
+  it("given a child of another family, then not owned", async () => {
+    repo.findOwned.mockResolvedValue(ok(Option.none<ChildAccount>()));
+
+    const result = await service.isOwnedBy("parent-2", "child-of-parent-1");
+
+    expect(result.getValue()).toBe(false);
+  });
+
+  it("given a child being disconnected, then not owned any more", async () => {
+    const leaving = child({ status: ChildStatus.disconnecting() });
+    repo.findOwned.mockResolvedValue(ok(Option.some(leaving)));
+
+    const result = await service.isOwnedBy(PARENT, leaving.id.value);
+
+    expect(result.getValue()).toBe(false);
+  });
 });

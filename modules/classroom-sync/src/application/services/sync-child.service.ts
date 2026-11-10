@@ -1,6 +1,7 @@
 import {
   type AppError,
   type IInstrumentation,
+  type ILogger,
   type IUnitOfWork,
   Option,
   Result,
@@ -17,7 +18,7 @@ import {
   needsExtraction,
   nextAttempt,
 } from "../../domain/announcement-ledger";
-import { dueDayKey, schoolDeadline } from "../../domain/coursework-deadline";
+import { courseworkTitle, schoolDeadline } from "../../domain/coursework-deadline";
 import {
   isDayWithinWindow,
   isWithinWindow,
@@ -35,6 +36,7 @@ import type {
   Course,
   Coursework,
   IClassroomClient,
+  ReadScope,
 } from "../ports/classroom-client.port";
 import type { CourseworkDeadline, IEventIngest } from "../ports/event-ingest.port";
 import type { ISeenAnnouncementRepository } from "../ports/seen-announcement-repository.port";
@@ -100,7 +102,7 @@ export interface SyncReport {
   failedCoursework: number;
 }
 
-type CourseFailure = "school_block" | "transient";
+type CourseFailure = "lease_lost" | "scope_missing" | "school_block" | "transient";
 
 interface PendingAnnouncement {
   announcement: Announcement;
@@ -113,7 +115,20 @@ interface CourseRead {
   coursework: CourseworkDeadline[];
 }
 
+interface GoogleAccess {
+  token: string;
+  scope: ReadScope;
+}
+
 type SyncOutcome = { kind: "done"; created: number } | { kind: "failed" } | { kind: "lease_lost" };
+
+function courseFailure(code: ClassroomErrorCode): CourseFailure {
+  if (code === "CLASSROOM_READ_STOPPED") return "lease_lost";
+  if (code === "CLASSROOM_SCOPE_MISSING") return "scope_missing";
+  if (SCHOOL_BLOCKS.includes(code)) return "school_block";
+
+  return "transient";
+}
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -128,6 +143,7 @@ export class SyncChildService {
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
+    private readonly logger: ILogger,
     private readonly sleep: (ms: number) => Promise<void> = wait,
   ) {}
 
@@ -144,12 +160,19 @@ export class SyncChildService {
           return this.needsReconnect(input.childId, "invalid_grant");
         if (token.isFailure) return this.failed(lease, now, providerFailure("jeton Google"));
 
-        const courses = await this.withRetry(() => this.classroom.listCourses(token.getValue()));
-        if (courses.isFailure && SCHOOL_BLOCKS.includes(courses.getError().code))
-          return this.needsReconnect(input.childId, "school_blocked");
-        if (courses.isFailure) return this.failed(lease, now, providerFailure("liste des cours"));
+        const scope = this.readScope(lease);
+        const courses = await this.withRetry(() =>
+          this.classroom.listCourses(token.getValue(), scope),
+        );
+        if (courses.isFailure) return this.courseListFailed(lease, courses.getError().code, now);
 
-        return this.syncCourses(input, lease, token.getValue(), courses.getValue(), now);
+        return this.syncCourses(
+          input,
+          lease,
+          { token: token.getValue(), scope },
+          courses.getValue(),
+          now,
+        );
       },
     );
   }
@@ -157,14 +180,17 @@ export class SyncChildService {
   private async syncCourses(
     input: SyncChildInput,
     lease: SyncLease,
-    token: string,
+    access: GoogleAccess,
     courses: Course[],
     now: Date,
   ): Promise<Result<SyncReport, SyncError>> {
     const reads = await runPooled(courses, COURSE_CONCURRENCY, (course) =>
-      this.readCourse(input.childId, token, course, now),
+      this.readCourse(input.childId, access, course, now),
     );
     const failures = reads.filter((read) => read.isFailure).map((read) => read.getError());
+    if (failures.includes("lease_lost")) return Result.fail(leaseLost);
+    if (failures.includes("scope_missing"))
+      return this.needsReconnect(input.childId, "invalid_grant");
     if (courses.length > 0 && failures.length === courses.length) {
       if (failures.every((failure) => failure === "school_block"))
         return this.needsReconnect(input.childId, "school_blocked");
@@ -177,14 +203,9 @@ export class SyncChildService {
       COURSE_CONCURRENCY,
       (course) => this.saveCoursework(input, lease, course),
     );
-    const dueDays = new Set(
-      read.flatMap(({ courseId, coursework }) =>
-        coursework.map(({ deadlineDate }) => dueDayKey(courseId, deadlineDate)),
-      ),
-    );
     const pending = read.flatMap((course) => course.pending);
     const extracted = await runPooled(pending, EXTRACTION_CONCURRENCY, (item) =>
-      this.processAnnouncement(input, lease, item, dueDays, now),
+      this.processAnnouncement(input, lease, item, now),
     );
     if ([...saved, ...extracted].some(({ kind }) => kind === "lease_lost"))
       return Result.fail(leaseLost);
@@ -204,20 +225,21 @@ export class SyncChildService {
 
   private async readCourse(
     childId: string,
-    token: string,
+    { token, scope }: GoogleAccess,
     course: Course,
     now: Date,
   ): Promise<Result<CourseRead, CourseFailure>> {
+    if (!(await scope.mayContinue())) return Result.fail("lease_lost");
+
     const [listed, coursework, turnedIn] = await Promise.all([
-      this.withRetry(() => this.classroom.listAnnouncements(token, course.id, windowStart(now))),
-      this.withRetry(() => this.classroom.listCoursework(token, course.id)),
-      this.withRetry(() => this.classroom.listTurnedIn(token, course.id)),
+      this.withRetry(() =>
+        this.classroom.listAnnouncements(token, course.id, windowStart(now), scope),
+      ),
+      this.withRetry(() => this.classroom.listCoursework(token, course.id, scope)),
+      this.withRetry(() => this.classroom.listTurnedIn(token, course.id, scope)),
     ]);
     const refused = [listed, coursework, turnedIn].find((read) => read.isFailure);
-    if (refused?.isFailure)
-      return Result.fail(
-        SCHOOL_BLOCKS.includes(refused.getError().code) ? "school_block" : "transient",
-      );
+    if (refused?.isFailure) return Result.fail(courseFailure(refused.getError().code));
 
     const pending = await this.pendingAnnouncements(childId, listed.getValue(), now);
     if (pending.isFailure) return Result.fail(pending.getError());
@@ -275,7 +297,7 @@ export class SyncChildService {
       return [
         {
           id,
-          title,
+          title: courseworkTitle(title),
           url,
           deadlineDate,
           ...deadlineTime
@@ -315,10 +337,13 @@ export class SyncChildService {
     input: SyncChildInput,
     lease: SyncLease,
     { announcement, state }: PendingAnnouncement,
-    dueDays: ReadonlySet<string>,
     now: Date,
   ): Promise<SyncOutcome> {
     const attempt = nextAttempt(state);
+    const held = await this.leaseStillHeld(lease);
+    if (held.isFailure)
+      return held.getError().code === leaseLost.code ? { kind: "lease_lost" } : { kind: "failed" };
+
     const extracted = await this.extractor.extract({
       text: announcement.text,
       publishedAt: announcement.publishedAt,
@@ -329,9 +354,7 @@ export class SyncChildService {
       return this.recordFailure(lease, announcement, attempt, now);
     }
 
-    const deadlines = extracted
-      .getValue()
-      .filter(({ deadlineDate }) => !dueDays.has(dueDayKey(announcement.courseId, deadlineDate)));
+    const deadlines = extracted.getValue();
     const committed = await this.transactions.run(async (): Promise<Result<number, AppError>> => {
       const recorded = await this.recordVerdict(
         lease,
@@ -424,6 +447,30 @@ export class SyncChildService {
     }
 
     return Result.ok(report);
+  }
+
+  private readScope(lease: SyncLease): ReadScope {
+    return {
+      mayContinue: async () => (await this.leaseStillHeld(lease)).isSuccess,
+      truncated: (listing) =>
+        this.logger.warn(
+          { childId: lease.childId, listing },
+          "classroom listing cut at the page cap",
+        ),
+    };
+  }
+
+  private async courseListFailed(
+    lease: SyncLease,
+    code: ClassroomErrorCode,
+    now: Date,
+  ): Promise<Result<SyncReport, SyncError>> {
+    const failure = courseFailure(code);
+    if (failure === "lease_lost") return Result.fail(leaseLost);
+    if (failure === "scope_missing") return this.needsReconnect(lease.childId, "invalid_grant");
+    if (failure === "school_block") return this.needsReconnect(lease.childId, "school_blocked");
+
+    return this.failed(lease, now, providerFailure("liste des cours"));
   }
 
   private async leaseStillHeld(lease: SyncLease): Promise<Result<void, SyncError>> {

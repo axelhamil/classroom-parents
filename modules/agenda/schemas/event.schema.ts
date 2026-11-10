@@ -2,6 +2,7 @@ import { childAccount } from "@modules/children/schemas/child.schema";
 import { authSchema } from "@packages/drizzle";
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   date,
   index,
   integer,
@@ -13,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { EVENT_CATEGORIES } from "../src/domain/value-objects/event-category.vo";
+import { EVENT_SOURCES } from "../src/domain/value-objects/event-source.vo";
 import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
 
 export const agendaEvent = pgTable(
@@ -25,6 +27,7 @@ export const agendaEvent = pgTable(
     childId: uuid("child_id")
       .notNull()
       .references(() => childAccount.id, { onDelete: "cascade" }),
+    source: text("source", { enum: EVENT_SOURCES }).notNull().default("announcement"),
     announcementId: text("announcement_id").notNull(),
     ordinal: integer("ordinal").notNull(),
     courseId: text("course_id").notNull(),
@@ -37,16 +40,21 @@ export const agendaEvent = pgTable(
     deadlineAt: timestamp("deadline_at", { withTimezone: true }).notNull(),
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
     status: text("status", { enum: EVENT_STATUSES }).notNull(),
+    done: boolean("done").notNull().default(false),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    unique("event_child_announcement_ordinal_key").on(
+    unique("event_child_source_item_key").on(
       table.childId,
+      table.source,
       table.announcementId,
       table.ordinal,
     ),
+    index("event_coursework_day_idx")
+      .on(table.childId, table.courseId, table.deadlineDate)
+      .where(sql`${table.source} = 'coursework'`),
     index("event_user_deadline_idx")
       .on(table.userId, table.deadlineAt)
       .where(sql`${table.deletedAt} is null`),

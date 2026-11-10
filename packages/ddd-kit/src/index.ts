@@ -20,5 +20,6 @@ export * from "./events/outbox-mapping";
 export * from "./primitives/canonical-json";
 export * from "./primitives/option";
 export * from "./primitives/result";
+export * from "./primitives/text";
 export * from "./primitives/uuid";
 export * from "./primitives/zoned-time";

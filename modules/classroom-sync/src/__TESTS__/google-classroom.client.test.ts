@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
+import type { ClassroomListing, ReadScope } from "../application/ports/classroom-client.port";
 import { GoogleClassroomClient } from "../infrastructure/adapters/google-classroom.client";
 
 const SINCE = new Date("2026-09-10T00:00:00.000Z");
@@ -7,6 +8,8 @@ const SINCE = new Date("2026-09-10T00:00:00.000Z");
 let requests: URL[];
 let answers: Response[];
 let client: GoogleClassroomClient;
+let truncated: ClassroomListing[];
+let open: ReadScope;
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -34,6 +37,13 @@ function post(id: string, updateTime: string) {
 beforeEach(() => {
   requests = [];
   answers = [];
+  truncated = [];
+  open = {
+    mayContinue: async () => true,
+    truncated: (listing) => {
+      truncated.push(listing);
+    },
+  };
   const fakeFetch = async (input: string | URL | Request) => {
     requests.push(new URL(String(input)));
     return answers.shift() ?? json(500, {});
@@ -48,7 +58,7 @@ describe("GoogleClassroomClient", () => {
   it("lists the active courses the child follows as a student", async () => {
     answers.push(json(200, { courses: [{ id: "c1", name: "Maths" }, { id: "c2" }] }));
 
-    const result = await client.listCourses("ya29.token");
+    const result = await client.listCourses("ya29.token", open);
 
     expect(result.getValue()).toEqual([{ id: "c1" }, { id: "c2" }]);
     expect(requests[0]?.searchParams.get("studentId")).toBe("me");
@@ -64,7 +74,7 @@ describe("GoogleClassroomClient", () => {
       json(200, { announcements: [post("a3", "2026-10-20T10:00:00Z")] }),
     );
 
-    const result = await client.listAnnouncements("ya29.token", "c1", SINCE);
+    const result = await client.listAnnouncements("ya29.token", "c1", SINCE, open);
 
     expect(result.getValue().map(({ id }) => id)).toEqual(["a1", "a2", "a3"]);
     expect(result.getValue()[0]).toEqual({
@@ -86,7 +96,7 @@ describe("GoogleClassroomClient", () => {
       }),
     );
 
-    const result = await client.listAnnouncements("ya29.token", "c1", SINCE);
+    const result = await client.listAnnouncements("ya29.token", "c1", SINCE, open);
 
     expect(result.getValue().map(({ id }) => id)).toEqual(["a1"]);
     expect(requests).toHaveLength(1);
@@ -95,15 +105,34 @@ describe("GoogleClassroomClient", () => {
   it("maps a 403 PERMISSION_DENIED to CLASSROOM_PERMISSION_DENIED", async () => {
     answers.push(googleError(403, { status: "PERMISSION_DENIED" }));
 
-    const result = await client.listAnnouncements("ya29.token", "c1", SINCE);
+    const result = await client.listAnnouncements("ya29.token", "c1", SINCE, open);
 
     expect(result.getError().code).toBe("CLASSROOM_PERMISSION_DENIED");
+  });
+
+  it("maps a 403 for an insufficient token scope to CLASSROOM_SCOPE_MISSING", async () => {
+    answers.push(
+      googleError(403, {
+        status: "PERMISSION_DENIED",
+        message: "Request had insufficient authentication scopes.",
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+            reason: "ACCESS_TOKEN_SCOPE_INSUFFICIENT",
+          },
+        ],
+      }),
+    );
+
+    const result = await client.listCoursework("ya29.token", "c1", open);
+
+    expect(result.getError().code).toBe("CLASSROOM_SCOPE_MISSING");
   });
 
   it("maps a 401 to CLASSROOM_UNAUTHORIZED", async () => {
     answers.push(googleError(401, { status: "UNAUTHENTICATED" }));
 
-    const result = await client.listCourses("ya29.token");
+    const result = await client.listCourses("ya29.token", open);
 
     expect(result.getError().code).toBe("CLASSROOM_UNAUTHORIZED");
   });
@@ -116,7 +145,7 @@ describe("GoogleClassroomClient", () => {
       }),
     );
 
-    const result = await client.listCourses("ya29.token");
+    const result = await client.listCourses("ya29.token", open);
 
     expect(result.getError().code).toBe("CLASSROOM_ACCESS_NOT_CONFIGURED");
   });
@@ -124,7 +153,7 @@ describe("GoogleClassroomClient", () => {
   it("maps a 429 to CLASSROOM_RATE_LIMITED", async () => {
     answers.push(googleError(429, { status: "RESOURCE_EXHAUSTED" }));
 
-    const result = await client.listCourses("ya29.token");
+    const result = await client.listCourses("ya29.token", open);
 
     expect(result.getError().code).toBe("CLASSROOM_RATE_LIMITED");
   });
@@ -132,8 +161,8 @@ describe("GoogleClassroomClient", () => {
   it("maps a server error or an unreadable body to CLASSROOM_PROVIDER_FAILURE", async () => {
     answers.push(json(503, {}), json(200, { courses: "nope" }));
 
-    const down = await client.listCourses("ya29.token");
-    const garbled = await client.listCourses("ya29.token");
+    const down = await client.listCourses("ya29.token", open);
+    const garbled = await client.listCourses("ya29.token", open);
 
     expect(down.getError().code).toBe("CLASSROOM_PROVIDER_FAILURE");
     expect(garbled.getError().code).toBe("CLASSROOM_PROVIDER_FAILURE");
@@ -176,7 +205,7 @@ describe("GoogleClassroomClient", () => {
       }),
     );
 
-    const result = await client.listCoursework("ya29.token", "c1");
+    const result = await client.listCoursework("ya29.token", "c1", open);
 
     const dues = result
       .getValue()
@@ -202,11 +231,55 @@ describe("GoogleClassroomClient", () => {
       }),
     );
 
-    const result = await client.listTurnedIn("ya29.token", "c1");
+    const result = await client.listTurnedIn("ya29.token", "c1", open);
 
     expect(result.getValue()).toEqual(["w1", "w2"]);
     expect(requests[0]?.pathname).toBe("/v1/courses/c1/courseWork/-/studentSubmissions");
     expect(requests[0]?.searchParams.get("userId")).toBe("me");
     expect(requests[0]?.searchParams.getAll("states")).toEqual(["TURNED_IN", "RETURNED"]);
+  });
+
+  it("stops before the next page once the scope may not continue", async () => {
+    let pages = 0;
+    const closing: ReadScope = {
+      mayContinue: async () => pages++ < 1,
+      truncated: () => {},
+    };
+    answers.push(json(200, { studentSubmissions: [{ courseWorkId: "w1" }], nextPageToken: "p2" }));
+
+    const result = await client.listTurnedIn("ya29.token", "c1", closing);
+
+    expect(result.getError().code).toBe("CLASSROOM_READ_STOPPED");
+    expect(requests).toHaveLength(1);
+  });
+
+  it("calls Google not at all when the scope is already closed", async () => {
+    const closed: ReadScope = { mayContinue: async () => false, truncated: () => {} };
+
+    const result = await client.listCourses("ya29.token", closed);
+
+    expect(result.getError().code).toBe("CLASSROOM_READ_STOPPED");
+    expect(requests).toHaveLength(0);
+  });
+
+  it("reports a listing cut at the page cap and keeps the pages read", async () => {
+    for (let page = 0; page < 25; page += 1)
+      answers.push(
+        json(200, { studentSubmissions: [{ courseWorkId: `w${page}` }], nextPageToken: "more" }),
+      );
+
+    const result = await client.listTurnedIn("ya29.token", "c1", open);
+
+    expect(result.getValue()).toHaveLength(20);
+    expect(requests).toHaveLength(20);
+    expect(truncated).toEqual(["submissions"]);
+  });
+
+  it("reports nothing when the last page has no next token", async () => {
+    answers.push(json(200, { studentSubmissions: [{ courseWorkId: "w1" }] }));
+
+    await client.listTurnedIn("ya29.token", "c1", open);
+
+    expect(truncated).toEqual([]);
   });
 });

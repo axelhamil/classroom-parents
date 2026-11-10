@@ -1,20 +1,27 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Result } from "@packages/ddd-kit";
+import { Option, Result } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
+import { z } from "zod";
 import type { IAlertPlanner } from "../application/ports/alert-planner.port";
 import type { IChildOwnership } from "../application/ports/child-ownership.port";
 import type { IEventRepository } from "../application/ports/event-repository.port";
 import {
   EventIngestService,
+  type IngestedCoursework,
   type IngestedEvent,
 } from "../application/services/event-ingest.service";
 import type { AgendaEvent } from "../domain/event.aggregate";
+import { EventTitle } from "../domain/value-objects/event-title.vo";
 import { CHILD, PARENT } from "../testing/agenda-event.fixture";
+
+const updatedPayload = z.object({ fields: z.array(z.string()) });
+
+const EventTitleOf = (title: string) => EventTitle.create(title).getValue();
 
 const announcement = {
   id: "announcement-1",
@@ -43,7 +50,7 @@ let service: EventIngestService;
 let stored: Map<string, AgendaEvent>;
 
 const keyOf = (event: AgendaEvent) =>
-  `${event.get("childId")}|${event.get("announcementId")}|${event.get("ordinal")}`;
+  `${event.get("childId")}|${event.get("source").value}|${event.get("announcementId")}|${event.get("ordinal")}`;
 
 beforeEach(() => {
   repo = mockPort<IEventRepository>();
@@ -60,7 +67,13 @@ beforeEach(() => {
     stored.set(keyOf(event), event);
     return Result.ok(true);
   });
+  repo.lockCoursework.mockImplementation(async (_userId, childId, courseworkId) =>
+    Result.ok(Option.fromNullable(stored.get(`${childId}|coursework|${courseworkId}|0`))),
+  );
+  repo.save.mockResolvedValue(Result.ok());
   planner.planDefault.mockResolvedValue(Result.ok());
+  planner.replan.mockResolvedValue(Result.ok());
+  planner.cancel.mockResolvedValue(Result.ok());
 
   service = new EventIngestService(
     repo,
@@ -173,5 +186,124 @@ describe("ingest", () => {
     expect(result.getError().code).toBe("EVENT_CHILD_NOT_FOUND");
     expect(repo.insertIfAbsent).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+});
+
+function homework(overrides: Partial<IngestedCoursework> = {}): IngestedCoursework {
+  return {
+    id: "w1",
+    title: "Exercices p. 42",
+    url: "https://classroom.google.com/c/course-1/a/w1",
+    deadlineDate: "2026-11-19",
+    deadlineTime: "08:00",
+    done: false,
+    ...overrides,
+  };
+}
+
+const ingestCoursework = (items: IngestedCoursework[]) =>
+  service.ingestCoursework({ userId: PARENT, childId: CHILD, courseId: "course-1", items });
+
+const courseworkRow = (id = "w1") => stored.get(`${CHILD}|coursework|${id}|0`);
+
+const updatedFields = () =>
+  enqueuedEvents(outbox)
+    .filter(({ eventType }) => eventType === EventTypes.EVENT_UPDATED)
+    .map(({ payload }) => updatedPayload.parse(payload).fields);
+
+describe("ingestCoursework", () => {
+  it("given a new dated coursework, then a confirmed homework is stored from the coursework and alerted", async () => {
+    const result = await ingestCoursework([homework()]);
+
+    const row = courseworkRow();
+    expect(result.getValue()).toEqual({ created: 1, updated: 0, rejected: 0 });
+    expect(row?.get("source").value).toBe("coursework");
+    expect(row?.get("category").value).toBe("homework");
+    expect(row?.get("status").value).toBe("confirmed");
+    expect(row?.get("courseId")).toBe("course-1");
+    expect(row?.get("deadline").value.time).toBe("08:00");
+    expect(planner.planDefault).toHaveBeenCalledTimes(1);
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
+      EventTypes.EVENT_CREATED,
+    ]);
+  });
+
+  it("given a coursework already turned in, then it is stored as done and no alert is planned", async () => {
+    await ingestCoursework([homework({ done: true })]);
+
+    expect(courseworkRow()?.get("done")).toBe(true);
+    expect(planner.planDefault).not.toHaveBeenCalled();
+  });
+
+  it("given the teacher moves and renames a coursework, then the event follows and its alert is replanned", async () => {
+    await ingestCoursework([homework()]);
+
+    const result = await ingestCoursework([
+      homework({ title: "Exercices p. 44", deadlineDate: "2026-11-23" }),
+    ]);
+
+    expect(result.getValue()).toEqual({ created: 0, updated: 1, rejected: 0 });
+    expect(courseworkRow()?.get("title").value).toBe("Exercices p. 44");
+    expect(courseworkRow()?.get("deadline").value.date).toBe("2026-11-23");
+    expect(planner.replan).toHaveBeenCalledWith(
+      expect.objectContaining({ deadlineDate: "2026-11-23" }),
+    );
+    expect(updatedFields()).toEqual([["title", "deadline"]]);
+  });
+
+  it("given the parent edited the event, then the teacher's date and title are ignored but done still follows", async () => {
+    await ingestCoursework([homework()]);
+    const row = courseworkRow();
+    row?.edit({ title: EventTitleOf("Exercices à rendre lundi") }, new Date());
+
+    await ingestCoursework([homework({ deadlineDate: "2026-11-23", done: true })]);
+
+    expect(row?.get("title").value).toBe("Exercices à rendre lundi");
+    expect(row?.get("deadline").value.date).toBe("2026-11-19");
+    expect(row?.get("done")).toBe(true);
+    expect(planner.replan).not.toHaveBeenCalled();
+    expect(planner.cancel).toHaveBeenCalledWith(row?.id.value);
+    expect(updatedFields()).toEqual([["done"]]);
+  });
+
+  it("given the parent deleted the event, then the coursework does not bring it back", async () => {
+    await ingestCoursework([homework()]);
+    courseworkRow()?.delete(new Date());
+
+    const result = await ingestCoursework([homework({ deadlineDate: "2026-11-23" })]);
+
+    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0 });
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(updatedFields()).toEqual([]);
+  });
+
+  it("given an unchanged coursework, then nothing is written", async () => {
+    await ingestCoursework([homework()]);
+
+    const result = await ingestCoursework([homework()]);
+
+    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0 });
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it("given one invalid coursework among valid ones, then only that one is rejected", async () => {
+    const result = await ingestCoursework([
+      homework({ id: "w1", title: "   " }),
+      homework({ id: "w2", deadlineDate: "2026-02-30" }),
+      homework({ id: "w3" }),
+    ]);
+
+    expect(result.getValue()).toEqual({ created: 1, updated: 0, rejected: 2 });
+    expect(courseworkRow("w3")).toBeDefined();
+    expect(uow.outcome()).toBe("committed");
+  });
+
+  it("given a child that is not the parent's, then EVENT_CHILD_NOT_FOUND and nothing is written", async () => {
+    children.isOwnedBy.mockResolvedValue(Result.ok(false));
+
+    const result = await ingestCoursework([homework()]);
+
+    expect(result.getError().code).toBe("EVENT_CHILD_NOT_FOUND");
+    expect(repo.insertIfAbsent).not.toHaveBeenCalled();
   });
 });

@@ -51,7 +51,7 @@ export interface ResumeOutput {
 }
 
 export type ManualSyncClaim =
-  | { outcome: "started"; lease: SyncLease }
+  | { outcome: "started"; lease: SyncLease; label: string }
   | { outcome: "running" }
   | { outcome: "throttled" };
 
@@ -394,6 +394,14 @@ export class ChildConnectionService {
     );
   }
 
+  async isOwnedBy(userId: string, childId: string): Promise<Result<boolean, ChildrenError>> {
+    return this.span("isOwnedBy", async () => {
+      const found = await this.children.findOwned(userId, childId);
+
+      return found.map((child) => child.map((owned) => !owned.isDisconnecting()).unwrapOr(false));
+    });
+  }
+
   async claimDueForSync(limit: number, now: Date): Promise<Result<DueChild[], ChildrenError>> {
     return this.span("claimDueForSync", () => this.children.claimDue(limit, now, SYNC_LEASE_MS));
   }
@@ -418,6 +426,7 @@ export class ChildConnectionService {
         return Result.ok<ManualSyncClaim, ChildrenError>({
           outcome: "started",
           lease: { childId, lease: child.get("syncLease") },
+          label: child.get("label").value,
         });
       }),
     );

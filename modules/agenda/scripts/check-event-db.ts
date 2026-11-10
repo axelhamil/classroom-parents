@@ -3,7 +3,9 @@
  * announcement create its events once, a parent edit or deletion survives a later ingest,
  * upcoming and history split on the deadline instant with their filters and keyset cursors,
  * a family never reads, edits, confirms or deletes another family's event, deleting a user
- * cascades its events, and listUpcoming on 10 000 rows uses event_user_deadline_idx.
+ * cascades its events, a coursework is stored once and follows its teacher until the parent edits
+ * it, an announcement deadline on a coursework's course and day stays hidden only while they match,
+ * and listUpcoming on 10 000 rows uses event_user_deadline_idx and event_coursework_day_idx.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -31,6 +33,7 @@ import type { EventFilter } from "../src/application/ports/event-repository.port
 import { EventEditService } from "../src/application/services/event-edit.service";
 import {
   EventIngestService,
+  type IngestedCoursework,
   type IngestedEvent,
 } from "../src/application/services/event-ingest.service";
 import { EventQueryService } from "../src/application/services/event-query.service";
@@ -143,6 +146,21 @@ function ingest(userId: string, childId: string, announcementId: string, events:
     },
     events,
   });
+}
+
+function homework(overrides: Partial<IngestedCoursework> = {}): IngestedCoursework {
+  return {
+    id: "w-mia",
+    title: "Exposé sur les volcans",
+    url: "https://classroom.google.com/c/course-1/a/w-mia",
+    deadlineDate: "2030-01-22",
+    done: false,
+    ...overrides,
+  };
+}
+
+function ingestCoursework(userId: string, childId: string, items: IngestedCoursework[]) {
+  return ingestService.ingestCoursework({ userId, childId, courseId: "course-1", items });
 }
 
 async function rowsOf(childId: string, announcementId: string) {
@@ -297,6 +315,41 @@ run(async () => {
     { upcoming: pagedUpcoming.length, history: pagedHistory.length },
   );
 
+  const aMia = await createChild(a, "mia");
+  await ingest(a, aMia, "ann-mia", [
+    extracted({ title: "Exposé annoncé", category: "homework", deadlineDate: "2030-01-22" }),
+  ]);
+  const [announced] = await rowsOf(aMia, "ann-mia");
+  const racedCoursework = await Promise.all(
+    Array.from({ length: 10 }, () => ingestCoursework(a, aMia, [homework()])),
+  );
+  const [miaWork] = await rowsOf(aMia, "w-mia");
+  if (!announced || !miaWork) throw new Error("mia rows missing");
+  await step(
+    "10 concurrent coursework ingests store the coursework once",
+    racedCoursework.every((r) => r.isSuccess) &&
+      (await rowsOf(aMia, "w-mia")).length === 1 &&
+      miaWork.source === "coursework",
+  );
+  await step(
+    "an announcement deadline on a coursework's course and day is hidden from the lists",
+    idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10 }, NOW)).join() === miaWork.id,
+  );
+  await ingestCoursework(a, aMia, [homework({ deadlineDate: "2030-01-23" })]);
+  await step(
+    "once the teacher moves the coursework, it follows and the announcement deadline reappears",
+    (await rowsOf(aMia, "w-mia"))[0]?.deadlineDate === "2030-01-23" &&
+      idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10 }, NOW)).join() ===
+        [announced.id, miaWork.id].join(),
+  );
+  await edits.edit(a, miaWork.id, { deadlineDate: "2030-01-24" });
+  await ingestCoursework(a, aMia, [homework({ deadlineDate: "2030-01-25", done: true })]);
+  const [kept] = await rowsOf(aMia, "w-mia");
+  await step(
+    "after a parent edit the teacher's date is ignored, the done state still follows",
+    kept?.deadlineDate === "2030-01-24" && kept.done && cancelled.includes(miaWork.id),
+  );
+
   const stolen = await ingest(a, bZoe, "ann-stolen", [extracted()]);
   await step(
     "an ingest pairing a parent with another family's child is refused and writes nothing",
@@ -385,6 +438,7 @@ run(async () => {
       cPage.getValue().items.length === 30 &&
       listSql.includes("$3") &&
       !listSql.includes("$4") &&
-      planText.includes("event_user_deadline_idx"),
+      planText.includes("event_user_deadline_idx") &&
+      planText.includes("event_coursework_day_idx"),
   );
 }, "agenda events stay inside their family and survive re-ingest on a real database");

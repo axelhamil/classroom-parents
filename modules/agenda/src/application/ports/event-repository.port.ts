@@ -39,6 +39,12 @@ export interface IEventRepository {
 
   save(event: AgendaEvent): Promise<Result<void, AgendaError>>;
 
+  lockCoursework(
+    userId: string,
+    childId: string,
+    courseworkId: string,
+  ): Promise<Result<Option<AgendaEvent>, AgendaError>>;
+
   findOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
   lockOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;

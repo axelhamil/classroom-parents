@@ -1,4 +1,10 @@
-import { type IInstrumentation, Option, Result, utcToZonedWall } from "@packages/ddd-kit";
+import {
+  type IInstrumentation,
+  Option,
+  Result,
+  truncateOnWord,
+  utcToZonedWall,
+} from "@packages/ddd-kit";
 import {
   EXTRACTED_DESCRIPTION_MAX,
   EXTRACTED_TITLE_MAX,
@@ -69,16 +75,6 @@ const TIME_PATTERN = /^(\d{1,2})\s*[:h]\s*(\d{2})(?::\d{2})?$/;
 
 function truncate(text: string, max: number): string {
   return Array.from(text.trim()).slice(0, max).join("").trim();
-}
-
-function truncateOnWord(text: string, max: number): string {
-  const chars = Array.from(text.trim().replace(/\s+/g, " "));
-  if (chars.length <= max) return chars.join("");
-
-  const cut = chars.slice(0, max + 1).join("");
-  const lastSpace = cut.lastIndexOf(" ");
-
-  return (lastSpace > 0 ? cut.slice(0, lastSpace) : chars.slice(0, max).join("")).trim();
 }
 
 function normalizedTime(raw: string | null): Result<Option<string>, "TIME_UNREADABLE"> {

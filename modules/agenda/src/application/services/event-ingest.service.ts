@@ -1,9 +1,20 @@
-import { type AppError, type IInstrumentation, type IUnitOfWork, Result } from "@packages/ddd-kit";
+import {
+  type AppError,
+  type IInstrumentation,
+  type IUnitOfWork,
+  Option,
+  Result,
+} from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import { AgendaEvent } from "../../domain/event.aggregate";
-import type { IAlertPlanner } from "../ports/alert-planner.port";
+import { AgendaEvent, type EventField } from "../../domain/event.aggregate";
+import { EventCategory } from "../../domain/value-objects/event-category.vo";
+import type { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
+import { EventDescription } from "../../domain/value-objects/event-description.vo";
+import { EventSource } from "../../domain/value-objects/event-source.vo";
+import type { EventTitle } from "../../domain/value-objects/event-title.vo";
+import type { IAlertPlanner, PlannedDeadline } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
 import type { AgendaError, IEventRepository } from "../ports/event-repository.port";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
@@ -27,6 +38,49 @@ export interface IngestInput {
 export interface IngestOutput {
   created: number;
   skipped: number;
+}
+
+export interface IngestedCoursework {
+  id: string;
+  title: string;
+  url: string;
+  deadlineDate: string;
+  deadlineTime?: string;
+  done: boolean;
+}
+
+export interface CourseworkIngestInput {
+  userId: string;
+  childId: string;
+  courseId: string;
+  items: IngestedCoursework[];
+}
+
+export interface CourseworkIngestOutput {
+  created: number;
+  updated: number;
+  rejected: number;
+}
+
+type IngestError = AgendaError | AppError;
+
+type CourseworkOutcome = "created" | "updated" | "unchanged";
+
+interface ParsedCoursework {
+  item: IngestedCoursework;
+  title: EventTitle;
+  deadline: EventDeadline;
+}
+
+function plannedDeadline(event: AgendaEvent): PlannedDeadline {
+  const deadline = event.get("deadline").value;
+
+  return {
+    eventId: event.id.value,
+    userId: event.get("userId"),
+    deadlineDate: deadline.date,
+    deadlineTime: deadline.time,
+  };
 }
 
 const childNotFound: AgendaError = {
@@ -72,6 +126,109 @@ export class EventIngestService {
     );
   }
 
+  async ingestCoursework(
+    input: CourseworkIngestInput,
+  ): Promise<Result<CourseworkIngestOutput, IngestError>> {
+    return this.instrumentation.startSpan(
+      { name: "EventIngestService > ingestCoursework", op: "function" },
+      async () => {
+        const owned = await this.children.isOwnedBy(input.userId, input.childId);
+        if (owned.isFailure) return Result.fail(owned.getError());
+        if (!owned.getValue()) return Result.fail(childNotFound);
+
+        return this.transactions.run(async () => {
+          const outcome: CourseworkIngestOutput = { created: 0, updated: 0, rejected: 0 };
+          for (const item of input.items) {
+            const parsed = this.parseCoursework(item);
+            if (parsed.isNone()) {
+              outcome.rejected += 1;
+              continue;
+            }
+
+            const applied = await this.applyCoursework(input, parsed.unwrap());
+            if (applied.isFailure)
+              return Result.fail<CourseworkIngestOutput, IngestError>(applied.getError());
+            if (applied.getValue() === "created") outcome.created += 1;
+            if (applied.getValue() === "updated") outcome.updated += 1;
+          }
+          return Result.ok<CourseworkIngestOutput, IngestError>(outcome);
+        });
+      },
+    );
+  }
+
+  private parseCoursework(item: IngestedCoursework): Option<ParsedCoursework> {
+    const title = parseTitle(item.title);
+    const deadline = parseDeadline(item.deadlineDate, item.deadlineTime);
+    if (title.isSuccess && deadline.isSuccess)
+      return Option.some({ item, title: title.getValue(), deadline: deadline.getValue() });
+
+    this.instrumentation.capture(new Error(`coursework ${item.id} has no valid title or due date`));
+    return Option.none();
+  }
+
+  private async applyCoursework(
+    input: CourseworkIngestInput,
+    { item, title, deadline }: ParsedCoursework,
+  ): Promise<Result<CourseworkOutcome, IngestError>> {
+    const found = await this.events.lockCoursework(input.userId, input.childId, item.id);
+    if (found.isFailure) return Result.fail(found.getError());
+    if (found.getValue().isNone()) {
+      const event = AgendaEvent.create({
+        userId: input.userId,
+        childId: input.childId,
+        source: EventSource.coursework(),
+        announcementId: item.id,
+        ordinal: 0,
+        courseId: input.courseId,
+        announcementUrl: item.url,
+        title,
+        description: EventDescription.create("").getValue(),
+        category: EventCategory.create("homework").getValue(),
+        deadline,
+        receivedAt: this.clock(),
+        needsReview: false,
+        done: item.done,
+        now: this.clock(),
+      });
+      const stored = await this.store(event);
+      return stored.map((created) => (created ? "created" : "unchanged"));
+    }
+
+    const event = found.getValue().unwrap();
+    const followed = event.followCoursework({ title, deadline, done: item.done });
+    if (followed.isFailure || followed.getValue().length === 0) return Result.ok("unchanged");
+
+    return this.saveFollowed(event, followed.getValue());
+  }
+
+  private async saveFollowed(
+    event: AgendaEvent,
+    fields: EventField[],
+  ): Promise<Result<CourseworkOutcome, IngestError>> {
+    const saved = await this.events.save(event);
+    if (saved.isFailure) return Result.fail(saved.getError());
+
+    const alerted = await this.realert(event, fields);
+    if (alerted.isFailure) return Result.fail(alerted.getError());
+
+    await emitEvent(this.outbox, EventTypes.EVENT_UPDATED, "event", event.id.value, {
+      userId: event.get("userId"),
+      eventId: event.id.value,
+      fields,
+    });
+    return Result.ok("updated");
+  }
+
+  private async realert(event: AgendaEvent, fields: EventField[]): Promise<Result<void, AppError>> {
+    if (event.get("done") && fields.includes("done")) return this.alerts.cancel(event.id.value);
+    if (event.get("done")) return Result.ok();
+    if (fields.includes("done")) return this.alerts.planDefault(plannedDeadline(event));
+    if (fields.includes("deadline")) return this.alerts.replan(plannedDeadline(event));
+
+    return Result.ok();
+  }
+
   private build(input: IngestInput): Result<AgendaEvent[], AgendaError> {
     const now = this.clock();
     const built: AgendaEvent[] = [];
@@ -89,6 +246,7 @@ export class EventIngestService {
         AgendaEvent.create({
           userId: input.userId,
           childId: input.childId,
+          source: EventSource.announcement(),
           announcementId: input.announcement.id,
           ordinal,
           courseId: input.announcement.courseId,
@@ -99,6 +257,7 @@ export class EventIngestService {
           deadline: deadline.getValue(),
           receivedAt: input.announcement.publishedAt,
           needsReview: raw.needsReview,
+          done: false,
           now,
         }),
       );
@@ -118,15 +277,9 @@ export class EventIngestService {
       needsReview: event.needsReview(),
       actorUserId: null,
     });
-    if (event.needsReview()) return Result.ok(true);
+    if (event.needsReview() || event.get("done")) return Result.ok(true);
 
-    const deadline = event.get("deadline").value;
-    const planned = await this.alerts.planDefault({
-      eventId,
-      userId: event.get("userId"),
-      deadlineDate: deadline.date,
-      deadlineTime: deadline.time,
-    });
+    const planned = await this.alerts.planDefault(plannedDeadline(event));
     return planned.map(() => true);
   }
 }

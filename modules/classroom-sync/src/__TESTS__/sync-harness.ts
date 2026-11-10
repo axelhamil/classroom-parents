@@ -1,4 +1,4 @@
-import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
@@ -78,6 +78,7 @@ export interface SyncHarness {
   state: PortMock<IChildSyncState>;
   ledger: PortMock<ISeenAnnouncementRepository>;
   outbox: PortMock<IOutboxRepository>;
+  logger: PortMock<ILogger>;
   uow: UnitOfWorkMock;
   sleeps: number[];
   service: SyncChildService;
@@ -94,6 +95,7 @@ export function syncHarness(): SyncHarness {
   const state = mockPort<IChildSyncState>();
   const ledger = mockPort<ISeenAnnouncementRepository>();
   const outbox = mockPort<IOutboxRepository>();
+  const logger = mockPort<ILogger>();
   const uow = mockUnitOfWork();
   const sleeps: number[] = [];
 
@@ -127,6 +129,7 @@ export function syncHarness(): SyncHarness {
     uow.unitOfWork,
     outbox,
     mockInstrumentation(),
+    logger,
     async (ms) => {
       sleeps.push(ms);
     },
@@ -140,6 +143,7 @@ export function syncHarness(): SyncHarness {
     state,
     ledger,
     outbox,
+    logger,
     uow,
     sleeps,
     service,

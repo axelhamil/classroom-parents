@@ -5,9 +5,11 @@ import type {
   Announcement,
   ClassroomError,
   ClassroomErrorCode,
+  ClassroomListing,
   Course,
   Coursework,
   IClassroomClient,
+  ReadScope,
 } from "../../application/ports/classroom-client.port";
 
 const API_URL = "https://classroom.googleapis.com/v1";
@@ -17,6 +19,7 @@ const ANNOUNCEMENT_PAGE_SIZE = "50";
 const COURSEWORK_PAGE_SIZE = "100";
 const MAX_PAGES = 20;
 const ACCESS_NOT_CONFIGURED = "accessNotConfigured";
+const SCOPE_INSUFFICIENT = "ACCESS_TOKEN_SCOPE_INSUFFICIENT";
 const CLASSROOM_DISABLED = "@ClassroomApiDisabled";
 const RATE_LIMIT_REASONS = new Set(["rateLimitExceeded", "userRateLimitExceeded"]);
 
@@ -77,6 +80,12 @@ type CourseworkRow = NonNullable<z.infer<typeof courseworkPage>["courseWork"]>[n
 
 type Query = Record<string, string | string[]>;
 
+interface Listing {
+  accessToken: string;
+  scope: ReadScope;
+  listing: ClassroomListing;
+}
+
 const coursePath = (courseId: string) => `/courses/${encodeURIComponent(courseId)}`;
 
 const pad = (value: number, width = 2) => String(value).padStart(width, "0");
@@ -110,8 +119,11 @@ const googleError = z.object({
 const MESSAGES: Record<ClassroomErrorCode, string> = {
   CLASSROOM_UNAUTHORIZED: "Google a refusé le jeton d'accès Classroom.",
   CLASSROOM_PERMISSION_DENIED: "Classroom refuse la lecture de ce cours.",
+  CLASSROOM_SCOPE_MISSING: "Le compte Google n'a pas accordé toutes les autorisations Classroom.",
   CLASSROOM_ACCESS_NOT_CONFIGURED: "L'école n'autorise pas cette application à lire Classroom.",
   CLASSROOM_RATE_LIMITED: "Classroom limite le nombre de lectures, nouvel essai plus tard.",
+  CLASSROOM_READ_STOPPED:
+    "La lecture Classroom a été interrompue, la synchronisation est reprise ailleurs.",
   CLASSROOM_PROVIDER_FAILURE: "Classroom n'a pas répondu correctement.",
 };
 
@@ -138,6 +150,7 @@ function refusalCode(status: number, body: unknown): ClassroomErrorCode {
     return "CLASSROOM_ACCESS_NOT_CONFIGURED";
   if (status === 429 || reasons.some((reason) => RATE_LIMIT_REASONS.has(reason ?? "")))
     return "CLASSROOM_RATE_LIMITED";
+  if (reasons.includes(SCOPE_INSUFFICIENT)) return "CLASSROOM_SCOPE_MISSING";
   if (status === 401) return "CLASSROOM_UNAUTHORIZED";
   if (status === 403) return "CLASSROOM_PERMISSION_DENIED";
 
@@ -150,10 +163,13 @@ export class GoogleClassroomClient implements IClassroomClient {
     private readonly fetchImpl: typeof fetch,
   ) {}
 
-  async listCourses(accessToken: string): Promise<Result<Course[], ClassroomError>> {
+  async listCourses(
+    accessToken: string,
+    scope: ReadScope,
+  ): Promise<Result<Course[], ClassroomError>> {
     return this.instrumentation.startSpan({ name: "GoogleClassroomClient > listCourses" }, () =>
       this.collect(
-        accessToken,
+        { accessToken, scope, listing: "courses" },
         "/courses",
         coursesPage,
         { studentId: "me", courseStates: "ACTIVE", pageSize: COURSE_PAGE_SIZE },
@@ -166,12 +182,13 @@ export class GoogleClassroomClient implements IClassroomClient {
     accessToken: string,
     courseId: string,
     since: Date,
+    scope: ReadScope,
   ): Promise<Result<Announcement[], ClassroomError>> {
     return this.instrumentation.startSpan(
       { name: "GoogleClassroomClient > listAnnouncements" },
       () =>
         this.collect(
-          accessToken,
+          { accessToken, scope, listing: "announcements" },
           `${coursePath(courseId)}/announcements`,
           announcementsPage,
           { orderBy: "updateTime desc", pageSize: ANNOUNCEMENT_PAGE_SIZE },
@@ -196,10 +213,11 @@ export class GoogleClassroomClient implements IClassroomClient {
   async listCoursework(
     accessToken: string,
     courseId: string,
+    scope: ReadScope,
   ): Promise<Result<Coursework[], ClassroomError>> {
     return this.instrumentation.startSpan({ name: "GoogleClassroomClient > listCoursework" }, () =>
       this.collect(
-        accessToken,
+        { accessToken, scope, listing: "coursework" },
         `${coursePath(courseId)}/courseWork`,
         courseworkPage,
         { courseWorkStates: "PUBLISHED", pageSize: COURSEWORK_PAGE_SIZE },
@@ -211,10 +229,11 @@ export class GoogleClassroomClient implements IClassroomClient {
   async listTurnedIn(
     accessToken: string,
     courseId: string,
+    scope: ReadScope,
   ): Promise<Result<string[], ClassroomError>> {
     return this.instrumentation.startSpan({ name: "GoogleClassroomClient > listTurnedIn" }, () =>
       this.collect(
-        accessToken,
+        { accessToken, scope, listing: "submissions" },
         `${coursePath(courseId)}/courseWork/-/studentSubmissions`,
         submissionsPage,
         { userId: "me", states: ["TURNED_IN", "RETURNED"], pageSize: COURSEWORK_PAGE_SIZE },
@@ -227,7 +246,7 @@ export class GoogleClassroomClient implements IClassroomClient {
   }
 
   private async collect<P extends { nextPageToken?: string }, R>(
-    accessToken: string,
+    { accessToken, scope, listing }: Listing,
     path: string,
     schema: z.ZodType<P>,
     query: Query,
@@ -235,7 +254,13 @@ export class GoogleClassroomClient implements IClassroomClient {
   ): Promise<Result<R[], ClassroomError>> {
     const rows: R[] = [];
     let pageToken = "";
-    for (let page = 0; page < MAX_PAGES; page += 1) {
+    for (let page = 0; ; page += 1) {
+      if (page === MAX_PAGES) {
+        scope.truncated(listing);
+        break;
+      }
+      if (!(await scope.mayContinue())) return failure("CLASSROOM_READ_STOPPED");
+
       const read = await this.page(accessToken, path, schema, { ...query, pageToken });
       if (read.isFailure) return Result.fail(read.getError());
 

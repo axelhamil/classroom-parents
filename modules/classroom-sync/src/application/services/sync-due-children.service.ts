@@ -3,7 +3,17 @@ import type { IDueChildren } from "../ports/due-children.port";
 import { runPooled } from "./run-pooled";
 import type { SyncChildService } from "./sync-child.service";
 
-const CLAIM_LIMIT = 4;
+export interface SyncCadence {
+  tickMs: number;
+  claimSize: number;
+  parallelism: number;
+}
+
+export const DEFAULT_SYNC_CADENCE: SyncCadence = {
+  tickMs: 60_000,
+  claimSize: 100,
+  parallelism: 16,
+};
 
 export interface SyncTickReport {
   children: number;
@@ -15,17 +25,18 @@ export class SyncDueChildrenService {
     private readonly due: IDueChildren,
     private readonly sync: Pick<SyncChildService, "syncChild">,
     private readonly instrumentation: IInstrumentation,
+    private readonly cadence: SyncCadence = DEFAULT_SYNC_CADENCE,
   ) {}
 
   async runOnce(now: Date): Promise<Result<SyncTickReport, AppError>> {
     return this.instrumentation.startSpan(
       { name: "SyncDueChildrenService > runOnce", op: "function" },
       async () => {
-        const claimed = await this.due.claimDue(CLAIM_LIMIT, now);
+        const claimed = await this.due.claimDue(this.cadence.claimSize, now);
         if (claimed.isFailure) return Result.fail(claimed.getError());
 
         const children = claimed.getValue();
-        const synced = await runPooled(children, CLAIM_LIMIT, (child) =>
+        const synced = await runPooled(children, this.cadence.parallelism, (child) =>
           this.sync.syncChild(child, now),
         );
         return Result.ok({

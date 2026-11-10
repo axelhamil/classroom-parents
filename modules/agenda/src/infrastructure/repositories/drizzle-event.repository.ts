@@ -1,5 +1,6 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import {
+  alias,
   and,
   asc,
   dbOperationFailure,
@@ -9,8 +10,10 @@ import {
   inArray,
   isNull,
   lt,
+  notExists,
   resolveExecutor,
   type SQL,
+  sql,
 } from "@packages/drizzle";
 import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/http/time-id-cursor";
 import { agendaEvent } from "../../../schemas/event.schema";
@@ -26,6 +29,7 @@ import { EventId } from "../../domain/event-id";
 import { EventCategory } from "../../domain/value-objects/event-category.vo";
 import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
+import { EventSource } from "../../domain/value-objects/event-source.vo";
 import { EventStatus } from "../../domain/value-objects/event-status.vo";
 import { EventTitle } from "../../domain/value-objects/event-title.vo";
 
@@ -44,6 +48,8 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const category = EventCategory.create(row.category);
   const deadline = EventDeadline.fromParisWallTime(row.deadlineDate, row.deadlineTime?.slice(0, 5));
   const status = EventStatus.create(row.status);
+  const source = EventSource.create(row.source);
+  if (source.isFailure) return Result.fail(source.getError());
   if (id.isFailure) return Result.fail(id.getError());
   if (title.isFailure) return Result.fail(title.getError());
   if (description.isFailure) return Result.fail(description.getError());
@@ -56,6 +62,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
       {
         userId: row.userId,
         childId: row.childId,
+        source: source.getValue(),
         announcementId: row.announcementId,
         ordinal: row.ordinal,
         courseId: row.courseId,
@@ -66,6 +73,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         deadline: deadline.getValue(),
         receivedAt: row.receivedAt,
         status: status.getValue(),
+        done: row.done,
         editedAt: Option.fromNullable(row.editedAt),
         deletedAt: Option.fromNullable(row.deletedAt),
         createdAt: row.createdAt,
@@ -86,6 +94,7 @@ function mutableColumns(event: AgendaEvent) {
     deadlineTime: deadline.time ?? null,
     deadlineAt: deadline.at,
     status: event.get("status").value,
+    done: event.get("done"),
     editedAt: event.get("editedAt").toNull(),
     deletedAt: event.get("deletedAt").toNull(),
   };
@@ -93,6 +102,25 @@ function mutableColumns(event: AgendaEvent) {
 
 function ownedAlive(userId: string): SQL | undefined {
   return and(eq(agendaEvent.userId, userId), isNull(agendaEvent.deletedAt));
+}
+
+const coursework = alias(agendaEvent, "coursework");
+
+function notShadowedByCoursework(exec: ReturnType<typeof resolveExecutor>): SQL {
+  return notExists(
+    exec
+      .select({ id: coursework.id })
+      .from(coursework)
+      .where(
+        and(
+          sql`${agendaEvent.source} = 'announcement'`,
+          sql`${coursework.source} = 'coursework'`,
+          eq(coursework.childId, agendaEvent.childId),
+          eq(coursework.courseId, agendaEvent.courseId),
+          eq(coursework.deadlineDate, agendaEvent.deadlineDate),
+        ),
+      ),
+  );
 }
 
 function filtered(filter: EventFilter, order: Order): (SQL | undefined)[] {
@@ -120,6 +148,7 @@ export class DrizzleEventRepository implements IEventRepository {
               id: event.id.value,
               userId: event.get("userId"),
               childId: event.get("childId"),
+              source: event.get("source").value,
               announcementId: event.get("announcementId"),
               ordinal: event.get("ordinal"),
               courseId: event.get("courseId"),
@@ -129,7 +158,12 @@ export class DrizzleEventRepository implements IEventRepository {
               ...mutableColumns(event),
             })
             .onConflictDoNothing({
-              target: [agendaEvent.childId, agendaEvent.announcementId, agendaEvent.ordinal],
+              target: [
+                agendaEvent.childId,
+                agendaEvent.source,
+                agendaEvent.announcementId,
+                agendaEvent.ordinal,
+              ],
             })
             .returning({ id: agendaEvent.id });
           const inserted = await this.instrumentation.startSpan(
@@ -167,6 +201,46 @@ export class DrizzleEventRepository implements IEventRepository {
         return Result.fail(repositoryFailure("save"));
       }
     });
+  }
+
+  async lockCoursework(
+    userId: string,
+    childId: string,
+    courseworkId: string,
+  ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleEventRepository > lockCoursework" },
+      async () => {
+        try {
+          const query = exec
+            .select()
+            .from(agendaEvent)
+            .where(
+              and(
+                eq(agendaEvent.userId, userId),
+                eq(agendaEvent.childId, childId),
+                eq(agendaEvent.source, "coursework"),
+                eq(agendaEvent.announcementId, courseworkId),
+                eq(agendaEvent.ordinal, 0),
+              ),
+            )
+            .limit(1)
+            .for("update");
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return this.mapRows(rows, "lockCoursework").map((events) =>
+            Option.fromNullable(events[0]),
+          );
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("lockCoursework"));
+        }
+      },
+    );
   }
 
   async findOwned(
@@ -215,7 +289,14 @@ export class DrizzleEventRepository implements IEventRepository {
           const query = exec
             .select({ row: agendaEvent, cursorAt: exactInstant(agendaEvent.deadlineAt) })
             .from(agendaEvent)
-            .where(and(ownedAlive(userId), window, ...filtered(filter, order)))
+            .where(
+              and(
+                ownedAlive(userId),
+                window,
+                notShadowedByCoursework(exec),
+                ...filtered(filter, order),
+              ),
+            )
             .orderBy(sort(agendaEvent.deadlineAt), sort(agendaEvent.id))
             .limit(filter.limit + 1);
           const rows = await this.instrumentation.startSpan(

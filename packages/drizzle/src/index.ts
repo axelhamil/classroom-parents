@@ -17,6 +17,7 @@ export {
   lt,
   lte,
   not,
+  notExists,
   notInArray,
   or,
   sql,

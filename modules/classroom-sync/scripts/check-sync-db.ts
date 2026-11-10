@@ -12,7 +12,7 @@ import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/tes
 exitUnlessLocalDatabase("check-sync-db", process.env.DATABASE_URL);
 
 import { childAccount } from "@modules/children/schemas/child.schema";
-import { type AppError, Result } from "@packages/ddd-kit";
+import { type AppError, type ILogger, Result } from "@packages/ddd-kit";
 import {
   and,
   authSchema,
@@ -121,6 +121,8 @@ const syncState: IChildSyncState = {
   markNeedsReconnect: async () => Result.ok(),
 };
 
+const quiet: ILogger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
+
 const service = new SyncChildService(
   classroom,
   { accessTokenFor: async (childId) => Result.ok(childId) },
@@ -131,6 +133,7 @@ const service = new SyncChildService(
   transactions,
   outbox,
   instrumentation,
+  quiet,
 );
 
 function post(id: string): Announcement {

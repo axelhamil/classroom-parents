@@ -3,16 +3,18 @@ import { EventId } from "./event-id";
 import type { EventCategory } from "./value-objects/event-category.vo";
 import type { EventDeadline } from "./value-objects/event-deadline.vo";
 import type { EventDescription } from "./value-objects/event-description.vo";
+import type { EventSource } from "./value-objects/event-source.vo";
 import { EventStatus } from "./value-objects/event-status.vo";
 import type { EventTitle } from "./value-objects/event-title.vo";
 
-export type EventField = "title" | "description" | "category" | "deadline" | "status";
+export type EventField = "title" | "description" | "category" | "deadline" | "status" | "done";
 
 export type EventRefusal = "deleted";
 
 export interface AgendaEventProps {
   userId: string;
   childId: string;
+  source: EventSource;
   announcementId: string;
   ordinal: number;
   courseId: string;
@@ -23,6 +25,7 @@ export interface AgendaEventProps {
   deadline: EventDeadline;
   receivedAt: Date;
   status: EventStatus;
+  done: boolean;
   editedAt: Option<Date>;
   deletedAt: Option<Date>;
   createdAt: Date;
@@ -31,6 +34,7 @@ export interface AgendaEventProps {
 export interface NewAgendaEvent {
   userId: string;
   childId: string;
+  source: EventSource;
   announcementId: string;
   ordinal: number;
   courseId: string;
@@ -41,7 +45,14 @@ export interface NewAgendaEvent {
   deadline: EventDeadline;
   receivedAt: Date;
   needsReview: boolean;
+  done: boolean;
   now: Date;
+}
+
+export interface CourseworkState {
+  title: EventTitle;
+  deadline: EventDeadline;
+  done: boolean;
 }
 
 export interface EventChanges {
@@ -84,6 +95,25 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     if (changes.deadline && !changes.deadline.equals(this._props.deadline)) fields.push("deadline");
 
     return fields;
+  }
+
+  followCoursework(state: CourseworkState): Result<EventField[], EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+
+    const fields: EventField[] = [];
+    if (this._props.editedAt.isNone() && !state.title.equals(this._props.title)) {
+      this._props.title = state.title;
+      fields.push("title");
+    }
+    if (this._props.editedAt.isNone() && !state.deadline.equals(this._props.deadline)) {
+      this._props.deadline = state.deadline;
+      fields.push("deadline");
+    }
+    if (state.done !== this._props.done) {
+      this._props.done = state.done;
+      fields.push("done");
+    }
+    return Result.ok(fields);
   }
 
   needsReview(): boolean {

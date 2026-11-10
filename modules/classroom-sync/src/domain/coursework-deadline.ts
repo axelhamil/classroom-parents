@@ -1,6 +1,8 @@
-import { Option, Result, utcToZonedWall } from "@packages/ddd-kit";
+import { Option, Result, truncateOnWord, utcToZonedWall } from "@packages/ddd-kit";
 
 const SCHOOL_TIME_ZONE = "Europe/Paris";
+
+const COURSEWORK_TITLE_MAX = 120;
 
 export interface SchoolDeadline {
   deadlineDate: string;
@@ -19,6 +21,6 @@ export function schoolDeadline(utcDate: string, utcTime: Option<string>): Result
   });
 }
 
-export function dueDayKey(courseId: string, deadlineDate: string): string {
-  return `${courseId}|${deadlineDate}`;
+export function courseworkTitle(title: string): string {
+  return truncateOnWord(title, COURSEWORK_TITLE_MAX);
 }

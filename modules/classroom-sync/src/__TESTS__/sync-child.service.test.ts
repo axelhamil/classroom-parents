@@ -278,6 +278,29 @@ describe("syncChild", () => {
     });
   }
 
+  it("asks for a reconnection, not the school, when a coursework read lacks the scope", async () => {
+    h.givenCourses({ maths: [announcement("a1", "maths")], art: [] });
+    h.client.listCoursework.mockResolvedValue(
+      classroomFailure<Coursework[]>("CLASSROOM_SCOPE_MISSING"),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_BLOCKED");
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+    expect(h.extractor.extract).not.toHaveBeenCalled();
+    expect(h.state.markSynced).not.toHaveBeenCalled();
+  });
+
+  it("asks for a reconnection when the course list lacks the scope", async () => {
+    h.client.listCourses.mockResolvedValue(classroomFailure<Course[]>("CLASSROOM_SCOPE_MISSING"));
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_BLOCKED");
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+  });
+
   it("asks for a reconnection without calling Google when the token is refused", async () => {
     h.tokens.accessTokenFor.mockResolvedValue(Result.fail("reconnect_needed"));
 
@@ -424,6 +447,22 @@ describe("syncChild, Classroom coursework (D13)", () => {
     ]);
   });
 
+  it("cuts a coursework title longer than 120 characters on a word", async () => {
+    const words = Array.from({ length: 40 }, (_, n) => `mot${n}`).join(" ");
+    h.givenCourses({ maths: [] });
+    h.givenCoursework([
+      { ...coursework("w1", "maths", { date: "2026-11-19" }), title: words },
+      coursework("w2", "maths", { date: "2026-11-20" }),
+    ]);
+
+    await h.service.syncChild(CHILD, NOW);
+
+    const titles = courseworkSent()[0]?.items.map(({ title }) => title) ?? [];
+    expect(titles[0]?.length).toBeLessThanOrEqual(120);
+    expect(words.startsWith(`${titles[0]} `)).toBe(true);
+    expect(titles[1]).toBe("Devoir w2");
+  });
+
   it("ignores a coursework without a due date", async () => {
     h.givenCourses({ maths: [] });
     h.givenCoursework([coursework("w1", "maths")]);
@@ -463,34 +502,17 @@ describe("syncChild, Classroom coursework (D13)", () => {
     ]);
   });
 
-  it("drops an announcement deadline that duplicates a coursework of the same course and day", async () => {
-    h.givenCourses({
-      maths: [announcement("a1", "maths")],
-      french: [announcement("a2", "french")],
-    });
-    h.givenCoursework([coursework("w1", "maths", { date: "2026-11-19" })]);
-    extractorAnswers({
-      "Annonce a1": [deadline("Contrôle"), { ...deadline("Sortie"), deadlineDate: "2026-11-21" }],
-      "Annonce a2": [deadline("Exposé")],
-    });
-
-    await h.service.syncChild(CHILD, NOW);
-
-    const ingested = Object.fromEntries(
-      h.ingest.ingest.mock.calls.map(([r]) => [r.announcement.id, r.events.map((e) => e.title)]),
-    );
-    expect(ingested).toEqual({ a1: ["Sortie"], a2: ["Exposé"] });
-  });
-
-  it("records an announcement whose only deadline is a coursework as without event", async () => {
+  it("keeps an announcement deadline on a coursework's day, the agenda hides it while they match", async () => {
     h.givenCourses({ maths: [announcement("a1", "maths")] });
     h.givenCoursework([coursework("w1", "maths", { date: "2026-11-19" })]);
     extractorAnswers({ "Annonce a1": [deadline("Contrôle")] });
 
     await h.service.syncChild(CHILD, NOW);
 
-    expect(h.ingest.ingest).not.toHaveBeenCalled();
-    expect(outcomes()).toEqual({ a1: { outcome: "no_event", attempts: 1 } });
+    expect(h.ingest.ingest.mock.calls.map(([r]) => r.events.map((e) => e.title))).toEqual([
+      ["Contrôle"],
+    ]);
+    expect(outcomes()).toEqual({ a1: { outcome: "extracted", attempts: 1 } });
   });
 
   it("skips a course whose coursework cannot be read, announcements included", async () => {
@@ -519,5 +541,93 @@ describe("syncChild, Classroom coursework (D13)", () => {
     expect(result.getValue().failedCoursework).toBe(1);
     expect(result.getValue().newAnnouncements).toBe(1);
     expect(h.state.markSynced).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("syncChild, lease lost while reading", () => {
+  let held: boolean;
+  let callsAfterLoss: number;
+
+  beforeEach(() => {
+    held = true;
+    callsAfterLoss = 0;
+    h.state.holdsLease.mockImplementation(async () => Result.ok<boolean, AppError>(held));
+    const counted = <T>(answer: T) => {
+      if (!held) callsAfterLoss += 1;
+      return answer;
+    };
+    h.client.listAnnouncements.mockImplementation(async (_token, courseId) =>
+      counted(Result.ok<Announcement[], ClassroomError>([announcement(`${courseId}-a`, courseId)])),
+    );
+    h.client.listCoursework.mockImplementation(async () =>
+      counted(Result.ok<Coursework[], ClassroomError>([])),
+    );
+    h.client.listTurnedIn.mockImplementation(async () =>
+      counted(Result.ok<string[], ClassroomError>([])),
+    );
+    h.extractor.extract.mockImplementation(async () =>
+      counted(Result.ok<ExtractedDeadline[], AppError>([deadline("Contrôle")])),
+    );
+  });
+
+  it("reads no course once the lease is lost after the course list", async () => {
+    h.client.listCourses.mockImplementation(async () => {
+      held = false;
+      return Result.ok<Course[], ClassroomError>([{ id: "maths" }, { id: "art" }]);
+    });
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_LEASE_CONFLICT");
+    expect(callsAfterLoss).toBe(0);
+    expect(h.client.listAnnouncements).not.toHaveBeenCalled();
+    expect(h.extractor.extract).not.toHaveBeenCalled();
+    expect(h.state.markSynced).not.toHaveBeenCalled();
+  });
+
+  it("sends no announcement to the model once the lease is lost after the reads", async () => {
+    h.client.listCourses.mockResolvedValue(Result.ok<Course[], ClassroomError>([{ id: "maths" }]));
+    h.client.listTurnedIn.mockImplementation(async () => {
+      held = false;
+      return Result.ok<string[], ClassroomError>([]);
+    });
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_LEASE_CONFLICT");
+    expect(callsAfterLoss).toBe(0);
+    expect(h.extractor.extract).not.toHaveBeenCalled();
+    expect(h.ledger.record).not.toHaveBeenCalled();
+  });
+
+  it("hands Google a read scope that closes with the lease", async () => {
+    const answers: boolean[] = [];
+    h.client.listCourses.mockImplementation(async (_token, scope) => {
+      answers.push(await scope.mayContinue());
+      held = false;
+      answers.push(await scope.mayContinue());
+      return Result.ok<Course[], ClassroomError>([]);
+    });
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(answers).toEqual([true, false]);
+  });
+});
+
+describe("syncChild, listings cut at the page cap", () => {
+  it("logs a warning naming the child and the listing, without content", async () => {
+    h.givenCourses({ maths: [] });
+    h.client.listCoursework.mockImplementation(async (_token, _courseId, scope) => {
+      scope.truncated("coursework");
+      return Result.ok<Coursework[], ClassroomError>([]);
+    });
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.isSuccess).toBe(true);
+    expect(h.logger.warn.mock.calls).toEqual([
+      [{ childId: CHILD.childId, listing: "coursework" }, "classroom listing cut at the page cap"],
+    ]);
   });
 });

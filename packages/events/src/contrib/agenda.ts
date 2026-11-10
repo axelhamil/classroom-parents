@@ -16,7 +16,9 @@ export const agendaEvents = defineEventContribution({
       actorUserId: z.null(),
     }),
     "agenda.event.updated": EventRef.extend({
-      fields: z.array(z.enum(["title", "description", "category", "deadline", "status"])).min(1),
+      fields: z
+        .array(z.enum(["title", "description", "category", "deadline", "status", "done"]))
+        .min(1),
     }),
     "agenda.event.deleted": EventRef,
   },
