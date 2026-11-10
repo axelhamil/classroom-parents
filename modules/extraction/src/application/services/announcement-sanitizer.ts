@@ -90,8 +90,8 @@ function namePatternsOf(childName: string): string[] {
   ].filter((pattern) => pattern !== "");
 }
 
-function withoutChildName(text: string, childName: string): string {
-  const patterns = namePatternsOf(childName);
+function withoutChildNames(text: string, childNames: readonly string[]): string {
+  const patterns = childNames.flatMap(namePatternsOf);
   if (patterns.length === 0) return text;
 
   const pattern = new RegExp(
@@ -102,12 +102,12 @@ function withoutChildName(text: string, childName: string): string {
   return text.normalize("NFD").replace(pattern, "[ENFANT]").normalize("NFC");
 }
 
-export function sanitizeAnnouncement(text: string, childName?: string): string {
+export function sanitizeAnnouncement(text: string, childNames: readonly string[] = []): string {
   const withoutContacts = text
     .replace(URL_PATTERN, "[LIEN]")
     .replace(EMAIL_PATTERN, "[EMAIL]")
     .replace(PHONE_PATTERN, "[TELEPHONE]")
     .replace(LONG_DIGIT_RUN_PATTERN, "[NUMERO]");
 
-  return childName ? withoutChildName(withoutContacts, childName) : withoutContacts;
+  return withoutChildNames(withoutContacts, childNames);
 }

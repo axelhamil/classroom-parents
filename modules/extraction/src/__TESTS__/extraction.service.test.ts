@@ -41,8 +41,8 @@ function requests(): LanguageModelRequest<unknown>[] {
   return model.parse.mock.calls.map(([request]) => request);
 }
 
-async function extract(text: string, childName?: string) {
-  return service.extract({ text, publishedAt: MONDAY_9_NOVEMBER_10H_PARIS, childName });
+async function extract(text: string, childNames?: string[]) {
+  return service.extract({ text, publishedAt: MONDAY_9_NOVEMBER_10H_PARIS, childNames });
 }
 
 beforeEach(() => {
@@ -254,13 +254,24 @@ describe("ExtractionService.extract", () => {
 
     await extract(
       "Léa doit rendre son exposé. Contact : prenom.nom@ecole.fr ou 06 12 34 56 78, réunion https://meet.google.com/abc-defg-hij",
-      "Léa",
+      ["Léa"],
     );
 
     const user = requests()[0]?.user ?? "";
     for (const leaked of ["prenom.nom@ecole.fr", "06 12 34 56 78", "meet.google.com", "Léa"]) {
       expect(user).not.toContain(leaked);
     }
+  });
+
+  it("masks the child's real first name even after the parent renamed the child", async () => {
+    answers(Result.ok({ events: [] }));
+
+    await extract("Inès doit rendre son exposé jeudi, Lili aussi.", ["Lili", "Inès"]);
+
+    const user = requests()[0]?.user ?? "";
+    expect(user).not.toContain("Inès");
+    expect(user).not.toContain("Lili");
+    expect(user).toContain("[ENFANT] doit rendre son exposé jeudi, [ENFANT] aussi.");
   });
 
   it("keeps an injected instruction inside the untrusted announcement block", async () => {

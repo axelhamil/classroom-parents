@@ -21,7 +21,7 @@ import { type ExtractedCandidate, extractionOutputSchema } from "./extraction-ou
 export interface ExtractInput {
   text: string;
   publishedAt: Date;
-  childName?: string;
+  childNames?: readonly string[];
 }
 
 const SCHOOL_TIME_ZONE = "Europe/Paris";
@@ -121,7 +121,7 @@ export class ExtractionService {
           });
 
         const publishedOn = published.getValue().date;
-        const source = sanitizeAnnouncement(input.text, input.childName);
+        const source = sanitizeAnnouncement(input.text, input.childNames);
         const user = `${contextBlock(publishedOn, published.getValue().time)}\n${announcementBlock(source)}`;
 
         const first = await this.pass("fast", user, source, publishedOn);

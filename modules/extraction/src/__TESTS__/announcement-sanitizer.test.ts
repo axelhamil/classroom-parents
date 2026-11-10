@@ -27,7 +27,7 @@ describe("sanitizeAnnouncement", () => {
   it("replaces the full name whatever the case and the first name written as a proper noun", () => {
     const text = "Léa-Marie Martin, LÉA-MARIE MARTIN, Léa-Marie et lea-marie. Merci à Léandre.";
 
-    expect(sanitizeAnnouncement(text, "Léa-Marie Martin")).toBe(
+    expect(sanitizeAnnouncement(text, ["Léa-Marie Martin"])).toBe(
       "[ENFANT], [ENFANT], [ENFANT] et lea-marie. Merci à Léandre.",
     );
   });
@@ -55,6 +55,6 @@ describe("sanitizeAnnouncement", () => {
     ],
     ["Ma fille", "Ma fille rend la fiche à ma collègue.", "[ENFANT] rend la fiche à ma collègue."],
   ])("never erases an article or a date for the child %p", (childName, text, expected) => {
-    expect(sanitizeAnnouncement(text, childName)).toBe(expected);
+    expect(sanitizeAnnouncement(text, [childName])).toBe(expected);
   });
 });

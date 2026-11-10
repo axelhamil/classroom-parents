@@ -165,7 +165,7 @@ async function evaluate(
     const result = await service.extract({
       text: evalCase.text,
       publishedAt: new Date(evalCase.publishedAt),
-      childName: evalCase.childName,
+      childNames: evalCase.childName === undefined ? [] : [evalCase.childName],
     });
     const expected = evalCase.expected.map((event) => `${event.category} ${event.deadlineDate}`);
     totals.expected += expected.length;

@@ -34,6 +34,11 @@ const OUTPUT_INVALID: ExtractionError = {
     "La réponse du service d'extraction était illisible, l'annonce sera relue au prochain passage.",
 };
 
+const INPUT_REJECTED: ExtractionError = {
+  code: "EXTRACTION_INPUT_INVALID",
+  message: "Le service d'extraction a refusé cette annonce telle qu'elle a été envoyée.",
+};
+
 class OutputRejected extends Error {
   constructor(readonly reason: string) {
     super(`structured output rejected: ${reason}`);
@@ -43,8 +48,9 @@ class OutputRejected extends Error {
 
 function errorFor(error: unknown): ExtractionError {
   if (error instanceof Anthropic.RateLimitError) return RATE_LIMITED;
+  if (error instanceof Anthropic.BadRequestError) return INPUT_REJECTED;
+  if (error instanceof Anthropic.UnprocessableEntityError) return INPUT_REJECTED;
   if (error instanceof Anthropic.APIError) return PROVIDER_FAILURE;
-  if (error instanceof OutputRejected && error.reason === "refusal") return PROVIDER_FAILURE;
   if (error instanceof OutputRejected || error instanceof Anthropic.AnthropicError)
     return OUTPUT_INVALID;
 

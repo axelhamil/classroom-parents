@@ -97,10 +97,16 @@ describe("AnthropicLanguageModel.parse", () => {
     expect(instrumentation.capture).toHaveBeenCalledTimes(1);
   });
 
-  it("maps a refusal to a provider failure", async () => {
+  it("maps a refusal to an invalid output, so the announcement is not retried forever", async () => {
     fetchMock.mockResolvedValueOnce(message(null, "refusal"));
 
-    expect((await parse()).getError().code).toBe("EXTRACTION_PROVIDER_FAILURE");
+    expect((await parse()).getError().code).toBe("EXTRACTION_OUTPUT_INVALID");
+  });
+
+  it("maps a request the API rejects as malformed to an invalid input, not an outage", async () => {
+    fetchMock.mockResolvedValueOnce(apiError(400, "invalid_request_error"));
+
+    expect((await parse()).getError().code).toBe("EXTRACTION_INPUT_INVALID");
   });
 
   it("maps output that is not JSON or not the schema to an invalid output, without the text in telemetry", async () => {
