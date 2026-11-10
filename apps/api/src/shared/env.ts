@@ -1,5 +1,5 @@
 import { frontOrigins } from "./env-bounds";
-import { envSchema, PRODUCTION_REQUIRED } from "./env-schema";
+import { envSchema } from "./env-schema";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -17,17 +17,8 @@ export const FRONT_ORIGINS = frontOrigins(env);
 // placeholder text, not just its length.
 const PLACEHOLDER_SECRETS = new Set(["replace-with-openssl-rand-base64-32"]);
 
-if (env.NODE_ENV === "production") {
-  if (PLACEHOLDER_SECRETS.has(env.BETTER_AUTH_SECRET)) {
-    throw new Error(
-      "BETTER_AUTH_SECRET is still the .env.example placeholder. Generate a real one: openssl rand -base64 32",
-    );
-  }
-  for (const [key, message] of PRODUCTION_REQUIRED) {
-    const value = env[key];
-
-    if (value === undefined || (Array.isArray(value) && value.length === 0)) {
-      throw new Error(message);
-    }
-  }
+if (env.NODE_ENV === "production" && PLACEHOLDER_SECRETS.has(env.BETTER_AUTH_SECRET)) {
+  throw new Error(
+    "BETTER_AUTH_SECRET is still the .env.example placeholder. Generate a real one: openssl rand -base64 32",
+  );
 }

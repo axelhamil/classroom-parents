@@ -49,6 +49,38 @@ jobs:
       - name: Unused code
         run: pnpm check:unused
 
+  build-images:
+    # The deploy images build from the pruned workspace, so a Dockerfile that copies a
+    # deleted file or a lockfile the prune cannot honour fails here, not at deploy time.
+    # Nothing is pushed.
+    name: Build deploy images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build the app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/app/Dockerfile
+          push: false
+          build-args: VITE_API_URL=https://api.example.com
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
   a11y:
     name: Accessibility gate
     runs-on: ubuntu-latest

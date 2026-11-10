@@ -50,6 +50,20 @@ export const envSchema = z
     COOKIE_DOMAIN: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
     RESEND_FROM: z.string().optional(),
+    ANTHROPIC_API_KEY: z.string().optional(),
+    VAPID_PUBLIC_KEY: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{87}$/, "unpadded base64url of a 65-byte P-256 public key")
+      .optional(),
+    VAPID_PRIVATE_KEY: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43}$/, "unpadded base64url of a 32-byte P-256 private key")
+      .optional(),
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:\/\/)/, "a mailto: address or an https:// URL")
+      .optional(),
+    FAKE_PROVIDERS: z.stringbool().default(false),
     RGPD_GRACE_PERIOD_DAYS: z.coerce.number().int().min(0).default(7),
     RGPD_SWEEP_BATCH_SIZE: z.coerce.number().int().positive().default(50),
     OUTBOX_LEASE_SECONDS: z.coerce.number().int().positive().default(120),
@@ -81,13 +95,53 @@ export const envSchema = z
     validateEnvBounds(value, ctx);
     validateHostsEnv(value, ctx);
     validateTrustedProxiesEnv(value, ctx);
+    validateProductionEnv(value, ctx);
   });
 
-type EnvKey = keyof z.infer<typeof envSchema>;
+const PRODUCTION_REQUIRED = {
+  CORS_ORIGIN:
+    "comma-separated allowed origins; without it the API falls back to localhost, rejecting the real front and collapsing the CORS + CSRF allowlist",
+  COOKIE_DOMAIN:
+    "parent domain of the app and api hosts; without it the session cookie stays on the api host and the app is signed out",
+  ANTHROPIC_API_KEY: "the announcement extraction calls the model with it",
+  VAPID_PUBLIC_KEY: "signs every web push alert, generate with bunx web-push generate-vapid-keys",
+  VAPID_PRIVATE_KEY: "signs every web push alert, generate with bunx web-push generate-vapid-keys",
+  VAPID_SUBJECT: "contact the push services reach, mailto: or https://",
+  RESEND_API_KEY: "sends the alert email when a parent has no live push subscription",
+  RESEND_FROM: "sender address on the verified Resend domain",
+} as const;
 
-export const PRODUCTION_REQUIRED: ReadonlyArray<readonly [EnvKey, string]> = [
-  [
-    "CORS_ORIGIN",
-    "CORS_ORIGIN is required in production (comma-separated allowed origins). Without it the API falls back to localhost, rejecting the real front and collapsing the CORS + CSRF allowlist.",
-  ],
-];
+type ProductionRequiredKey = keyof typeof PRODUCTION_REQUIRED;
+
+function isProductionRequiredKey(key: string): key is ProductionRequiredKey {
+  return key in PRODUCTION_REQUIRED;
+}
+
+function validateProductionEnv(
+  value: { NODE_ENV: string; FAKE_PROVIDERS: boolean } & Partial<
+    Record<ProductionRequiredKey, string | string[]>
+  >,
+  ctx: z.RefinementCtx,
+): void {
+  if (value.NODE_ENV !== "production") return;
+
+  if (value.FAKE_PROVIDERS) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["FAKE_PROVIDERS"],
+      message:
+        "FAKE_PROVIDERS is refused in production: the fake Classroom, extractor and push sink would replace the real providers.",
+    });
+  }
+
+  for (const key of Object.keys(PRODUCTION_REQUIRED).filter(isProductionRequiredKey)) {
+    const current = value[key];
+    if (current !== undefined && current.length > 0) continue;
+
+    ctx.addIssue({
+      code: "custom",
+      path: [key],
+      message: `${key} is required in production: ${PRODUCTION_REQUIRED[key]}.`,
+    });
+  }
+}
