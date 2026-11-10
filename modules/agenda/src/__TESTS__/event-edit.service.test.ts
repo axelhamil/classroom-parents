@@ -69,7 +69,12 @@ describe("edit", () => {
       {
         eventType: EventTypes.EVENT_UPDATED,
         aggregateId: event.id.value,
-        payload: { userId: PARENT, eventId: event.id.value, fields: ["deadline"] },
+        payload: {
+          userId: PARENT,
+          eventId: event.id.value,
+          fields: ["deadline"],
+          actorUserId: PARENT,
+        },
       },
     ]);
   });
@@ -99,15 +104,15 @@ describe("edit", () => {
   });
 
   const refusals: [string, EventPatch, AgendaError["code"]][] = [
-    ["an empty title", { title: "   " }, "EVENT_INVALID_TITLE"],
-    ["a 121-character title", { title: "a".repeat(121) }, "EVENT_INVALID_TITLE"],
+    ["an empty title", { title: "   " }, "EVENT_TITLE_INVALID"],
+    ["a 121-character title", { title: "a".repeat(121) }, "EVENT_TITLE_INVALID"],
     [
       "a 2001-character description",
       { description: "a".repeat(2001) },
-      "EVENT_INVALID_DESCRIPTION",
+      "EVENT_DESCRIPTION_INVALID",
     ],
-    ["an unknown category", { category: "party" }, "EVENT_INVALID_CATEGORY"],
-    ["a date that does not exist", { deadlineDate: "2026-11-31" }, "EVENT_INVALID_DEADLINE"],
+    ["an unknown category", { category: "party" }, "EVENT_CATEGORY_INVALID"],
+    ["a date that does not exist", { deadlineDate: "2026-11-31" }, "EVENT_DEADLINE_INVALID"],
   ];
 
   it.each(refusals)(

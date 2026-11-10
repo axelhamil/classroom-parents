@@ -4,6 +4,7 @@ import {
   type IUnitOfWork,
   Option,
   Result,
+  traced,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
@@ -14,7 +15,7 @@ import type { EventDeadline } from "../../domain/value-objects/event-deadline.vo
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventSource } from "../../domain/value-objects/event-source.vo";
 import type { EventTitle } from "../../domain/value-objects/event-title.vo";
-import type { IAlertPlanner, PlannedDeadline } from "../ports/alert-planner.port";
+import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
 import type {
   AgendaError,
@@ -22,6 +23,7 @@ import type {
   IEventRepository,
 } from "../ports/event-repository.port";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
+import { plannedDeadline } from "./planned-deadline";
 
 export interface IngestedEvent {
   title: string;
@@ -89,17 +91,6 @@ interface ParsedCoursework {
   deadline: EventDeadline;
 }
 
-function plannedDeadline(event: AgendaEvent): PlannedDeadline {
-  const deadline = event.get("deadline").value;
-
-  return {
-    eventId: event.id.value,
-    userId: event.get("userId"),
-    deadlineDate: deadline.date,
-    deadlineTime: deadline.time,
-  };
-}
-
 const childNotFound: AgendaError = {
   code: "EVENT_CHILD_NOT_FOUND",
   message: "Cet enfant n'est pas relié à votre compte, ses événements ne sont pas enregistrés.",
@@ -117,80 +108,87 @@ export class EventIngestService {
   ) {}
 
   async ingest(input: IngestInput): Promise<Result<IngestOutput, AgendaError | AppError>> {
-    return this.instrumentation.startSpan(
-      { name: "EventIngestService > ingest", op: "function" },
-      async () => {
-        const built = this.build(input);
-        if (built.isFailure) return Result.fail(built.getError());
+    return traced(this.instrumentation, "EventIngestService > ingest", async () => {
+      const built = this.build(input);
+      if (built.isFailure) return Result.fail(built.getError());
 
-        const owned = await this.children.isOwnedBy(input.userId, input.childId);
-        if (owned.isFailure) return Result.fail(owned.getError());
-        if (!owned.getValue()) return Result.fail(childNotFound);
+      const owned = await this.children.isOwnedBy(input.userId, input.childId);
+      if (owned.isFailure) return Result.fail(owned.getError());
+      if (!owned.getValue()) return Result.fail(childNotFound);
 
-        return this.transactions.run(async () => {
-          const outcome: IngestOutput = { created: 0, skipped: 0 };
-          for (const event of built.getValue()) {
-            const stored = await this.store(event);
-            if (stored.isFailure)
-              return Result.fail<IngestOutput, AgendaError | AppError>(stored.getError());
+      return this.transactions.run(async () => {
+        const outcome: IngestOutput = { created: 0, skipped: 0 };
+        for (const event of built.getValue()) {
+          const stored = await this.store(event);
+          if (stored.isFailure)
+            return Result.fail<IngestOutput, AgendaError | AppError>(stored.getError());
 
-            if (stored.getValue()) outcome.created += 1;
-            else outcome.skipped += 1;
-          }
-          return Result.ok<IngestOutput, AgendaError | AppError>(outcome);
-        });
-      },
-    );
+          if (stored.getValue()) outcome.created += 1;
+          else outcome.skipped += 1;
+        }
+        return Result.ok<IngestOutput, AgendaError | AppError>(outcome);
+      });
+    });
   }
 
   async ingestCoursework(
     input: CourseworkIngestInput,
   ): Promise<Result<CourseworkIngestOutput, IngestError>> {
-    return this.instrumentation.startSpan(
-      { name: "EventIngestService > ingestCoursework", op: "function" },
-      async () => {
-        const owned = await this.children.isOwnedBy(input.userId, input.childId);
-        if (owned.isFailure) return Result.fail(owned.getError());
-        if (!owned.getValue()) return Result.fail(childNotFound);
+    return traced(this.instrumentation, "EventIngestService > ingestCoursework", async () => {
+      const owned = await this.children.isOwnedBy(input.userId, input.childId);
+      if (owned.isFailure) return Result.fail(owned.getError());
+      if (!owned.getValue()) return Result.fail(childNotFound);
 
-        return this.transactions.run(async () => {
-          const outcome: CourseworkIngestOutput = {
-            created: 0,
-            updated: 0,
-            rejected: 0,
-            withdrawn: 0,
-          };
-          for (const item of input.items) {
-            const parsed = this.parseCoursework(item);
-            if (parsed.isNone()) {
-              outcome.rejected += 1;
-              continue;
-            }
+      const parsed = input.items.flatMap((item) =>
+        this.parseCoursework(item)
+          .map((coursework) => [coursework])
+          .unwrapOr([]),
+      );
 
-            const applied = await this.applyCoursework(input, parsed.unwrap());
-            if (applied.isFailure)
-              return Result.fail<CourseworkIngestOutput, IngestError>(applied.getError());
-            if (applied.getValue() === "created") outcome.created += 1;
-            if (applied.getValue() === "updated") outcome.updated += 1;
-          }
-          if (!input.complete) return Result.ok<CourseworkIngestOutput, IngestError>(outcome);
+      return this.transactions.run(async () => {
+        const outcome: CourseworkIngestOutput = {
+          created: 0,
+          updated: 0,
+          rejected: input.items.length - parsed.length,
+          withdrawn: 0,
+        };
+        const locked = await this.events.lockCourseworkItems(
+          input.userId,
+          input.childId,
+          parsed.map(({ item }) => item.id),
+        );
+        if (locked.isFailure)
+          return Result.fail<CourseworkIngestOutput, IngestError>(locked.getError());
 
-          const withdrawn = await this.withdrawLive(
-            input,
-            { courseId: input.courseId },
-            input.presentIds,
-          );
-          return withdrawn.map((count) => ({ ...outcome, withdrawn: count }));
-        });
-      },
-    );
+        const storedById = new Map(
+          locked.getValue().map((event) => [event.get("announcementId"), event]),
+        );
+        for (const coursework of parsed) {
+          const stored = Option.fromNullable(storedById.get(coursework.item.id));
+          const applied = await this.applyCoursework(input, coursework, stored);
+          if (applied.isFailure)
+            return Result.fail<CourseworkIngestOutput, IngestError>(applied.getError());
+          if (applied.getValue() === "created") outcome.created += 1;
+          if (applied.getValue() === "updated") outcome.updated += 1;
+        }
+        if (!input.complete) return Result.ok<CourseworkIngestOutput, IngestError>(outcome);
+
+        const withdrawn = await this.withdrawLive(
+          input,
+          { courseId: input.courseId },
+          input.presentIds,
+        );
+        return withdrawn.map((count) => ({ ...outcome, withdrawn: count }));
+      });
+    });
   }
 
   async withdrawCourseworkOutside(
     input: CourseworkWithdrawInput,
   ): Promise<Result<CourseworkWithdrawOutput, IngestError>> {
-    return this.instrumentation.startSpan(
-      { name: "EventIngestService > withdrawCourseworkOutside", op: "function" },
+    return traced(
+      this.instrumentation,
+      "EventIngestService > withdrawCourseworkOutside",
       async () => {
         const owned = await this.children.isOwnedBy(input.userId, input.childId);
         if (owned.isFailure) return Result.fail(owned.getError());
@@ -199,7 +197,7 @@ export class EventIngestService {
         return this.transactions.run(async () => {
           const withdrawn = await this.withdrawLive(
             input,
-            { outsideCourseIds: input.activeCourseIds },
+            { outsideCourseIds: input.activeCourseIds, dueFrom: this.clock() },
             [],
           );
           return withdrawn.map((count) => ({ withdrawn: count }));
@@ -242,10 +240,9 @@ export class EventIngestService {
   private async applyCoursework(
     input: CourseworkIngestInput,
     { item, title, deadline }: ParsedCoursework,
+    stored: Option<AgendaEvent>,
   ): Promise<Result<CourseworkOutcome, IngestError>> {
-    const found = await this.events.lockCoursework(input.userId, input.childId, item.id);
-    if (found.isFailure) return Result.fail(found.getError());
-    if (found.getValue().isNone()) {
+    if (stored.isNone()) {
       const event = AgendaEvent.create({
         userId: input.userId,
         childId: input.childId,
@@ -267,7 +264,7 @@ export class EventIngestService {
       return stored.map((created) => (created ? "created" : "unchanged"));
     }
 
-    const event = found.getValue().unwrap();
+    const event = stored.unwrap();
     const followed = event.followCoursework({ title, deadline, done: item.done });
     if (followed.isFailure || followed.getValue().length === 0) return Result.ok("unchanged");
 
@@ -288,6 +285,7 @@ export class EventIngestService {
       userId: event.get("userId"),
       eventId: event.id.value,
       fields,
+      actorUserId: null,
     });
     return Result.ok("updated");
   }

@@ -215,14 +215,16 @@ export class DrizzleEventRepository implements IEventRepository {
     });
   }
 
-  async lockCoursework(
+  async lockCourseworkItems(
     userId: string,
     childId: string,
-    courseworkId: string,
-  ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
+    courseworkIds: string[],
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    if (courseworkIds.length === 0) return Result.ok([]);
+
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
-      { name: "DrizzleEventRepository > lockCoursework" },
+      { name: "DrizzleEventRepository > lockCourseworkItems" },
       async () => {
         try {
           const query = exec
@@ -233,23 +235,21 @@ export class DrizzleEventRepository implements IEventRepository {
                 eq(agendaEvent.userId, userId),
                 eq(agendaEvent.childId, childId),
                 eq(agendaEvent.source, "coursework"),
-                eq(agendaEvent.announcementId, courseworkId),
+                inArray(agendaEvent.announcementId, courseworkIds),
                 eq(agendaEvent.ordinal, 0),
               ),
             )
-            .limit(1)
+            .orderBy(asc(agendaEvent.announcementId))
             .for("update");
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
           );
 
-          return this.mapRows(rows, "lockCoursework").map((events) =>
-            Option.fromNullable(events[0]),
-          );
+          return this.mapRows(rows, "lockCourseworkItems");
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("lockCoursework"));
+          return Result.fail(repositoryFailure("lockCourseworkItems"));
         }
       },
     );
@@ -272,9 +272,12 @@ export class DrizzleEventRepository implements IEventRepository {
               and(
                 eq(agendaEvent.userId, userId),
                 eq(agendaEvent.childId, childId),
-                "courseId" in courses
-                  ? eq(agendaEvent.courseId, courses.courseId)
-                  : notInArray(agendaEvent.courseId, courses.outsideCourseIds),
+                ...("courseId" in courses
+                  ? [eq(agendaEvent.courseId, courses.courseId)]
+                  : [
+                      notInArray(agendaEvent.courseId, courses.outsideCourseIds),
+                      gte(agendaEvent.deadlineAt, courses.dueFrom),
+                    ]),
                 sql`${agendaEvent.source} = 'coursework'`,
                 isNull(agendaEvent.deletedAt),
                 isNull(agendaEvent.withdrawnAt),

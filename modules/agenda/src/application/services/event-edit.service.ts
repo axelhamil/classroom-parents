@@ -1,29 +1,25 @@
-import { type AppError, type IInstrumentation, type IUnitOfWork, Result } from "@packages/ddd-kit";
+import {
+  type AppError,
+  type IInstrumentation,
+  type IUnitOfWork,
+  Result,
+  traced,
+} from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import type { AgendaEvent, EventChanges, EventField } from "../../domain/event.aggregate";
 import { CLEAR_TIME, type EventDto, type EventPatch, toEventDto } from "../dto/event.dto";
-import type { IAlertPlanner, PlannedDeadline } from "../ports/alert-planner.port";
+import type { IAlertPlanner } from "../ports/alert-planner.port";
 import {
   type AgendaError,
   eventNotFound,
   type IEventRepository,
 } from "../ports/event-repository.port";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
+import { plannedDeadline } from "./planned-deadline";
 
 type EditError = AgendaError | AppError;
-
-function plannedDeadline(event: AgendaEvent): PlannedDeadline {
-  const deadline = event.get("deadline").value;
-
-  return {
-    eventId: event.id.value,
-    userId: event.get("userId"),
-    deadlineDate: deadline.date,
-    deadlineTime: deadline.time,
-  };
-}
 
 export class EventEditService {
   constructor(
@@ -40,7 +36,7 @@ export class EventEditService {
     eventId: string,
     patch: EventPatch,
   ): Promise<Result<EventDto, EditError>> {
-    return this.span("edit", () =>
+    return traced(this.instrumentation, "EventEditService > edit", () =>
       this.transactions.run(async () => {
         const found = await this.owned(userId, eventId);
         if (found.isFailure) return Result.fail(found.getError());
@@ -69,7 +65,7 @@ export class EventEditService {
   }
 
   async confirm(userId: string, eventId: string): Promise<Result<EventDto, EditError>> {
-    return this.span("confirm", () =>
+    return traced(this.instrumentation, "EventEditService > confirm", () =>
       this.transactions.run(async () => {
         const found = await this.owned(userId, eventId);
         if (found.isFailure) return Result.fail(found.getError());
@@ -90,7 +86,7 @@ export class EventEditService {
   }
 
   async remove(userId: string, eventId: string): Promise<Result<void, EditError>> {
-    return this.span("remove", () =>
+    return traced(this.instrumentation, "EventEditService > remove", () =>
       this.transactions.run(async (): Promise<Result<void, EditError>> => {
         const found = await this.owned(userId, eventId);
         if (found.isFailure) return Result.fail(found.getError());
@@ -109,13 +105,6 @@ export class EventEditService {
         });
         return Result.ok();
       }),
-    );
-  }
-
-  private span<T>(method: string, work: () => Promise<T>): Promise<T> {
-    return this.instrumentation.startSpan(
-      { name: `EventEditService > ${method}`, op: "function" },
-      work,
     );
   }
 
@@ -160,6 +149,7 @@ export class EventEditService {
       userId: event.get("userId"),
       eventId: event.id.value,
       fields,
+      actorUserId: event.get("userId"),
     });
   }
 }

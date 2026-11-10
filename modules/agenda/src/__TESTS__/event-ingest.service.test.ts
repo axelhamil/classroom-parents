@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Option, Result } from "@packages/ddd-kit";
+import { Result } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -22,6 +22,8 @@ import { EventTitle } from "../domain/value-objects/event-title.vo";
 import { CHILD, PARENT } from "../testing/agenda-event.fixture";
 
 const updatedPayload = z.object({ fields: z.array(z.string()) });
+
+const NOW = new Date("2026-11-10T09:00:00.000Z");
 
 const deadlineOf = (date: string) => EventDeadline.fromParisWallTime(date).getValue();
 
@@ -71,8 +73,13 @@ beforeEach(() => {
     stored.set(keyOf(event), event);
     return Result.ok(true);
   });
-  repo.lockCoursework.mockImplementation(async (_userId, childId, courseworkId) =>
-    Result.ok(Option.fromNullable(stored.get(`${childId}|coursework|${courseworkId}|0`))),
+  repo.lockCourseworkItems.mockImplementation(async (_userId, childId, courseworkIds) =>
+    Result.ok(
+      courseworkIds.flatMap((id) => {
+        const found = stored.get(`${childId}|coursework|${id}|0`);
+        return found ? [found] : [];
+      }),
+    ),
   );
   repo.save.mockResolvedValue(Result.ok());
   repo.lockLiveCoursework.mockImplementation(async (_userId, childId, courses) =>
@@ -82,7 +89,8 @@ beforeEach(() => {
           event.get("childId") === childId &&
           ("courseId" in courses
             ? event.get("courseId") === courses.courseId
-            : !courses.outsideCourseIds.includes(event.get("courseId"))) &&
+            : !courses.outsideCourseIds.includes(event.get("courseId")) &&
+              event.get("deadline").value.at >= courses.dueFrom) &&
           event.get("source").value === "coursework" &&
           event.get("deletedAt").isNone() &&
           event.get("withdrawnAt").isNone(),
@@ -100,6 +108,7 @@ beforeEach(() => {
     uow.unitOfWork,
     outbox,
     mockInstrumentation(),
+    () => NOW,
   );
 });
 
@@ -171,17 +180,17 @@ describe("ingest", () => {
     });
   });
 
-  it("given a date that does not exist, then nothing is stored and EVENT_INVALID_DEADLINE is returned", async () => {
+  it("given a date that does not exist, then nothing is stored and EVENT_DEADLINE_INVALID is returned", async () => {
     const result = await ingest([extracted(), extracted({ deadlineDate: "2026-02-30" })]);
 
-    expect(result.getError().code).toBe("EVENT_INVALID_DEADLINE");
+    expect(result.getError().code).toBe("EVENT_DEADLINE_INVALID");
     expect(stored.size).toBe(0);
   });
 
-  it("given an unknown category, then EVENT_INVALID_CATEGORY is returned", async () => {
+  it("given an unknown category, then EVENT_CATEGORY_INVALID is returned", async () => {
     const result = await ingest([extracted({ category: "party" })]);
 
-    expect(result.getError().code).toBe("EVENT_INVALID_CATEGORY");
+    expect(result.getError().code).toBe("EVENT_CATEGORY_INVALID");
   });
 
   it("given the alert planner fails, then the whole ingest rolls back and reports it", async () => {
@@ -277,6 +286,37 @@ describe("ingestCoursework", () => {
       expect.objectContaining({ deadlineDate: "2026-11-23" }),
     );
     expect(updatedFields()).toEqual([["title", "deadline"]]);
+  });
+
+  it("given the sync follows a coursework, then EVENT_UPDATED names no parent as its actor", async () => {
+    await ingestCoursework([homework()]);
+
+    await ingestCoursework([homework({ done: true })]);
+
+    const updated = enqueuedEvents(outbox).filter(
+      ({ eventType }) => eventType === EventTypes.EVENT_UPDATED,
+    );
+    expect(updated.map(({ payload }) => payload)).toEqual([
+      {
+        userId: PARENT,
+        eventId: courseworkRow()?.id.value,
+        fields: ["done"],
+        actorUserId: null,
+      },
+    ]);
+  });
+
+  it("given several coursework of a course, then their stored rows are locked in one read", async () => {
+    await ingestCoursework([homework({ id: "w1" }), homework({ id: "w2" })]);
+    repo.lockCourseworkItems.mockClear();
+
+    await ingestCoursework([
+      homework({ id: "w1" }),
+      homework({ id: "w2" }),
+      homework({ id: "w3" }),
+    ]);
+
+    expect(repo.lockCourseworkItems.mock.calls).toEqual([[PARENT, CHILD, ["w1", "w2", "w3"]]]);
   });
 
   it("given the parent changed the date, then the teacher's date is ignored but the title and done still follow", async () => {
@@ -435,6 +475,23 @@ describe("withdrawCourseworkOutside", () => {
     expect(courseworkRow("w1")?.get("withdrawnAt").isNone()).toBe(true);
     expect(courseworkRow("w2")?.get("withdrawnAt").isSome()).toBe(true);
     expect(planner.cancel).toHaveBeenCalledWith(courseworkRow("w2")?.id.value);
+  });
+
+  it("given a course archived at the end of the term, then its past coursework stays in the history", async () => {
+    await ingestCoursework([
+      homework({ id: "past", deadlineDate: "2026-11-02" }),
+      homework({ id: "next", deadlineDate: "2026-11-19" }),
+    ]);
+
+    const result = await service.withdrawCourseworkOutside({
+      userId: PARENT,
+      childId: CHILD,
+      activeCourseIds: [],
+    });
+
+    expect(result.getValue()).toEqual({ withdrawn: 1 });
+    expect(courseworkRow("past")?.get("withdrawnAt").isNone()).toBe(true);
+    expect(courseworkRow("next")?.get("withdrawnAt").isSome()).toBe(true);
   });
 
   it("given a child that is not the parent's, then EVENT_CHILD_NOT_FOUND and nothing is withdrawn", async () => {

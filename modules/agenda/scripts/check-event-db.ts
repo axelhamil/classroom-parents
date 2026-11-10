@@ -5,8 +5,10 @@
  * a family never reads, edits, confirms or deletes another family's event, deleting a user
  * cascades its events, a coursework is stored once and follows its teacher until the parent edits
  * the field, an announcement deadline on a coursework's course and day stays hidden only while a
- * live coursework matches, a complete listing retires a coursework the teacher removed,
- * and listUpcoming on 10 000 rows uses event_user_deadline_idx and event_coursework_day_idx.
+ * live coursework matches, a complete listing retires a coursework the teacher removed while
+ * an archived course keeps its past coursework in the history, the user cascade on event reads
+ * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx and
+ * event_coursework_day_idx.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -14,6 +16,7 @@ import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/tes
 exitUnlessLocalDatabase("check-event-db", process.env.DATABASE_URL);
 
 import { childAccount } from "@modules/children/schemas/child.schema";
+import { seedChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, Result } from "@packages/ddd-kit";
 import {
   and,
@@ -99,29 +102,8 @@ async function createUser(name: string): Promise<string> {
   return id;
 }
 
-async function createChild(userId: string, name: string): Promise<string> {
-  const accountId = `${userId}-${name}`;
-  await db.insert(authSchema.account).values({
-    id: accountId,
-    accountId: `sub-${accountId}`,
-    providerId: "google-classroom",
-    userId,
-    updatedAt: NOW,
-  });
-  const [child] = await db
-    .insert(childAccount)
-    .values({
-      userId,
-      linkedAccountId: accountId,
-      googleEmail: `${name}@school.example`,
-      label: name,
-      status: "connected",
-      connectedAt: NOW,
-      nextSyncAt: NOW,
-    })
-    .returning({ id: childAccount.id });
-  if (!child) throw new Error("child not created");
-  return child.id;
+function createChild(userId: string, name: string): Promise<string> {
+  return seedChild({ userId, name, at: NOW });
 }
 
 function extracted(overrides: Partial<IngestedEvent> = {}): IngestedEvent {
@@ -225,6 +207,19 @@ async function cleanup(): Promise<void> {
         .where(inArray(outboxSchema.outboxEvent.aggregateId, eventIds.slice(start, start + 1000)));
   }
   await db.delete(authSchema.user).where(like(authSchema.user.id, `${probe}%`));
+}
+
+async function explainRolledBack(statement: string, values: unknown[]): Promise<string> {
+  const client = await db.$client.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SET LOCAL enable_seqscan = off");
+    const plan = await client.query(statement, values);
+    return plan.rows.map((row: Record<string, string>) => Object.values(row).join("")).join("\n");
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+  }
 }
 
 const { step, run } = stepRunner("check-event-db", cleanup);
@@ -412,6 +407,12 @@ run(async () => {
     (await rowsOf(aNoe, "w-noe-27"))[0]?.withdrawnAt === null &&
       (await noeUpcoming()) === sameIds(ann26.id, w27.id),
   );
+  await ingestCoursework(a, aNoe, [
+    homework({ id: "w-noe-27", deadlineDate: "2030-01-27" }),
+    homework({ id: "w-noe-past", deadlineDate: "2030-01-05" }),
+  ]);
+  const [noePast] = await rowsOf(aNoe, "w-noe-past");
+  if (!noePast) throw new Error("noe past coursework missing");
   await ingestService.withdrawCourseworkOutside({
     userId: a,
     childId: aNoe,
@@ -421,6 +422,11 @@ run(async () => {
     "the coursework of a course no longer listed is withdrawn and its announcement reappears",
     (await rowsOf(aNoe, "w-noe-27"))[0]?.withdrawnAt !== null &&
       (await noeUpcoming()) === sameIds(ann26.id, ann27.id),
+  );
+  await step(
+    "the past coursework of an archived course stays in the history",
+    (await rowsOf(aNoe, "w-noe-past"))[0]?.withdrawnAt === null &&
+      idsOf(await query.listHistory(a, { childIds: [aNoe], limit: 10 }, NOW)).includes(noePast.id),
   );
 
   const stolen = await ingest(a, bZoe, "ann-stolen", [extracted()]);
@@ -462,6 +468,16 @@ run(async () => {
       planned.filter((p) => p.eventId === bEvent.id).length === 1,
   );
 
+  const cascadePlan = await explainRolledBack(
+    `EXPLAIN (ANALYZE, BUFFERS) DELETE FROM ONLY "event" WHERE $1 = "user_id"`,
+    [b],
+  );
+  console.log(`\nEXPLAIN ANALYZE of the user cascade on event:\n${cascadePlan}\n`);
+  await step(
+    "the user cascade on event, deleted rows included, reads event_user_deadline_idx",
+    cascadePlan.includes("event_user_deadline_idx") && !cascadePlan.includes("Seq Scan"),
+  );
+
   await db.delete(authSchema.user).where(eq(authSchema.user.id, b));
   await step(
     "deleting a user cascades its events",
@@ -476,9 +492,10 @@ run(async () => {
     return {
       userId: c,
       childId: cChild,
+      source: i % 2 === 0 ? ("coursework" as const) : ("announcement" as const),
       announcementId: `seed-${i}`,
       ordinal: 0,
-      courseId: "course-seed",
+      courseId: i % 2 === 0 ? "course-seed-work" : "course-seed",
       announcementUrl: "https://classroom.google.com/c/seed",
       title: `Seed ${i}`,
       description: "",

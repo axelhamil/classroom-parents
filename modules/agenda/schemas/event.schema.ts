@@ -63,8 +63,6 @@ export const agendaEvent = pgTable(
       .where(
         sql`${table.source} = 'coursework' and ${table.deletedAt} is null and ${table.withdrawnAt} is null`,
       ),
-    index("event_user_deadline_idx")
-      .on(table.userId, table.deadlineAt)
-      .where(sql`${table.deletedAt} is null`),
+    index("event_user_deadline_idx").on(table.userId, table.deadlineAt),
   ],
 );

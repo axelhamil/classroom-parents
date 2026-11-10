@@ -5,10 +5,10 @@ import type { EventCategoryValue } from "../../domain/value-objects/event-catego
 export type AgendaError = AppError<
   | "EVENT_NOT_FOUND"
   | "EVENT_CHILD_NOT_FOUND"
-  | "EVENT_INVALID_DEADLINE"
-  | "EVENT_INVALID_TITLE"
-  | "EVENT_INVALID_DESCRIPTION"
-  | "EVENT_INVALID_CATEGORY"
+  | "EVENT_DEADLINE_INVALID"
+  | "EVENT_TITLE_INVALID"
+  | "EVENT_DESCRIPTION_INVALID"
+  | "EVENT_CATEGORY_INVALID"
   | "EVENT_PROVIDER_FAILURE"
 >;
 
@@ -34,18 +34,20 @@ export interface EventPage {
   nextCursor: Option<string>;
 }
 
-export type CourseworkCourses = { courseId: string } | { outsideCourseIds: string[] };
+export type CourseworkCourses =
+  | { courseId: string }
+  | { outsideCourseIds: string[]; dueFrom: Date };
 
 export interface IEventRepository {
   insertIfAbsent(event: AgendaEvent): Promise<Result<boolean, AgendaError>>;
 
   save(event: AgendaEvent): Promise<Result<void, AgendaError>>;
 
-  lockCoursework(
+  lockCourseworkItems(
     userId: string,
     childId: string,
-    courseworkId: string,
-  ): Promise<Result<Option<AgendaEvent>, AgendaError>>;
+    courseworkIds: string[],
+  ): Promise<Result<AgendaEvent[], AgendaError>>;
 
   lockLiveCoursework(
     userId: string,

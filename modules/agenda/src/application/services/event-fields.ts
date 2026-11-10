@@ -9,23 +9,23 @@ import { EVENT_TITLE_MAX, EventTitle } from "../../domain/value-objects/event-ti
 import type { AgendaError } from "../ports/event-repository.port";
 
 const invalidTitle: AgendaError = {
-  code: "EVENT_INVALID_TITLE",
+  code: "EVENT_TITLE_INVALID",
   message: `Le titre doit faire entre 1 et ${EVENT_TITLE_MAX} caractères.`,
 };
 
 const invalidDescription: AgendaError = {
-  code: "EVENT_INVALID_DESCRIPTION",
+  code: "EVENT_DESCRIPTION_INVALID",
   message: `La description doit faire au plus ${EVENT_DESCRIPTION_MAX} caractères.`,
 };
 
 const invalidCategory: AgendaError = {
-  code: "EVENT_INVALID_CATEGORY",
+  code: "EVENT_CATEGORY_INVALID",
   message:
     "Choisissez une catégorie parmi évaluation, devoir, sortie scolaire, piscine ou document à rendre.",
 };
 
 const invalidDeadline: AgendaError = {
-  code: "EVENT_INVALID_DEADLINE",
+  code: "EVENT_DEADLINE_INVALID",
   message:
     "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59.",
 };
