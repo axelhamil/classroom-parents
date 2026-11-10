@@ -1,8 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { buildEventDispatcher } from "@packages/outbox/event-handlers";
-import { di } from "../container";
 import { NoOpInstrumentation } from "../shared/services/noop-instrumentation";
 import { PgUserStreamPublisher, userStreamRelay } from "../shared/services/user-stream-relay";
+
+process.env.FAKE_PROVIDERS = "0";
+const { di } = await import("../container");
 
 describe("container wiring", () => {
   it("resolves every binding of the composed modules at boot", async () => {
