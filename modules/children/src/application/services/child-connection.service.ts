@@ -432,6 +432,10 @@ export class ChildConnectionService {
     );
   }
 
+  async holdsLease(lease: SyncLease): Promise<Result<boolean, ChildrenError>> {
+    return this.span("holdsLease", () => this.children.holdsLease(lease));
+  }
+
   async markSynced(
     lease: SyncLease,
     at: Date,

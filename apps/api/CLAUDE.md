@@ -21,9 +21,15 @@ apps/api/src/
   composition/
     settings.ts                 `apiSettings(env)`: env mapped once onto each module's typed settings
     route-guards.ts             `routeGuards`: the `RouteGuards` of `@packages/http` built from `shared/middleware`
+    bindings.ts                 one adapter per port a module declares towards another (`<port>For(service)`)
+    fake-bindings.ts            `FAKE_PROVIDERS=1`: overrides Google, Classroom and the extractor with `dev/fake-providers.ts`
+    alert-planner.ts            the `IAlertPlanner` stub, the insertion point of the alerts module
+  workers/                      periodic loops started by `index.ts` (sync, rgpd sweep, sent email retention), one tick never overlaps the next
+  dev/                          fakes over the French dataset of `@modules/extraction/eval/classroom-dataset`, local database only
   auth.ts                       BetterAuth singleton, deliberate exception to the modules rule (config-as-code, the lib owns the model), mounted on `/api/auth/*`
   app.ts                        `Hono` construction, middleware, chained `.route()` mounts, `export const routes` / `export type AppType`. No server boot.
   index.ts                      Server entry: `Bun.serve()` handle kept on `globalThis` for `bun --hot`, worker starts, ordered shutdown steps
+  shared/stream/                `GET /stream`: per-user SSE fed by the outbox relay `user-stream-relay` through `pg_notify`
   migrate.ts                    Migration entry; `start` runs it before the server
   client.ts                     `hcWithType` factory, `hc<AppType>`
 ```
@@ -107,4 +113,5 @@ BDD style, runner `bun test`. One test file per service, store, DTO or route fil
 ## Commands
 
 - **Tests**: `pnpm --filter api test` (`bun test --isolate --parallel`); a bare `bun test` drops file isolation. The tests read `apps/api/.env`, so run `pnpm bootstrap` then `scripts/worktree-db.sh` first.
-- **Real-database checks**: `pnpm --filter api check:{uow-rollback,outbox-lease,wipe-rollback,token-sealing,child-sign-in}`. Each refuses any database but this worktree's local one (`requireLocalDatabase` from `@packages/test/db-check`: localhost, port 54329, `classroom_parents[_<slug>]`) and is wired in `.github/workflows/ci.yml`. Re-run the matching one after touching the code it covers.
+- **Fakes**: `FAKE_PROVIDERS=1` replaces every external provider (Google OAuth, Classroom, the model) with the synthetic dataset; the boot refuses it in production and on any database but the local one. **Why**: the dev server, the demo seed and the end-to-end check run without a key and never reach a real account. `pnpm --filter api db:seed:demo` seeds a parent with two children.
+- **Real-database checks**: `pnpm --filter api check:db` runs them all, or one of `check:{uow-rollback,outbox-lease,wipe-rollback,token-sealing,child-sign-in,email-retention,end-to-end}`. Each refuses any database but this worktree's local one (`requireLocalDatabase` from `@packages/test/db-check`: localhost, port 54329, `classroom_parents[_<slug>]`) and is wired in `.github/workflows/ci.yml`. Re-run the matching one after touching the code it covers.

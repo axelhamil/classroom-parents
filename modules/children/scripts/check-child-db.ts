@@ -299,6 +299,32 @@ run(async () => {
   if (workerLease === undefined || takeoverClaim?.outcome !== "started")
     throw new Error("no lease to fence");
 
+  const staleHeld = await service.holdsLease(workerLease);
+  const currentHeld = await service.holdsLease(takeoverClaim.lease);
+  await step(
+    "only the current lease holder holds the lease, the late worker does not",
+    staleHeld.isSuccess &&
+      staleHeld.getValue() === false &&
+      currentHeld.isSuccess &&
+      currentHeld.getValue() === true,
+  );
+
+  const concurrentWrites = await Promise.all(
+    Array.from({ length: 6 }, () =>
+      transactions.run(async () => {
+        const held = await service.holdsLease(takeoverClaim.lease);
+        if (held.isFailure) return held;
+
+        return service.isOwnedBy(a, aChild);
+      }),
+    ),
+  );
+  await step(
+    "concurrent sync writes of one child check their lease then ownership without deadlocking",
+    concurrentWrites.every((owned) => owned.isSuccess && owned.getValue() === true),
+    concurrentWrites.map((owned) => (owned.isSuccess ? owned.getValue() : owned.getError().code)),
+  );
+
   const late = await service.markSynced(workerLease, afterCrash, new Date(T0.getTime() + 3600_000));
   const afterLate = await childRow(aChild);
   await step(

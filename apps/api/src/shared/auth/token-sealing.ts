@@ -1,5 +1,6 @@
+import type { TokenSealing } from "@modules/children/application/ports/google-credential-store.port";
 import { Result } from "@packages/ddd-kit";
-import { type SecretConfig, symmetricDecrypt } from "better-auth/crypto";
+import { type SecretConfig, symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
 
 export type TokenUnsealable = "TOKEN_UNSEALABLE";
 
@@ -12,4 +13,11 @@ export async function openToken(
   } catch {
     return Result.fail("TOKEN_UNSEALABLE");
   }
+}
+
+export function googleTokenSealing(key: string | SecretConfig): TokenSealing {
+  return {
+    seal: (plain) => symmetricEncrypt({ key, data: plain }),
+    open: (sealed) => openToken(sealed, key),
+  };
 }

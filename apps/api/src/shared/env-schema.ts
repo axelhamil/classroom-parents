@@ -50,6 +50,7 @@ export const envSchema = z
     COOKIE_DOMAIN: z.string().optional(),
     RESEND_API_KEY: z.string().optional(),
     RESEND_FROM: z.string().optional(),
+    EMAIL_RETENTION_DAYS: z.coerce.number().int().min(1).max(7).default(7),
     ANTHROPIC_API_KEY: z.string().optional(),
     VAPID_PUBLIC_KEY: z
       .string()

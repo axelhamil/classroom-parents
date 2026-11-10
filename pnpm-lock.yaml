@@ -222,6 +222,12 @@ importers:
       '@modules/children':
         specifier: workspace:*
         version: link:../../modules/children
+      '@modules/classroom-sync':
+        specifier: workspace:*
+        version: link:../../modules/classroom-sync
+      '@modules/extraction':
+        specifier: workspace:*
+        version: link:../../modules/extraction
       '@noble/ciphers':
         specifier: ^2.4.0
         version: 2.4.0
@@ -630,21 +636,6 @@ importers:
       '@packages/drizzle':
         specifier: workspace:*
         version: link:../../packages/drizzle
-      '@packages/events':
-        specifier: workspace:*
-        version: link:../../packages/events
-      '@packages/http':
-        specifier: workspace:*
-        version: link:../../packages/http
-      '@packages/outbox':
-        specifier: workspace:*
-        version: link:../../packages/outbox
-      drizzle-orm:
-        specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.4)(kysely@0.29.6)(pg@8.23.1)
-      hono:
-        specifier: ^4.13.14
-        version: 4.13.14
       inwire:
         specifier: ^4.0.1
         version: 4.0.1

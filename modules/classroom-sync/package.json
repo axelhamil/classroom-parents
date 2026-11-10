@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./classroom-sync.module": "./src/classroom-sync.module.ts",
+    "./application/*": "./src/application/*.ts",
     "./schemas/*": "./schemas/*.ts",
     "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts"
   },

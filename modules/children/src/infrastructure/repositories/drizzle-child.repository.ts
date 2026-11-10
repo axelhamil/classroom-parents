@@ -249,6 +249,31 @@ export class DrizzleChildRepository implements IChildRepository {
     );
   }
 
+  async holdsLease(lease: SyncLease): Promise<Result<boolean, ChildrenError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleChildRepository > holdsLease" },
+      async () => {
+        try {
+          const query = exec
+            .select({ id: childAccount.id })
+            .from(childAccount)
+            .where(and(leaseHeldBy(lease), eq(childAccount.status, "connected")))
+            .for("share");
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return Result.ok(rows.length > 0);
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("holdsLease"));
+        }
+      },
+    );
+  }
+
   async markSynced(
     lease: SyncLease,
     at: Date,

@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { DATASET_ANNOUNCEMENTS } from "@modules/extraction/eval/classroom-dataset";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CLASSROOM_API = "https://classroom.googleapis.com/v1";
-const DEFAULT_DATASET = join(import.meta.dir, "../modules/extraction/eval/synthetic.jsonl");
 const DEFAULT_COURSE_PREFIX = "[TEST]";
 
 const REQUIRED_VARIABLES = [
@@ -18,7 +17,7 @@ interface PublisherConfig {
   credentials: Record<RequiredVariable, string>;
   courseId: string | undefined;
   coursePrefix: string;
-  datasetPath: string;
+  datasetPath: string | undefined;
 }
 
 interface SyntheticAnnouncement {
@@ -42,7 +41,7 @@ export function readConfig(env: Record<string, string | undefined>): ConfigResul
       },
       courseId: env.TEST_CLASSROOM_COURSE_ID || undefined,
       coursePrefix: env.TEST_CLASSROOM_COURSE_PREFIX || DEFAULT_COURSE_PREFIX,
-      datasetPath: env.TEST_CLASSROOM_DATASET || DEFAULT_DATASET,
+      datasetPath: env.TEST_CLASSROOM_DATASET || undefined,
     },
   };
 }
@@ -64,6 +63,13 @@ export function parseDataset(jsonl: string): SyntheticAnnouncement[] {
 
       return { id: row.id, text: row.text };
     });
+}
+
+export function datasetOf(config: PublisherConfig): SyntheticAnnouncement[] {
+  if (config.datasetPath !== undefined)
+    return parseDataset(readFileSync(config.datasetPath, "utf8"));
+
+  return DATASET_ANNOUNCEMENTS.map(({ id, text }) => ({ id, text }));
 }
 
 export function isTestCourse(name: unknown, prefix: string): boolean {
@@ -169,7 +175,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const dataset = parseDataset(readFileSync(config.datasetPath, "utf8"));
+  const dataset = datasetOf(config);
   const pending = announcementsToPublish(dataset, await publishedTexts(token, config.courseId));
   console.log(`${dataset.length - pending.length} already published, ${pending.length} to publish`);
 

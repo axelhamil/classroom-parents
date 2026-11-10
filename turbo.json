@@ -20,6 +20,10 @@
     "BETTER_AUTH_*",
     "RESEND_*",
     "RGPD_*",
+    "EMAIL_*",
+    "ANTHROPIC_*",
+    "VAPID_*",
+    "FAKE_PROVIDERS",
     "VITE_*"
   ],
   "tasks": {

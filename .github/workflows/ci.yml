@@ -120,8 +120,10 @@ jobs:
       - name: Bootstrap env files
         run: pnpm bootstrap
 
-      - name: Push schema
-        run: pnpm db:push
+      - name: Apply the committed migration
+        # The checks run against the schema the migration builds, so a schema change
+        # without its regenerated migration fails here instead of in production.
+        run: pnpm db:migrate
 
       - name: Check the outbox lease claim and settle against a real database
         # Skip locked, the lease expiry, the stale settle guard and the dead replay
@@ -163,6 +165,30 @@ jobs:
         # Skip locked and the lease live in the claim query; only concurrent dispatchers
         # on Postgres prove each alert is sent once and the partial index is read.
         run: pnpm --filter @modules/alerts check:alert-db
+      - name: Check the children module against a real database
+        # Ownership in the WHERE, the sync and disconnection claims, lease fencing and the
+        # lock order of concurrent sync writes live in SQL. Seeds and removes its probes.
+        run: pnpm --filter @modules/children check:child-db
+
+      - name: Check the agenda module against a real database
+        # Deduplication by unique key, the coursework partial index and the withdrawal of
+        # removed coursework are SQL. Seeds and removes its probes.
+        run: pnpm --filter @modules/agenda check:event-db
+
+      - name: Check the classroom sync against a real database
+        # The seen-announcement verdicts and the lease check inside each write unit only
+        # hold against Postgres. Seeds and removes its probes.
+        run: pnpm --filter @modules/classroom-sync check:sync-db
+
+      - name: Check the sent email retention sweep against a real database
+        # The batched delete, its lease and its heartbeat are SQL. Removes its probes.
+        run: pnpm --filter api check:email-retention
+
+      - name: Check the composed api end to end against a real database
+        # Fake Google and model, real modules, real Postgres: a family's agenda filled by
+        # the first sync, served over HTTP, the live stream, a school block, a
+        # disconnection and the RGPD revocation. Removes its probe family.
+        run: pnpm --filter api check:end-to-end
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4

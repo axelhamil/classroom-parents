@@ -1,13 +1,34 @@
 import type { IInstrumentation } from "@packages/ddd-kit";
+import { UserStreamMessage } from "@packages/events/user-stream-message";
 import { PgListener, type PgListenerOptions } from "@packages/outbox/pg-listener";
+import { z } from "zod";
 import type { Logger } from "../logger";
 
 export const USER_STREAM_CHANNEL = "user_stream";
 
 export const MAX_STREAMS_PER_USER = 5;
 
+type StreamHandle = (message: UserStreamMessage) => void;
+
+const UserStreamNotification = z.object({ userId: z.string(), message: UserStreamMessage });
+
+export function userStreamNotification(userId: string, message: UserStreamMessage): string {
+  return JSON.stringify({ userId, message });
+}
+
+function parseNotification(payload: string | undefined) {
+  if (payload === undefined) return undefined;
+
+  try {
+    const parsed = UserStreamNotification.safeParse(JSON.parse(payload));
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class NotificationStreamHub {
-  private readonly subscribers = new Map<string, Set<() => void>>();
+  private readonly subscribers = new Map<string, Set<StreamHandle>>();
   private readonly listener: PgListener;
   private started = false;
 
@@ -23,7 +44,7 @@ export class NotificationStreamHub {
         label: "notification stream hub",
         owner: "NotificationStreamHub",
         connectionString: databaseUrl,
-        onNotification: (userId) => this.dispatchSignal(userId ?? ""),
+        onNotification: (payload) => this.dispatch(payload),
       },
       logger,
       instrumentation,
@@ -31,8 +52,8 @@ export class NotificationStreamHub {
     );
   }
 
-  subscribe(userId: string, onSignal: () => void): () => void {
-    const existing = this.subscribers.get(userId) ?? new Set<() => void>();
+  subscribe(userId: string, onSignal: StreamHandle): () => void {
+    const existing = this.subscribers.get(userId) ?? new Set<StreamHandle>();
     existing.add(onSignal);
     this.subscribers.set(userId, existing);
     return () => {
@@ -47,12 +68,15 @@ export class NotificationStreamHub {
     return this.subscribers.get(userId)?.size ?? 0;
   }
 
-  dispatchSignal(userId: string): void {
-    const handles = this.subscribers.get(userId);
+  dispatch(payload: string | undefined): void {
+    const notification = parseNotification(payload);
+    if (!notification) return;
+
+    const handles = this.subscribers.get(notification.userId);
     if (!handles) return;
     for (const handle of handles) {
       try {
-        handle();
+        handle(notification.message);
       } catch (err) {
         this.logger.warn({ err }, "notification stream handle failed");
         this.instrumentation.capture(err);

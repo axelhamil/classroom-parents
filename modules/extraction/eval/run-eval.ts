@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import {
   type Breadcrumb,
@@ -12,6 +11,7 @@ import type { ILanguageModel, ModelTier } from "../src/application/ports/languag
 import { ExtractionService } from "../src/application/services/extraction.service";
 import { extractionCategorySchema } from "../src/domain/value-objects/extraction-category.vo";
 import { AnthropicLanguageModel } from "../src/infrastructure/adapters/anthropic-language-model";
+import { DATASET_ANNOUNCEMENTS } from "./classroom-dataset";
 
 const caseSchema = z.object({
   id: z.string(),
@@ -121,7 +121,8 @@ function countingEscalations(
 }
 
 function loadCases(): EvalCase[] {
-  const path = process.env.EVAL_SET ?? join(import.meta.dir, "synthetic.jsonl");
+  const path = process.env.EVAL_SET;
+  if (path === undefined) return DATASET_ANNOUNCEMENTS.map((item) => caseSchema.parse(item));
 
   return readFileSync(path, "utf8")
     .split("\n")

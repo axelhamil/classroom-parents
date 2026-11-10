@@ -15,6 +15,8 @@ export const sweepBodySchema = z
 
 export type SweepBody = z.infer<typeof sweepBodySchema>;
 
+type SweepLogger = Pick<PinoLogger, "info" | "warn" | "error">;
+
 export type SweepBatchErrorDecision = "break" | "throw";
 
 /**
@@ -30,7 +32,7 @@ export type RunBatchedSweepOptions = {
   countEligible: () => Promise<number>;
   batchSize: number;
   dryRun: boolean;
-  logger: PinoLogger;
+  logger: SweepLogger;
   label: string;
   onBatchError?: (err: unknown) => SweepBatchErrorDecision;
   deadlineAt?: number;
@@ -61,7 +63,7 @@ export type SweepLock = {
 export type RunRetentionSweepOptions = {
   body: SweepBody;
   passes: RetentionPass[];
-  logger: PinoLogger;
+  logger: SweepLogger;
   label: string;
   deadlineMs?: number;
   now?: () => number;

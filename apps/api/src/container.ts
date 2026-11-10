@@ -1,3 +1,7 @@
+import { agendaModule } from "@modules/agenda/agenda.module";
+import { childrenModule } from "@modules/children/children.module";
+import { classroomSyncModule } from "@modules/classroom-sync/classroom-sync.module";
+import { extractionModule } from "@modules/extraction/extraction.module";
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
 import { getRateLimitDbClient, TransactionService } from "@packages/drizzle";
 import { DrizzleEmailQueue } from "@packages/email/drizzle-email-queue";
@@ -21,10 +25,23 @@ import {
 import { OutboxRelay } from "@packages/outbox/outbox-relay";
 import { container } from "inwire";
 import { Resend } from "resend";
-import { childConnectionsBinding } from "./composition/child-connections";
+import { alertsNotComposedYet } from "./composition/alert-planner";
+import {
+  announcementExtractorFor,
+  childAccessTokensFor,
+  childConnectionsFor,
+  childOwnershipFor,
+  childSyncStateFor,
+  dueChildrenFor,
+  eventIngestFor,
+  manualSyncGateFor,
+} from "./composition/bindings";
+import { fakeProviderBindings } from "./composition/fake-bindings";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import { rgpdModule } from "./modules/rgpd/module";
+import { authSecretKey } from "./shared/auth/auth-secrets";
+import { googleTokenSealing } from "./shared/auth/token-sealing";
 import type { OutermostUnitOfWork } from "./shared/auth/unit-of-work-adapter";
 import { env } from "./shared/env";
 import { logger } from "./shared/logger";
@@ -40,6 +57,7 @@ import {
 } from "./shared/services/rate-limiter-flexible.adapter";
 import { SentryInstrumentation } from "./shared/services/sentry-instrumentation";
 import { SiteverifyCaptchaService } from "./shared/services/siteverify-captcha.service";
+import { PgUserStreamPublisher, userStreamRelay } from "./shared/services/user-stream-relay";
 
 declare module "inwire" {
   interface AppDeps {
@@ -59,6 +77,8 @@ declare module "inwire" {
 
 export const di = container()
   .addModule(apiSettings(env))
+  .add("ILogger", () => logger)
+  .add("googleTokenSealing", () => googleTokenSealing(authSecretKey(env)))
   .add(
     "IInstrumentation",
     (): IInstrumentation =>
@@ -125,8 +145,21 @@ export const di = container()
     (c) => new NotificationStreamHub(logger, env.DATABASE_URL, c.IInstrumentation),
   )
   .addModule(healthModule)
-  .addModule(childConnectionsBinding)
+  .addModule(childrenModule)
+  .add("IChildOwnership", (c) => childOwnershipFor(c.ChildConnectionService))
+  .add("IAlertPlanner", () => alertsNotComposedYet)
+  .addModule(agendaModule)
+  .addModule(extractionModule)
+  .add("IChildAccessTokens", (c) => childAccessTokensFor(c.ChildConnectionService))
+  .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))
+  .add("IEventIngest", (c) => eventIngestFor(c.EventIngestService))
+  .add("IDueChildren", (c) => dueChildrenFor(c.ChildConnectionService))
+  .add("IChildSyncState", (c) => childSyncStateFor(c.ChildConnectionService))
+  .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService))
+  .addModule(classroomSyncModule)
+  .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .addModule(rgpdModule)
+  .addModule(fakeProviderBindings(env))
   .add(
     "OutboxDispatcher",
     (c) =>
@@ -136,7 +169,10 @@ export const di = container()
           new OutboxRelay(
             c.IOutboxRepository,
             c.ITransactionService,
-            buildEventDispatcher([], diLike),
+            buildEventDispatcher(
+              [userStreamRelay(new PgUserStreamPublisher(c.IInstrumentation))],
+              diLike,
+            ),
             {
               eventTypes: ALL_EVENT_TYPES,
               batchSize: OUTBOX_BATCH_SIZE,

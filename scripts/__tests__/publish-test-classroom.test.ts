@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { DATASET_ANNOUNCEMENTS } from "@modules/extraction/eval/classroom-dataset";
 import {
   announcementsToPublish,
+  datasetOf,
   isTestCourse,
   parseDataset,
   readConfig,
@@ -38,6 +40,15 @@ describe("publish-test-classroom", () => {
     const pending = announcementsToPublish(dataset, ["  Contrôle   jeudi prochain.\n"]);
 
     expect(pending.map((announcement) => announcement.id)).toEqual(["b"]);
+  });
+
+  it("publishes the shared French dataset of the fakes and the eval by default", () => {
+    const config = readConfig(CREDENTIALS);
+    if (!config.ok) throw new Error("credentials refused");
+
+    expect(datasetOf(config.config)).toEqual(
+      DATASET_ANNOUNCEMENTS.map(({ id, text }) => ({ id, text })),
+    );
   });
 
   it("refuses a dataset line without text instead of publishing an empty announcement", () => {

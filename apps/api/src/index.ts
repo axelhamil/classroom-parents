@@ -18,12 +18,15 @@ import {
   TELEMETRY_FLUSH_MARGIN_MS,
   TELEMETRY_FLUSH_TIMEOUT_MS,
 } from "./shared/shutdown";
+import { startRgpdWorkers } from "./workers/rgpd-worker";
+import { startSyncWorkers } from "./workers/sync-worker";
 
 export type { AppType } from "./app";
 
 declare global {
   var apiServer: Server<undefined> | undefined;
   var uninstallApiShutdown: (() => void) | undefined;
+  var apiPeriodicWorkers: AbortController | undefined;
 }
 
 EventCollector.setOutOfContextLogger((msg, meta) => logger.warn(meta ?? {}, msg));
@@ -32,6 +35,23 @@ await di.preload();
 await di.OutboxDispatcher.start(di);
 await di.EmailDeliveryWorker.start();
 await di.NotificationStreamHub.start();
+
+globalThis.apiPeriodicWorkers?.abort();
+const periodicWorkers = new AbortController();
+globalThis.apiPeriodicWorkers = periodicWorkers;
+const periodicLoops = Promise.all([
+  startSyncWorkers(di, periodicWorkers.signal, logger),
+  startRgpdWorkers(
+    di,
+    {
+      emailRetentionDays: env.EMAIL_RETENTION_DAYS,
+      sweepBatchSize: env.RGPD_SWEEP_BATCH_SIZE,
+      sweepDeadlineMs: env.SWEEP_DEADLINE_MS,
+    },
+    periodicWorkers.signal,
+    logger,
+  ),
+]);
 lifecycleState.markStarted();
 
 if (env.NODE_ENV === "production" && !env.TRUSTED_PROXIES) {
@@ -67,7 +87,10 @@ const steps: ShutdownStep[] = [
     name: "workers",
     timeoutMs: env.SHUTDOWN_WORKERS_TIMEOUT_MS,
     run: async () => {
+      periodicWorkers.abort();
       await Promise.all([
+        periodicLoops,
+        di.ManualSyncService.settled(),
         di.EmailDeliveryWorker.stop(),
         di.OutboxDispatcher.stop(),
         di.NotificationStreamHub.stop(),

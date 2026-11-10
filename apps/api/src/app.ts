@@ -1,3 +1,6 @@
+import { createEventsRoutes } from "@modules/agenda/infrastructure/http/events.routes";
+import { createChildrenRoutes } from "@modules/children/infrastructure/http/children.routes";
+import { createClassroomSyncRoutes } from "@modules/classroom-sync/infrastructure/http/sync.routes";
 import type { RouteGuard } from "@packages/http/route-guards";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -25,6 +28,7 @@ import {
   type PolicyConfig,
 } from "./shared/middleware/rate-limit.policies";
 import { runWithRequestContext } from "./shared/request-context";
+import { createUserStreamRoutes } from "./shared/stream/user-stream.routes";
 
 type AppEnv = {
   Variables: AuthVariables & {
@@ -59,7 +63,16 @@ const securityRateLimit = (policy: PolicyConfig) =>
   );
 
 // Cookie-authenticated mutation surfaces: every one gets the Origin check.
-const CSRF_GUARDED_PATHS = ["/me", "/me/*"] as const;
+const CSRF_GUARDED_PATHS = [
+  "/me",
+  "/me/*",
+  "/children",
+  "/children/*",
+  "/sync",
+  "/sync/*",
+  "/events",
+  "/events/*",
+] as const;
 
 // BetterAuth's credential and token-consuming endpoints, each on its own tight,
 // fail-closed policy.
@@ -114,7 +127,12 @@ for (const [path, policy] of AUTH_RATE_LIMITS) {
 
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
-const routes = app.route("/me", createRgpdRoutes(routeDeps));
+const routes = app
+  .route("/me", createRgpdRoutes(routeDeps))
+  .route("/children", createChildrenRoutes(routeDeps))
+  .route("/sync", createClassroomSyncRoutes(routeDeps))
+  .route("/events", createEventsRoutes(routeDeps))
+  .route("/stream", createUserStreamRoutes(routeDeps));
 
 app.onError(createErrorHandler(di.IInstrumentation));
 

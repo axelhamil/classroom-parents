@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { symmetricEncrypt } from "better-auth/crypto";
 import { authSecretKey } from "../shared/auth/auth-secrets";
-import { openToken } from "../shared/auth/token-sealing";
+import { googleTokenSealing, openToken } from "../shared/auth/token-sealing";
 
 const SECRET = "a-local-test-secret-of-at-least-32-chars";
 const OTHER_SECRET = "another-local-test-secret-32-chars-long";
@@ -50,5 +50,30 @@ describe("openToken", () => {
     const opened = await openToken(sealed, after);
 
     expect(opened.getValue()).toBe(REFRESH_TOKEN);
+  });
+});
+
+describe("googleTokenSealing", () => {
+  it("seals with the auth secret so BetterAuth and the children module read the same token", async () => {
+    const key = authSecretKey({ BETTER_AUTH_SECRET: SECRET });
+    const sealing = googleTokenSealing(key);
+
+    const sealed = await sealing.seal(REFRESH_TOKEN);
+
+    expect(sealed).not.toContain(REFRESH_TOKEN);
+    expect((await openToken(sealed, key)).getValue()).toBe(REFRESH_TOKEN);
+    expect(
+      (await sealing.open(await symmetricEncrypt({ key, data: REFRESH_TOKEN }))).getValue(),
+    ).toBe(REFRESH_TOKEN);
+  });
+
+  it("refuses to open a token sealed under another key", async () => {
+    const sealed = await symmetricEncrypt({ key: OTHER_SECRET, data: REFRESH_TOKEN });
+
+    const opened = await googleTokenSealing(authSecretKey({ BETTER_AUTH_SECRET: SECRET })).open(
+      sealed,
+    );
+
+    expect(opened.getError()).toBe("TOKEN_UNSEALABLE");
   });
 });

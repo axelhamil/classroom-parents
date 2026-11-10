@@ -9,11 +9,6 @@
         "src/modules/*/routes.ts"
       ],
       "project": ["**/*.ts"],
-      "ignore": [
-        // T10 binds the daily rgpd sweep worker on the sweep lock, purge, count and run store.
-        "src/shared/internal-routes/sweep-count.ts",
-        "src/shared/services/drizzle-sweep-run.store.ts"
-      ],
       "ignoreDependencies": ["pino-pretty"]
     },
     "apps/app": {
@@ -71,12 +66,19 @@
         "scripts/check-*.ts",
         "eval/*.ts"
       ],
+      "project": ["**/*.ts"]
+    },
+    "modules/alerts": {
+      "entry": [
+        "src/*.module.ts",
+        "src/infrastructure/http/*.routes.ts",
+        "scripts/check-*.ts",
+        "eval/*.ts"
+      ],
       "project": ["**/*.ts"],
-      // Pre-installed by T3 so module tasks never touch the lockfile. Drop a name once every module declaring it imports it:
-      // knip then prints "Remove from ignoreDependencies". Owner: T10 (raccord), see the T3 report.
+      // Pre-installed by T3 for the alerts module (T8), composed after its merge: drop a name
+      // once modules/alerts imports it, knip then prints "Remove from ignoreDependencies".
       "ignoreDependencies": [
-        "@anthropic-ai/sdk",
-        "@packages/drizzle",
         "@packages/email",
         "@packages/events",
         "@packages/http",
@@ -93,7 +95,6 @@
   "ignoreDependencies": [
     // The root links every module so any workspace resolves @modules/<name>/schemas/*; the root itself imports none.
     "@modules/*",
-    "@packages/test",
     "@packages/typescript-config",
     "lint-staged",
     "tailwindcss"

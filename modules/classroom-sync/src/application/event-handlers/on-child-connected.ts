@@ -14,7 +14,7 @@ function parseChildConnected(payload: unknown): Result<ChildConnected, string> {
 
 export const onChildConnected = onEvent(
   EventTypes.CHILD_CONNECTED,
-  "classroom-sync.first-sync",
+  "classroom-sync-first-sync",
   (deps: { ManualSyncService: Pick<ManualSyncService, "requestChild"> }) =>
     async (_event, payload: ChildConnected) => {
       const requested = await deps.ManualSyncService.requestChild(payload.userId, payload.childId);

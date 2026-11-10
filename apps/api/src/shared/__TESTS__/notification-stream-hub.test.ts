@@ -3,22 +3,40 @@ import type { PgListener } from "@packages/outbox/pg-listener";
 import { FakePgListenClient } from "@packages/outbox/testing/fake-pg-listen-client";
 import { logger } from "../logger";
 import { NoOpInstrumentation } from "../services/noop-instrumentation";
-import { MAX_STREAMS_PER_USER, NotificationStreamHub } from "../services/notification-stream-hub";
+import {
+  MAX_STREAMS_PER_USER,
+  NotificationStreamHub,
+  userStreamNotification,
+} from "../services/notification-stream-hub";
+
+const EVENTS_CHANGED = { type: "events.changed" } as const;
 
 const makeHub = () =>
   new NotificationStreamHub(logger, "postgres://unused", new NoOpInstrumentation());
 
 describe("NotificationStreamHub", () => {
-  test("dispatches a signal to its recipient only", () => {
+  test("dispatches a message to its recipient only", () => {
     const hub = makeHub();
     const received: string[] = [];
 
-    hub.subscribe("u1", () => received.push("u1"));
-    hub.subscribe("u2", () => received.push("u2"));
+    hub.subscribe("u1", (message) => received.push(`u1 ${message.type}`));
+    hub.subscribe("u2", (message) => received.push(`u2 ${message.type}`));
 
-    hub.dispatchSignal("u1");
+    hub.dispatch(userStreamNotification("u1", EVENTS_CHANGED));
 
-    expect(received).toEqual(["u1"]);
+    expect(received).toEqual(["u1 events.changed"]);
+  });
+
+  test("drops a notification whose payload is not a stream message", () => {
+    const hub = makeHub();
+    const received: string[] = [];
+    hub.subscribe("u1", (message) => received.push(message.type));
+
+    hub.dispatch("u1");
+    hub.dispatch(JSON.stringify({ userId: "u1", message: { type: "unknown" } }));
+    hub.dispatch(undefined);
+
+    expect(received).toEqual([]);
   });
 
   test("unsubscribing releases the handle", () => {
@@ -36,7 +54,7 @@ describe("NotificationStreamHub", () => {
 
     hub.subscribe("u1", () => calls++);
     hub.subscribe("u1", () => calls++);
-    hub.dispatchSignal("u1");
+    hub.dispatch(userStreamNotification("u1", EVENTS_CHANGED));
 
     expect(calls).toBe(2);
   });
@@ -46,7 +64,7 @@ describe("NotificationStreamHub", () => {
     let calls = 0;
     hub.subscribe("u1", () => calls++);
 
-    hub.dispatchSignal("unknown");
+    hub.dispatch(userStreamNotification("unknown", EVENTS_CHANGED));
 
     expect(calls).toBe(0);
     expect(hub.subscriberCount("u1")).toBe(1);
@@ -60,7 +78,7 @@ describe("NotificationStreamHub", () => {
     });
     hub.subscribe("u1", () => received.push("second"));
 
-    hub.dispatchSignal("u1");
+    hub.dispatch(userStreamNotification("u1", EVENTS_CHANGED));
 
     expect(received).toEqual(["second"]);
   });
@@ -87,7 +105,7 @@ describe("NotificationStreamHub", () => {
     hub.subscribe("u2", () => received.push("u2"));
 
     await listener.start();
-    client.deliver("u1");
+    client.deliver(userStreamNotification("u1", { type: "sync.finished", childId: "c1" }));
 
     expect(received).toEqual(["u1"]);
 

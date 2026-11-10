@@ -62,6 +62,8 @@ export interface IChildRepository {
     leaseMs: number,
   ): Promise<Result<DisconnectingChild[], ChildrenError>>;
 
+  holdsLease(lease: SyncLease): Promise<Result<boolean, ChildrenError>>;
+
   markSynced(lease: SyncLease, at: Date, nextSyncAt: Date): Promise<Result<void, ChildrenError>>;
 
   markSyncFailed(lease: SyncLease, nextSyncAt: Date): Promise<Result<void, ChildrenError>>;

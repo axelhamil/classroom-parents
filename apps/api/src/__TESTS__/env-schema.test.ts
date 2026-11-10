@@ -83,4 +83,11 @@ describe("env contract at boot", () => {
       "VAPID_PUBLIC_KEY",
     );
   });
+
+  it("keeps sent emails 7 days at most", () => {
+    expect(failingKeys({ ...PRODUCTION_ENV, EMAIL_RETENTION_DAYS: "8" })).toContain(
+      "EMAIL_RETENTION_DAYS",
+    );
+    expect(envSchema.parse(PRODUCTION_ENV).EMAIL_RETENTION_DAYS).toBe(7);
+  });
 });
