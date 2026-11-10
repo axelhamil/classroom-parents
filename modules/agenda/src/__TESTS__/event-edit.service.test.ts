@@ -74,8 +74,6 @@ describe("edit", () => {
     expect(planner.replan).toHaveBeenCalledWith({
       eventId: event.id.value,
       userId: PARENT,
-      deadlineDate: "2026-11-26",
-      deadlineTime: undefined,
       actorUserId: PARENT,
     });
     expect(enqueuedEvents(outbox)).toEqual([
@@ -101,12 +99,12 @@ describe("edit", () => {
     expect(result.getValue().deadlineAt).toBe("2026-11-19T22:59:00.000Z");
   });
 
-  it("given an event still to review whose deadline moves, then no alert is replanned", async () => {
+  it("given an event still to review whose deadline moves, then its reminders are replanned", async () => {
     given({ status: "needs_review" });
 
     await service.edit(PARENT, event.id.value, { deadlineDate: "2026-11-26" });
 
-    expect(planner.replan).not.toHaveBeenCalled();
+    expect(planner.replan).toHaveBeenCalledTimes(1);
   });
 
   it("given a new title only, then no alert is touched and EVENT_UPDATED names the title", async () => {
@@ -162,8 +160,6 @@ describe("confirm", () => {
     expect(planner.planDefault).toHaveBeenCalledWith({
       eventId: event.id.value,
       userId: PARENT,
-      deadlineDate: "2026-11-19",
-      deadlineTime: "08:30",
       actorUserId: PARENT,
     });
     expect(enqueuedEvents(outbox)[0]?.payload).toMatchObject({ fields: ["status"] });

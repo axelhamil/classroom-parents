@@ -16,7 +16,7 @@ exitUnlessLocalDatabase("check-alert-db", process.env.DATABASE_URL);
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
-import { utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
+import { PARIS_TIME_ZONE, utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import {
   and,
   authSchema,
@@ -98,6 +98,7 @@ const deadlines: IEventDeadlines = {
         deadlineDate: agendaEvent.deadlineDate,
         deadlineTime: agendaEvent.deadlineTime,
         done: agendaEvent.done,
+        needsReview: sql<boolean>`${agendaEvent.status} = 'needs_review'`,
       })
       .from(agendaEvent)
       .where(and(eq(agendaEvent.id, eventId), alive(userId)));
@@ -116,6 +117,7 @@ const deadlines: IEventDeadlines = {
         deadlineDate: agendaEvent.deadlineDate,
         deadlineTime: agendaEvent.deadlineTime,
         done: agendaEvent.done,
+        needsReview: sql<boolean>`${agendaEvent.status} = 'needs_review'`,
       })
       .from(agendaEvent)
       .where(and(alive(userId), gte(agendaEvent.deadlineAt, now), eq(agendaEvent.done, false)));
@@ -276,13 +278,13 @@ async function seedAlerts(
 }
 
 function parisDay(at: Date): string {
-  return utcToZonedWall(at, "Europe/Paris")
+  return utcToZonedWall(at, PARIS_TIME_ZONE)
     .map((wall) => wall.date)
     .unwrapOr("");
 }
 
 function paris(date: string, time: string): Date {
-  return zonedWallTimeToUtc(date, time, "Europe/Paris").unwrapOr(new Date(Number.NaN));
+  return zonedWallTimeToUtc(date, time, PARIS_TIME_ZONE).unwrapOr(new Date(Number.NaN));
 }
 
 async function scheduledFor(eventId: string): Promise<number> {
@@ -386,7 +388,7 @@ run(async () => {
   await step("no email fallback while a push got through", emails === 0, { emails });
 
   const dueAt = new Date(Math.floor((NOW.getTime() - 60_000) / 60_000) * 60_000);
-  const dueWall = utcToZonedWall(dueAt, "Europe/Paris").unwrapOr({ date: "", time: "" });
+  const dueWall = utcToZonedWall(dueAt, PARIS_TIME_ZONE).unwrapOr({ date: "", time: "" });
   const racedDeadline = paris(dueWall.date, "23:59");
   const [racedEvent] = await seedEvents(b, 1, "raced", racedDeadline);
   if (!racedEvent) throw new Error("raced event not seeded");

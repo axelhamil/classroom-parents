@@ -17,7 +17,7 @@ import type { IEventIngest } from "@modules/classroom-sync/application/ports/eve
 import type { IManualSyncGate } from "@modules/classroom-sync/application/ports/manual-sync-gate.port";
 import type { SyncError } from "@modules/classroom-sync/application/sync-error";
 import type { ExtractionService } from "@modules/extraction/application/services/extraction.service";
-import { type AppError, Result } from "@packages/ddd-kit";
+import { type AppError, Option, Result } from "@packages/ddd-kit";
 import type { IChildConnections } from "../modules/rgpd/application/ports/child-connections.port";
 
 type Children<K extends keyof ChildConnectionService> = Pick<ChildConnectionService, K>;
@@ -60,18 +60,45 @@ export function visibleChildrenFor(children: Children<"list">): IVisibleChildren
 
 export function eventDeadlinesFor(
   agenda: Pick<EventQueryService, "alertDeadline" | "alertableUpcoming">,
+  children: Children<"list">,
 ): IEventDeadlines {
+  const visible = visibleChildrenFor(children);
+  const alertedChildren = async (userId: string): Promise<Result<Set<string>, AppError>> =>
+    (await visible.idsOf(userId)).map((ids) => new Set(ids));
+
   return {
-    forUser: async (userId, eventId) =>
-      (await agenda.alertDeadline(userId, eventId)).map((found) =>
-        found.map(({ deadlineAt, deadlineDate, deadlineTime, done }) => ({
-          deadlineAt,
-          deadlineDate,
-          deadlineTime,
-          done,
-        })),
-      ),
-    upcomingFor: (userId, now) => agenda.alertableUpcoming(userId, now),
+    forUser: async (userId, eventId) => {
+      const found = await agenda.alertDeadline(userId, eventId);
+      if (found.isFailure) return Result.fail(found.getError());
+      if (found.getValue().isNone()) return Result.ok(Option.none());
+
+      const alerted = await alertedChildren(userId);
+      if (alerted.isFailure) return Result.fail(alerted.getError());
+
+      return Result.ok(
+        found
+          .getValue()
+          .filter(({ childId }) => alerted.getValue().has(childId))
+          .map(({ deadlineAt, deadlineDate, deadlineTime, done, needsReview }) => ({
+            deadlineAt,
+            deadlineDate,
+            deadlineTime,
+            done,
+            needsReview,
+          })),
+      );
+    },
+    upcomingFor: async (userId, now) => {
+      const upcoming = await agenda.alertableUpcoming(userId, now);
+      if (upcoming.isFailure) return Result.fail(upcoming.getError());
+
+      const alerted = await alertedChildren(userId);
+      if (alerted.isFailure) return Result.fail(alerted.getError());
+
+      return Result.ok(
+        upcoming.getValue().filter(({ childId }) => alerted.getValue().has(childId)),
+      );
+    },
   };
 }
 
@@ -174,10 +201,8 @@ export function alertPlannerFor(
   planning: () => Pick<AlertPlanningService, "planDefault" | "replan" | "cancel">,
 ): IAlertPlanner {
   return {
-    planDefault: ({ eventId, userId, actorUserId }) =>
-      planning().planDefault({ eventId, userId, actorUserId }),
-    replan: ({ eventId, userId, actorUserId }) =>
-      planning().replan({ eventId, userId, actorUserId }),
+    planDefault: (deadline) => planning().planDefault(deadline),
+    replan: (deadline) => planning().replan(deadline),
     cancel: (eventId, actorUserId) => planning().cancel(eventId, actorUserId),
   };
 }

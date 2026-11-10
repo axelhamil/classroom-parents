@@ -5,6 +5,7 @@ export interface EventDeadline {
   deadlineDate: string;
   deadlineTime?: string;
   done: boolean;
+  needsReview: boolean;
 }
 
 export interface UpcomingDeadline extends EventDeadline {

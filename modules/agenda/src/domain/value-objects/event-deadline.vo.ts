@@ -1,8 +1,12 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
-import { zonedWallTimeToUtc, zonedWallTimeToUtcShifted } from "@packages/ddd-kit/zoned-time";
+import {
+  matchesZonedWall,
+  PARIS_TIME_ZONE,
+  zonedWallTimeToUtc,
+  zonedWallTimeToUtcShifted,
+} from "@packages/ddd-kit/zoned-time";
 import { z } from "zod";
 
-export const AGENDA_TIME_ZONE = "Europe/Paris";
 export const END_OF_DAY = "23:59";
 
 const wallTimeSchema = z.object({
@@ -18,7 +22,7 @@ const eventDeadlineSchema = wallTimeSchema.extend({ at: z.date() });
 export type EventDeadlineValue = z.infer<typeof eventDeadlineSchema>;
 
 function parisInstant(date: string, time: string | undefined): Result<Date> {
-  return zonedWallTimeToUtc(date, time ?? END_OF_DAY, AGENDA_TIME_ZONE).mapError(
+  return zonedWallTimeToUtc(date, time ?? END_OF_DAY, PARIS_TIME_ZONE).mapError(
     (code) => `${date} ${time ?? END_OF_DAY} is not a Paris wall time (${code})`,
   );
 }
@@ -34,7 +38,7 @@ export class EventDeadline extends ValueObject<EventDeadlineValue> {
   static fromComputedParisWallTime(date: string, time?: string): Result<EventDeadline> {
     if (time === undefined) return EventDeadline.fromParisWallTime(date);
 
-    const shifted = zonedWallTimeToUtcShifted(date, time, AGENDA_TIME_ZONE);
+    const shifted = zonedWallTimeToUtcShifted(date, time, PARIS_TIME_ZONE);
     if (shifted.isFailure)
       return Result.fail(`${date} ${time} is not a Paris wall time (${shifted.getError()})`);
 
@@ -47,10 +51,12 @@ export class EventDeadline extends ValueObject<EventDeadlineValue> {
     if (!parsed.success)
       return Result.fail("a deadline is a YYYY-MM-DD date and an optional HH:MM");
 
-    const expected = parisInstant(parsed.data.date, parsed.data.time);
-    if (expected.isFailure) return Result.fail(expected.getError());
-    if (expected.getValue().getTime() !== parsed.data.at.getTime())
-      return Result.fail("a deadline instant must match its Paris wall time");
+    const { date, time, at } = parsed.data;
+    const matches = matchesZonedWall(date, time ?? END_OF_DAY, at, PARIS_TIME_ZONE);
+    if (matches.isFailure)
+      return Result.fail(
+        `a deadline instant must match its Paris wall time (${matches.getError()})`,
+      );
 
     return Result.ok(parsed.data);
   }

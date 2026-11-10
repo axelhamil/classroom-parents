@@ -1,6 +1,7 @@
 import {
   type IInstrumentation,
   Option,
+  PARIS_TIME_ZONE,
   Result,
   truncateOnWord,
   utcToZonedWall,
@@ -24,7 +25,6 @@ export interface ExtractInput {
   childNames?: readonly string[];
 }
 
-const SCHOOL_TIME_ZONE = "Europe/Paris";
 const DELIMITER_TAGS = /<\s*\/?\s*(?:announcement|context)\b[^>]*>/gi;
 
 export const EXTRACTION_SYSTEM_PROMPT = `You extract school deadlines from one Google Classroom announcement written in French by a teacher, for the parents of a pupil.
@@ -62,7 +62,7 @@ function contextBlock(publishedOn: string, publishedTime: string): string {
   return [
     "<context>",
     `published_at: ${frenchWeekdayOf(publishedOn)} ${publishedOn} ${publishedTime}`,
-    `timezone: ${SCHOOL_TIME_ZONE}`,
+    `timezone: ${PARIS_TIME_ZONE}`,
     "</context>",
   ].join("\n");
 }
@@ -113,7 +113,7 @@ export class ExtractionService {
     return this.instrumentation.startSpan(
       { name: "ExtractionService > extract", op: "function" },
       async () => {
-        const published = utcToZonedWall(input.publishedAt, SCHOOL_TIME_ZONE);
+        const published = utcToZonedWall(input.publishedAt, PARIS_TIME_ZONE);
         if (published.isFailure)
           return Result.fail({
             code: "EXTRACTION_INPUT_INVALID",

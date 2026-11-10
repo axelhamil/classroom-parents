@@ -28,6 +28,12 @@ export type EmailTemplates = {
     itemCount: string;
     itemsSummary: string;
   };
+  alert_reminder: {
+    childLabel: string;
+    eventTitle: string;
+    deadlineLabel: string;
+    eventUrl: string;
+  };
 };
 
 export type EmailTemplateKey = keyof EmailTemplates;

@@ -5,12 +5,16 @@ import { SEND_TIMEOUT_MS } from "../../application/config/dispatch-budget";
 import type {
   IPushSender,
   PushFailure,
+  PushMessage,
   PushOptions,
-  PushPayload,
   PushTarget,
 } from "../../application/ports/push-sender.port";
 
 const GONE_STATUSES = new Set([404, 410]);
+
+function declarativePayload({ title, body, url }: PushMessage): string {
+  return JSON.stringify({ web_push: 8030, notification: { title, body, navigate: url } });
+}
 
 export class WebPushSender implements IPushSender {
   constructor(
@@ -24,7 +28,7 @@ export class WebPushSender implements IPushSender {
 
   async send(
     target: PushTarget,
-    payload: PushPayload,
+    message: PushMessage,
     options: PushOptions,
   ): Promise<Result<void, PushFailure>> {
     const host = new URL(target.endpoint).host;
@@ -37,7 +41,7 @@ export class WebPushSender implements IPushSender {
             op: "http.client",
             attributes: { "server.address": host },
           },
-          () => this.post(target, payload, options, signal),
+          () => this.post(target, message, options, signal),
         );
         if (status >= 200 && status < 300) return Result.ok();
         if (GONE_STATUSES.has(status)) return Result.fail("PUSH_GONE");
@@ -51,20 +55,20 @@ export class WebPushSender implements IPushSender {
 
   private async post(
     target: PushTarget,
-    payload: PushPayload,
+    message: PushMessage,
     options: PushOptions,
     signal: AbortSignal,
   ): Promise<number> {
     const request = generateRequestDetails(
       { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },
-      JSON.stringify(payload),
+      declarativePayload(message),
       {
         vapidDetails: {
           subject: this.settings.vapidSubject,
           publicKey: this.settings.vapidPublicKey,
           privateKey: this.settings.vapidPrivateKey,
         },
-        urgency: options.urgency,
+        urgency: "high",
         TTL: options.ttlSeconds,
         topic: options.topic,
       },

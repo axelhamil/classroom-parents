@@ -43,6 +43,7 @@
     "@packages/emails": "workspace:*",
     "@packages/events": "workspace:*",
     "@packages/http": "workspace:*",
+    "@packages/i18n": "workspace:*",
     "@packages/outbox": "workspace:*",
     "@packages/sentry-scrub": "workspace:*",
     "@sentry/bun": "^11.9.0",

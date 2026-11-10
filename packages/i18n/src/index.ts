@@ -6,6 +6,7 @@ import "./types";
 
 export { default as frCatalog, NAMESPACES, type Namespace } from "./catalogs/fr";
 export { type CreateI18nOptions, createI18n } from "./create-instance";
+export { utcDay, wallDateLabel, wallTimeLabel, withWallTime } from "./deadline-format";
 export { loadCatalog, type Resources } from "./load-catalog";
 export { DEFAULT_LOCALE, isLocale, LOCALES, type Locale, toLocale } from "./locales";
 export { lookupCatalogValue } from "./lookup";

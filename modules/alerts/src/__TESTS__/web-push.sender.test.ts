@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { createECDH, randomBytes } from "node:crypto";
+import { createDecipheriv, createECDH, type ECDH, hkdfSync, randomBytes } from "node:crypto";
 import { createServer, type IncomingHttpHeaders } from "node:http";
 import { createServer as createNetServer, type Socket } from "node:net";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { generateRequestDetails, generateVAPIDKeys } from "web-push";
 import { SEND_TIMEOUT_MS } from "../application/config/dispatch-budget";
-import type { PushPayload } from "../application/ports/push-sender.port";
+import type { PushMessage } from "../application/ports/push-sender.port";
 import { WebPushSender } from "../infrastructure/adapters/web-push.sender";
 
 const vapid = generateVAPIDKeys();
@@ -15,27 +15,46 @@ const settings = {
   vapidSubject: "mailto:alerts@example.com",
 };
 
-function browserKeys() {
-  const ecdh = createECDH("prime256v1");
+function browserKeys(ecdh: ECDH = createECDH("prime256v1"), auth = randomBytes(16)) {
   ecdh.generateKeys();
 
-  return {
-    p256dh: ecdh.getPublicKey().toString("base64url"),
-    auth: randomBytes(16).toString("base64url"),
-  };
+  return { p256dh: ecdh.getPublicKey().toString("base64url"), auth: auth.toString("base64url") };
 }
 
-const target = { endpoint: "https://push.example.com/send/abc", ...browserKeys() };
-const payload: PushPayload = {
-  web_push: 8030,
-  notification: {
-    title: "Contrôle de maths",
-    body: "Léa, échéance dimanche 15 novembre",
-    navigate: "https://app.example.com/events/1",
-  },
+const browser = createECDH("prime256v1");
+const browserAuth = randomBytes(16);
+const target = {
+  endpoint: "https://push.example.com/send/abc",
+  ...browserKeys(browser, browserAuth),
 };
+
+function decrypted(body: Buffer): unknown {
+  const salt = body.subarray(0, 16);
+  const keyLength = body.readUInt8(20);
+  const serverKey = body.subarray(21, 21 + keyLength);
+  const keyInfo = Buffer.concat([
+    Buffer.from("WebPush: info\0"),
+    browser.getPublicKey(),
+    serverKey,
+  ]);
+  const ikm = hkdfSync("sha256", browser.computeSecret(serverKey), browserAuth, keyInfo, 32);
+  const derive = (info: string, length: number) =>
+    Buffer.from(hkdfSync("sha256", ikm, salt, Buffer.from(`Content-Encoding: ${info}\0`), length));
+  const record = body.subarray(21 + keyLength);
+  const decipher = createDecipheriv("aes-128-gcm", derive("aes128gcm", 16), derive("nonce", 12));
+  decipher.setAuthTag(record.subarray(-16));
+  const plain = Buffer.concat([decipher.update(record.subarray(0, -16)), decipher.final()]);
+
+  return JSON.parse(plain.subarray(0, plain.lastIndexOf(2)).toString("utf8"));
+}
+
+const message: PushMessage = {
+  title: "Contrôle de maths",
+  body: "Léa, échéance dimanche 15 novembre",
+  url: "https://app.example.com/events/1",
+};
+const payload = JSON.stringify(message);
 const options = {
-  urgency: "high" as const,
   ttlSeconds: 7200,
   topic: "0196a0000000700080000000000000a1",
 };
@@ -117,7 +136,7 @@ async function sendTo(
 ) {
   service = await pushService(answer);
   const sender = new WebPushSender(instrumentation, settings, timeoutMs);
-  return sender.send({ ...target, endpoint: service.url }, payload, options);
+  return sender.send({ ...target, endpoint: service.url }, message, options);
 }
 
 describe("WebPushSender", () => {
@@ -151,7 +170,7 @@ describe("WebPushSender", () => {
     const sender = new WebPushSender(mockInstrumentation(), settings, timeoutMs);
     const started = performance.now();
 
-    const result = await sender.send({ ...target, endpoint: silent.url }, payload, options);
+    const result = await sender.send({ ...target, endpoint: silent.url }, message, options);
 
     const elapsed = performance.now() - started;
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -174,13 +193,27 @@ describe("WebPushSender", () => {
       topic: options.topic,
     });
     expect(String(request?.headers.authorization)).toStartWith("vapid t=");
-    expect(request?.body.length ?? 0).toBeGreaterThan(JSON.stringify(payload).length);
+    expect(request?.body.length ?? 0).toBeGreaterThan(payload.length);
+  });
+
+  it("given a message, then the browser decrypts a declarative RFC 8030 notification that opens the event", async () => {
+    await sendTo(201);
+
+    const [request] = service?.received ?? [];
+    expect(decrypted(request?.body ?? Buffer.alloc(0))).toEqual({
+      web_push: 8030,
+      notification: {
+        title: "Contrôle de maths",
+        body: "Léa, échéance dimanche 15 novembre",
+        navigate: "https://app.example.com/events/1",
+      },
+    });
   });
 
   it("spike: under Bun the library signs VAPID and encrypts the payload for a real browser key", () => {
     const details = generateRequestDetails(
       { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },
-      JSON.stringify(payload),
+      payload,
       {
         vapidDetails: {
           subject: settings.vapidSubject,
@@ -200,7 +233,7 @@ describe("WebPushSender", () => {
       Topic: options.topic,
     });
     expect(String(details.headers.Authorization)).toStartWith("vapid t=");
-    expect(details.body?.length ?? 0).toBeGreaterThan(JSON.stringify(payload).length);
+    expect(details.body?.length ?? 0).toBeGreaterThan(payload.length);
   });
 
   it("spike: the library refuses a topic longer than 32 characters, so alert-<uuid> cannot be used", () => {

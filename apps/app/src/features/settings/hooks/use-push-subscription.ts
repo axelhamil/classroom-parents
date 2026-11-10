@@ -63,7 +63,12 @@ export function usePushSubscription(userId: string): PushSubscriptionState {
       void invalidateStatus();
       toastSuccess(t("push.disabledToast"));
     },
-    onError: (error) => toastError(error, t("push.disableFailed")),
+    onError: (error) => {
+      currentPushSubscription()
+        .then((subscription) => setSubscribed(isOwnedBy(userId, subscription)))
+        .catch((cause: unknown) => captureError(cause, { area: "push" }));
+      toastError(error, t("push.disableFailed"));
+    },
   });
 
   return {

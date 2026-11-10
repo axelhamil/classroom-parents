@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { utcToZonedWall, zonedWallTimeToUtc, zonedWallTimeToUtcShifted } from "../index";
+import {
+  matchesZonedWall,
+  PARIS_TIME_ZONE,
+  utcToZonedWall,
+  zonedWallTimeToUtc,
+  zonedWallTimeToUtcShifted,
+} from "../index";
 
-const PARIS = "Europe/Paris";
+const PARIS = PARIS_TIME_ZONE;
 
 const CASES = [
   { label: "winter time", date: "2026-11-17", time: "18:00", utc: "2026-11-17T17:00:00.000Z" },
@@ -100,6 +106,30 @@ describe("zoned wall time", () => {
   it("rejects an invalid instant instead of throwing", () => {
     expect(utcToZonedWall(new Date(Number.NaN), PARIS).getError()).toBe(
       "ZONED_TIME_INVALID_INSTANT",
+    );
+  });
+});
+
+describe("matchesZonedWall", () => {
+  it("accepts an instant that is exactly its Paris wall time, summer change included", () => {
+    const at = new Date("2027-03-28T16:00:00.000Z");
+
+    expect(matchesZonedWall("2027-03-28", "18:00", at, PARIS).isSuccess).toBe(true);
+  });
+
+  it("refuses an instant one hour off its Paris wall time", () => {
+    const at = new Date("2027-03-28T17:00:00.000Z");
+
+    expect(matchesZonedWall("2027-03-28", "18:00", at, PARIS).getError()).toBe(
+      "ZONED_TIME_INSTANT_MISMATCH",
+    );
+  });
+
+  it("refuses a wall time skipped by the spring change", () => {
+    const at = new Date("2027-03-28T01:30:00.000Z");
+
+    expect(matchesZonedWall("2027-03-28", "02:30", at, PARIS).getError()).toBe(
+      "ZONED_TIME_NONEXISTENT_WALL_TIME",
     );
   });
 });

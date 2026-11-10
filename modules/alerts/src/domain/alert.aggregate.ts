@@ -109,6 +109,10 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     return "deliver";
   }
 
+  ringsBefore(deadlineAt: Date): boolean {
+    return this._props.time.value.at.getTime() < deadlineAt.getTime();
+  }
+
   markSent(now: Date): void {
     this._props.status = AlertStatus.sent();
     this._props.sentAt = Option.some(now);

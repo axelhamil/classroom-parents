@@ -1,10 +1,5 @@
-import { deletePushSubscription } from "../api/mutations/delete-push-subscription";
 import { captureError } from "../observability/sentry";
-import { forgetPushOwner, pushPermission } from "./push-support";
-
-function reportPushFailure(error: unknown): void {
-  captureError(error, { area: "push" });
-}
+import { forgetPushOwner, pushPermission, unsubscribeFromPush } from "./push-support";
 
 export async function releasePushSubscription(): Promise<void> {
   if (pushPermission() === "unsupported") return;
@@ -14,6 +9,7 @@ export async function releasePushSubscription(): Promise<void> {
   const subscription = await registration?.pushManager.getSubscription();
   if (!subscription) return;
 
-  await deletePushSubscription(subscription.endpoint).catch(reportPushFailure);
-  await subscription.unsubscribe().catch(reportPushFailure);
+  await unsubscribeFromPush(subscription).catch((error: unknown) =>
+    captureError(error, { area: "push" }),
+  );
 }

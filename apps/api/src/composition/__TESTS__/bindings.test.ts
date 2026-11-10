@@ -104,13 +104,22 @@ describe("agenda IVisibleChildren bound to children", () => {
 
 describe("alerts IEventDeadlines bound to the agenda", () => {
   const EXAM = "0196a000-0000-7000-8000-0000000000e1";
-  const deadline = {
+  const fields = {
     deadlineAt: new Date("2026-11-19T07:30:00.000Z"),
     deadlineDate: "2026-11-19",
     deadlineTime: "08:30",
     done: true,
+    needsReview: true,
   };
+  const deadline: EventDeadlineDto = { childId: LEA, ...fields };
   const alertableUpcoming = async () => Result.ok<UpcomingDeadlineDto[], AgendaError>([]);
+  const childrenAs = (status: ChildDto["status"]) => ({
+    list: async () =>
+      Result.ok<ChildDto[], ChildrenError>([
+        { id: LEA, label: "Léa", googleEmail: "lea@school.example", status, syncing: false },
+      ]),
+  });
+  const connected = childrenAs("connected");
 
   it("passes every deadline field of the parent's own alertable event", async () => {
     const agenda = {
@@ -121,9 +130,22 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
       alertableUpcoming,
     };
 
-    const result = await eventDeadlinesFor(agenda).forUser(FAMILY_A, EXAM);
+    const result = await eventDeadlinesFor(agenda, connected).forUser(FAMILY_A, EXAM);
 
-    expect(result.getValue().toUndefined()).toEqual(deadline);
+    expect(result.getValue().toUndefined()).toEqual(fields);
+  });
+
+  it("answers none for the deadline of a child being disconnected, now and upcoming", async () => {
+    const agenda = {
+      alertDeadline: async () =>
+        Result.ok<Option<EventDeadlineDto>, AgendaError>(Option.some(deadline)),
+      alertableUpcoming: async () =>
+        Result.ok<UpcomingDeadlineDto[], AgendaError>([{ eventId: EXAM, ...deadline }]),
+    };
+    const deadlines = eventDeadlinesFor(agenda, childrenAs("disconnecting"));
+
+    expect((await deadlines.forUser(FAMILY_A, EXAM)).getValue().isNone()).toBe(true);
+    expect((await deadlines.upcomingFor(FAMILY_A, new Date())).getValue()).toEqual([]);
   });
 
   it("answers none when the agenda hides the event from that family", async () => {
@@ -132,7 +154,7 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
       alertableUpcoming,
     };
 
-    const result = await eventDeadlinesFor(agenda).forUser(FAMILY_B, EXAM);
+    const result = await eventDeadlinesFor(agenda, connected).forUser(FAMILY_B, EXAM);
 
     expect(result.getValue().isNone()).toBe(true);
   });
@@ -147,7 +169,7 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
       alertableUpcoming,
     };
 
-    const result = await eventDeadlinesFor(agenda).forUser(FAMILY_A, EXAM);
+    const result = await eventDeadlinesFor(agenda, connected).forUser(FAMILY_A, EXAM);
 
     expect(result.getError().code).toBe("EVENT_PROVIDER_FAILURE");
   });
@@ -658,7 +680,6 @@ describe("agenda IAlertPlanner bound to alerts", () => {
     const deadline = {
       eventId: "event-1",
       userId: FAMILY_A,
-      deadlineDate: "2026-11-19",
       actorUserId: null,
     };
 

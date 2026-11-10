@@ -65,6 +65,21 @@ describe("ResendAlertEmailSender", () => {
     expect(options?.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it("given an occurrence of an alert, then the email uses the shared layout and the catalog copy, in html and text", async () => {
+    const { send, sender } = senderAnswering({ data: { data: [{ id: "e1" }] }, error: null });
+
+    await sender.send("parent@example.com", content);
+
+    const [entries] = send.mock.calls[0] ?? [];
+    expect(entries).toEqual([
+      expect.objectContaining({
+        subject: "Rappel : <img src=x onerror=alert(1)> Contrôle (Léa)",
+        html: expect.stringContaining('href="https://app.example.com/events/1"'),
+        text: expect.stringContaining("Si vous n'attendiez pas cet e-mail"),
+      }),
+    ]);
+  });
+
   it("given the provider fails for a while, then ALERT_PROVIDER_FAILURE so the dispatcher retries", async () => {
     const { sender } = failingWith({
       name: "internal_server_error",

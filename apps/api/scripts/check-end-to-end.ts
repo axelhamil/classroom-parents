@@ -8,7 +8,8 @@
  * an unregistered linked account is discarded; a disconnection erases the child and its
  * events; the first sync plans a default alert for each live upcoming deadline but none
  * for one a coursework shadows or the parent deleted, and a due alert reaches the
- * parent's push subscription once; the account wipe revokes Google and leaves no row of
+ * parent's push subscription once, the reminders of a child being disconnected answer not
+ * found; the account wipe revokes Google and leaves no row of
  * the family behind, alerts and push subscriptions included.
  */
 
@@ -296,6 +297,35 @@ run(async () => {
       dispatched,
       first: firstRun.isSuccess ? firstRun.getValue() : firstRun.getError(),
     },
+  );
+
+  const [leaAlerted] = await db
+    .select({ eventId: alert.eventId })
+    .from(alert)
+    .innerJoin(agendaEvent, eq(agendaEvent.id, alert.eventId))
+    .where(and(eq(agendaEvent.childId, lea.id), eq(alert.status, "pending")))
+    .limit(1);
+  if (!leaAlerted) throw new Error("no pending alert on a deadline of Léa");
+  const remindersPath = `/events/${leaAlerted.eventId}/reminders`;
+  const readable = (await call(remindersPath)).status;
+  await db.update(childAccount).set({ status: "disconnecting" }).where(eq(childAccount.id, lea.id));
+  const whileDisconnecting = {
+    read: (await call(remindersPath)).status,
+    customize: (
+      await call(remindersPath, "PUT", {
+        reminders: [{ kind: "days_before", days: 1, time: "18:00" }],
+      })
+    ).status,
+    reset: (await call(remindersPath, "DELETE")).status,
+  };
+  await db.update(childAccount).set({ status: "connected" }).where(eq(childAccount.id, lea.id));
+  await step(
+    "the reminders of a child being disconnected answer not found to read, customize and reset",
+    readable === 200 &&
+      whileDisconnecting.read === 404 &&
+      whileDisconnecting.customize === 404 &&
+      whileDisconnecting.reset === 404,
+    { readable, whileDisconnecting },
   );
 
   await di.NotificationStreamHub.start();

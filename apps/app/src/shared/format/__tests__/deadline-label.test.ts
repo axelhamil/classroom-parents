@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deadlineLabel, instantLabel, wallTimeLabel } from "../deadline-label";
+import { deadlineLabel, instantLabel } from "../deadline-label";
 
 const NOW = new Date("2026-11-09T09:00:00Z");
 
@@ -24,12 +24,6 @@ describe("deadlineLabel", () => {
 
   it("given a deadline in another year, then the year is spelled out", () => {
     expect(deadlineLabel("2027-01-05", undefined, NOW)).toBe("Mardi 5 janvier 2027");
-  });
-});
-
-describe("wallTimeLabel", () => {
-  it("given a time on the hour, then the minutes are dropped", () => {
-    expect(wallTimeLabel("18:00")).toBe("18 h");
   });
 });
 

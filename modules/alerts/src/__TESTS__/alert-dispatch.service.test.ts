@@ -91,6 +91,20 @@ function givenSubscriptions(records: PushSubscriptionRecord[]): void {
   subscriptions.listForUser.mockResolvedValue(Result.ok(records));
 }
 
+function givenDeadline(overrides: Partial<EventDeadline>): void {
+  deadlines.forUser.mockResolvedValue(
+    Result.ok<Option<EventDeadline>, AppError>(
+      Option.some({
+        deadlineAt: paris("2026-11-15", "23:59"),
+        deadlineDate: "2026-11-15",
+        done: false,
+        needsReview: false,
+        ...overrides,
+      }),
+    ),
+  );
+}
+
 function settledStatus(): string | undefined {
   return alerts.settle.mock.calls.at(-1)?.[0].get("status").value;
 }
@@ -113,15 +127,7 @@ beforeEach(() => {
   push.send.mockResolvedValue(Result.ok());
   email.send.mockResolvedValue(Result.ok());
   contexts.load.mockResolvedValue(Result.ok([CONTEXT]));
-  deadlines.forUser.mockResolvedValue(
-    Result.ok<Option<EventDeadline>, AppError>(
-      Option.some({
-        deadlineAt: paris("2026-11-15", "23:59"),
-        deadlineDate: "2026-11-15",
-        done: false,
-      }),
-    ),
-  );
+  givenDeadline({});
 
   service = new AlertDispatchService(
     alerts,
@@ -144,15 +150,11 @@ describe("runOnce", () => {
     expect(alerts.claimDue).toHaveBeenCalledWith(NOW, DISPATCH_BATCH, DISPATCH_LEASE_SECONDS);
     expect(push.send).toHaveBeenCalledTimes(1);
     expect(push.send.mock.calls[0]?.[1]).toEqual({
-      web_push: 8030,
-      notification: {
-        title: "Contrôle de maths",
-        body: "Léa, échéance dimanche 15 novembre",
-        navigate: CONTEXT.eventUrl,
-      },
+      title: "Contrôle de maths",
+      body: "Léa, échéance dimanche 15 novembre",
+      url: CONTEXT.eventUrl,
     });
     expect(push.send.mock.calls[0]?.[2]).toEqual({
-      urgency: "high",
       ttlSeconds: 7200,
       topic: "0196a0000000700080000000000000a1",
     });
@@ -316,6 +318,16 @@ describe("runOnce", () => {
     ]);
   });
 
+  it("given the deadline was corrected to before the reminder, then the alert is skipped and nothing is sent", async () => {
+    givenDeadline({ deadlineAt: DUE, deadlineDate: "2026-11-13", needsReview: true });
+
+    await service.runOnce(NOW);
+
+    expect(settledStatus()).toBe("skipped");
+    expect(push.send).not.toHaveBeenCalled();
+    expect(email.send).not.toHaveBeenCalled();
+  });
+
   it("given the agenda no longer shows the event (masked by a coursework or withdrawn), then the alert is skipped", async () => {
     deadlines.forUser.mockResolvedValue(Result.ok(Option.none()));
 
@@ -327,15 +339,7 @@ describe("runOnce", () => {
   });
 
   it("given the homework was turned in after the claim, then the alert is skipped with ALERT_SKIPPED and nothing is sent", async () => {
-    deadlines.forUser.mockResolvedValue(
-      Result.ok<Option<EventDeadline>, AppError>(
-        Option.some({
-          deadlineAt: paris("2026-11-15", "23:59"),
-          deadlineDate: "2026-11-15",
-          done: true,
-        }),
-      ),
-    );
+    givenDeadline({ done: true });
 
     await service.runOnce(NOW);
 
@@ -385,7 +389,9 @@ describe("dispatch across DST (RF 1)", () => {
   ])(
     "given an alert on %s, then nothing is sent one minute early and it is sent on time",
     async (_label, date, time, dueAt) => {
-      givenClaimed({ date, time, deadlineAt: new Date(Date.parse(dueAt) + 86_400_000) });
+      const deadlineAt = new Date(Date.parse(dueAt) + 86_400_000);
+      givenClaimed({ date, time, deadlineAt });
+      givenDeadline({ deadlineAt });
 
       const early = await service.runOnce(new Date(Date.parse(dueAt) - 60_000));
       expect(early.getValue()).toMatchObject({ sent: 0 });

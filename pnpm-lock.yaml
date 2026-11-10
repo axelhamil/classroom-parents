@@ -258,6 +258,9 @@ importers:
       '@packages/http':
         specifier: workspace:*
         version: link:../../packages/http
+      '@packages/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@packages/outbox':
         specifier: workspace:*
         version: link:../../packages/outbox
@@ -504,6 +507,9 @@ importers:
       '@packages/email':
         specifier: workspace:*
         version: link:../../packages/email
+      '@packages/emails':
+        specifier: workspace:*
+        version: link:../../packages/emails
       '@packages/events':
         specifier: workspace:*
         version: link:../../packages/events

@@ -1,6 +1,4 @@
-import { Option, Result, truncateOnWord, utcToZonedWall } from "@packages/ddd-kit";
-
-const SCHOOL_TIME_ZONE = "Europe/Paris";
+import { Option, PARIS_TIME_ZONE, Result, truncateOnWord, utcToZonedWall } from "@packages/ddd-kit";
 
 const COURSEWORK_TITLE_MAX = 120;
 
@@ -12,7 +10,7 @@ export interface SchoolDeadline {
 export function schoolDeadline(utcDate: string, utcTime: Option<string>): Result<SchoolDeadline> {
   if (utcTime.isNone()) return Result.ok({ deadlineDate: utcDate, deadlineTime: Option.none() });
 
-  const wall = utcToZonedWall(new Date(`${utcDate}T${utcTime.unwrap()}:00Z`), SCHOOL_TIME_ZONE);
+  const wall = utcToZonedWall(new Date(`${utcDate}T${utcTime.unwrap()}:00Z`), PARIS_TIME_ZONE);
   if (wall.isFailure) return Result.fail(wall.getError());
 
   return Result.ok({

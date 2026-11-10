@@ -165,7 +165,7 @@ export const di = container()
     (): IAlertPlanner => alertPlannerFor((): AlertPlanner => di.AlertPlanningService),
   )
   .addModule(agendaModule)
-  .add("IEventDeadlines", (c) => eventDeadlinesFor(c.EventQueryService))
+  .add("IEventDeadlines", (c) => eventDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
   .add(
     "IAlertContextReader",
     (c): IAlertContextReader => new AlertContextQuery(c.IInstrumentation, env.APP_ORIGIN),

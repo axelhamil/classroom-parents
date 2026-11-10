@@ -3,6 +3,7 @@ import { render } from "@react-email/render";
 import type { TFunction } from "i18next";
 import type { ComponentType } from "react";
 import { I18nextProvider } from "react-i18next";
+import { AlertReminder } from "./components/alert-reminder";
 import { ApiTokenLeaked } from "./components/api-token-leaked";
 import { BackupCodeUsed } from "./components/backup-code-used";
 import { ChangeEmail } from "./components/change-email";
@@ -49,6 +50,11 @@ const TEMPLATES: { [K in EmailTemplateKey]: TemplateEntry<K> } = {
   },
   api_token_leaked: { component: ApiTokenLeaked, subject: (t) => t("subjects.apiTokenLeaked") },
   notification_digest: { component: NotificationDigest, subject: notificationDigestSubject },
+  alert_reminder: {
+    component: AlertReminder,
+    subject: (t, v) =>
+      t("subjects.alertReminder", { eventTitle: v.eventTitle, childLabel: v.childLabel }),
+  },
 };
 
 export const EMAIL_TEMPLATE_KEYS = Object.keys(TEMPLATES) as EmailTemplateKey[];

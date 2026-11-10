@@ -23,10 +23,12 @@ export interface EventDto {
 }
 
 export interface EventDeadlineDto {
+  childId: string;
   deadlineAt: Date;
   deadlineDate: string;
   deadlineTime?: string;
   done: boolean;
+  needsReview: boolean;
 }
 
 export interface UpcomingDeadlineDto extends EventDeadlineDto {
@@ -78,9 +80,11 @@ export function toEventDeadlineDto(event: AgendaEvent): EventDeadlineDto {
   const deadline = event.get("deadline").value;
 
   return {
+    childId: event.get("childId"),
     deadlineAt: deadline.at,
     deadlineDate: deadline.date,
     deadlineTime: deadline.time,
     done: event.get("done"),
+    needsReview: event.needsReview(),
   };
 }

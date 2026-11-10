@@ -23,7 +23,7 @@ import type {
   IAlertRepository,
 } from "../ports/alert-repository.port";
 import type { IEventDeadlines } from "../ports/event-deadlines.port";
-import type { IPushSender, PushOptions, PushPayload } from "../ports/push-sender.port";
+import type { IPushSender, PushMessage, PushOptions } from "../ports/push-sender.port";
 import type {
   IPushSubscriptionRepository,
   PushSubscriptionRecord,
@@ -41,20 +41,16 @@ export interface DispatchOutcome {
 
 type Delivered = "push" | "email" | "missed" | "none";
 
-function pushPayload(context: AlertContext): PushPayload {
+function pushMessage(context: AlertContext): PushMessage {
   return {
-    web_push: 8030,
-    notification: {
-      title: context.eventTitle,
-      body: `${context.childLabel}, échéance ${context.deadlineLabel}`,
-      navigate: context.eventUrl,
-    },
+    title: context.eventTitle,
+    body: `${context.childLabel}, échéance ${context.deadlineLabel}`,
+    url: context.eventUrl,
   };
 }
 
 function pushOptions(alert: Alert): PushOptions {
   return {
-    urgency: "high",
     ttlSeconds: PUSH_TTL_SECONDS,
     topic: alert.id.value.replaceAll("-", ""),
   };
@@ -122,6 +118,7 @@ export class AlertDispatchService {
     if (shown.isFailure) return Result.fail(shown.getError());
     const deadline = shown.getValue();
     if (deadline.isNone() || deadline.unwrap().done) return this.skip(alert, lease);
+    if (!alert.ringsBefore(deadline.unwrap().deadlineAt)) return this.skip(alert, lease);
 
     const pushed = await this.pushAll(alert, context);
     if (pushed.isFailure) return Result.fail(pushed.getError());
@@ -148,7 +145,7 @@ export class AlertDispatchService {
     const outcomes = await Promise.all(
       live.getValue().map(async (subscription) => ({
         subscription,
-        sent: await this.push.send(subscription, pushPayload(context), pushOptions(alert)),
+        sent: await this.push.send(subscription, pushMessage(context), pushOptions(alert)),
       })),
     );
 

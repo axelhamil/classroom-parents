@@ -117,4 +117,27 @@ describe("usePushSubscription", () => {
     expect(hook.current().subscribed).toBe(false);
     expect(storedPushOwner()).toBeUndefined();
   });
+
+  it("given the server fails to forget the endpoint, when the parent disables alerts, then the browser still unsubscribes so no alert can reach the device", async () => {
+    const existing = {
+      endpoint: "https://fcm.googleapis.com/fcm/send/old",
+      toJSON: () => ({ endpoint: "", keys: { p256dh: "", auth: "" } }),
+      unsubscribe: vi.fn(async () => true),
+    };
+    givenPushBrowser({ permission: "granted", existing });
+    rememberPushOwner({ userId: "user-1", endpoint: existing.endpoint });
+    stubApi(
+      byRoute({
+        "DELETE /push/subscriptions": () => json({ error: { code: "INTERNAL_ERROR" } }, 500),
+        "GET /push/status": () => json({ live: 0 }),
+      }),
+    );
+    const hook = await renderPushHook();
+    await waitFor(() => expect(hook.current().subscribed).toBe(true));
+
+    await act(() => hook.current().disable());
+
+    expect(existing.unsubscribe).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(hook.current().subscribed).toBe(false));
+  });
 });

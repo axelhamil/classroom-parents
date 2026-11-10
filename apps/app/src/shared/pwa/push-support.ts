@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deletePushSubscription } from "../api/mutations/delete-push-subscription";
 
 export type PushPermission = NotificationPermission | "unsupported";
 
@@ -74,6 +75,16 @@ export function rememberPushOwner(owner: PushOwner): void {
     localStorage.setItem(OWNER_STORAGE_KEY, JSON.stringify(owner));
   } catch {
     return;
+  }
+}
+
+export async function unsubscribeFromPush(subscription: PushSubscription): Promise<void> {
+  forgetPushOwner();
+
+  try {
+    await deletePushSubscription(subscription.endpoint);
+  } finally {
+    await subscription.unsubscribe();
   }
 }
 

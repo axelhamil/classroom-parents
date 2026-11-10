@@ -35,6 +35,12 @@ const STUB_VARS = {
     itemCount: "2",
     itemsSummary: "billing.payment.failed, billing.payment.failed",
   },
+  alert_reminder: {
+    childLabel: "Léa",
+    eventTitle: "Contrôle de maths",
+    deadlineLabel: "jeudi 19 novembre, 8 h 30",
+    eventUrl: "https://x.test/events/1",
+  },
 } as const satisfies Record<EmailTemplateKey, unknown>;
 
 describe("renderTemplate", () => {

@@ -3,6 +3,7 @@ import { EventTypes } from "@packages/events";
 import { type BatchedEvent, emitEvents } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { Alert } from "../../domain/alert.aggregate";
+import { AlertOrigin } from "../../domain/value-objects/alert-origin.vo";
 import type { AlertsError, IAlertRepository } from "../ports/alert-repository.port";
 import type {
   EventDeadline,
@@ -153,7 +154,7 @@ export class AlertPlanningService {
     existing: Alert[],
     now: Date,
   ): Result<void, AlertsError> {
-    if (deadline.done) {
+    if (deadline.done || (deadline.needsReview && origin.equals(AlertOrigin.byDefault()))) {
       this.cancelAll(changes, existing, event.actorUserId);
       return Result.ok();
     }

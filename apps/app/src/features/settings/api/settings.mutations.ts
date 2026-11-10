@@ -1,16 +1,15 @@
 import { throwApiError } from "@packages/web-kit/api/errors/api-error";
 import { mutationOptions } from "@tanstack/react-query";
 import { api } from "../../../shared/api/api-client";
-import { deletePushSubscription } from "../../../shared/api/mutations/delete-push-subscription";
 import { savePushSubscription } from "../../../shared/api/mutations/save-push-subscription";
 import { pushConfigQueryOptions } from "../../../shared/api/queries/push-config";
 import { queryClient } from "../../../shared/api/query-client";
 import {
   currentPushSubscription,
-  forgetPushOwner,
   rememberPushOwner,
   subscribeToPush,
   toSubscriptionBody,
+  unsubscribeFromPush,
 } from "../../../shared/pwa/push-support";
 import type { Reminder } from "../../../shared/reminders/reminders.schema";
 
@@ -35,10 +34,7 @@ export const disablePushMutationOptions = mutationOptions({
     const subscription = await currentPushSubscription();
     if (!subscription) return;
 
-    await deletePushSubscription(subscription.endpoint);
-
-    await subscription.unsubscribe();
-    forgetPushOwner();
+    await unsubscribeFromPush(subscription);
   },
 });
 

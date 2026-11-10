@@ -59,7 +59,7 @@ export class EventEditService {
         const saved = await this.events.save(event);
         if (saved.isFailure) return Result.fail(saved.getError());
 
-        if (fields.includes("deadline") && !event.needsReview()) {
+        if (fields.includes("deadline")) {
           const replanned = await this.alerts.replan(plannedDeadline(event, userId));
           if (replanned.isFailure) return Result.fail(replanned.getError());
         }

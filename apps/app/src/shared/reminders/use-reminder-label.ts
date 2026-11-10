@@ -1,5 +1,5 @@
+import { wallTimeLabel } from "@packages/i18n";
 import { useTranslation } from "react-i18next";
-import { wallTimeLabel } from "../format/deadline-label";
 import type { Reminder } from "./reminders.schema";
 
 export function useReminderLabel(): (reminder: Reminder) => string {

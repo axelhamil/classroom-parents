@@ -110,6 +110,7 @@ describe("dispatch budget under silent providers", () => {
           deadlineAt: paris("2026-11-15", "23:59"),
           deadlineDate: "2026-11-15",
           done: false,
+          needsReview: false,
         }),
       ),
     );

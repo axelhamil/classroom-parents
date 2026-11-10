@@ -14,6 +14,7 @@ export default {
     apiTokenLeaked: "Votre jeton d'API a été révoqué automatiquement",
     notificationDigest_one: "{{count}} nouvelle notification {{category}}",
     notificationDigest_other: "{{count}} nouvelles notifications {{category}}",
+    alertReminder: "Rappel : {{eventTitle}} ({{childLabel}})",
   },
   layout: {
     footer: "Si vous n'attendiez pas cet e-mail, vous pouvez l'ignorer.",
@@ -81,6 +82,10 @@ export default {
     greeting: "Bonjour {{name}},",
     body: "Votre jeton d'API <token>{{tokenName}}</token> a été détecté dans un dépôt public et a été automatiquement révoqué le {{revokedAt}} afin de protéger votre compte.",
     help: "Si vous pensez qu'il s'agit d'une erreur ou si vous devez régénérer le jeton, vous pouvez le faire dans les paramètres de votre compte.",
+  },
+  alertReminder: {
+    body: "{{childLabel}} a une échéance {{deadlineLabel}}.",
+    cta: "Voir l'échéance",
   },
   notificationDigest: {
     intro: "Voici un résumé de votre activité récente dans la catégorie {{category}} :",

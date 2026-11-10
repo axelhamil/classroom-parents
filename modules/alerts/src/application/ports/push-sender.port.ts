@@ -6,13 +6,13 @@ export interface PushTarget {
   auth: string;
 }
 
-export interface PushPayload {
-  web_push: 8030;
-  notification: { title: string; body: string; navigate: string };
+export interface PushMessage {
+  title: string;
+  body: string;
+  url: string;
 }
 
 export interface PushOptions {
-  urgency: "high";
   ttlSeconds: number;
   topic: string;
 }
@@ -22,7 +22,7 @@ export type PushFailure = "PUSH_GONE" | "PUSH_FAILED";
 export interface IPushSender {
   send(
     target: PushTarget,
-    payload: PushPayload,
+    message: PushMessage,
     options: PushOptions,
   ): Promise<Result<void, PushFailure>>;
 }

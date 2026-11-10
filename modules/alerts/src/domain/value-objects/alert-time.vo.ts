@@ -1,12 +1,12 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
 import {
+  matchesZonedWall,
+  PARIS_TIME_ZONE,
   utcToZonedWall,
   zonedWallTimeToUtc,
   zonedWallTimeToUtcShifted,
 } from "@packages/ddd-kit/zoned-time";
 import { z } from "zod";
-
-export const ALERT_TIME_ZONE = "Europe/Paris";
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -19,7 +19,7 @@ const alertTimeSchema = z.object({
 export type AlertTimeValue = z.infer<typeof alertTimeSchema>;
 
 function parisInstant(date: string, time: string): Result<Date> {
-  return zonedWallTimeToUtc(date, time, ALERT_TIME_ZONE).mapError(
+  return zonedWallTimeToUtc(date, time, PARIS_TIME_ZONE).mapError(
     (code) => `${date} ${time} is not a Paris wall time (${code})`,
   );
 }
@@ -46,7 +46,7 @@ export class AlertTime extends ValueObject<AlertTimeValue> {
     const date = daysBefore(deadlineDate, days);
     if (date.isFailure) return Result.fail(date.getError());
 
-    const shifted = zonedWallTimeToUtcShifted(date.getValue(), time, ALERT_TIME_ZONE);
+    const shifted = zonedWallTimeToUtcShifted(date.getValue(), time, PARIS_TIME_ZONE);
     if (shifted.isFailure)
       return Result.fail(
         `${date.getValue()} ${time} is not a Paris wall time (${shifted.getError()})`,
@@ -57,7 +57,7 @@ export class AlertTime extends ValueObject<AlertTimeValue> {
   }
 
   static fromInstant(instant: Date): Result<AlertTime> {
-    const wall = utcToZonedWall(instant, ALERT_TIME_ZONE);
+    const wall = utcToZonedWall(instant, PARIS_TIME_ZONE);
     if (wall.isFailure) return Result.fail(`${String(instant)} has no Paris wall time`);
 
     return AlertTime.fromParisWallTime(wall.getValue().date, wall.getValue().time);
@@ -71,10 +71,10 @@ export class AlertTime extends ValueObject<AlertTimeValue> {
     const parsed = alertTimeSchema.safeParse(value);
     if (!parsed.success) return Result.fail("an alert time is a YYYY-MM-DD date and an HH:MM time");
 
-    const expected = parisInstant(parsed.data.date, parsed.data.time);
-    if (expected.isFailure) return Result.fail(expected.getError());
-    if (expected.getValue().getTime() !== parsed.data.at.getTime())
-      return Result.fail("an alert instant must match its Paris wall time");
+    const { date, time, at } = parsed.data;
+    const matches = matchesZonedWall(date, time, at, PARIS_TIME_ZONE);
+    if (matches.isFailure)
+      return Result.fail(`an alert instant must match its Paris wall time (${matches.getError()})`);
 
     return Result.ok(parsed.data);
   }

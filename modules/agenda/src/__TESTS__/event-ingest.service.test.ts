@@ -188,8 +188,6 @@ describe("ingest", () => {
     expect(planner.planDefault).toHaveBeenCalledWith({
       eventId: row?.id.value,
       userId: PARENT,
-      deadlineDate: "2026-11-19",
-      deadlineTime: "08:30",
       actorUserId: null,
     });
   });
@@ -210,9 +208,7 @@ describe("ingest", () => {
       time: "03:30",
       at: new Date("2027-03-28T01:30:00.000Z"),
     });
-    expect(planner.planDefault).toHaveBeenCalledWith(
-      expect.objectContaining({ deadlineDate: "2027-03-28", deadlineTime: "03:30" }),
-    );
+    expect(planner.planDefault).toHaveBeenCalledTimes(1);
   });
 
   it("given an unknown category, then EVENT_CATEGORY_INVALID is returned", async () => {
@@ -321,7 +317,7 @@ describe("ingestCoursework", () => {
     expect(courseworkRow()?.get("title").value).toBe("Exercices p. 44");
     expect(courseworkRow()?.get("deadline").value.date).toBe("2026-11-23");
     expect(planner.replan).toHaveBeenCalledWith(
-      expect.objectContaining({ deadlineDate: "2026-11-23" }),
+      expect.objectContaining({ eventId: courseworkRow()?.id.value }),
     );
     expect(updatedFields()).toEqual([["title", "deadline"]]);
   });
@@ -465,7 +461,7 @@ describe("ingestCoursework", () => {
     expect(w1?.get("withdrawnAt").isNone()).toBe(true);
     expect(w1?.get("deadline").value.date).toBe("2026-11-23");
     expect(planner.planDefault).toHaveBeenCalledWith(
-      expect.objectContaining({ eventId: w1?.id.value, deadlineDate: "2026-11-23" }),
+      expect.objectContaining({ eventId: w1?.id.value }),
     );
   });
 
@@ -508,8 +504,6 @@ describe("an announcement hidden by a coursework of its day", () => {
     expect(planner.planDefault).toHaveBeenCalledWith({
       eventId: shown?.id.value,
       userId: PARENT,
-      deadlineDate: "2026-11-19",
-      deadlineTime: undefined,
       actorUserId: null,
     });
   });

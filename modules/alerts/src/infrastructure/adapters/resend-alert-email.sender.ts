@@ -1,38 +1,19 @@
 import { type IInstrumentation, type ILogger, Option, Result } from "@packages/ddd-kit";
 import type { BatchSender } from "@packages/email/email-delivery-worker";
+import { renderTemplate } from "@packages/emails";
 import type {
   AlertEmailContent,
   IAlertEmailSender,
 } from "../../application/ports/alert-email-sender.port";
 import type { AlertsError } from "../../application/ports/alert-repository.port";
 
-const HTML_ESCAPES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char] ?? char);
-}
-
 function alertEmail(content: AlertEmailContent) {
-  const subject = `Rappel : ${content.eventTitle} (${content.childLabel})`;
-  const text = [
-    `${content.childLabel} a une échéance ${content.deadlineLabel} :`,
-    content.eventTitle,
-    "",
-    `Voir l'échéance : ${content.eventUrl}`,
-  ].join("\n");
-  const html = [
-    `<p>${escapeHtml(content.childLabel)} a une échéance ${escapeHtml(content.deadlineLabel)} :</p>`,
-    `<p><strong>${escapeHtml(content.eventTitle)}</strong></p>`,
-    `<p><a href="${escapeHtml(content.eventUrl)}">Voir l'échéance</a></p>`,
-  ].join("\n");
-
-  return { subject, text, html };
+  return renderTemplate("alert_reminder", {
+    childLabel: content.childLabel,
+    eventTitle: content.eventTitle,
+    deadlineLabel: content.deadlineLabel,
+    eventUrl: content.eventUrl,
+  });
 }
 
 const RECIPIENT_FIELD = /`to`|recipient/i;
@@ -54,7 +35,7 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
     return this.instrumentation.startSpan({ name: "ResendAlertEmailSender > send" }, async () => {
       const idempotencyKey = `alert-${content.alertId}-v${content.version}`;
       const result = await this.sender.batchSend(
-        [{ from: this.from, to, ...alertEmail(content) }],
+        [{ from: this.from, to, ...(await alertEmail(content)) }],
         Option.some(idempotencyKey),
       );
       const refused = result.errors?.[0];

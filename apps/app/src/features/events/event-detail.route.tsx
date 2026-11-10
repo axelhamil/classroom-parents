@@ -114,12 +114,16 @@ function EventSheet({ event }: EventSheetProps) {
         </a>
       </Button>
       <Separator />
-      <EventReminders
-        eventId={event.id}
-        timed={event.deadlineTime !== undefined}
-        needsReview={event.status === "needs_review"}
-      />
-      <Separator />
+      {!event.done && (
+        <>
+          <EventReminders
+            eventId={event.id}
+            timed={event.deadlineTime !== undefined}
+            needsReview={event.status === "needs_review"}
+          />
+          <Separator />
+        </>
+      )}
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
           <Link to="/events/$eventId/edit" params={{ eventId: event.id }}>

@@ -19,6 +19,7 @@
     "@packages/ddd-kit": "workspace:*",
     "@packages/drizzle": "workspace:*",
     "@packages/email": "workspace:*",
+    "@packages/emails": "workspace:*",
     "@packages/events": "workspace:*",
     "@packages/http": "workspace:*",
     "@packages/outbox": "workspace:*",

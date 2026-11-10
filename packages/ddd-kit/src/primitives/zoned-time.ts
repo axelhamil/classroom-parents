@@ -10,6 +10,8 @@ export interface ShiftedZonedTime {
   wall: ZonedWall;
 }
 
+export const PARIS_TIME_ZONE = "Europe/Paris";
+
 type ZonedTimeError =
   | "ZONED_TIME_INVALID_WALL_TIME"
   | "ZONED_TIME_NONEXISTENT_WALL_TIME"
@@ -138,6 +140,20 @@ export function zonedWallTimeToUtc(
   if (existing === undefined) return Result.fail("ZONED_TIME_NONEXISTENT_WALL_TIME");
 
   return Result.ok(new Date(existing));
+}
+
+export function matchesZonedWall(
+  date: string,
+  time: string,
+  at: Date,
+  timeZone: string,
+): Result<void, ZonedTimeError | "ZONED_TIME_INSTANT_MISMATCH"> {
+  const expected = zonedWallTimeToUtc(date, time, timeZone);
+  if (expected.isFailure) return Result.fail(expected.getError());
+  if (expected.getValue().getTime() !== at.getTime())
+    return Result.fail("ZONED_TIME_INSTANT_MISMATCH");
+
+  return Result.ok();
 }
 
 export function zonedWallTimeToUtcShifted(

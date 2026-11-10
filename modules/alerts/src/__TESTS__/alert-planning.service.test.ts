@@ -23,12 +23,18 @@ let deadlines: PortMock<IEventDeadlines>;
 let outbox: PortMock<IOutboxRepository>;
 let service: AlertPlanningService;
 
-function deadlineOn(deadlineDate: string, deadlineTime?: string, done = false): EventDeadline {
+function deadlineOn(
+  deadlineDate: string,
+  deadlineTime?: string,
+  done = false,
+  needsReview = false,
+): EventDeadline {
   return {
     deadlineAt: paris(deadlineDate, deadlineTime ?? "23:59"),
     deadlineDate,
     deadlineTime,
     done,
+    needsReview,
   };
 }
 
@@ -461,6 +467,28 @@ describe("a done deadline", () => {
     await service.replan(planned);
 
     expect(alerts.saveMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("a deadline still to review", () => {
+  it("given default reminders, when its date is corrected, then no reminder is planned and pending ones are cancelled", async () => {
+    givenDefaults(days(2, "18:00"));
+    givenAlerts(existingAlert());
+    givenEvent(deadlineOn("2026-11-13", undefined, false, true));
+
+    await service.replan(planned);
+
+    expect(savedAlerts().map((alert) => alert.get("status").value)).toEqual(["skipped"]);
+  });
+
+  it("given reminders set on the event, when its date moves earlier, then they follow the corrected date", async () => {
+    givenEventReminders(days(1, "20:00"));
+    givenAlerts(existingAlert({ reminder: "d1@20:00", origin: "user" }));
+    givenEvent(deadlineOn("2026-11-13", undefined, false, true));
+
+    await service.replan(planned);
+
+    expect(dueTimes()).toEqual(["2026-11-12T19:00:00.000Z"]);
   });
 });
 

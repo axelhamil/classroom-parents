@@ -1,5 +1,5 @@
 import { Option } from "@packages/ddd-kit";
-import { zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
+import { PARIS_TIME_ZONE, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import { Alert } from "../domain/alert.aggregate";
 import { AlertId } from "../domain/alert-id";
 import { AlertOrigin, type AlertOriginValue } from "../domain/value-objects/alert-origin.vo";
@@ -12,7 +12,7 @@ export const ALERT_EVENT = "0196a000-0000-7000-8000-0000000000e1";
 export const ALERT_ID = "0196a000-0000-7000-8000-0000000000a1";
 
 export function paris(date: string, time: string): Date {
-  return zonedWallTimeToUtc(date, time, "Europe/Paris").unwrapOr(new Date(Number.NaN));
+  return zonedWallTimeToUtc(date, time, PARIS_TIME_ZONE).unwrapOr(new Date(Number.NaN));
 }
 
 export interface AlertOverrides {

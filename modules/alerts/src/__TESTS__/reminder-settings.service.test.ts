@@ -39,6 +39,7 @@ function deadlineOn(deadlineDate: string, deadlineTime?: string, done = false): 
     deadlineDate,
     deadlineTime,
     done,
+    needsReview: false,
   };
 }
 
