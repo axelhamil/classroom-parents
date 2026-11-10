@@ -51,8 +51,8 @@ Used to exercise the real Google path end to end without any real pupil.
 
 1. Create two personal Gmail accounts: `prof` (teacher) and `eleve` (pupil). Personal accounts can create Classroom classes.
 2. A separate Google Cloud project in Testing mode, Classroom API enabled, consent screen External with both accounts and your own as test users, an OAuth Web client. Add the redirect URIs of the environment under test (local: `http://localhost:3000/api/auth/callback/google` and `.../google-classroom`) and `https://developers.google.com/oauthplayground` for the publisher token.
-3. As `prof`, create a class at classroom.google.com and invite `eleve`; accept the invitation as `eleve`.
-4. Teacher token for the publisher: in the OAuth Playground, settings, "Use your own OAuth credentials" with the test client, scopes `https://www.googleapis.com/auth/classroom.announcements` and `https://www.googleapis.com/auth/classroom.courses.readonly`, sign in as `prof`, exchange the code, copy the refresh token.
+3. As `prof`, create a class at classroom.google.com whose name starts with `[TEST]` (the script refuses any other course; another marker with `TEST_CLASSROOM_COURSE_PREFIX`) and invite `eleve`; accept the invitation as `eleve`.
+4. Teacher token for the publisher: in the OAuth Playground, settings, "Use your own OAuth credentials" with the test client, scopes `https://www.googleapis.com/auth/classroom.announcements` and `https://www.googleapis.com/auth/classroom.courses.readonly`, sign in as `prof`, exchange the code, copy the refresh token. The project is in Testing mode, so this token expires after 7 days: past that the script fails with `invalid_grant`, redo this step.
 5. Publish the synthetic set (the one the fakes and the extraction eval read, `modules/extraction/eval/synthetic.jsonl`; another file with `TEST_CLASSROOM_DATASET`). The script refuses to run without its variables, lists the teacher's courses when no course id is set, and never republishes an announcement whose text the course already shows:
 
    ```sh
@@ -63,6 +63,8 @@ Used to exercise the real Google path end to end without any real pupil.
    ```
 
    Pass the variables inline or from a file outside the repo, never a tracked `.env`.
+
+   The `expected` events of the set hold only for the extraction eval: relative dates (« jeudi prochain », « pour demain ») are resolved from each line's `publishedAt`, while Classroom dates the published announcement at the moment of publication. In the test class, judge relative dates against the publication day, not against `expected`.
 6. Point the api at the test client (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`), sign in as yourself, then link `eleve` as a child: the announcements appear as events after the first sync.
 
 ## Other providers

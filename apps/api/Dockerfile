@@ -15,7 +15,6 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY --from=pruner /repo/out/full/ ./
 RUN pnpm --filter api build \
   && pnpm --filter api --prod deploy --ignore-scripts /deploy \
-  && cp -r apps/api/dist /deploy/dist \
   && mkdir -p packages/drizzle/migrations \
   && cp -r packages/drizzle/migrations /deploy/migrations
 

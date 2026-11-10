@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { announcementsToPublish, parseDataset, readConfig } from "../publish-test-classroom";
+import {
+  announcementsToPublish,
+  isTestCourse,
+  parseDataset,
+  readConfig,
+} from "../publish-test-classroom";
 
 const CREDENTIALS = {
   TEST_CLASSROOM_CLIENT_ID: "client",
@@ -37,5 +42,13 @@ describe("publish-test-classroom", () => {
 
   it("refuses a dataset line without text instead of publishing an empty announcement", () => {
     expect(() => parseDataset('{"id":"a"}')).toThrow("dataset line 1");
+  });
+
+  it("refuses a course whose name does not carry the test class prefix", () => {
+    expect(isTestCourse("[TEST] CM2 synthétique", "[TEST]")).toBe(true);
+    expect(isTestCourse("CM2 B, Mme Martin", "[TEST]")).toBe(false);
+    expect(isTestCourse("CM2 [TEST]", "[TEST]")).toBe(false);
+    expect(isTestCourse(undefined, "[TEST]")).toBe(false);
+    expect(isTestCourse("anything", " ")).toBe(false);
   });
 });

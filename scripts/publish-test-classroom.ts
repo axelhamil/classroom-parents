@@ -4,6 +4,7 @@ import { join } from "node:path";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CLASSROOM_API = "https://classroom.googleapis.com/v1";
 const DEFAULT_DATASET = join(import.meta.dir, "../modules/extraction/eval/synthetic.jsonl");
+const DEFAULT_COURSE_PREFIX = "[TEST]";
 
 const REQUIRED_VARIABLES = [
   "TEST_CLASSROOM_CLIENT_ID",
@@ -16,6 +17,7 @@ type RequiredVariable = (typeof REQUIRED_VARIABLES)[number];
 interface PublisherConfig {
   credentials: Record<RequiredVariable, string>;
   courseId: string | undefined;
+  coursePrefix: string;
   datasetPath: string;
 }
 
@@ -39,6 +41,7 @@ export function readConfig(env: Record<string, string | undefined>): ConfigResul
         TEST_CLASSROOM_REFRESH_TOKEN: env.TEST_CLASSROOM_REFRESH_TOKEN ?? "",
       },
       courseId: env.TEST_CLASSROOM_COURSE_ID || undefined,
+      coursePrefix: env.TEST_CLASSROOM_COURSE_PREFIX || DEFAULT_COURSE_PREFIX,
       datasetPath: env.TEST_CLASSROOM_DATASET || DEFAULT_DATASET,
     },
   };
@@ -63,6 +66,10 @@ export function parseDataset(jsonl: string): SyntheticAnnouncement[] {
     });
 }
 
+export function isTestCourse(name: unknown, prefix: string): boolean {
+  return typeof name === "string" && prefix.trim().length > 0 && name.trim().startsWith(prefix);
+}
+
 const sameText = (text: string): string => text.trim().replace(/\s+/g, " ");
 
 export function announcementsToPublish(
@@ -76,9 +83,10 @@ export function announcementsToPublish(
 
 async function googleJson(url: string, init: RequestInit): Promise<Record<string, unknown>> {
   const response = await fetch(url, init);
-  const body: unknown = await response.json();
+  const body: unknown = await response.json().catch(() => undefined);
   if (!response.ok || !isRecord(body)) {
-    throw new Error(`${init.method ?? "GET"} ${url} answered ${response.status}`);
+    const detail = isRecord(body) ? JSON.stringify(body.error ?? body) : "no JSON body";
+    throw new Error(`${init.method ?? "GET"} ${url} answered ${response.status}: ${detail}`);
   }
 
   return body;
@@ -149,6 +157,16 @@ async function main(): Promise<void> {
     await listCourses(token);
     if (!config.courseId) console.error("set TEST_CLASSROOM_COURSE_ID to one of these ids");
     return;
+  }
+
+  const course = await googleJson(`${CLASSROOM_API}/courses/${config.courseId}`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!isTestCourse(course.name, config.coursePrefix)) {
+    console.error(
+      `refused: course ${config.courseId} is named "${String(course.name)}", a test class name starts with "${config.coursePrefix}" (TEST_CLASSROOM_COURSE_PREFIX)`,
+    );
+    process.exit(1);
   }
 
   const dataset = parseDataset(readFileSync(config.datasetPath, "utf8"));
