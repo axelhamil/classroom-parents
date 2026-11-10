@@ -1,8 +1,8 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import { ListRowMeta } from "@packages/ui/components/ui/list-row";
 import { useTranslation } from "react-i18next";
-import type { EventItem } from "../api/events.queries";
-import { CATEGORY_BADGE_VARIANTS, CATEGORY_LABEL_KEYS, SOURCE_LABEL_KEYS } from "../event-labels";
+import type { EventItem } from "../api/queries/events";
+import { CATEGORY_BADGE_VARIANTS, CATEGORY_LABEL_KEYS, SOURCE_LABEL_KEYS } from "./event-labels";
 
 export interface EventBadgesProps {
   event: Pick<EventItem, "category" | "source" | "status">;

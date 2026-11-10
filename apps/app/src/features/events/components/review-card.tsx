@@ -13,9 +13,9 @@ import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import type { EventItem } from "../../../shared/api/queries/events";
 import { deadlineLabel } from "../../../shared/format/deadline-label";
 import { confirmEventMutationOptions } from "../api/events.mutations";
-import type { EventItem } from "../api/events.queries";
 
 export interface ReviewCardProps {
   events: readonly EventItem[];

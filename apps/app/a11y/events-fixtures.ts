@@ -19,7 +19,7 @@ export const MAXIMILIEN = {
   syncing: false,
 };
 
-function inDays(days: number): string {
+export function inDays(days: number): string {
   return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 }
 
@@ -68,6 +68,7 @@ export const EVENTS = [
 interface ApiFixtures {
   children: unknown[];
   events: unknown[];
+  detail?: unknown;
 }
 
 function apiPath(request: Request): string | undefined {
@@ -86,7 +87,8 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
       eventRequests.push(request);
       return route.fulfill({ json: { items: fixtures.events } });
     }
-    if (path === `/events/${REVIEW_EVENT.id}`) return route.fulfill({ json: REVIEW_EVENT });
+    if (path === `/events/${REVIEW_EVENT.id}`)
+      return route.fulfill({ json: fixtures.detail ?? REVIEW_EVENT });
     if (path === `/events/${REVIEW_EVENT.id}/alert`)
       return route.fulfill({
         json: {

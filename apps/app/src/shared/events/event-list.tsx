@@ -1,17 +1,25 @@
 import { ListRow } from "@packages/ui/components/ui/list-row";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
-import type { EventItem } from "../api/events.queries";
+import type { ChildDto } from "../api/queries/children";
+import type { EventItem } from "../api/queries/events";
 import { EventRow } from "./event-row";
 
 const VIRTUALIZE_ABOVE = 50;
 const ESTIMATED_ROW_HEIGHT = 112;
 const OVERSCAN_ROWS = 6;
 
+export function childLabelsOf(children: readonly ChildDto[]): ReadonlyMap<string, string> | null {
+  return children.length > 1
+    ? new Map(children.map((child) => [child.id, child.label] as const))
+    : null;
+}
+
 export interface EventListProps {
   events: readonly EventItem[];
   childLabels: ReadonlyMap<string, string> | null;
   now: Date;
+  muted: boolean;
 }
 
 export function EventList(props: EventListProps) {
@@ -25,6 +33,7 @@ export function EventList(props: EventListProps) {
             event={event}
             childLabel={props.childLabels?.get(event.childId) ?? null}
             now={props.now}
+            muted={props.muted}
           />
         </ListRow>
       ))}
@@ -32,7 +41,7 @@ export function EventList(props: EventListProps) {
   );
 }
 
-function VirtualEventList({ events, childLabels, now }: EventListProps) {
+function VirtualEventList({ events, childLabels, now, muted }: EventListProps) {
   const listRef = useRef<HTMLOListElement>(null);
   const virtualizer = useWindowVirtualizer({
     count: events.length,
@@ -61,6 +70,7 @@ function VirtualEventList({ events, childLabels, now }: EventListProps) {
               event={event}
               childLabel={childLabels?.get(event.childId) ?? null}
               now={now}
+              muted={muted}
             />
           </ListRow>
         );

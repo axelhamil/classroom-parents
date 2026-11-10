@@ -5,10 +5,12 @@ import { api } from "../../../shared/api/api-client";
 
 const $confirm = api.events[":id"].confirm.$post;
 const $delete = api.events[":id"].$delete;
+const $edit = api.events[":id"].$patch;
 const $setAlert = api.events[":eventId"].alert.$put;
 const $clearAlert = api.events[":eventId"].alert.$delete;
 
 export type AlertTime = InferRequestType<typeof $setAlert>["json"];
+export type EventPatch = InferRequestType<typeof $edit>["json"];
 
 export const confirmEventMutationOptions = mutationOptions({
   mutationKey: ["events", "confirm"] as const,
@@ -41,5 +43,14 @@ export const clearEventAlertMutationOptions = mutationOptions({
   mutationFn: async (eventId: string): Promise<void> => {
     const res = await $clearAlert({ param: { eventId } });
     if (!res.ok) await throwApiError(res, "clearEventAlert");
+  },
+});
+
+export const editEventMutationOptions = mutationOptions({
+  mutationKey: ["events", "edit"] as const,
+  mutationFn: async ({ eventId, patch }: { eventId: string; patch: EventPatch }) => {
+    const res = await $edit({ param: { id: eventId }, json: patch });
+    if (!res.ok) await throwApiError(res, "editEvent");
+    return res.json();
   },
 });

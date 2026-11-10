@@ -44,7 +44,7 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /push/subscriptions": {
     consumer: "apps/app/src/shared/api/mutations/delete-push-subscription.ts",
   },
-  "PATCH /events/:id": { uiLess: "dormant-by-design" },
+  "PATCH /events/:id": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "POST /children": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
   "POST /children/:id/reconnect": {
     consumer: "apps/app/src/features/children/api/children.mutations.ts",

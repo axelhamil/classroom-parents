@@ -15,13 +15,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ExternalLink, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
+import type { EventItem } from "../../shared/api/queries/events";
+import { EventBadges } from "../../shared/events/event-badges";
 import { deadlineLabel } from "../../shared/format/deadline-label";
 import { schoolToday } from "../../shared/format/school-today";
 import { Screen } from "../../shared/layout/screen";
-import { type EventItem, eventQueryOptions } from "./api/events.queries";
+import { eventQueryOptions } from "./api/events.queries";
 import { AlertSetting } from "./components/alert-setting";
 import { DeleteEventDialog } from "./components/delete-event-dialog";
-import { EventBadges } from "./components/event-badges";
 
 export const Route = createFileRoute("/_protected/_shell/events/$eventId")({
   component: EventDetailPage,

@@ -1,6 +1,7 @@
 import { createI18n, frCatalog } from "@packages/i18n";
 import { Toaster } from "@packages/ui/components/ui/sonner";
 import { TooltipProvider } from "@packages/ui/components/ui/tooltip";
+import { ZodLocale } from "@packages/web-kit/i18n/zod-locale";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { type RenderResult, render } from "@testing-library/react";
@@ -64,6 +65,7 @@ export async function renderWithProviders(ui: ReactNode): Promise<RenderResult> 
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
         <TooltipProvider>
+          <ZodLocale />
           {ui}
           <Toaster />
         </TooltipProvider>

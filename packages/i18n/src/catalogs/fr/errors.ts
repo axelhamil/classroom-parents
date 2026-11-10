@@ -11,6 +11,11 @@ export default {
     CHILD_ACCOUNT_SIGN_IN_FORBIDDEN:
       "Le compte Google d'un enfant sert uniquement à lire Classroom. Connectez-vous avec votre propre compte Google.",
     EVENT_NOT_FOUND: "Cette échéance n'existe plus.",
+    EVENT_TITLE_INVALID: "Le titre doit contenir entre 1 et 120 caractères.",
+    EVENT_DESCRIPTION_INVALID: "La description doit contenir au plus 2 000 caractères.",
+    EVENT_CATEGORY_INVALID: "Choisissez un type dans la liste.",
+    EVENT_DEADLINE_INVALID:
+      "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59.",
     ALERT_IN_PAST: "Ce moment est déjà passé : choisissez un jour et une heure à venir.",
     ALERT_AFTER_DEADLINE: "Le rappel doit tomber avant l'échéance.",
     ALERT_TIME_INVALID: "Choisissez un jour et une heure valides.",
@@ -290,6 +295,7 @@ export default {
     loadEventAlert: "Échec du chargement du rappel",
     confirmEvent: "Échec de la confirmation de l'échéance",
     deleteEvent: "Échec de la suppression de l'échéance",
+    editEvent: "Échec de l'enregistrement de l'échéance",
     setEventAlert: "Échec de la programmation du rappel",
     clearEventAlert: "Échec du retrait du rappel",
     requestSync: "Échec de la lecture de Classroom",

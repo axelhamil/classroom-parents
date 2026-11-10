@@ -2,19 +2,11 @@
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
+import { CHILD } from "../../../__tests__/family-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
 }));
-
-const CHILD = {
-  id: "8d0c1f4e-6a51-4c55-9c39-3a1f1e0b7a11",
-  label: "Léa",
-  googleEmail: "lea@example.com",
-  status: "connected",
-  lastSyncedAt: "2026-11-09T08:00:00.000Z",
-  syncing: false,
-};
 
 const EVENT = {
   id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",

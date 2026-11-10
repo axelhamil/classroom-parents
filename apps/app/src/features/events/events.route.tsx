@@ -5,32 +5,25 @@ import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
 import { type ChildDto, childrenQueryOptions } from "../../shared/api/queries/children";
+import { eventPagesQueryOptions } from "../../shared/api/queries/events";
+import { EmptyState } from "../../shared/events/empty-state";
+import { EventFilterBar } from "../../shared/events/event-filter-bar";
+import {
+  type EventFiltersSearch,
+  eventFiltersSearchSchema,
+  filtersFromSearch,
+} from "../../shared/events/event-filters.schema";
+import { childLabelsOf, EventList } from "../../shared/events/event-list";
 import { wallDateParts } from "../../shared/format/deadline-label";
 import { schoolToday } from "../../shared/format/school-today";
 import { Screen } from "../../shared/layout/screen";
-import {
-  type EventFilters,
-  reviewEventsQueryOptions,
-  upcomingEventsQueryOptions,
-} from "./api/events.queries";
+import { reviewEventsQueryOptions } from "./api/events.queries";
 import { BlockedChildrenNotice } from "./components/blocked-children-notice";
-import { EmptyState } from "./components/empty-state";
-import { EventList } from "./components/event-list";
-import { FilterChips } from "./components/filter-chips";
 import { ReviewCard } from "./components/review-card";
-import { CATEGORY_LABEL_KEYS, EVENT_CATEGORIES } from "./event-labels";
-
-const eventsSearchSchema = z.object({
-  category: z.enum(EVENT_CATEGORIES).optional().catch(undefined),
-  childId: z.uuid().optional().catch(undefined),
-});
-
-type EventsSearch = z.infer<typeof eventsSearchSchema>;
 
 export const Route = createFileRoute("/_protected/_shell/")({
-  validateSearch: eventsSearchSchema,
+  validateSearch: eventFiltersSearchSchema,
   component: EventsPage,
 });
 
@@ -71,15 +64,12 @@ function EventsBoard({ now }: EventsBoardProps) {
   const { t } = useTranslation("events");
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const filters: EventFilters = {
-    category: search.category ?? null,
-    childId: search.childId ?? null,
-  };
+  const filters = filtersFromSearch(search);
   const children = useQuery(childrenQueryOptions);
-  const events = useInfiniteQuery(upcomingEventsQueryOptions(filters));
+  const events = useInfiniteQuery(eventPagesQueryOptions("upcoming", filters));
   const review = useQuery(reviewEventsQueryOptions(filters));
 
-  const setSearch = (next: Partial<EventsSearch>) =>
+  const setSearch = (next: Partial<EventFiltersSearch>) =>
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
 
   if (children.isError || events.isError) {
@@ -129,43 +119,16 @@ function EventsBoard({ now }: EventsBoardProps) {
 
   const items = events.data.pages.flatMap((page) => page.items);
   const toReview = review.data ?? [];
-  const childLabels =
-    children.data.length > 1
-      ? new Map(children.data.map((child) => [child.id, child.label] as const))
-      : null;
+  const childLabels = childLabelsOf(children.data);
   const filtered = filters.category !== null || filters.childId !== null;
 
   return (
     <div className="flex flex-col gap-4">
       <BlockedChildrenNotice childrenList={children.data} />
-      {childLabels && (
-        <FilterChips
-          label={t("filters.child")}
-          value={filters.childId}
-          onChange={(childId) => setSearch({ childId: childId ?? undefined })}
-          options={[
-            { value: null, label: t("filters.allChildren") },
-            ...children.data.map((child) => ({ value: child.id, label: child.label })),
-          ]}
-        />
-      )}
-      <FilterChips
-        label={t("filters.category")}
-        value={filters.category}
-        onChange={(category) =>
-          setSearch({ category: eventsSearchSchema.shape.category.parse(category ?? undefined) })
-        }
-        options={[
-          { value: null, label: t("filters.allCategories") },
-          ...EVENT_CATEGORIES.map((category) => ({
-            value: category,
-            label: t(CATEGORY_LABEL_KEYS[category]),
-          })),
-        ]}
-      />
+      <EventFilterBar childrenList={children.data} filters={filters} onChange={setSearch} />
       {toReview.length > 0 && <ReviewCard events={toReview} now={now} />}
       {items.length > 0 ? (
-        <EventList events={items} childLabels={childLabels} now={now} />
+        <EventList events={items} childLabels={childLabels} now={now} muted={false} />
       ) : filtered ? (
         <EmptyState
           title={t("empty.filtered.title")}
