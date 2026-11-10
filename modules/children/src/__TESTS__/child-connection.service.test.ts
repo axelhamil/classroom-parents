@@ -6,6 +6,7 @@ import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
+import { CLASSROOM_SCOPES } from "../application/config/classroom-scopes";
 import type {
   ChildrenError,
   DisconnectingChild,
@@ -42,10 +43,6 @@ import { GoogleEmail } from "../domain/value-objects/google-email.vo";
 const NOW = new Date("2026-11-09T10:00:00.000Z");
 const PARENT = "parent-1";
 const LINKED = "account-1";
-const CLASSROOM_SCOPES = [
-  "https://www.googleapis.com/auth/classroom.courses.readonly",
-  "https://www.googleapis.com/auth/classroom.announcements.readonly",
-];
 
 function linkedAccount(overrides: Partial<LinkedGoogleAccount> = {}): LinkedGoogleAccount {
   return {
@@ -201,6 +198,19 @@ describe("register", () => {
         payload: { userId: PARENT, providerId: "google-classroom", accountId: "google-sub-1" },
       },
     ]);
+  });
+
+  it("given an account missing coursework.me.readonly, then CHILD_SCOPES_MISSING asking for every Classroom authorization", async () => {
+    const withoutCoursework = CLASSROOM_SCOPES.filter((scope) => !scope.includes("coursework"));
+    linked.find.mockResolvedValue(
+      ok(Option.some(linkedAccount({ grantedScopes: ["openid", ...withoutCoursework] }))),
+    );
+
+    const result = await service.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getError().code).toBe("CHILD_SCOPES_MISSING");
+    expect(result.getError().message).toContain("les trois autorisations Classroom");
+    expect(repo.create).not.toHaveBeenCalled();
   });
 
   it("given no refresh token, then CHILD_REFRESH_TOKEN_MISSING telling to remove the app access first", async () => {
@@ -806,16 +816,16 @@ describe("claimManualSync", () => {
 describe("isOwnedBy", () => {
   it("given the parent's connected child, then owned, read under the parent's id", async () => {
     const owned = child();
-    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+    repo.findOwnedShared.mockResolvedValue(ok(Option.some(owned)));
 
     const result = await service.isOwnedBy(PARENT, owned.id.value);
 
     expect(result.getValue()).toBe(true);
-    expect(repo.findOwned).toHaveBeenCalledWith(PARENT, owned.id.value);
+    expect(repo.findOwnedShared).toHaveBeenCalledWith(PARENT, owned.id.value);
   });
 
   it("given a child of another family, then not owned", async () => {
-    repo.findOwned.mockResolvedValue(ok(Option.none<ChildAccount>()));
+    repo.findOwnedShared.mockResolvedValue(ok(Option.none<ChildAccount>()));
 
     const result = await service.isOwnedBy("parent-2", "child-of-parent-1");
 
@@ -824,7 +834,7 @@ describe("isOwnedBy", () => {
 
   it("given a child being disconnected, then not owned any more", async () => {
     const leaving = child({ status: ChildStatus.disconnecting() });
-    repo.findOwned.mockResolvedValue(ok(Option.some(leaving)));
+    repo.findOwnedShared.mockResolvedValue(ok(Option.some(leaving)));
 
     const result = await service.isOwnedBy(PARENT, leaving.id.value);
 

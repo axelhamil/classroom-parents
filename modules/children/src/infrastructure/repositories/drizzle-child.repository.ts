@@ -147,6 +147,17 @@ export class DrizzleChildRepository implements IChildRepository {
     );
   }
 
+  async findOwnedShared(
+    userId: string,
+    childId: string,
+  ): Promise<Result<Option<ChildAccount>, ChildrenError>> {
+    return this.findOne(
+      "findOwnedShared",
+      and(eq(childAccount.id, childId), eq(childAccount.userId, userId)),
+      "share",
+    );
+  }
+
   async findForSystem(childId: string): Promise<Result<Option<ChildAccount>, ChildrenError>> {
     return this.findOne("findForSystem", eq(childAccount.id, childId));
   }
@@ -347,13 +358,14 @@ export class DrizzleChildRepository implements IChildRepository {
   private async findOne(
     method: string,
     where: ReturnType<typeof and>,
+    lock: "update" | "share" = "update",
   ): Promise<Result<Option<ChildAccount>, ChildrenError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: `DrizzleChildRepository > ${method}` },
       async () => {
         try {
-          const query = exec.select().from(childAccount).where(where).limit(1).for("update");
+          const query = exec.select().from(childAccount).where(where).limit(1).for(lock);
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),

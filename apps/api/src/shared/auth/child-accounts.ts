@@ -1,9 +1,10 @@
 import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
+import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { type EventType, EventTypes } from "@packages/events";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError, getOAuthState } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
-import { GOOGLE_CLASSROOM_SCOPES, GOOGLE_IDENTITY_SCOPES } from "./google-scopes";
+import { GOOGLE_IDENTITY_SCOPES } from "./google-scopes";
 
 interface GoogleClient {
   clientId: string;
@@ -20,7 +21,7 @@ export function childAccountLinking(client: GoogleClient) {
         authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
         tokenUrl: "https://oauth2.googleapis.com/token",
         userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
-        scopes: [...GOOGLE_IDENTITY_SCOPES, ...GOOGLE_CLASSROOM_SCOPES],
+        scopes: [...GOOGLE_IDENTITY_SCOPES, ...CLASSROOM_SCOPES],
         accessType: "offline",
         prompt: "select_account consent",
         disableSignUp: true,

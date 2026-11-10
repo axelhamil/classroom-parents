@@ -74,7 +74,7 @@ const notLinked: ChildrenError = {
 const scopesMissing: ChildrenError = {
   code: "CHILD_SCOPES_MISSING",
   message:
-    "L'accès en lecture à Classroom n'a pas été accordé. Reliez de nouveau le compte Google de votre enfant et cochez les deux autorisations Classroom.",
+    "L'accès en lecture à Classroom n'a pas été accordé. Reliez de nouveau le compte Google de votre enfant et cochez les trois autorisations Classroom.",
 };
 
 const refreshTokenMissing: ChildrenError = {
@@ -396,7 +396,7 @@ export class ChildConnectionService {
 
   async isOwnedBy(userId: string, childId: string): Promise<Result<boolean, ChildrenError>> {
     return this.span("isOwnedBy", async () => {
-      const found = await this.children.findOwned(userId, childId);
+      const found = await this.children.findOwnedShared(userId, childId);
 
       return found.map((child) => child.map((owned) => !owned.isDisconnecting()).unwrapOr(false));
     });

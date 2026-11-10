@@ -36,6 +36,11 @@ export interface IChildRepository {
 
   findOwned(userId: string, childId: string): Promise<Result<Option<ChildAccount>, ChildrenError>>;
 
+  findOwnedShared(
+    userId: string,
+    childId: string,
+  ): Promise<Result<Option<ChildAccount>, ChildrenError>>;
+
   findForSystem(childId: string): Promise<Result<Option<ChildAccount>, ChildrenError>>;
 
   findByLinkedAccount(

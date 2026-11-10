@@ -6,7 +6,9 @@
  * children, one sync at a time per child (a manual sync during a lease answers running, a
  * late worker's end of sync is fenced out), a disconnect revokes outside any transaction and
  * a failed revoke leaves the child disconnecting until the resumption finishes it, and every
- * google-classroom link, attached to a child or not, ends revoked and erased. Google is stubbed.
+ * google-classroom link, attached to a child or not, ends revoked and erased, and parallel
+ * writes of one child under its sync lease check ownership in share mode without deadlock.
+ * Google is stubbed.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -23,12 +25,14 @@ import {
   like,
   or,
   outboxSchema,
+  resolveExecutor,
   sql,
   TransactionService,
 } from "@packages/drizzle";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { childAccount } from "../schemas/child.schema";
 import { CHILD_PROVIDER_ID } from "../src/application/config/child-provider";
+import { CLASSROOM_SCOPES } from "../src/application/config/classroom-scopes";
 import type { ChildrenError } from "../src/application/ports/child-repository.port";
 import type { TokenSealing } from "../src/application/ports/google-credential-store.port";
 import type {
@@ -41,10 +45,6 @@ import { DrizzleGoogleLinkedAccounts } from "../src/infrastructure/adapters/driz
 import { DrizzleLinkedAccountEraser } from "../src/infrastructure/adapters/drizzle-linked-account.eraser";
 import { DrizzleChildRepository } from "../src/infrastructure/repositories/drizzle-child.repository";
 
-const CLASSROOM_SCOPES = [
-  "https://www.googleapis.com/auth/classroom.courses.readonly",
-  "https://www.googleapis.com/auth/classroom.announcements.readonly",
-];
 const SEAL = "sealed:";
 const LEASE_MS = 10 * 60_000;
 const T0 = new Date("2030-01-01T08:00:00.000Z");
@@ -80,15 +80,16 @@ const google: IGoogleOAuthClient = {
 };
 
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
+const transactions = new TransactionService(instrumentation, async (events) => {
+  await outbox.enqueue(events, { source: "check-child-db" });
+});
 const service = new ChildConnectionService(
   new DrizzleChildRepository(instrumentation),
   new DrizzleGoogleLinkedAccounts(instrumentation),
   new DrizzleGoogleCredentialStore(sealing, instrumentation),
   google,
   new DrizzleLinkedAccountEraser(instrumentation),
-  new TransactionService(instrumentation, async (events) => {
-    await outbox.enqueue(events, { source: "check-child-db" });
-  }),
+  transactions,
   outbox,
   instrumentation,
   { classroomScopes: CLASSROOM_SCOPES },
@@ -105,7 +106,7 @@ async function linkAccount(
   userId: string,
   name: string,
   expired = false,
-  scopes = CLASSROOM_SCOPES,
+  scopes: readonly string[] = CLASSROOM_SCOPES,
 ): Promise<string> {
   const id = `${userId}-${name}`;
   await db.insert(authSchema.account).values({
@@ -161,6 +162,45 @@ async function cleanup(): Promise<void> {
         : probeOutboxRows,
     );
   await db.delete(authSchema.user).where(like(authSchema.user.id, `${probe}%`));
+}
+
+async function ownershipUnderSharedLease(
+  userId: string,
+  childId: string,
+  writers: number,
+): Promise<{ owned: number; failed: string[] }> {
+  let arrived = 0;
+  let allArrived = () => {};
+  const barrier = new Promise<void>((resolve) => {
+    allArrived = resolve;
+  });
+  const outcomes = await Promise.allSettled(
+    Array.from({ length: writers }, () =>
+      transactions.run(async (): Promise<Result<boolean, ChildrenError>> => {
+        await resolveExecutor()
+          .select({ id: childAccount.id })
+          .from(childAccount)
+          .where(eq(childAccount.id, childId))
+          .for("share");
+        arrived += 1;
+        if (arrived === writers) allArrived();
+        await barrier;
+
+        return service.isOwnedBy(userId, childId);
+      }),
+    ),
+  );
+
+  return {
+    owned: outcomes.filter(
+      (outcome) =>
+        outcome.status === "fulfilled" && outcome.value.isSuccess && outcome.value.getValue(),
+    ).length,
+    failed: outcomes.flatMap((outcome) => {
+      if (outcome.status === "rejected") return [String(outcome.reason)];
+      return outcome.value.isFailure ? [outcome.value.getError().code] : [];
+    }),
+  };
 }
 
 const { step, run } = stepRunner("check-child-db", cleanup);
@@ -469,6 +509,13 @@ run(async () => {
     {
       revokedInsideTransaction,
     },
+  );
+
+  const parallel = await ownershipUnderSharedLease(b, bChild, 4);
+  await step(
+    "4 parallel writes of one child, each holding its sync lease in share mode, all check ownership without deadlock",
+    parallel.owned === 4 && parallel.failed.length === 0,
+    parallel,
   );
 
   await db.delete(authSchema.user).where(eq(authSchema.user.id, b));
