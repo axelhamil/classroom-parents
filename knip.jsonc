@@ -24,10 +24,7 @@
         "a11y/*.setup.ts",
         "a11y/*.spec.ts"
       ],
-      "project": ["**/*.ts", "**/*.tsx"],
-      // Installed by the front foundation (T11), the only front task allowed to add dependencies:
-      // the screen tests drive taps (T12 to T15).
-      "ignoreDependencies": ["@testing-library/user-event"]
+      "project": ["**/*.ts", "**/*.tsx"]
     },
     "packages/ddd-kit": {
       "project": ["src/**/*.ts"]

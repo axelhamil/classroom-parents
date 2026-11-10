@@ -5,8 +5,7 @@ import { cn } from "@packages/ui/libs/utils.js";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { POLICY_TITLE_KEYS, type PolicyType } from "../../shared/legal/policy-labels";
-import { UntranslatedBodyBanner } from "./components/untranslated-body-banner";
-import { PrivacyPolicyBody, TermsBody } from "./policies/en";
+import { PrivacyPolicyBody, TermsBody } from "./policies/fr";
 
 const POLICY_BODIES: Record<PolicyType, () => ReactElement> = {
   privacy: PrivacyPolicyBody,
@@ -23,11 +22,9 @@ export function PolicyDocView({ type }: PolicyDocViewProps) {
 
   return (
     <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
-      <PageHeader title={t(POLICY_TITLE_KEYS[type])} />
+      <PageHeader title={t(POLICY_TITLE_KEYS[type])} description={t("legal.policies.updated")} />
 
       <Separator />
-
-      <UntranslatedBodyBanner />
 
       <Body />
     </main>

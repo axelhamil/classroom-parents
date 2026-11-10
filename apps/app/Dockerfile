@@ -24,6 +24,7 @@ ENV VITE_API_URL=${VITE_API_URL} \
   VITE_SENTRY_ENVIRONMENT=${VITE_SENTRY_ENVIRONMENT} \
   VITE_GIT_SHA=${VITE_GIT_SHA}
 RUN test -n "$VITE_API_URL" || (echo "ERROR: --build-arg VITE_API_URL is required (e.g. https://api.example.com)" && exit 1)
+RUN test -n "$VITE_CONTACT_EMAIL" || (echo "ERROR: --build-arg VITE_CONTACT_EMAIL is required (e.g. contact@example.com)" && exit 1)
 
 RUN pnpm --filter app exec vite build
 

@@ -1,4 +1,4 @@
-export type SubProcessorId = "resend" | "r2" | "betterAuth" | "stripe" | "umami";
+export type SubProcessorId = "google" | "anthropic" | "resend" | "railway";
 
 export interface SubProcessor {
   /**
@@ -11,59 +11,44 @@ export interface SubProcessor {
   name: string;
   purpose: string;
   region: string;
-  category: "infra" | "email" | "auth" | "analytics" | "payments";
-  url?: string;
+  category: "infra" | "email" | "auth" | "ai";
+  url: string;
   dpaUrl?: string;
-  status: "active" | "planned";
 }
 
 export const SUB_PROCESSORS: readonly SubProcessor[] = [
   {
+    id: "google",
+    name: "Google",
+    purpose:
+      "Sign-in with Google and read-only Google Classroom API (courses, announcements, coursework)",
+    region: "US (EU DPF-certified)",
+    category: "auth",
+    url: "https://policies.google.com/privacy",
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    purpose: "Deadline extraction from announcement text (Claude API, no training on inputs)",
+    region: "US (standard contractual clauses)",
+    category: "ai",
+    url: "https://www.anthropic.com/legal/privacy",
+  },
+  {
     id: "resend",
     name: "Resend",
-    purpose: "Transactional email delivery",
+    purpose: "Transactional email delivery (alerts when no device receives push)",
     region: "US (EU DPF-certified)",
     category: "email",
     url: "https://resend.com",
     dpaUrl: "https://resend.com/legal/dpa",
-    status: "active",
   },
   {
-    id: "r2",
-    name: "Cloudflare R2",
-    purpose: "Object storage (file uploads)",
-    region: "EU or US (zone configurable)",
+    id: "railway",
+    name: "Railway",
+    purpose: "Hosting of the application, its workers and its database",
+    region: "EU region chosen at deployment",
     category: "infra",
-    url: "https://cloudflare.com",
-    dpaUrl: "https://www.cloudflare.com/cloudflare-customer-dpa/",
-    status: "active",
-  },
-  {
-    id: "betterAuth",
-    name: "BetterAuth (GitHub/Google OAuth)",
-    purpose: "OAuth social authentication",
-    region: "US / EU (per provider)",
-    category: "auth",
-    url: "https://better-auth.com",
-    status: "active",
-  },
-  {
-    id: "stripe",
-    name: "Stripe",
-    purpose: "Payment processing and billing",
-    region: "US (EU DPF-certified)",
-    category: "payments",
-    url: "https://stripe.com",
-    dpaUrl: "https://stripe.com/legal/dpa",
-    status: "planned",
-  },
-  {
-    id: "umami",
-    name: "Umami",
-    purpose: "Privacy-friendly web analytics",
-    region: "Configurable (self-hostable)",
-    category: "analytics",
-    url: "https://umami.is",
-    status: "planned",
+    url: "https://railway.com",
   },
 ];

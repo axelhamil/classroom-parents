@@ -16,24 +16,19 @@ import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { SUB_PROCESSOR_KEYS } from "../../shared/sub-processor-labels";
-import { SUB_PROCESSORS, type SubProcessor } from "../../shared/sub-processors.config";
-import { UntranslatedBodyBanner } from "./components/untranslated-body-banner";
+import { SUB_PROCESSORS } from "../../shared/sub-processors.config";
+import { ContactLink } from "./components/contact-link";
 
 export const Route = createFileRoute("/legal/sub-processors")({
   component: SubProcessorsPage,
 });
 
-interface SubProcessorTableProps {
-  processors: readonly SubProcessor[];
-  caption: string;
-}
-
-function SubProcessorTable({ processors, caption }: SubProcessorTableProps) {
+function SubProcessorTable() {
   const { t } = useTranslation("common");
 
   return (
     <Table>
-      <TableCaption>{caption}</TableCaption>
+      <TableCaption>{t("legal.subProcessors.tableCaption")}</TableCaption>
       <TableHeader>
         <TableRow>
           <TableHead>{t("legal.subProcessors.table.name")}</TableHead>
@@ -43,16 +38,12 @@ function SubProcessorTable({ processors, caption }: SubProcessorTableProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {processors.map((sp) => (
+        {SUB_PROCESSORS.map((sp) => (
           <TableRow key={sp.name}>
             <TableCell>
-              {sp.url ? (
-                <TextLink href={sp.url} target="_blank" rel="noopener noreferrer">
-                  {sp.name}
-                </TextLink>
-              ) : (
-                sp.name
-              )}
+              <TextLink href={sp.url} target="_blank" rel="noopener noreferrer">
+                {sp.name}
+              </TextLink>
             </TableCell>
             <TableCell className="min-w-56 whitespace-normal">
               {t(SUB_PROCESSOR_KEYS[sp.id].purpose)}
@@ -61,10 +52,10 @@ function SubProcessorTable({ processors, caption }: SubProcessorTableProps) {
             <TableCell>
               {sp.dpaUrl ? (
                 <TextLink href={sp.dpaUrl} target="_blank" rel="noopener noreferrer">
-                  DPA
+                  {t("legal.subProcessors.dpaLink")}
                 </TextLink>
               ) : (
-                "N/A"
+                t("legal.subProcessors.noDpa")
               )}
             </TableCell>
           </TableRow>
@@ -76,9 +67,6 @@ function SubProcessorTable({ processors, caption }: SubProcessorTableProps) {
 
 function SubProcessorsPage() {
   const { t } = useTranslation("common");
-  const active = SUB_PROCESSORS.filter((sp) => sp.status === "active");
-  const planned = SUB_PROCESSORS.filter((sp) => sp.status === "planned");
-
   return (
     <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
       <PageHeader
@@ -88,43 +76,25 @@ function SubProcessorsPage() {
 
       <Separator />
 
-      <UntranslatedBodyBanner />
-
       <section className="flex flex-col gap-3">
-        <TypographyH2>What is a sub-processor?</TypographyH2>
+        <TypographyH2>Qu'est-ce qu'un sous-traitant ?</TypographyH2>
         <TypographyP>
-          A sub-processor is a third party engaged by the data controller (us) to process personal
-          data on your behalf, as defined under RGPD Art. 28. These third parties receive access to
-          personal data only to the extent necessary to operate the service. We ensure each
-          sub-processor provides sufficient guarantees to implement appropriate technical and
-          organisational measures so that processing meets RGPD requirements.
+          Un prestataire qui traite des données personnelles pour notre compte, au sens de l'article
+          28 du RGPD. Chacun ne reçoit que ce qui est nécessaire à sa mission et s'engage par
+          contrat à protéger ces données.
         </TypographyP>
       </section>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2>Active sub-processors</TypographyH2>
-        <SubProcessorTable
-          processors={active}
-          caption="Third-party processors currently used to operate the service"
-        />
+        <TypographyH2>Sous-traitants actuels</TypographyH2>
+        <SubProcessorTable />
       </section>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2>Planned sub-processors</TypographyH2>
-        <SubProcessorTable
-          processors={planned}
-          caption="Third-party processors intended for future use, not yet active"
-        />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <TypographyH2>Change notice</TypographyH2>
+        <TypographyH2>Changements</TypographyH2>
         <TypographyP>
-          In accordance with RGPD Art. 28§2, we will notify you at least 30 days before adding or
-          replacing any sub-processor. If you object to a change, you may terminate the agreement
-          before the change takes effect. Notifications are sent to the contact address on your
-          account. For questions, contact{" "}
-          <TextLink href="mailto:dpo@[domain]">dpo@[domain]</TextLink>.
+          Nous vous prévenons par e-mail au moins 30 jours avant d'ajouter ou de remplacer un
+          sous-traitant. Pour toute question : <ContactLink />.
         </TypographyP>
       </section>
     </main>

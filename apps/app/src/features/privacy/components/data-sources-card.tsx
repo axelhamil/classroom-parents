@@ -7,8 +7,6 @@ import { useTranslation } from "react-i18next";
 import { SUB_PROCESSOR_KEYS } from "../../../shared/sub-processor-labels";
 import { SUB_PROCESSORS } from "../../../shared/sub-processors.config";
 
-const activeProcessors = SUB_PROCESSORS.filter((sp) => sp.status === "active");
-
 export function DataSourcesCard() {
   const { t } = useTranslation("settings");
   const { t: tCommon } = useTranslation("common");
@@ -19,14 +17,12 @@ export function DataSourcesCard() {
       description={t("privacy.dataSources.description")}
     >
       <ul className="flex flex-col gap-2">
-        {activeProcessors.map((sp) => (
+        {SUB_PROCESSORS.map((sp) => (
           <ListRow variant="plain" key={sp.id}>
             <ListRowContent>
               <TypographySmall>{sp.name}</TypographySmall>
-              <TypographyMuted>
-                {tCommon(SUB_PROCESSOR_KEYS[sp.id].purpose)} ·{" "}
-                {tCommon(SUB_PROCESSOR_KEYS[sp.id].region)}
-              </TypographyMuted>
+              <TypographyMuted>{tCommon(SUB_PROCESSOR_KEYS[sp.id].purpose)}</TypographyMuted>
+              <TypographyMuted>{tCommon(SUB_PROCESSOR_KEYS[sp.id].region)}</TypographyMuted>
             </ListRowContent>
           </ListRow>
         ))}

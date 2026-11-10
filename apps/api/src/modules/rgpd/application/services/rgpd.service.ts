@@ -106,7 +106,7 @@ export class RgpdService {
         if (txResult.isFailure) return Result.fail(txResult.getError());
         if (!txResult.getValue()) return this.currentPendingDeletion(input.userId);
 
-        const cancelUrl = `${this.settings.appUrl}/settings/account`;
+        const cancelUrl = `${this.settings.appUrl}/settings`;
         const sent = await this.email.sendTemplate(
           "delete_requested",
           state.email,

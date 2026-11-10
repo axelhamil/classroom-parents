@@ -127,6 +127,19 @@ describe("RgpdService", () => {
       expect(f.uow.outcome()).toBe("committed");
     });
 
+    it("given a scheduled deletion, the confirmation email links to the settings page that can cancel it", async () => {
+      const f = fixture();
+
+      await f.service().requestAccountDeletion({ userId: "u1", sessionId: "s1" });
+
+      expect(f.email.sendTemplate).toHaveBeenCalledWith(
+        "delete_requested",
+        "parent@example.com",
+        expect.objectContaining({ cancelUrl: "https://app.example.com/settings" }),
+        expect.anything(),
+      );
+    });
+
     it("given a session older than the fresh age, asks to sign in again and schedules nothing", async () => {
       const f = fixture();
       f.repo.findSessionStart.mockImplementation(async () =>

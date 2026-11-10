@@ -6,8 +6,10 @@ export const Route = createFileRoute("/_protected/_shell")({
 });
 
 function ShellLayout() {
+  const { user } = Route.useRouteContext();
+
   return (
-    <AppShell>
+    <AppShell userId={user.id}>
       <Outlet />
     </AppShell>
   );

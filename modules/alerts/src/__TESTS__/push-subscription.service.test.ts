@@ -30,7 +30,9 @@ let service: PushSubscriptionService;
 beforeEach(() => {
   subscriptions = mockPort<IPushSubscriptionRepository>();
   outbox = mockPort<IOutboxRepository>();
-  subscriptions.upsert.mockResolvedValue(Result.ok(SUBSCRIPTION_ID));
+  subscriptions.upsert.mockResolvedValue(
+    Result.ok({ id: SUBSCRIPTION_ID, previousUserId: Option.none<string>() }),
+  );
   subscriptions.deleteOwned.mockResolvedValue(Result.ok(Option.none()));
   subscriptions.countForUser.mockResolvedValue(Result.ok(2));
 
@@ -61,6 +63,40 @@ describe("subscribe", () => {
         aggregateId: SUBSCRIPTION_ID,
         payload: { userId: PARENT, subscriptionId: SUBSCRIPTION_ID },
       },
+    ]);
+  });
+
+  it("given a phone another parent subscribed, then the endpoint moves to this parent and the other parent's audit trail records it left them", async () => {
+    subscriptions.upsert.mockResolvedValue(
+      Result.ok({ id: SUBSCRIPTION_ID, previousUserId: Option.some("other-parent") }),
+    );
+
+    const result = await service.subscribe(PARENT, browserSubscription);
+
+    expect(result.isSuccess).toBe(true);
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.PUSH_UNSUBSCRIBED,
+        aggregateId: SUBSCRIPTION_ID,
+        payload: { userId: "other-parent", subscriptionId: SUBSCRIPTION_ID, actorUserId: PARENT },
+      },
+      {
+        eventType: EventTypes.PUSH_SUBSCRIBED,
+        aggregateId: SUBSCRIPTION_ID,
+        payload: { userId: PARENT, subscriptionId: SUBSCRIPTION_ID },
+      },
+    ]);
+  });
+
+  it("given the parent re-subscribes their own phone, then no unsubscription is recorded", async () => {
+    subscriptions.upsert.mockResolvedValue(
+      Result.ok({ id: SUBSCRIPTION_ID, previousUserId: Option.some(PARENT) }),
+    );
+
+    await service.subscribe(PARENT, browserSubscription);
+
+    expect(enqueuedEvents(outbox).map((event) => event.eventType)).toEqual([
+      EventTypes.PUSH_SUBSCRIBED,
     ]);
   });
 

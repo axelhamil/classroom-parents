@@ -1,12 +1,12 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { sessionQueryOptions } from "../api/queries/session";
+import { freshSessionQueryOptions, sessionQueryOptions } from "../api/queries/session";
 import { broadcastAuthChange } from "./auth-broadcast";
 
 export async function refetchSession(queryClient: QueryClient): Promise<void> {
   const { queryKey } = sessionQueryOptions;
 
-  await queryClient.refetchQueries({ queryKey });
+  await queryClient.fetchQuery(freshSessionQueryOptions).catch(() => undefined);
 
   const state = queryClient.getQueryState(queryKey);
   if (state?.status === "error" && state.data === null) queryClient.removeQueries({ queryKey });

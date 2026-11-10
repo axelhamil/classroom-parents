@@ -20,6 +20,12 @@ export interface ApiCall {
 
 export type ApiHandler = (call: ApiCall) => Response | undefined;
 
+export type RouteReplies = Record<string, (call: ApiCall) => Response>;
+
+export function byRoute(routes: RouteReplies): ApiHandler {
+  return (call) => routes[`${call.method} ${call.url.pathname}`]?.(call);
+}
+
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,

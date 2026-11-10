@@ -2,9 +2,11 @@
  * Proves against a real Postgres what mocked ports cannot: 4 dispatchers running at once over
  * 200 due alerts send each alert exactly once (FOR UPDATE SKIP LOCKED plus the lease), a family
  * never reads, sets or clears another family's alert nor deletes its push subscription, and the
- * claim query reads alert_pending_due_idx among thousands of settled alerts.
+ * claim query reads alert_pending_due_idx among thousands of settled alerts. A phone shared by
+ * two parents belongs to the last one who subscribed it: A's alerts stop reaching it.
  */
 
+import { isDeepStrictEqual } from "node:util";
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-alert-db", process.env.DATABASE_URL);
@@ -20,8 +22,10 @@ import {
   inArray,
   isNull,
   like,
+  outboxSchema,
   TransactionService,
 } from "@packages/drizzle";
+import { EventTypes } from "@packages/events";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { alert } from "../schemas/alert.schema";
 import { pushSubscription } from "../schemas/push-subscription.schema";
@@ -35,6 +39,7 @@ import type { EventDeadline, IEventDeadlines } from "../src/application/ports/ev
 import type { IPushSender } from "../src/application/ports/push-sender.port";
 import { AlertDispatchService } from "../src/application/services/alert-dispatch.service";
 import { AlertPlanningService } from "../src/application/services/alert-planning.service";
+import { PushSubscriptionService } from "../src/application/services/push-subscription.service";
 import {
   alertClaimQuery,
   DrizzleAlertRepository,
@@ -117,6 +122,12 @@ const dispatch = new AlertDispatchService(
   instrumentation,
 );
 const planning = new AlertPlanningService(alerts, deadlines, transactions, outbox, instrumentation);
+const pushService = new PushSubscriptionService(
+  subscriptions,
+  transactions,
+  outbox,
+  instrumentation,
+);
 
 async function seedFamily(name: string): Promise<{ userId: string; childId: string }> {
   const userId = `${probe}-${name}`;
@@ -349,5 +360,87 @@ run(async () => {
   await step(
     "A cannot delete B's push subscription",
     removed.isSuccess && removed.getValue().isNone() && left.length === 1,
+  );
+
+  await subscriptions.deleteOwned(a.userId, `https://push.example.com/${a.userId}`);
+  const sharedPhone = `https://fcm.googleapis.com/fcm/send/${probe}`;
+  const phoneKeys = {
+    p256dh:
+      "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+    auth: "tBHItJI5svbpez7KI4CCXg",
+  };
+  const subscribedByA = await pushService.subscribe(a.userId, {
+    endpoint: sharedPhone,
+    keys: phoneKeys,
+  });
+  const reclaimed = await pushService.subscribe(b.userId, {
+    endpoint: sharedPhone,
+    keys: phoneKeys,
+  });
+  const owners = await db
+    .select({ id: pushSubscription.id, userId: pushSubscription.userId })
+    .from(pushSubscription)
+    .where(eq(pushSubscription.endpoint, sharedPhone));
+  await step(
+    "B subscribing A's phone moves the endpoint to B",
+    subscribedByA.isSuccess &&
+      reclaimed.isSuccess &&
+      owners.length === 1 &&
+      owners[0]?.userId === b.userId,
+    owners,
+  );
+  const phoneId = owners[0]?.id ?? "";
+  const unsubscribedEvents = await db
+    .select({ payload: outboxSchema.outboxEvent.payload })
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        eq(outboxSchema.outboxEvent.aggregateId, phoneId),
+        eq(outboxSchema.outboxEvent.eventType, EventTypes.PUSH_UNSUBSCRIBED),
+      ),
+    );
+  await step(
+    "A's audit trail records the phone left them, with B as the actor",
+    unsubscribedEvents.length === 1 &&
+      isDeepStrictEqual(unsubscribedEvents[0]?.payload, {
+        userId: a.userId,
+        subscriptionId: phoneId,
+        actorUserId: b.userId,
+      }),
+    unsubscribedEvents,
+  );
+  await db
+    .delete(outboxSchema.outboxEvent)
+    .where(eq(outboxSchema.outboxEvent.aggregateId, phoneId));
+
+  const reachedEndpoints: string[] = [];
+  const recordingPush: IPushSender = {
+    send: async (target) => {
+      reachedEndpoints.push(target.endpoint);
+      return Result.ok();
+    },
+  };
+  const afterReclaim = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    recordingPush,
+    emailSender,
+    contexts,
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  const emailsBefore = emails;
+  const [eventOfA] = await seedAlerts(a, 1, "pending", "shared-phone");
+  if (!eventOfA) throw new Error("alert of A not seeded");
+  await afterReclaim.runOnce(NOW);
+  const [alertOfA] = await db.select().from(alert).where(eq(alert.eventId, eventOfA));
+  await step(
+    "A's next alert no longer reaches the phone B took over and goes by email",
+    !reachedEndpoints.includes(sharedPhone) &&
+      emails === emailsBefore + 1 &&
+      alertOfA?.status === "sent",
+    { reachedEndpoints, emails: emails - emailsBefore, status: alertOfA?.status },
   );
 }, "alerts are sent once under concurrency and stay inside their family on a real database");

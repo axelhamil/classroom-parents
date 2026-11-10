@@ -6,6 +6,7 @@ import type {
   IPushSubscriptionRepository,
   NewPushSubscription,
   PushSubscriptionRecord,
+  StoredPushSubscription,
 } from "../../application/ports/push-subscription-repository.port";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
@@ -15,12 +16,19 @@ const repositoryFailure = dbOperationFailure("PUSH_PROVIDER_FAILURE");
 export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepository {
   constructor(private readonly instrumentation: IInstrumentation) {}
 
-  async upsert(subscription: NewPushSubscription): Promise<Result<string, AlertsError>> {
+  async upsert(
+    subscription: NewPushSubscription,
+  ): Promise<Result<StoredPushSubscription, AlertsError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: "DrizzlePushSubscriptionRepository > upsert" },
       async () => {
         try {
+          const [previous] = await exec
+            .select({ userId: pushSubscription.userId })
+            .from(pushSubscription)
+            .where(eq(pushSubscription.endpoint, subscription.endpoint))
+            .for("update");
           const keys = {
             userId: subscription.userId,
             p256dh: subscription.p256dh,
@@ -28,18 +36,14 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
             userAgent: subscription.userAgent.toNull(),
             lastSeenAt: subscription.now,
           };
-          const query = exec
+          const [row] = await exec
             .insert(pushSubscription)
             .values({ endpoint: subscription.endpoint, createdAt: subscription.now, ...keys })
             .onConflictDoUpdate({ target: pushSubscription.endpoint, set: keys })
             .returning({ id: pushSubscription.id });
-          const [row] = await this.instrumentation.startSpan(
-            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
-            () => query.execute(),
-          );
           if (!row) return Result.fail(repositoryFailure("upsert"));
 
-          return Result.ok(row.id);
+          return Result.ok({ id: row.id, previousUserId: Option.fromNullable(previous?.userId) });
         } catch (err) {
           this.instrumentation.capture(err);
           return Result.fail(repositoryFailure("upsert"));

@@ -18,7 +18,6 @@ import {
 import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { UntranslatedBodyBanner } from "./components/untranslated-body-banner";
 import { COOKIE_INVENTORY, type CookieInfo } from "./cookies.config";
 
 export const Route = createFileRoute("/legal/cookies")({
@@ -68,26 +67,18 @@ function CookiesPage() {
 
       <Separator />
 
-      <UntranslatedBodyBanner />
-
       <section className="flex flex-col gap-3">
-        <TypographyH2>What are cookies?</TypographyH2>
+        <TypographyH2>Seulement le nécessaire</TypographyH2>
         <TypographyP>
-          Cookies are small text files placed on your device by your browser when you visit a
-          website. They allow us to remember your preferences and measure how the service is used.
-          This application only sets the cookies strictly necessary to run it, so no consent is
-          asked.
+          L'application ne dépose que les cookies indispensables à votre connexion et à l'affichage.
+          Aucun cookie de mesure d'audience ni de publicité : aucun consentement n'est donc demandé.
+          Le thème clair ou sombre est retenu dans le stockage de votre navigateur, sans cookie.
         </TypographyP>
       </section>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2>{t("cookieConsent.categories.necessary.label")}</TypographyH2>
-        <CookieTable
-          cookies={COOKIE_INVENTORY}
-          caption={t("legal.cookies.tableCaption", {
-            category: t("cookieConsent.categories.necessary.label"),
-          })}
-        />
+        <TypographyH2>Cookies déposés</TypographyH2>
+        <CookieTable cookies={COOKIE_INVENTORY} caption={t("legal.cookies.tableCaption")} />
       </section>
     </main>
   );

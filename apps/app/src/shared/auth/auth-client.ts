@@ -4,5 +4,5 @@ import { env } from "../env";
 export const authClient = createAuthClient({
   baseURL: env.VITE_API_URL,
   basePath: "/api/auth",
-  fetchOptions: { credentials: "include" },
+  fetchOptions: { credentials: "include", customFetchImpl: (input, init) => fetch(input, init) },
 });

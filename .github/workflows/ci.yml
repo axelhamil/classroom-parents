@@ -77,7 +77,9 @@ jobs:
           context: .
           file: apps/app/Dockerfile
           push: false
-          build-args: VITE_API_URL=https://api.example.com
+          build-args: |
+            VITE_API_URL=https://api.example.com
+            VITE_CONTACT_EMAIL=contact@example.com
           cache-from: type=gha,scope=app
           cache-to: type=gha,mode=max,scope=app
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { parseAppEnv } from "../env.schema";
 
 async function loadEnv() {
   vi.resetModules();
@@ -40,5 +41,12 @@ describe("env", () => {
     vi.stubEnv("VITE_ADMIN_URL", "https://admin.example.com/back");
 
     await expect(loadEnv()).rejects.toThrow();
+  });
+
+  it("refuses a missing or blank contact address, which fails the build", () => {
+    expect(() => parseAppEnv({ VITE_API_URL: "https://api.example.com" })).toThrow(
+      /VITE_CONTACT_EMAIL/,
+    );
+    expect(() => parseAppEnv({ VITE_CONTACT_EMAIL: "" })).toThrow(/VITE_CONTACT_EMAIL/);
   });
 });

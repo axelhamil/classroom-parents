@@ -7,24 +7,20 @@ import type { SubProcessorId } from "./sub-processors.config";
 // `common.legal` rather than under either page's own namespace precisely
 // because neither page owns them.
 export const SUB_PROCESSOR_KEYS = {
+  google: {
+    purpose: "legal.subProcessors.google.purpose",
+    region: "legal.subProcessors.google.region",
+  },
+  anthropic: {
+    purpose: "legal.subProcessors.anthropic.purpose",
+    region: "legal.subProcessors.anthropic.region",
+  },
   resend: {
     purpose: "legal.subProcessors.resend.purpose",
     region: "legal.subProcessors.resend.region",
   },
-  r2: {
-    purpose: "legal.subProcessors.r2.purpose",
-    region: "legal.subProcessors.r2.region",
-  },
-  betterAuth: {
-    purpose: "legal.subProcessors.betterAuth.purpose",
-    region: "legal.subProcessors.betterAuth.region",
-  },
-  stripe: {
-    purpose: "legal.subProcessors.stripe.purpose",
-    region: "legal.subProcessors.stripe.region",
-  },
-  umami: {
-    purpose: "legal.subProcessors.umami.purpose",
-    region: "legal.subProcessors.umami.region",
+  railway: {
+    purpose: "legal.subProcessors.railway.purpose",
+    region: "legal.subProcessors.railway.region",
   },
 } as const satisfies Record<SubProcessorId, { purpose: string; region: string }>;

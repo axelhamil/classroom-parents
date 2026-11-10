@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../api/queries/session";
+import { releasePushSubscription } from "../pwa/release-push-subscription";
 import { broadcastAuthChange } from "./auth-broadcast";
 import { authClient } from "./auth-client";
 
@@ -14,6 +15,7 @@ export function useSignOut() {
   return useMutation({
     mutationKey: ["session", "sign-out"],
     mutationFn: async () => {
+      await releasePushSubscription();
       const { error } = await authClient.signOut();
       if (error) throw new Error(error.message ?? t("userMenu.signOutFailed"));
     },

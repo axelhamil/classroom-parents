@@ -45,7 +45,18 @@ export class PushSubscriptionService {
         });
         if (stored.isFailure) return Result.fail(stored.getError());
 
-        const subscriptionId = stored.getValue();
+        const { id: subscriptionId, previousUserId } = stored.getValue();
+        const takenFrom = previousUserId.filter((previous) => previous !== userId);
+        if (takenFrom.isSome()) {
+          await emitEvent(
+            this.outbox,
+            EventTypes.PUSH_UNSUBSCRIBED,
+            "push_subscription",
+            subscriptionId,
+            { userId: takenFrom.unwrap(), subscriptionId, actorUserId: userId },
+          );
+        }
+
         await emitEvent(
           this.outbox,
           EventTypes.PUSH_SUBSCRIBED,

@@ -5,13 +5,13 @@ import { STORAGE_STATE } from "./playwright.config";
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
 
 async function openDeletionDialog(page: Page): Promise<{ trigger: Locator; dialog: Locator }> {
-  await page.goto("/settings/privacy");
+  await page.goto("/settings");
 
-  const trigger = page.getByRole("button", { name: "Supprimer le compte" });
+  const trigger = page.getByRole("button", { name: "Supprimer mon compte" });
   await tabTo(page, trigger);
   await page.keyboard.press("Enter");
 
-  const dialog = page.getByRole("alertdialog", { name: "Supprimer votre compte" });
+  const dialog = page.getByRole("alertdialog", { name: "Supprimer votre compte ?" });
   await expect(dialog).toBeVisible();
 
   return { trigger, dialog };
@@ -145,7 +145,7 @@ test.describe("signed in", () => {
       await page.emulateMedia({ colorScheme });
       const { dialog } = await openDeletionDialog(page);
 
-      const confirm = dialog.getByRole("button", { name: "Supprimer le compte" });
+      const confirm = dialog.getByRole("button", { name: "Oui, supprimer mon compte" });
       await tabTo(page, confirm);
 
       expect(await ringContrastBelow(dialog, confirm)).toBeGreaterThanOrEqual(3);

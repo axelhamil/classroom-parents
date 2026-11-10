@@ -79,51 +79,21 @@ export default {
     acceptAll: "Tout accepter",
     preferencesTitle: "Préférences cookies",
   },
-  cookieConsent: {
-    necessaryAlwaysOnHint: "Les cookies strictement nécessaires ne peuvent pas être désactivés.",
-    title: "Gérez vos préférences cookies",
-    save: "Enregistrer les préférences",
-    withdraw: "Retirer tous les consentements",
-    savedToast: "Préférences enregistrées",
-    withdrawnToast: "Consentement retiré",
-    categories: {
-      necessary: {
-        label: "Strictement nécessaires",
-        description:
-          "Indispensables au fonctionnement du service. Ils ne peuvent pas être désactivés.",
-      },
-      functional: {
-        label: "Fonctionnels",
-        description:
-          "Améliorent votre expérience (préférences de langue ou de région, par exemple).",
-      },
-      analytics: {
-        label: "Mesure d'audience",
-        description:
-          "Nous aident à comprendre comment le service est utilisé (données anonymisées).",
-      },
-      marketing: {
-        label: "Marketing et publicité",
-        description: "Autorisent la publicité personnalisée et le reciblage.",
-      },
-    },
-  },
   legal: {
     policies: {
       privacyTitle: "Politique de confidentialité",
       termsTitle: "Conditions d'utilisation",
       versionLine: "Version {{version}} (en vigueur le {{date}})",
-      unavailableBanner:
-        "Ce document n'est pas encore disponible dans votre langue. Vous consultez la version anglaise ci-dessous.",
+      updated: "Dernière mise à jour : 10 novembre 2026",
     },
     accessibility: {
       title: "Déclaration d'accessibilité",
-      subtitle: "EAA Art. 14 · EN 301 549 v3.2.1 / WCAG 2.1 AA · Dernière relecture : 2026-07-09",
+      subtitle: "RGAA 4.1 et WCAG 2.1 niveau AA · Dernière mise à jour : 10 novembre 2026",
     },
     cookies: {
-      title: "Politique de cookies",
-      subtitle: "Conforme CNIL · Dernière mise à jour : 2026-07-09",
-      tableCaption: "Cookies de la catégorie {{category}} utilisés par cette application",
+      title: "Cookies",
+      subtitle: "Uniquement les cookies nécessaires · Dernière mise à jour : 10 novembre 2026",
+      tableCaption: "Cookies déposés par l'application",
       table: {
         name: "Nom",
         provider: "Fournisseur",
@@ -133,37 +103,37 @@ export default {
     },
     dataRights: {
       title: "Vos droits sur vos données",
-      subtitle:
-        "Information de transparence RGPD Art. 13/14. Dernière mise à jour à la date de déploiement de cette page.",
+      subtitle: "RGPD articles 13 à 21 · Dernière mise à jour : 10 novembre 2026",
     },
     subProcessors: {
       title: "Registre des sous-traitants",
-      subtitle: "RGPD Art. 28 · Dernière mise à jour : 2026-07-09",
+      subtitle: "RGPD article 28 · Dernière mise à jour : 10 novembre 2026",
+      tableCaption: "Prestataires qui traitent des données pour faire fonctionner le service",
       table: {
         name: "Nom",
         purpose: "Finalité",
         region: "Région / base de transfert",
-        dpa: "DPA",
+        dpa: "Accord de traitement",
+      },
+      dpaLink: "Lire l'accord",
+      noDpa: "Conditions générales du prestataire",
+      google: {
+        purpose:
+          "Connexion avec Google, lecture seule des cours, annonces et devoirs Google Classroom",
+        region: "États-Unis (certifié EU DPF)",
+      },
+      anthropic: {
+        purpose: "Extraction des dates dans le texte des annonces, sans entraînement des modèles",
+        region: "États-Unis (clauses contractuelles types)",
       },
       resend: {
-        purpose: "Envoi d'e-mails transactionnels",
+        purpose:
+          "Envoi des e-mails, dont les alertes quand aucun appareil ne reçoit les notifications",
         region: "États-Unis (certifié EU DPF)",
       },
-      r2: {
-        purpose: "Stockage d'objets (fichiers téléversés)",
-        region: "UE ou États-Unis (zone configurable)",
-      },
-      betterAuth: {
-        purpose: "Authentification sociale OAuth",
-        region: "États-Unis / UE (selon le fournisseur)",
-      },
-      stripe: {
-        purpose: "Traitement des paiements et facturation",
-        region: "États-Unis (certifié EU DPF)",
-      },
-      umami: {
-        purpose: "Mesure d'audience respectueuse de la vie privée",
-        region: "Configurable (auto-hébergeable)",
+      railway: {
+        purpose: "Hébergement de l'application, de ses tâches de fond et de sa base de données",
+        region: "Union européenne (région choisie au déploiement)",
       },
     },
     accept: {

@@ -31,15 +31,19 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "PUT /events/:eventId/alert": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
   },
-  "POST /push/subscriptions": { uiLess: "dormant-by-design" },
-  "GET /push/status": { uiLess: "dormant-by-design" },
-  "GET /push/config": { uiLess: "dormant-by-design" },
   "GET /events/:eventId/alert": { consumer: "apps/app/src/features/events/api/events.queries.ts" },
-  "DELETE /push/subscriptions": { uiLess: "dormant-by-design" },
   "DELETE /events/:eventId/alert": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
   },
   "PATCH /children/:id": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
+  "POST /push/subscriptions": {
+    consumer: "apps/app/src/shared/api/mutations/save-push-subscription.ts",
+  },
+  "GET /push/status": { consumer: "apps/app/src/features/settings/api/settings.queries.ts" },
+  "GET /push/config": { consumer: "apps/app/src/shared/api/queries/push-config.ts" },
+  "DELETE /push/subscriptions": {
+    consumer: "apps/app/src/shared/api/mutations/delete-push-subscription.ts",
+  },
   "PATCH /events/:id": { uiLess: "dormant-by-design" },
   "POST /children": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
   "POST /children/:id/reconnect": {

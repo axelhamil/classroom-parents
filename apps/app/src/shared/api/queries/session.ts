@@ -8,3 +8,8 @@ export const sessionQueryOptions = createSessionQueryOptions<SessionData>({
   getSession: () => authClient.getSession(),
   staleTime: AUTH_QUERY_STALE_TIME_MS,
 });
+
+export const freshSessionQueryOptions = createSessionQueryOptions<SessionData>({
+  getSession: () => authClient.getSession({ query: { disableCookieCache: true } }),
+  staleTime: 0,
+});

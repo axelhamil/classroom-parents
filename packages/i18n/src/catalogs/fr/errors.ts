@@ -15,7 +15,12 @@ export default {
     ALERT_AFTER_DEADLINE: "Le rappel doit tomber avant l'échéance.",
     ALERT_TIME_INVALID: "Choisissez un jour et une heure valides.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",
-    ACCOUNT_EXPORT_RATE_LIMITED: "Vous pourrez demander un nouvel export dans 24 heures.",
+    ACCOUNT_REAUTH_REQUIRED:
+      "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
+    ACCOUNT_DELETION_CANCEL_CONFLICT:
+      "Le délai d'annulation est passé : la suppression de votre compte est en cours et ne peut plus être annulée.",
+    PUSH_SUBSCRIPTION_INVALID:
+      "Ce navigateur a fourni un abonnement aux notifications que nous ne pouvons pas utiliser. Réessayez depuis Chrome, Edge, Firefox ou Safari.",
     ACCOUNT_PASSWORD_REQUIRED: "Confirmez avec votre mot de passe.",
     ACCOUNT_DELETION_BLOCKED:
       "Réglez la propriété de vos organisations avant de supprimer votre compte.",
@@ -298,7 +303,10 @@ export default {
     openBillingPortal: "Échec de l'ouverture du portail de facturation",
     recordConsent: "Échec de l'enregistrement du consentement",
     requestAccountDeletion: "Échec de la demande de suppression du compte",
-    requestDataExport: "Échec de la demande d'export",
+    loadPushConfig: "Échec du chargement de la configuration des alertes",
+    loadPushStatus: "Échec du chargement de l'état des alertes",
+    savePushSubscription: "Échec de l'activation des alertes",
+    deletePushSubscription: "Échec de la désactivation des alertes",
     verifyStepUp: "Échec de la vérification de ce code",
     stopImpersonation: "Échec de l'arrêt de l'emprunt d'identité",
     withdrawConsent: "Échec du retrait du consentement",

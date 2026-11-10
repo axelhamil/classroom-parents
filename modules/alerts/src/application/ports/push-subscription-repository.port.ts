@@ -18,8 +18,13 @@ export interface NewPushSubscription {
   now: Date;
 }
 
+export interface StoredPushSubscription {
+  id: string;
+  previousUserId: Option<string>;
+}
+
 export interface IPushSubscriptionRepository {
-  upsert(subscription: NewPushSubscription): Promise<Result<string, AlertsError>>;
+  upsert(subscription: NewPushSubscription): Promise<Result<StoredPushSubscription, AlertsError>>;
 
   deleteOwned(userId: string, endpoint: string): Promise<Result<Option<string>, AlertsError>>;
 

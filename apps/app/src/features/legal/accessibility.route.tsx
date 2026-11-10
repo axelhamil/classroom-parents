@@ -1,12 +1,11 @@
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { PageHeader } from "@packages/ui/components/ui/page-header";
 import { Separator } from "@packages/ui/components/ui/separator";
-import { TextLink } from "@packages/ui/components/ui/text-link";
 import { TypographyH2, TypographyList, TypographyP } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { UntranslatedBodyBanner } from "./components/untranslated-body-banner";
+import { ContactLink } from "./components/contact-link";
 
 export const Route = createFileRoute("/legal/accessibility")({
   component: AccessibilityPage,
@@ -23,51 +22,44 @@ function AccessibilityPage() {
 
       <Separator />
 
-      <UntranslatedBodyBanner />
-
       <section className="flex flex-col gap-3">
-        <TypographyH2>Compliance status</TypographyH2>
+        <TypographyH2>État de conformité</TypographyH2>
         <TypographyP>
-          This application aims to partially conform to WCAG 2.1 Level AA per EN 301 549 v3.2.1.
-          Partial compliance means some parts do not fully conform yet (see Known limitations).
+          L'application vise la conformité au niveau AA des WCAG 2.1 et au RGAA 4.1. Elle est
+          partiellement conforme : aucun audit externe n'a encore été mené.
         </TypographyP>
       </section>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2>Known limitations</TypographyH2>
+        <TypographyH2>Ce qui est vérifié</TypographyH2>
         <TypographyList>
-          <li>Keyboard navigation of modal dialogs may be incomplete in some flows</li>
-          <li>Color contrast of muted text may not meet 4.5:1 in all themes</li>
-          <li>Automated audit via Lighthouse CI pending (Phase A.6)</li>
+          <li>
+            Chaque page est contrôlée automatiquement (axe) en thème clair et sombre, avec un seul
+            titre principal et une seule zone de contenu.
+          </li>
+          <li>Les contrastes des couleurs atteignent le niveau AA.</li>
+          <li>Tout se fait au clavier, et les cibles tactiles mesurent au moins 44 pixels.</li>
         </TypographyList>
       </section>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2>Technical specifications</TypographyH2>
+        <TypographyH2>Technologies</TypographyH2>
+        <TypographyP>HTML5, CSS, ARIA et React 19.</TypographyP>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <TypographyH2>Nous signaler un problème</TypographyH2>
         <TypographyP>
-          This application relies on the following technologies: HTML5, CSS (Tailwind 4), ARIA, and
-          React 19.
-        </TypographyP>
-        <TypographyP>
-          Compatibility has been tested with the following browser and assistive technology
-          combinations: Chrome with NVDA, Firefox with NVDA, and Safari with VoiceOver.
+          Si un contenu vous est inaccessible, écrivez à <ContactLink /> : nous vous répondons sous
+          15 jours ouvrés et vous transmettons l'information sous une autre forme.
         </TypographyP>
       </section>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2>Feedback and contact information</TypographyH2>
+        <TypographyH2>Recours</TypographyH2>
         <TypographyP>
-          If you experience an accessibility barrier, email{" "}
-          <TextLink href="mailto:accessibility@[domain]">accessibility@[domain]</TextLink>. We aim
-          to respond within 15 business days.
-        </TypographyP>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <TypographyH2>Enforcement and escalation</TypographyH2>
-        <TypographyP>
-          If our response is unsatisfactory, contact the national digital accessibility authority in
-          your country (e.g. ARCOM in France). [Replace with the authority for your jurisdiction.]
+          Si notre réponse ne vous satisfait pas, vous pouvez saisir le Défenseur des droits
+          (defenseurdesdroits.fr).
         </TypographyP>
       </section>
     </main>

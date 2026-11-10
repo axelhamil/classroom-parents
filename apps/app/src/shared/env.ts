@@ -1,12 +1,3 @@
-import { blankAsAbsent } from "@packages/web-kit/env/blank-as-absent";
-import { z } from "zod";
+import { parseAppEnv } from "./env.schema";
 
-const envSchema = z.object({
-  VITE_API_URL: z.url().default("http://localhost:3000"),
-  VITE_ADMIN_URL: blankAsAbsent(z.url().refine((url) => new URL(url).origin === url)),
-  VITE_SENTRY_DSN: blankAsAbsent(z.url()),
-  VITE_SENTRY_ENVIRONMENT: blankAsAbsent(z.string()),
-  VITE_GIT_SHA: blankAsAbsent(z.string()),
-});
-
-export const env = envSchema.parse(import.meta.env);
+export const env = parseAppEnv(import.meta.env);
