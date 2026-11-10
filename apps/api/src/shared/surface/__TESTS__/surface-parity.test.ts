@@ -65,6 +65,8 @@ describe("surface parity", () => {
     "/events/*",
     "/push",
     "/push/*",
+    "/reminders",
+    "/reminders/*",
   ]);
 
   it("has no ALL-method route besides the documented BetterAuth mount and known middleware", () => {

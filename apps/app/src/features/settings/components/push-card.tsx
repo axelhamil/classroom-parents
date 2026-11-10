@@ -3,12 +3,13 @@ import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
 import { Hint } from "@packages/ui/components/ui/hint";
 import { SettingsSection } from "@packages/ui/components/ui/settings-section";
-import { TypographyP } from "@packages/ui/components/ui/typography";
+import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
 import { BellOff, BellRing, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useInstallState } from "../../../shared/pwa/use-install-state";
-import { pushStatusQueryOptions } from "../api/settings.queries";
+import { useReminderLabel } from "../../../shared/reminders/use-reminder-label";
+import { defaultRemindersQueryOptions, pushStatusQueryOptions } from "../api/settings.queries";
 import { type PushSubscriptionState, usePushSubscription } from "../hooks/use-push-subscription";
 import { InstallGuide } from "./install-guide";
 
@@ -26,6 +27,7 @@ export function PushCard({ userId }: PushCardProps) {
 
   return (
     <SettingsSection title={t("push.title")} description={t("push.description")}>
+      <DefaultRemindersSummary userId={userId} />
       {needsInstall ? <InstallGuide /> : null}
       <PushControl push={push} needsInstall={needsInstall} />
       {emailFallback ? (
@@ -35,6 +37,29 @@ export function PushCard({ userId }: PushCardProps) {
         </Alert>
       ) : null}
     </SettingsSection>
+  );
+}
+
+const LOCALE = "fr-FR";
+const LIST_FORMAT = new Intl.ListFormat(LOCALE, { type: "conjunction" });
+
+function inSentence(label: string): string {
+  return label.charAt(0).toLocaleLowerCase(LOCALE) + label.slice(1);
+}
+
+function DefaultRemindersSummary({ userId }: PushCardProps) {
+  const { t } = useTranslation("settings");
+  const label = useReminderLabel();
+  const defaults = useQuery(defaultRemindersQueryOptions(userId));
+  if (!defaults.isSuccess) return null;
+  if (defaults.data.length === 0) return <TypographyMuted>{t("push.noDefaults")}</TypographyMuted>;
+
+  return (
+    <TypographyMuted>
+      {t("push.defaults", {
+        reminders: LIST_FORMAT.format(defaults.data.map((reminder) => inSentence(label(reminder)))),
+      })}
+    </TypographyMuted>
   );
 }
 

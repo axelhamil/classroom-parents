@@ -7,19 +7,30 @@ test.describe("event detail on a phone", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
 
   for (const colorScheme of COLOR_SCHEMES) {
-    test(`sheet, reminder and actions (${colorScheme})`, async ({ page }) => {
+    test(`sheet, five reminders in every state, their editor and actions (${colorScheme})`, async ({
+      page,
+    }) => {
       await page.emulateMedia({ colorScheme });
       await serveFamily(page, { children: [LEA], events: [REVIEW_EVENT] });
       await page.goto(`/events/${REVIEW_EVENT.id}`);
 
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(REVIEW_EVENT.title);
-      await expect(page.getByText("Rappel 2 jours avant, 18 h")).toBeVisible();
+      await expect(page.getByText("3 jours avant, à 18 h")).toBeVisible();
+      await expect(page.getByText("Non planifié")).toBeVisible();
       await expect(page.getByRole("link", { name: "Ouvrir dans Classroom" })).toHaveAttribute(
         "href",
         REVIEW_EVENT.announcementUrl,
       );
       await expect(page.locator("main")).toHaveCount(1);
       await expect(page.locator("h1")).toHaveCount(1);
+      expect(await blockingViolations(page)).toEqual([]);
+
+      await page.getByRole("button", { name: "Modifier les rappels" }).click();
+
+      await expect(page.getByRole("button", { name: "Ajouter un rappel" })).toBeDisabled();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
       expect(await blockingViolations(page)).toEqual([]);
     });
   }

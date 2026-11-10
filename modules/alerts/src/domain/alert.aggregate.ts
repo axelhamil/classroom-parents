@@ -1,15 +1,16 @@
-import { Aggregate, Option, Result } from "@packages/ddd-kit";
-import { utcToZonedWall } from "@packages/ddd-kit/zoned-time";
+import { Aggregate, Option } from "@packages/ddd-kit";
 import { AlertId } from "./alert-id";
-import { AlertOrigin } from "./value-objects/alert-origin.vo";
+import type { AlertOrigin } from "./value-objects/alert-origin.vo";
 import { AlertStatus } from "./value-objects/alert-status.vo";
-import { ALERT_TIME_ZONE, AlertTime, daysBetween } from "./value-objects/alert-time.vo";
+import type { AlertTime } from "./value-objects/alert-time.vo";
+import type { Reminder } from "./value-objects/reminder.vo";
 
 export const MISSED_AFTER_MS = 6 * 3_600_000;
 
 export interface AlertProps {
   eventId: string;
   userId: string;
+  reminder: Reminder;
   time: AlertTime;
   deadlineAt: Date;
   origin: AlertOrigin;
@@ -23,33 +24,40 @@ export interface AlertDeadline {
   date: string;
 }
 
-export interface NewDefaultAlert {
+export interface AlertPlan {
+  time: AlertTime;
+  origin: AlertOrigin;
+}
+
+export interface NewAlert extends AlertPlan {
   eventId: string;
   userId: string;
+  reminder: Reminder;
   deadline: AlertDeadline;
   now: Date;
 }
 
-export type UserTimeRefusal = "in_past" | "after_deadline";
-
 export type DispatchVerdict = "wait" | "deliver" | "missed" | "skipped";
+
+interface Occurrence {
+  pending: boolean;
+  time: AlertTime;
+}
 
 export class Alert extends Aggregate<AlertProps, AlertId> {
   private constructor(props: AlertProps, id: AlertId) {
     super(props, id);
   }
 
-  static scheduleDefault(input: NewDefaultAlert): Result<Alert> {
-    const time = AlertTime.defaultBefore(input.deadline.date);
-    if (time.isFailure) return Result.fail(time.getError());
-
+  static schedule(input: NewAlert): Alert {
     const alert = new Alert(
       {
         eventId: input.eventId,
         userId: input.userId,
-        time: time.getValue(),
+        reminder: input.reminder,
+        time: input.time,
         deadlineAt: input.deadline.at,
-        origin: AlertOrigin.byDefault(),
+        origin: input.origin,
         status: AlertStatus.skipped(),
         sentAt: Option.none(),
         version: 1,
@@ -57,69 +65,35 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
       new AlertId(),
     );
     alert.settleStatus(input.now, false);
-    return Result.ok(alert);
+    return alert;
   }
 
   static reconstitute(props: AlertProps, id: AlertId): Alert {
     return new Alert(props, id);
   }
 
+  key(): string {
+    return this._props.reminder.key();
+  }
+
   isPending(): boolean {
     return this._props.status.value === "pending";
   }
 
-  isShown(): boolean {
-    return this.isPending() || this._props.status.value === "sent";
-  }
-
-  follow(deadline: AlertDeadline, now: Date): Result<void> {
-    if (this._props.status.value === "sent") {
-      if (this.deadlineDay() === deadline.date) {
-        this._props.deadlineAt = deadline.at;
-        return Result.ok();
-      }
-      if (this._props.origin.value === "user") return this.carryOver(deadline, now);
-      return this.resetToDefault(deadline, now);
+  follow(plan: AlertPlan, deadline: AlertDeadline, now: Date): void {
+    const before = this.occurrence();
+    this._props.origin = plan.origin;
+    if (this._props.status.value === "sent" && !this.movedAhead(plan.time, now)) {
+      this._props.deadlineAt = deadline.at;
+      return;
     }
 
-    const before = this.occurrence();
-    if (this._props.origin.value === "default") {
-      const time = AlertTime.defaultBefore(deadline.date);
-      if (time.isFailure) return Result.fail(time.getError());
-      this._props.time = time.getValue();
-    }
+    const rearmed = this._props.status.value === "sent";
+    this._props.time = plan.time;
     this._props.deadlineAt = deadline.at;
-    this.settleStatus(now, before.pending && before.time.equals(this._props.time));
+    if (rearmed) this._props.sentAt = Option.none();
+    this.settleStatus(now, !rearmed && before.pending && before.time.equals(plan.time));
     this.renewSince(before);
-    return Result.ok();
-  }
-
-  resetToDefault(deadline: AlertDeadline, now: Date): Result<void> {
-    const time = AlertTime.defaultBefore(deadline.date);
-    if (time.isFailure) return Result.fail(time.getError());
-
-    const before = this.occurrence();
-    this._props.origin = AlertOrigin.byDefault();
-    this._props.time = time.getValue();
-    this._props.deadlineAt = deadline.at;
-    this._props.sentAt = Option.none();
-    this.settleStatus(now, false);
-    this.renewSince(before);
-    return Result.ok();
-  }
-
-  setByUser(time: AlertTime, deadlineAt: Date, now: Date): Result<void, UserTimeRefusal> {
-    if (!time.isAfter(now)) return Result.fail("in_past");
-    if (time.value.at.getTime() >= deadlineAt.getTime()) return Result.fail("after_deadline");
-
-    const before = this.occurrence();
-    this._props.origin = AlertOrigin.user();
-    this._props.time = time;
-    this._props.deadlineAt = deadlineAt;
-    this._props.status = AlertStatus.pending();
-    this._props.sentAt = Option.none();
-    this.renewSince(before);
-    return Result.ok();
   }
 
   cancel(): void {
@@ -148,37 +122,19 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     this._props.status = AlertStatus.skipped();
   }
 
-  private carryOver(deadline: AlertDeadline, now: Date): Result<void> {
-    const chosen = this._props.time.value;
-    const days = daysBetween(chosen.date, this.deadlineDay());
-    if (days.isFailure) return Result.fail(days.getError());
-    const time = AlertTime.before(deadline.date, days.getValue(), chosen.time);
-    if (time.isFailure) return Result.fail(time.getError());
-
-    const before = this.occurrence();
-    this._props.time = time.getValue();
-    this._props.deadlineAt = deadline.at;
-    this._props.sentAt = Option.none();
-    this.settleStatus(now, false);
-    this.renewSince(before);
-    return Result.ok();
-  }
-
-  private occurrence(): { pending: boolean; time: AlertTime } {
+  private occurrence(): Occurrence {
     return { pending: this.isPending(), time: this._props.time };
   }
 
-  private renewSince(before: { pending: boolean; time: AlertTime }): void {
+  private renewSince(before: Occurrence): void {
     if (!this.isPending()) return;
     if (before.pending && before.time.equals(this._props.time)) return;
 
     this._props.version += 1;
   }
 
-  private deadlineDay(): string {
-    return utcToZonedWall(this._props.deadlineAt, ALERT_TIME_ZONE)
-      .map((wall) => wall.date)
-      .unwrapOr("");
+  private movedAhead(time: AlertTime, now: Date): boolean {
+    return !time.equals(this._props.time) && time.isAfter(now);
   }
 
   private settleStatus(now: Date, keepOverdue: boolean): void {

@@ -5,13 +5,6 @@ import {
 } from "@packages/events/agenda-contract";
 import { z } from "zod";
 
-export const alertTimeSchema = z.object({
-  date: z.iso.date(),
-  time: z.iso.time({ precision: -1 }),
-});
-
-export type AlertTimeInput = z.infer<typeof alertTimeSchema>;
-
 export const eventEditSchema = z.object({
   title: z.string().trim().min(1).max(EVENT_TITLE_MAX),
   description: z.string().trim().max(EVENT_DESCRIPTION_MAX),

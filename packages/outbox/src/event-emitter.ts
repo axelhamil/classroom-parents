@@ -48,6 +48,34 @@ export async function emitEvent<TPayload>(
   return id;
 }
 
+export type BatchedEvent<TPayload> = {
+  eventType: EventType;
+  aggregateId: string;
+  payload: TPayload;
+};
+
+export async function emitEvents<TPayload>(
+  outbox: IOutboxRepository,
+  aggregateType: string,
+  events: BatchedEvent<TPayload>[],
+): Promise<void> {
+  if (events.length === 0) return;
+
+  const dateOccurred = new Date();
+  await outbox.enqueue(
+    events.map(
+      ({ eventType, aggregateId, payload }): IDomainEvent<TPayload> => ({
+        eventId: uuidv7(),
+        eventType,
+        dateOccurred,
+        aggregateId,
+        payload,
+      }),
+    ),
+    { source: SOURCE, aggregateType },
+  );
+}
+
 /**
  * `emitEvent` for a request that is refused whatever happens to its event (rate
  * limit, CSRF, CSP report, abuse checks): a failing outbox is logged as `warning`,

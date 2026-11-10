@@ -28,12 +28,18 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "GET /readyz": { uiLess: "infra-probe" },
   "GET /startupz": { uiLess: "infra-probe" },
   "GET /stream": { uiLess: "dormant-by-design" },
-  "PUT /events/:eventId/alert": {
+  "PUT /events/:eventId/reminders": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
   },
-  "GET /events/:eventId/alert": { consumer: "apps/app/src/features/events/api/events.queries.ts" },
-  "DELETE /events/:eventId/alert": {
+  "GET /events/:eventId/reminders": {
+    consumer: "apps/app/src/features/events/api/events.queries.ts",
+  },
+  "DELETE /events/:eventId/reminders": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
+  },
+  "GET /reminders/defaults": { consumer: "apps/app/src/features/settings/api/settings.queries.ts" },
+  "PUT /reminders/defaults": {
+    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
   },
   "PATCH /children/:id": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
   "POST /push/subscriptions": {

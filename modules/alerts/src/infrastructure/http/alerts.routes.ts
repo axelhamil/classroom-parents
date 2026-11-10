@@ -2,41 +2,57 @@ import { AppErrorException } from "@packages/ddd-kit";
 import type { RouteEnv, RouteGuards } from "@packages/http/route-guards";
 import { zV } from "@packages/http/validator";
 import { Hono } from "hono";
-import { alertEventParamSchema, userAlertBodySchema } from "../../application/dto/alert.dto";
-import type { AlertPlanningService } from "../../application/services/alert-planning.service";
+import { eventRemindersParamSchema, remindersBodySchema } from "../../application/dto/reminder.dto";
+import type { ReminderSettingsService } from "../../application/services/reminder-settings.service";
 
 export interface AlertsRoutesDeps {
   routeGuards: RouteGuards;
-  AlertPlanningService: Pick<AlertPlanningService, "get" | "setUserAlert" | "clear">;
+  ReminderSettingsService: Pick<
+    ReminderSettingsService,
+    "eventReminders" | "customizeEvent" | "resetEvent"
+  >;
 }
 
 export function createAlertsRoutes(deps: AlertsRoutesDeps) {
-  const { routeGuards: g, AlertPlanningService: planning } = deps;
+  const { routeGuards: g, ReminderSettingsService: settings } = deps;
 
   return new Hono<RouteEnv>()
-    .get("/:eventId/alert", g.requireAuth, zV("param", alertEventParamSchema), async (c) => {
-      const result = await planning.get(g.currentUserId(c), c.req.valid("param").eventId);
-      if (result.isFailure) throw new AppErrorException(result.getError());
-      return c.json({ alert: result.getValue().toNull() });
-    })
-    .put(
-      "/:eventId/alert",
+    .get(
+      "/:eventId/reminders",
       g.requireAuth,
-      zV("param", alertEventParamSchema),
-      zV("json", userAlertBodySchema),
+      zV("param", eventRemindersParamSchema),
       async (c) => {
-        const result = await planning.setUserAlert(
+        const result = await settings.eventReminders(
           g.currentUserId(c),
           c.req.valid("param").eventId,
-          c.req.valid("json"),
         );
         if (result.isFailure) throw new AppErrorException(result.getError());
         return c.json(result.getValue());
       },
     )
-    .delete("/:eventId/alert", g.requireAuth, zV("param", alertEventParamSchema), async (c) => {
-      const result = await planning.clear(g.currentUserId(c), c.req.valid("param").eventId);
-      if (result.isFailure) throw new AppErrorException(result.getError());
-      return c.body(null, 204);
-    });
+    .put(
+      "/:eventId/reminders",
+      g.requireAuth,
+      zV("param", eventRemindersParamSchema),
+      zV("json", remindersBodySchema),
+      async (c) => {
+        const result = await settings.customizeEvent(
+          g.currentUserId(c),
+          c.req.valid("param").eventId,
+          c.req.valid("json").reminders,
+        );
+        if (result.isFailure) throw new AppErrorException(result.getError());
+        return c.json(result.getValue());
+      },
+    )
+    .delete(
+      "/:eventId/reminders",
+      g.requireAuth,
+      zV("param", eventRemindersParamSchema),
+      async (c) => {
+        const result = await settings.resetEvent(g.currentUserId(c), c.req.valid("param").eventId);
+        if (result.isFailure) throw new AppErrorException(result.getError());
+        return c.body(null, 204);
+      },
+    );
 }

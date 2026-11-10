@@ -15,10 +15,14 @@ export const alertsEvents = defineEventContribution({
     PUSH_UNSUBSCRIBED: "alert.push_subscription.unsubscribed",
     PUSH_SUBSCRIBED: "alert.push_subscription.subscribed",
     PUSH_SUBSCRIPTION_EXPIRED: "alert.push_subscription.expired",
+    ALERT_DEFAULTS_CHANGED: "alert.reminder_defaults.changed",
+    ALERT_REMINDERS_CUSTOMIZED: "alert.event_reminders.customized",
+    ALERT_REMINDERS_RESET: "alert.event_reminders.reset",
   },
   payloads: {
     "alert.alert.scheduled": AlertRef.extend({
       eventId: z.string(),
+      reminder: z.string(),
       dueAt: z.iso.datetime(),
       origin: z.enum(["default", "user"]),
       actorUserId: z.string().nullable(),
@@ -49,6 +53,13 @@ export const alertsEvents = defineEventContribution({
       subscriptionId: z.string(),
       actorUserId: z.null(),
     }),
+    "alert.reminder_defaults.changed": z.object({ userId: z.string(), reminders: z.number() }),
+    "alert.event_reminders.customized": z.object({
+      userId: z.string(),
+      eventId: z.string(),
+      reminders: z.number(),
+    }),
+    "alert.event_reminders.reset": z.object({ userId: z.string(), eventId: z.string() }),
   },
   retention: {
     "alert.alert.scheduled": "operational",
@@ -60,6 +71,9 @@ export const alertsEvents = defineEventContribution({
     "alert.push_subscription.unsubscribed": "operational",
     "alert.push_subscription.subscribed": "operational",
     "alert.push_subscription.expired": "operational",
+    "alert.reminder_defaults.changed": "operational",
+    "alert.event_reminders.customized": "operational",
+    "alert.event_reminders.reset": "operational",
   },
   visibility: {
     "alert.alert.scheduled": "public",
@@ -71,10 +85,13 @@ export const alertsEvents = defineEventContribution({
     "alert.push_subscription.unsubscribed": "public",
     "alert.push_subscription.subscribed": "public",
     "alert.push_subscription.expired": "internal",
+    "alert.reminder_defaults.changed": "public",
+    "alert.event_reminders.customized": "public",
+    "alert.event_reminders.reset": "public",
   },
   descriptions: {
     "alert.alert.scheduled":
-      "An alert was scheduled for a school event, by default two days before at 18:00 Paris time or at a time the parent chose.",
+      "One reminder of a school event was scheduled, from the parent's default reminders or from the reminders the parent set for this event.",
     "alert.alert.sent":
       "A scheduled alert reached the parent by web push or, failing that, by email.",
     "alert.delivery.failed":
@@ -84,10 +101,15 @@ export const alertsEvents = defineEventContribution({
     "alert.alert.missed":
       "A due alert could not reach the parent in time, by push or by email, and was given up.",
     "alert.alert.cancelled":
-      "A pending alert was cancelled because its event was deleted, withdrawn, done or hidden by a coursework.",
+      "A pending alert was cancelled because its event was deleted, withdrawn, done or hidden by a coursework, or its reminder was removed.",
     "alert.push_subscription.unsubscribed": "A parent turned push notifications off on a device.",
     "alert.push_subscription.subscribed": "A parent allowed push notifications on a device.",
     "alert.push_subscription.expired":
       "A device's push subscription was rejected as gone by its push service and removed.",
+    "alert.reminder_defaults.changed":
+      "A parent changed their default reminders; upcoming events without reminders of their own were replanned.",
+    "alert.event_reminders.customized":
+      "A parent set the reminders of one event, which no longer follow the default reminders.",
+    "alert.event_reminders.reset": "A parent put one event back on the default reminders.",
   },
 });

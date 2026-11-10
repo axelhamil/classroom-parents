@@ -32,7 +32,9 @@ describe("deleting an event", () => {
       if (url.pathname === "/events" && method === "GET") return json({ items: [] });
       if (url.pathname.startsWith(DETAIL_PATH) && method === "GET") {
         if (deleted) return json({ code: "EVENT_NOT_FOUND" }, 404);
-        return url.pathname === DETAIL_PATH ? json(EVENT) : json({ alert: null });
+        return url.pathname === DETAIL_PATH
+          ? json(EVENT)
+          : json({ customized: false, reminders: [] });
       }
       if (url.pathname === DETAIL_PATH && method === "DELETE") {
         deleted = true;
@@ -41,7 +43,7 @@ describe("deleting an event", () => {
       return undefined;
     });
     const router = await renderAppAt(DETAIL_PATH);
-    await screen.findByText("Pas de rappel programmé");
+    await screen.findByText("Aucun rappel pour cette échéance.");
     router.subscribe("onBeforeNavigate", () => {
       void queryClient.invalidateQueries({ queryKey: ["events"] });
     });

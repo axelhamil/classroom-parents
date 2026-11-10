@@ -40,7 +40,8 @@ function givenEvent(
   return stubApi(({ method, url }) => {
     if (url.pathname === `/events/${EVENT.id}` && method === "GET") return detail();
     if (url.pathname === `/events/${EVENT.id}` && method === "PATCH") return patchResponse();
-    if (url.pathname === `/events/${EVENT.id}/alert`) return json({ alert: null });
+    if (url.pathname === `/events/${EVENT.id}/reminders`)
+      return json({ customized: false, reminders: [] });
     if (url.pathname === "/children") return json([]);
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     return undefined;

@@ -16,8 +16,13 @@ import { PushCard } from "../components/push-card";
 const EMAIL_FALLBACK = /elles vous sont envoyées par e-mail/;
 const HERE = "https://fcm.googleapis.com/fcm/send/here";
 
-function renderCard(live: number) {
-  stubApi(byRoute({ "GET /push/status": () => json({ live }) }));
+function renderCard(live: number, defaults: unknown[] = []) {
+  stubApi(
+    byRoute({
+      "GET /push/status": () => json({ live }),
+      "GET /reminders/defaults": () => json({ reminders: defaults }),
+    }),
+  );
   return renderWithProviders(<PushCard userId="user-1" />);
 }
 
@@ -72,6 +77,29 @@ describe("PushCard", () => {
     expect(await screen.findByText(EMAIL_FALLBACK)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Activer les alertes" })).toBeTruthy();
     expect(screen.queryByText("Activées")).toBeNull();
+  });
+
+  it("given the parent's defaults, then the card names them instead of a fixed delay", async () => {
+    givenPushBrowser({ permission: "default" });
+
+    await renderCard(1, [
+      { kind: "days_before", days: 1, time: "19:00" },
+      { kind: "hours_before", hours: 3 },
+    ]);
+
+    expect(
+      await screen.findByText("Rappels par défaut : la veille, à 19 h et 3 heures avant."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/deux jours avant/)).toBeNull();
+  });
+
+  it("given no default reminder, then the card says only chosen reminders alert", async () => {
+    givenPushBrowser({ permission: "default" });
+
+    await renderCard(1);
+
+    expect(await screen.findByText(/Aucun rappel par défaut/)).toBeTruthy();
+    expect(screen.queryByText(/deux jours avant/)).toBeNull();
   });
 
   it("given a browser without push support, then it says so instead of offering a button", async () => {

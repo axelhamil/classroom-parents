@@ -1,5 +1,6 @@
+import { utcToZonedWall } from "@packages/ddd-kit/zoned-time";
 import { frCatalog } from "@packages/i18n";
-import { schoolToday } from "./school-today";
+import { SCHOOL_TIME_ZONE, schoolToday } from "./school-today";
 
 const LOCALE = "fr-FR";
 const DAY_MS = 86_400_000;
@@ -85,4 +86,11 @@ export function deadlineLabel(
   if (!deadlineTime) return day;
 
   return fill(copy.dateWithTime, { date: day, time: wallTimeLabel(deadlineTime) });
+}
+
+export function instantLabel(instant: string, now: Date): string {
+  const wall = utcToZonedWall(new Date(instant), SCHOOL_TIME_ZONE);
+  if (wall.isFailure) return instant;
+
+  return deadlineLabel(wall.getValue().date, wall.getValue().time, now);
 }

@@ -6,9 +6,9 @@ import { type EventFilters, eventFilterQuery } from "../../../shared/api/queries
 
 const $list = api.events.$get;
 const $get = api.events[":id"].$get;
-const $alert = api.events[":eventId"].alert.$get;
+const $reminders = api.events[":eventId"].reminders.$get;
 
-export type EventAlert = InferResponseType<typeof $alert, 200>["alert"];
+export type EventReminders = InferResponseType<typeof $reminders, 200>;
 
 const REVIEW_LIMIT = 100;
 
@@ -44,13 +44,13 @@ export function eventQueryOptions(eventId: string) {
   });
 }
 
-export function eventAlertQueryOptions(eventId: string) {
+export function eventRemindersQueryOptions(eventId: string) {
   return queryOptions({
-    queryKey: ["events", "detail", eventId, "alert"] as const,
-    queryFn: async ({ signal }): Promise<EventAlert> => {
-      const res = await $alert({ param: { eventId } }, { init: { signal } });
-      if (!res.ok) await throwApiError(res, "loadEventAlert");
-      return (await res.json()).alert;
+    queryKey: ["events", "detail", eventId, "reminders"] as const,
+    queryFn: async ({ signal }): Promise<EventReminders> => {
+      const res = await $reminders({ param: { eventId } }, { init: { signal } });
+      if (!res.ok) await throwApiError(res, "loadEventReminders");
+      return res.json();
     },
   });
 }

@@ -351,6 +351,42 @@ export class DrizzleEventRepository implements IEventRepository {
     return this.findOne("findAlertable", userId, eventId, false, notShadowedByCoursework);
   }
 
+  async listAlertableUpcoming(
+    userId: string,
+    now: Date,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleEventRepository > listAlertableUpcoming" },
+      async () => {
+        try {
+          const query = exec
+            .select()
+            .from(agendaEvent)
+            .where(
+              and(
+                ownedAlive(userId),
+                gte(agendaEvent.deadlineAt, now),
+                eq(agendaEvent.done, false),
+                eq(agendaEvent.status, "confirmed"),
+                notShadowedByCoursework(exec),
+              ),
+            )
+            .orderBy(asc(agendaEvent.deadlineAt));
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return this.mapRows(rows, "listAlertableUpcoming");
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("listAlertableUpcoming"));
+        }
+      },
+    );
+  }
+
   async listUpcoming(
     userId: string,
     filter: EventFilter,

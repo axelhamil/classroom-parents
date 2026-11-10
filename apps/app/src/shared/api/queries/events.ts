@@ -6,6 +6,8 @@ import { api } from "../api-client";
 
 export const EVENTS_PAGE_SIZE = 50;
 
+export const EVENTS_KEY = ["events"] as const;
+
 const $list = api.events.$get;
 
 export type EventItem = InferResponseType<typeof $list, 200>["items"][number];
@@ -26,7 +28,7 @@ export function eventFilterQuery(filters: EventFilters) {
 
 export function eventPagesQueryOptions(scope: EventScope, filters: EventFilters) {
   return infiniteQueryOptions({
-    queryKey: ["events", scope, filters] as const,
+    queryKey: [...EVENTS_KEY, scope, filters] as const,
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam, signal }) => {
       const res = await $list(

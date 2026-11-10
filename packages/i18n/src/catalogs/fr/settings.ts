@@ -5,8 +5,10 @@ export default {
   },
   push: {
     title: "Alertes sur ce téléphone",
-    description:
-      "Une notification avant chaque échéance, même application fermée. Par défaut deux jours avant, à 18 h.",
+    description: "Une notification à chaque rappel de vos échéances, même application fermée.",
+    defaults: "Rappels par défaut : {{reminders}}.",
+    noDefaults:
+      "Aucun rappel par défaut : seules les échéances dont vous avez choisi les rappels envoient une alerte.",
     enabled: "Activées",
     enabledBody: "Ce téléphone reçoit les alertes de vos échéances.",
     enable: "Activer les alertes",
@@ -25,6 +27,14 @@ export default {
     emailFallback:
       "Aucun appareil ne reçoit vos alertes pour l'instant : elles vous sont envoyées par e-mail, à l'adresse de votre compte Google.",
     installFirst: "Ajoutez d'abord l'application à l'écran d'accueil.",
+  },
+  reminders: {
+    title: "Rappels par défaut",
+    description:
+      "De 0 à 5 rappels pour chaque échéance. Une échéance dont vous avez choisi les rappels garde les siens.",
+    loading: "Chargement des rappels par défaut",
+    loadError: "Impossible de charger les rappels par défaut.",
+    saved: "Rappels par défaut enregistrés",
   },
   install: {
     title: "Installer sur l'iPhone",

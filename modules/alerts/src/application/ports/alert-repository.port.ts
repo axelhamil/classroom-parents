@@ -1,11 +1,12 @@
-import type { AppError, Option, Result } from "@packages/ddd-kit";
+import type { AppError, Result } from "@packages/ddd-kit";
 import type { Alert } from "../../domain/alert.aggregate";
 
 export type AlertsError = AppError<
   | "ALERT_NOT_FOUND"
   | "ALERT_AFTER_DEADLINE"
-  | "ALERT_IN_PAST"
-  | "ALERT_TIME_INVALID"
+  | "ALERT_REMINDER_COUNT_INVALID"
+  | "ALERT_REMINDER_DELAY_INVALID"
+  | "ALERT_REMINDER_HOURS_INVALID"
   | "ALERT_EVENT_DONE_CONFLICT"
   | "ALERT_EMAIL_INVALID"
   | "ALERT_EMAIL_UNAVAILABLE"
@@ -16,7 +17,7 @@ export type AlertsError = AppError<
 
 export const alertNotFound: AlertsError = {
   code: "ALERT_NOT_FOUND",
-  message: "Cet événement n'existe pas ou a été supprimé, son alerte ne peut pas être réglée.",
+  message: "Cet événement n'existe pas ou a été supprimé, ses rappels ne peuvent pas être réglés.",
 };
 
 export type DeliveryChannel = "push" | "email";
@@ -43,11 +44,15 @@ export interface AlertDelivery {
 }
 
 export interface IAlertRepository {
-  findOwned(userId: string, eventId: string): Promise<Result<Option<Alert>, AlertsError>>;
+  listOwned(userId: string, eventId: string): Promise<Result<Alert[], AlertsError>>;
 
-  findByEvent(eventId: string): Promise<Result<Option<Alert>, AlertsError>>;
+  lockOwned(userId: string, eventId: string): Promise<Result<Alert[], AlertsError>>;
 
-  save(alert: Alert): Promise<Result<void, AlertsError>>;
+  lockByEvent(eventId: string): Promise<Result<Alert[], AlertsError>>;
+
+  lockOwnedMany(userId: string, eventIds: string[]): Promise<Result<Alert[], AlertsError>>;
+
+  saveMany(alerts: Alert[]): Promise<Result<void, AlertsError>>;
 
   claimDue(
     now: Date,

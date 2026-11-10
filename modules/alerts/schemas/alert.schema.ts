@@ -14,11 +14,11 @@ export const alert = pgTable(
     id: uuid("id").primaryKey().default(sql`uuidv7()`),
     eventId: uuid("event_id")
       .notNull()
-      .unique()
       .references(() => agendaEvent.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => authSchema.user.id, { onDelete: "cascade" }),
+    reminder: text("reminder").notNull(),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     deadlineAt: timestamp("deadline_at", { withTimezone: true }).notNull(),
     origin: text("origin", { enum: ALERT_ORIGINS }).notNull(),
@@ -30,6 +30,8 @@ export const alert = pgTable(
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
   },
   (table) => [
+    unique("alert_event_reminder_key").on(table.eventId, table.reminder),
+    index("alert_user_idx").on(table.userId),
     index("alert_pending_due_idx").on(table.dueAt).where(sql`${table.status} = 'pending'`),
   ],
 );

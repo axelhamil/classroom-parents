@@ -7,8 +7,6 @@ import {
 import { z } from "zod";
 
 export const ALERT_TIME_ZONE = "Europe/Paris";
-export const DEFAULT_DAYS_BEFORE = 2;
-export const DEFAULT_WALL_TIME = "18:00";
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -36,25 +34,12 @@ function daysBefore(date: string, days: number): Result<string> {
   return Result.ok(shifted.toISOString().slice(0, 10));
 }
 
-export function daysBetween(earlier: string, later: string): Result<number> {
-  const from = DATE_PATTERN.test(earlier) ? Date.parse(`${earlier}T00:00:00.000Z`) : Number.NaN;
-  const to = DATE_PATTERN.test(later) ? Date.parse(`${later}T00:00:00.000Z`) : Number.NaN;
-  if (Number.isNaN(from) || Number.isNaN(to))
-    return Result.fail(`${earlier} or ${later} is not a YYYY-MM-DD date`);
-
-  return Result.ok(Math.round((to - from) / 86_400_000));
-}
-
 export class AlertTime extends ValueObject<AlertTimeValue> {
   static fromParisWallTime(date: string, time: string): Result<AlertTime> {
     const at = parisInstant(date, time);
     if (at.isFailure) return Result.fail(at.getError());
 
     return AlertTime.create({ date, time, at: at.getValue() });
-  }
-
-  static defaultBefore(deadlineDate: string): Result<AlertTime> {
-    return AlertTime.before(deadlineDate, DEFAULT_DAYS_BEFORE, DEFAULT_WALL_TIME);
   }
 
   static before(deadlineDate: string, days: number, time: string): Result<AlertTime> {

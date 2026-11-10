@@ -1,22 +1,22 @@
-import {
-  type AppError,
-  type IInstrumentation,
-  type IUnitOfWork,
-  type Option,
-  Result,
-} from "@packages/ddd-kit";
+import { type AppError, type IInstrumentation, type IUnitOfWork, Result } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
-import { emitEvent } from "@packages/outbox/event-emitter";
+import { type BatchedEvent, emitEvents } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import { Alert, type AlertDeadline } from "../../domain/alert.aggregate";
-import { AlertTime } from "../../domain/value-objects/alert-time.vo";
-import { type AlertDto, toAlertDto, type UserAlertTime } from "../dto/alert.dto";
+import { Alert } from "../../domain/alert.aggregate";
+import type { AlertsError, IAlertRepository } from "../ports/alert-repository.port";
+import type {
+  EventDeadline,
+  IEventDeadlines,
+  UpcomingDeadline,
+} from "../ports/event-deadlines.port";
+import type { IReminderSettingsRepository } from "../ports/reminder-settings.port";
 import {
-  type AlertsError,
-  alertNotFound,
-  type IAlertRepository,
-} from "../ports/alert-repository.port";
-import type { EventDeadline, IEventDeadlines } from "../ports/event-deadlines.port";
+  type ApplicableReminders,
+  applicableReminders,
+  fromDefaults,
+  fromEventPlan,
+  reminderTarget,
+} from "./applicable-reminders";
 
 export interface PlannedEvent {
   eventId: string;
@@ -29,36 +29,19 @@ interface Occurrence {
   version: number;
 }
 
+interface Changes {
+  alerts: Alert[];
+  events: BatchedEvent<unknown>[];
+}
+
 const NO_OCCURRENCE: Occurrence = { pending: false, version: 0 };
 
 function occurrenceOf(alert: Alert): Occurrence {
   return { pending: alert.isPending(), version: alert.get("version") };
 }
 
-type PlanningError = AlertsError | AppError;
-
-const timeInvalid: AlertsError = {
-  code: "ALERT_TIME_INVALID",
-  message: "Cette date ou cette heure n'existe pas. Choisissez un jour et une heure valides.",
-};
-
-const timeInPast: AlertsError = {
-  code: "ALERT_IN_PAST",
-  message: "Cette heure est déjà passée. Choisissez un moment à venir pour l'alerte.",
-};
-
-const timeAfterDeadline: AlertsError = {
-  code: "ALERT_AFTER_DEADLINE",
-  message: "L'alerte doit sonner avant l'échéance. Choisissez un moment plus tôt.",
-};
-
-const eventDone: AlertsError = {
-  code: "ALERT_EVENT_DONE_CONFLICT",
-  message: "Cette échéance est déjà faite, elle n'a plus besoin d'alerte.",
-};
-
-function alertDeadline(deadline: EventDeadline): AlertDeadline {
-  return { at: deadline.deadlineAt, date: deadline.deadlineDate };
+function noChanges(): Changes {
+  return { alerts: [], events: [] };
 }
 
 function corrupted(error: string): AlertsError {
@@ -68,6 +51,7 @@ function corrupted(error: string): AlertsError {
 export class AlertPlanningService {
   constructor(
     private readonly alerts: IAlertRepository,
+    private readonly settings: IReminderSettingsRepository,
     private readonly deadlines: IEventDeadlines,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
@@ -83,79 +67,53 @@ export class AlertPlanningService {
     return this.span("replan", () => this.follow(event));
   }
 
+  async replanUpcoming(
+    userId: string,
+    upcoming: UpcomingDeadline[],
+    actorUserId: string | null,
+  ): Promise<Result<void, AppError>> {
+    return this.span("replanUpcoming", () =>
+      this.transactions.run(async (): Promise<Result<void, AppError>> => {
+        if (upcoming.length === 0) return Result.ok();
+        const eventIds = upcoming.map(({ eventId }) => eventId);
+
+        const defaults = await this.settings.defaultsFor(userId);
+        if (defaults.isFailure) return Result.fail(defaults.getError());
+        const plans = await this.settings.eventPlansFor(userId, eventIds);
+        if (plans.isFailure) return Result.fail(plans.getError());
+        const found = await this.alerts.lockOwnedMany(userId, eventIds);
+        if (found.isFailure) return Result.fail(found.getError());
+
+        const changes = noChanges();
+        const now = this.clock();
+        for (const deadline of upcoming) {
+          const own = plans.getValue().get(deadline.eventId);
+          const planned = this.plan(
+            changes,
+            { eventId: deadline.eventId, userId, actorUserId },
+            deadline,
+            own ? fromEventPlan(own) : fromDefaults(defaults.getValue()),
+            found.getValue().filter((alert) => alert.get("eventId") === deadline.eventId),
+            now,
+          );
+          if (planned.isFailure) return planned;
+        }
+        return this.write(changes);
+      }),
+    );
+  }
+
   async cancel(eventId: string, actorUserId: string | null): Promise<Result<void, AppError>> {
     return this.span("cancel", () =>
       this.transactions.run(async (): Promise<Result<void, AppError>> => {
-        const found = await this.alerts.findByEvent(eventId);
+        const found = await this.alerts.lockByEvent(eventId);
         if (found.isFailure) return Result.fail(found.getError());
 
-        return this.cancelFound(found.getValue(), actorUserId);
+        const changes = noChanges();
+        this.cancelAll(changes, found.getValue(), actorUserId);
+        return this.write(changes);
       }),
     );
-  }
-
-  async setUserAlert(
-    userId: string,
-    eventId: string,
-    wall: UserAlertTime,
-  ): Promise<Result<AlertDto, PlanningError>> {
-    return this.span("setUserAlert", () =>
-      this.transactions.run(async (): Promise<Result<AlertDto, PlanningError>> => {
-        const deadline = await this.armableDeadline(userId, eventId);
-        if (deadline.isFailure) return Result.fail(deadline.getError());
-
-        const time = AlertTime.fromParisWallTime(wall.date, wall.time);
-        if (time.isFailure) return Result.fail(timeInvalid);
-
-        const found = await this.alertFor(userId, eventId, deadline.getValue());
-        if (found.isFailure) return Result.fail(found.getError());
-        const { alert, before } = found.getValue();
-
-        const set = alert.setByUser(time.getValue(), deadline.getValue().deadlineAt, this.clock());
-        if (set.isFailure)
-          return Result.fail(set.getError() === "in_past" ? timeInPast : timeAfterDeadline);
-
-        const saved = await this.persist(alert, before, userId);
-        return saved.map(() => toAlertDto(alert));
-      }),
-    );
-  }
-
-  async clear(userId: string, eventId: string): Promise<Result<void, PlanningError>> {
-    return this.span("clear", () =>
-      this.transactions.run(async (): Promise<Result<void, PlanningError>> => {
-        const deadline = await this.armableDeadline(userId, eventId);
-        if (deadline.isFailure) return Result.fail(deadline.getError());
-
-        const found = await this.alerts.findOwned(userId, eventId);
-        if (found.isFailure) return Result.fail(found.getError());
-        if (found.getValue().isNone()) return Result.ok();
-
-        const alert = found.getValue().unwrap();
-        const before = occurrenceOf(alert);
-        const reset = alert.resetToDefault(alertDeadline(deadline.getValue()), this.clock());
-        if (reset.isFailure) return Result.fail(corrupted(reset.getError()));
-
-        return this.persist(alert, before, userId);
-      }),
-    );
-  }
-
-  async get(userId: string, eventId: string): Promise<Result<Option<AlertDto>, PlanningError>> {
-    return this.span("get", async () => {
-      const deadline = await this.ownedDeadline(userId, eventId);
-      if (deadline.isFailure) return Result.fail(deadline.getError());
-
-      const found = await this.alerts.findOwned(userId, eventId);
-      if (found.isFailure) return Result.fail(found.getError());
-
-      return Result.ok(
-        found
-          .getValue()
-          .filter((alert) => alert.isShown())
-          .map(toAlertDto),
-      );
-    });
   }
 
   private async follow(event: PlannedEvent): Promise<Result<void, AppError>> {
@@ -163,115 +121,122 @@ export class AlertPlanningService {
       const deadline = await this.deadlines.forUser(event.userId, event.eventId);
       if (deadline.isFailure) return Result.fail(deadline.getError());
 
-      const found = await this.alerts.findOwned(event.userId, event.eventId);
+      const found = await this.alerts.lockOwned(event.userId, event.eventId);
       if (found.isFailure) return Result.fail(found.getError());
-      if (deadline.getValue().isNone() || deadline.getValue().unwrap().done)
-        return this.cancelFound(found.getValue(), event.actorUserId);
-
-      const now = this.clock();
-      const target = alertDeadline(deadline.getValue().unwrap());
-      if (found.getValue().isNone()) {
-        const created = Alert.scheduleDefault({ ...event, deadline: target, now });
-        if (created.isFailure) return Result.fail(corrupted(created.getError()));
-        if (!created.getValue().isPending()) return Result.ok();
-
-        return this.persist(created.getValue(), NO_OCCURRENCE, event.actorUserId);
+      const changes = noChanges();
+      if (deadline.getValue().isNone() || deadline.getValue().unwrap().done) {
+        this.cancelAll(changes, found.getValue(), event.actorUserId);
+        return this.write(changes);
       }
 
-      const alert = found.getValue().unwrap();
-      const before = occurrenceOf(alert);
-      const followed = alert.follow(target, now);
-      if (followed.isFailure) return Result.fail(corrupted(followed.getError()));
+      const applicable = await applicableReminders(this.settings, event.userId, event.eventId);
+      if (applicable.isFailure) return Result.fail(applicable.getError());
 
-      return this.persist(alert, before, event.actorUserId);
+      const planned = this.plan(
+        changes,
+        event,
+        deadline.getValue().unwrap(),
+        applicable.getValue(),
+        found.getValue(),
+        this.clock(),
+      );
+      if (planned.isFailure) return planned;
+      return this.write(changes);
     });
   }
 
-  private async cancelFound(
-    found: Option<Alert>,
-    actorUserId: string | null,
-  ): Promise<Result<void, AppError>> {
-    if (found.isNone() || !found.unwrap().isPending()) return Result.ok();
+  private plan(
+    changes: Changes,
+    event: PlannedEvent,
+    deadline: EventDeadline,
+    { reminders, origin }: ApplicableReminders,
+    existing: Alert[],
+    now: Date,
+  ): Result<void, AlertsError> {
+    if (deadline.done) {
+      this.cancelAll(changes, existing, event.actorUserId);
+      return Result.ok();
+    }
 
-    const alert = found.unwrap();
-    alert.cancel();
-    const saved = await this.alerts.save(alert);
-    if (saved.isFailure) return saved;
+    const target = reminderTarget(deadline);
+    const planned = reminders.plan(target);
+    if (planned.isFailure) return Result.fail(corrupted(planned.getError()));
 
-    await emitEvent(this.outbox, EventTypes.ALERT_CANCELLED, "alert", alert.id.value, {
-      userId: alert.get("userId"),
-      alertId: alert.id.value,
-      eventId: alert.get("eventId"),
-      actorUserId,
-    });
+    const kept = new Set(planned.getValue().map(({ reminder }) => reminder.key()));
+    this.cancelAll(
+      changes,
+      existing.filter((alert) => !kept.has(alert.key())),
+      event.actorUserId,
+    );
+
+    for (const { reminder, time } of planned.getValue()) {
+      const alert = existing.find((candidate) => candidate.key() === reminder.key());
+      if (alert) {
+        const before = occurrenceOf(alert);
+        alert.follow({ time, origin }, target, now);
+        this.record(changes, alert, before, event.actorUserId);
+        continue;
+      }
+
+      const scheduled = Alert.schedule({ ...event, reminder, time, origin, deadline: target, now });
+      if (scheduled.isPending()) this.record(changes, scheduled, NO_OCCURRENCE, event.actorUserId);
+    }
     return Result.ok();
   }
 
-  private async ownedDeadline(
-    userId: string,
-    eventId: string,
-  ): Promise<Result<EventDeadline, PlanningError>> {
-    const deadline = await this.deadlines.forUser(userId, eventId);
-    if (deadline.isFailure) return Result.fail(deadline.getError());
-
-    return deadline.getValue().toResult(alertNotFound);
-  }
-
-  private async armableDeadline(
-    userId: string,
-    eventId: string,
-  ): Promise<Result<EventDeadline, PlanningError>> {
-    const deadline = await this.ownedDeadline(userId, eventId);
-    if (deadline.isFailure) return deadline;
-    if (deadline.getValue().done) return Result.fail(eventDone);
-
-    return deadline;
-  }
-
-  private async alertFor(
-    userId: string,
-    eventId: string,
-    deadline: EventDeadline,
-  ): Promise<Result<{ alert: Alert; before: Occurrence }, PlanningError>> {
-    const found = await this.alerts.findOwned(userId, eventId);
-    if (found.isFailure) return Result.fail(found.getError());
-    if (found.getValue().isSome()) {
-      const alert = found.getValue().unwrap();
-      return Result.ok({ alert, before: occurrenceOf(alert) });
+  private cancelAll(changes: Changes, alerts: Alert[], actorUserId: string | null): void {
+    for (const alert of alerts.filter((candidate) => candidate.isPending())) {
+      alert.cancel();
+      changes.alerts.push(alert);
+      changes.events.push({
+        eventType: EventTypes.ALERT_CANCELLED,
+        aggregateId: alert.id.value,
+        payload: {
+          userId: alert.get("userId"),
+          alertId: alert.id.value,
+          eventId: alert.get("eventId"),
+          actorUserId,
+        },
+      });
     }
-
-    const created = Alert.scheduleDefault({
-      eventId,
-      userId,
-      deadline: alertDeadline(deadline),
-      now: this.clock(),
-    });
-    return created.mapError(corrupted).map((alert) => ({ alert, before: NO_OCCURRENCE }));
   }
 
-  private async persist(
+  private record(
+    changes: Changes,
     alert: Alert,
     before: Occurrence,
     actorUserId: string | null,
-  ): Promise<Result<void, AlertsError>> {
-    const saved = await this.alerts.save(alert);
-    if (saved.isFailure) return saved;
+  ): void {
+    changes.alerts.push(alert);
 
     const ids = { userId: alert.get("userId"), alertId: alert.id.value };
-    if (alert.isPending() && alert.get("version") !== before.version) {
-      await emitEvent(this.outbox, EventTypes.ALERT_SCHEDULED, "alert", alert.id.value, {
-        ...ids,
-        eventId: alert.get("eventId"),
-        dueAt: alert.get("time").value.at.toISOString(),
-        origin: alert.get("origin").value,
-        actorUserId,
+    if (alert.isPending() && alert.get("version") !== before.version)
+      changes.events.push({
+        eventType: EventTypes.ALERT_SCHEDULED,
+        aggregateId: alert.id.value,
+        payload: {
+          ...ids,
+          eventId: alert.get("eventId"),
+          reminder: alert.key(),
+          dueAt: alert.get("time").value.at.toISOString(),
+          origin: alert.get("origin").value,
+          actorUserId,
+        },
       });
-    }
     if (before.pending && !alert.isPending())
-      await emitEvent(this.outbox, EventTypes.ALERT_SKIPPED, "alert", alert.id.value, {
-        ...ids,
-        actorUserId,
+      changes.events.push({
+        eventType: EventTypes.ALERT_SKIPPED,
+        aggregateId: alert.id.value,
+        payload: { ...ids, actorUserId },
       });
+  }
+
+  private async write(changes: Changes): Promise<Result<void, AppError>> {
+    if (changes.alerts.length > 0) {
+      const saved = await this.alerts.saveMany(changes.alerts);
+      if (saved.isFailure) return saved;
+    }
+    await emitEvents(this.outbox, "alert", changes.events);
     return Result.ok();
   }
 

@@ -6,10 +6,10 @@ import { api } from "../../../shared/api/api-client";
 const $confirm = api.events[":id"].confirm.$post;
 const $delete = api.events[":id"].$delete;
 const $edit = api.events[":id"].$patch;
-const $setAlert = api.events[":eventId"].alert.$put;
-const $clearAlert = api.events[":eventId"].alert.$delete;
+const $customizeReminders = api.events[":eventId"].reminders.$put;
+const $resetReminders = api.events[":eventId"].reminders.$delete;
 
-export type AlertTime = InferRequestType<typeof $setAlert>["json"];
+type EventReminders = InferRequestType<typeof $customizeReminders>["json"]["reminders"];
 export type EventPatch = InferRequestType<typeof $edit>["json"];
 
 export const confirmEventMutationOptions = mutationOptions({
@@ -29,20 +29,20 @@ export const deleteEventMutationOptions = mutationOptions({
   },
 });
 
-export const setEventAlertMutationOptions = mutationOptions({
-  mutationKey: ["events", "alert", "set"] as const,
-  mutationFn: async ({ eventId, time }: { eventId: string; time: AlertTime }) => {
-    const res = await $setAlert({ param: { eventId }, json: time });
-    if (!res.ok) await throwApiError(res, "setEventAlert");
+export const customizeEventRemindersMutationOptions = mutationOptions({
+  mutationKey: ["events", "reminders", "customize"] as const,
+  mutationFn: async ({ eventId, reminders }: { eventId: string; reminders: EventReminders }) => {
+    const res = await $customizeReminders({ param: { eventId }, json: { reminders } });
+    if (!res.ok) await throwApiError(res, "customizeEventReminders");
     return res.json();
   },
 });
 
-export const clearEventAlertMutationOptions = mutationOptions({
-  mutationKey: ["events", "alert", "clear"] as const,
+export const resetEventRemindersMutationOptions = mutationOptions({
+  mutationKey: ["events", "reminders", "reset"] as const,
   mutationFn: async (eventId: string): Promise<void> => {
-    const res = await $clearAlert({ param: { eventId } });
-    if (!res.ok) await throwApiError(res, "clearEventAlert");
+    const res = await $resetReminders({ param: { eventId } });
+    if (!res.ok) await throwApiError(res, "resetEventReminders");
   },
 });
 

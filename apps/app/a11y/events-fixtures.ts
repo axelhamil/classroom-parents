@@ -90,15 +90,42 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     }
     if (path === `/events/${REVIEW_EVENT.id}`)
       return route.fulfill({ json: fixtures.detail ?? REVIEW_EVENT });
-    if (path === `/events/${REVIEW_EVENT.id}/alert`)
+    if (path === `/events/${REVIEW_EVENT.id}/reminders`)
       return route.fulfill({
         json: {
-          alert: {
-            date: inDays(-1),
-            time: "18:00",
-            dueAt: new Date().toISOString(),
-            origin: "default",
-          },
+          customized: true,
+          reminders: [
+            {
+              reminder: { kind: "days_before", days: 3, time: "18:00" },
+              dueAt: new Date().toISOString(),
+              status: "sent",
+              fits: true,
+            },
+            {
+              reminder: { kind: "days_before", days: 1, time: "07:30" },
+              dueAt: new Date().toISOString(),
+              status: "skipped",
+              fits: true,
+            },
+            {
+              reminder: { kind: "days_before", days: 0, time: "07:00" },
+              dueAt: new Date().toISOString(),
+              status: "pending",
+              fits: true,
+            },
+            {
+              reminder: { kind: "hours_before", hours: 2 },
+              dueAt: null,
+              status: "unplanned",
+              fits: true,
+            },
+            {
+              reminder: { kind: "hours_before", hours: 1 },
+              dueAt: new Date().toISOString(),
+              status: "missed",
+              fits: true,
+            },
+          ],
         },
       });
 

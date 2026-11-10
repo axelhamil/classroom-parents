@@ -7,6 +7,12 @@ export interface EventDeadline {
   done: boolean;
 }
 
+export interface UpcomingDeadline extends EventDeadline {
+  eventId: string;
+}
+
 export interface IEventDeadlines {
   forUser(userId: string, eventId: string): Promise<Result<Option<EventDeadline>, AppError>>;
+
+  upcomingFor(userId: string, now: Date): Promise<Result<UpcomingDeadline[], AppError>>;
 }

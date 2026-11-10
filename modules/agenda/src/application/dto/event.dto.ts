@@ -29,6 +29,10 @@ export interface EventDeadlineDto {
   done: boolean;
 }
 
+export interface UpcomingDeadlineDto extends EventDeadlineDto {
+  eventId: string;
+}
+
 export interface EventPageDto {
   items: EventDto[];
   nextCursor?: string;

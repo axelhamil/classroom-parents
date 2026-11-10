@@ -5,6 +5,7 @@ import {
   type EventPageDto,
   toEventDeadlineDto,
   toEventDto,
+  type UpcomingDeadlineDto,
 } from "../dto/event.dto";
 import type {
   AgendaError,
@@ -60,6 +61,17 @@ export class EventQueryService {
         visible.map(toEventDto),
       );
     });
+  }
+
+  async alertableUpcoming(
+    userId: string,
+    now: Date,
+  ): Promise<Result<UpcomingDeadlineDto[], AgendaError>> {
+    return traced(this.instrumentation, "EventQueryService > alertableUpcoming", async () =>
+      (await this.events.listAlertableUpcoming(userId, now)).map((events) =>
+        events.map((event) => ({ eventId: event.id.value, ...toEventDeadlineDto(event) })),
+      ),
+    );
   }
 
   async alertDeadline(

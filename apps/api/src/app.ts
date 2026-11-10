@@ -1,6 +1,7 @@
 import { createEventsRoutes } from "@modules/agenda/infrastructure/http/events.routes";
 import { createAlertsRoutes } from "@modules/alerts/infrastructure/http/alerts.routes";
 import { createPushRoutes } from "@modules/alerts/infrastructure/http/push.routes";
+import { createRemindersRoutes } from "@modules/alerts/infrastructure/http/reminders.routes";
 import { createChildrenRoutes } from "@modules/children/infrastructure/http/children.routes";
 import { createClassroomSyncRoutes } from "@modules/classroom-sync/infrastructure/http/sync.routes";
 import type { RouteGuard } from "@packages/http/route-guards";
@@ -76,6 +77,8 @@ const CSRF_GUARDED_PATHS = [
   "/events/*",
   "/push",
   "/push/*",
+  "/reminders",
+  "/reminders/*",
 ] as const;
 
 // BetterAuth's credential and token-consuming endpoints, each on its own tight,
@@ -138,6 +141,7 @@ const routes = app
   .route("/events", createEventsRoutes(routeDeps))
   .route("/events", createAlertsRoutes(routeDeps))
   .route("/push", createPushRoutes(routeDeps))
+  .route("/reminders", createRemindersRoutes(routeDeps))
   .route("/stream", createUserStreamRoutes(routeDeps));
 
 app.onError(createErrorHandler(di.IInstrumentation));

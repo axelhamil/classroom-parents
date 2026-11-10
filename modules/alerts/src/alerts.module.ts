@@ -10,13 +10,16 @@ import type { IAlertRepository } from "./application/ports/alert-repository.port
 import type { IEventDeadlines } from "./application/ports/event-deadlines.port";
 import type { IPushSender } from "./application/ports/push-sender.port";
 import type { IPushSubscriptionRepository } from "./application/ports/push-subscription-repository.port";
+import type { IReminderSettingsRepository } from "./application/ports/reminder-settings.port";
 import { AlertDispatchService } from "./application/services/alert-dispatch.service";
 import { AlertPlanningService } from "./application/services/alert-planning.service";
 import { PushSubscriptionService } from "./application/services/push-subscription.service";
+import { ReminderSettingsService } from "./application/services/reminder-settings.service";
 import { ResendAlertEmailSender } from "./infrastructure/adapters/resend-alert-email.sender";
 import { WebPushSender } from "./infrastructure/adapters/web-push.sender";
 import { DrizzleAlertRepository } from "./infrastructure/repositories/drizzle-alert.repository";
 import { DrizzlePushSubscriptionRepository } from "./infrastructure/repositories/drizzle-push-subscription.repository";
+import { DrizzleReminderSettingsRepository } from "./infrastructure/repositories/drizzle-reminder-settings.repository";
 
 export interface AlertsPrerequisites {
   IInstrumentation: IInstrumentation;
@@ -34,6 +37,10 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
     .add(
       "IAlertRepository",
       (c): IAlertRepository => new DrizzleAlertRepository(c.IInstrumentation),
+    )
+    .add(
+      "IReminderSettingsRepository",
+      (c): IReminderSettingsRepository => new DrizzleReminderSettingsRepository(c.IInstrumentation),
     )
     .add(
       "IPushSubscriptionRepository",
@@ -55,7 +62,21 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
       (c) =>
         new AlertPlanningService(
           c.IAlertRepository,
+          c.IReminderSettingsRepository,
           c.IEventDeadlines,
+          c.ITransactionService,
+          c.IOutboxRepository,
+          c.IInstrumentation,
+        ),
+    )
+    .add(
+      "ReminderSettingsService",
+      (c) =>
+        new ReminderSettingsService(
+          c.IReminderSettingsRepository,
+          c.IAlertRepository,
+          c.IEventDeadlines,
+          c.AlertPlanningService,
           c.ITransactionService,
           c.IOutboxRepository,
           c.IInstrumentation,

@@ -59,7 +59,7 @@ export function visibleChildrenFor(children: Children<"list">): IVisibleChildren
 }
 
 export function eventDeadlinesFor(
-  agenda: Pick<EventQueryService, "alertDeadline">,
+  agenda: Pick<EventQueryService, "alertDeadline" | "alertableUpcoming">,
 ): IEventDeadlines {
   return {
     forUser: async (userId, eventId) =>
@@ -71,6 +71,7 @@ export function eventDeadlinesFor(
           done,
         })),
       ),
+    upcomingFor: (userId, now) => agenda.alertableUpcoming(userId, now),
   };
 }
 

@@ -26,6 +26,7 @@ import {
   db,
   eq,
   inArray,
+  isNull,
   like,
   not,
   outboxSchema,
@@ -498,6 +499,53 @@ run(async () => {
     "the past coursework of an archived course stays in the history",
     (await rowsOf(aNoe, "w-noe-past"))[0]?.withdrawnAt === null &&
       idsOf(await query.listHistory(a, { childIds: [aNoe], limit: 10 }, NOW)).includes(noePast.id),
+  );
+
+  const [turnedIn] = await db
+    .select()
+    .from(agendaEvent)
+    .where(
+      and(
+        eq(agendaEvent.userId, a),
+        eq(agendaEvent.source, "coursework"),
+        eq(agendaEvent.done, true),
+        isNull(agendaEvent.deletedAt),
+        isNull(agendaEvent.withdrawnAt),
+      ),
+    );
+  const turnedInDay = turnedIn === undefined ? "none" : await alertable(a, turnedIn.id);
+  await ingest(a, turnedIn?.childId ?? aNoe, "ann-shadowed-upcoming", [
+    extracted({ title: "Rendu du jour", deadlineDate: turnedInDay }),
+  ]);
+  await ingest(a, aNoe, "ann-review-upcoming", [
+    extracted({ title: "À vérifier", deadlineDate: "2030-01-25", needsReview: true }),
+  ]);
+  const [shadowedUpcoming] = await rowsOf(turnedIn?.childId ?? aNoe, "ann-shadowed-upcoming");
+  const [reviewUpcoming] = await rowsOf(aNoe, "ann-review-upcoming");
+  const rowsOfA = await db.select().from(agendaEvent).where(eq(agendaEvent.userId, a));
+  const expectedAlertable: string[] = [];
+  for (const row of rowsOfA) {
+    const shown = (await alertable(a, row.id)) !== "none";
+    if (shown && row.status === "confirmed" && !row.done && row.deadlineAt >= NOW)
+      expectedAlertable.push(row.id);
+  }
+  const upcomingAlertable = await query.alertableUpcoming(a, NOW);
+  const listedAlertable = upcomingAlertable.isSuccess
+    ? upcomingAlertable.getValue().map(({ eventId }) => eventId)
+    : ["failed"];
+  await step(
+    "the events new default reminders replan are the live, confirmed, undone, unshadowed upcoming ones of this family only",
+    expectedAlertable.length > 0 &&
+      expectedAlertable.length < rowsOfA.length &&
+      sameIds(...listedAlertable) === sameIds(...expectedAlertable) &&
+      shadowedUpcoming !== undefined &&
+      reviewUpcoming !== undefined &&
+      !listedAlertable.includes(shadowedUpcoming.id) &&
+      !listedAlertable.includes(reviewUpcoming.id) &&
+      idsOf(await query.listUpcoming(b, { limit: 50 }, NOW)).every(
+        (id) => !listedAlertable.includes(id),
+      ),
+    { listed: listedAlertable.length, expected: expectedAlertable.length, rows: rowsOfA.length },
   );
 
   const stolen = await ingest(a, bZoe, "ann-stolen", [extracted()]);

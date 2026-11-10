@@ -5,6 +5,7 @@ import { AlertId } from "../domain/alert-id";
 import { AlertOrigin, type AlertOriginValue } from "../domain/value-objects/alert-origin.vo";
 import { AlertStatus, type AlertStatusValue } from "../domain/value-objects/alert-status.vo";
 import { AlertTime } from "../domain/value-objects/alert-time.vo";
+import { Reminder } from "../domain/value-objects/reminder.vo";
 
 export const PARENT = "parent-1";
 export const ALERT_EVENT = "0196a000-0000-7000-8000-0000000000e1";
@@ -16,6 +17,7 @@ export function paris(date: string, time: string): Date {
 
 export interface AlertOverrides {
   id?: string;
+  reminder?: string;
   status?: AlertStatusValue;
   origin?: AlertOriginValue;
   date?: string;
@@ -34,6 +36,7 @@ export function existingAlert(overrides: AlertOverrides = {}): Alert {
     {
       eventId: ALERT_EVENT,
       userId: PARENT,
+      reminder: Reminder.fromKey(overrides.reminder ?? "d2@18:00").getValue(),
       time,
       deadlineAt: overrides.deadlineAt ?? paris("2026-11-15", "23:59"),
       origin: AlertOrigin.create(overrides.origin ?? "default").getValue(),

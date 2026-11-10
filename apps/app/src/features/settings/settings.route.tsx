@@ -4,6 +4,7 @@ import { SettingsSection } from "@packages/ui/components/ui/settings-section";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Screen } from "../../shared/layout/screen";
+import { DefaultRemindersCard } from "./components/default-reminders-card";
 import { DeleteAccountCard } from "./components/delete-account-card";
 import { PushCard } from "./components/push-card";
 import { SignOutCard } from "./components/sign-out-card";
@@ -28,6 +29,7 @@ function SettingsPage() {
   return (
     <Screen title={t("home.title")} description={t("home.description")}>
       <PushCard userId={user.id} />
+      <DefaultRemindersCard userId={user.id} />
       <SettingsSection title={t("links.title")} description={t("links.description")}>
         <ul className="flex flex-col">
           {DATA_LINKS.map(({ to, key }) => (

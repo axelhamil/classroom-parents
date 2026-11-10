@@ -57,6 +57,7 @@ async function alertOn(userId: string, eventId: string): Promise<string> {
     .values({
       userId,
       eventId,
+      reminder: "d2@18:00",
       dueAt: NOW,
       deadlineAt: NOW,
       origin: "default",

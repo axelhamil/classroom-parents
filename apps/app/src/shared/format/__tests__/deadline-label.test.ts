@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deadlineLabel, wallTimeLabel } from "../deadline-label";
+import { deadlineLabel, instantLabel, wallTimeLabel } from "../deadline-label";
 
 const NOW = new Date("2026-11-09T09:00:00Z");
 
@@ -30,5 +30,11 @@ describe("deadlineLabel", () => {
 describe("wallTimeLabel", () => {
   it("given a time on the hour, then the minutes are dropped", () => {
     expect(wallTimeLabel("18:00")).toBe("18 h");
+  });
+});
+
+describe("instantLabel", () => {
+  it("given a send instant in UTC, then it reads the Paris wall time, summer offset included", () => {
+    expect(instantLabel("2027-03-28T16:00:00.000Z", NOW)).toBe("Dimanche 28 mars 2027, 18 h");
   });
 });

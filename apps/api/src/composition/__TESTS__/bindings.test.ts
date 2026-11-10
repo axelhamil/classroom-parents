@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { EventDeadlineDto } from "@modules/agenda/application/dto/event.dto";
+import type {
+  EventDeadlineDto,
+  UpcomingDeadlineDto,
+} from "@modules/agenda/application/dto/event.dto";
 import type { AgendaError } from "@modules/agenda/application/ports/event-repository.port";
 import type { ChildDto } from "@modules/children/application/dto/child.dto";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
@@ -107,6 +110,7 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
     deadlineTime: "08:30",
     done: true,
   };
+  const alertableUpcoming = async () => Result.ok<UpcomingDeadlineDto[], AgendaError>([]);
 
   it("passes every deadline field of the parent's own alertable event", async () => {
     const agenda = {
@@ -114,6 +118,7 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
         Result.ok<Option<EventDeadlineDto>, AgendaError>(
           userId === FAMILY_A && eventId === EXAM ? Option.some(deadline) : Option.none(),
         ),
+      alertableUpcoming,
     };
 
     const result = await eventDeadlinesFor(agenda).forUser(FAMILY_A, EXAM);
@@ -124,6 +129,7 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
   it("answers none when the agenda hides the event from that family", async () => {
     const agenda = {
       alertDeadline: async () => Result.ok<Option<EventDeadlineDto>, AgendaError>(Option.none()),
+      alertableUpcoming,
     };
 
     const result = await eventDeadlinesFor(agenda).forUser(FAMILY_B, EXAM);
@@ -138,6 +144,7 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
           code: "EVENT_PROVIDER_FAILURE",
           message: "down",
         }),
+      alertableUpcoming,
     };
 
     const result = await eventDeadlinesFor(agenda).forUser(FAMILY_A, EXAM);

@@ -16,9 +16,13 @@ export default {
     EVENT_CATEGORY_INVALID: "Choisissez un type dans la liste.",
     EVENT_DEADLINE_INVALID:
       "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59, hors de 02:00 à 02:59 le jour du passage à l'heure d'été.",
-    ALERT_IN_PAST: "Ce moment est déjà passé : choisissez un jour et une heure à venir.",
-    ALERT_AFTER_DEADLINE: "Le rappel doit tomber avant l'échéance.",
-    ALERT_TIME_INVALID: "Choisissez un jour et une heure valides.",
+    ALERT_AFTER_DEADLINE: "Un rappel doit sonner avant l'échéance. Choisissez un délai plus long.",
+    ALERT_REMINDER_COUNT_INVALID:
+      "Vous pouvez programmer au plus 5 rappels. Retirez-en un pour continuer.",
+    ALERT_REMINDER_DELAY_INVALID:
+      "Un rappel sonne de 0 à 14 jours avant l'échéance à une heure précise, ou de 1 à 48 heures avant. Corrigez le délai.",
+    ALERT_REMINDER_HOURS_INVALID:
+      "Cette échéance n'a pas d'heure : choisissez un rappel en jours avant, à une heure précise.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",
     ACCOUNT_REAUTH_REQUIRED:
       "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
@@ -277,6 +281,8 @@ export default {
     passwordsMismatch: "Les mots de passe ne correspondent pas.",
     acceptPolicies: "Vous devez accepter les politiques requises.",
     invalidEventSelection: "Contient un événement inconnu ou non abonnable.",
+    reminderDays: "Choisissez de 0 à 14 jours.",
+    reminderHours: "Choisissez de 1 à 48 heures.",
   },
   fallback: {
     signInWithGoogle: "La connexion avec Google n'a pas pu démarrer",
@@ -292,12 +298,14 @@ export default {
     discardLinkedAccount: "Échec du retrait du lien Google",
     loadEvents: "Échec du chargement des échéances",
     loadEvent: "Échec du chargement de l'échéance",
-    loadEventAlert: "Échec du chargement du rappel",
+    loadEventReminders: "Échec du chargement des rappels",
     confirmEvent: "Échec de la confirmation de l'échéance",
     deleteEvent: "Échec de la suppression de l'échéance",
     editEvent: "Échec de l'enregistrement de l'échéance",
-    setEventAlert: "Échec de la programmation du rappel",
-    clearEventAlert: "Échec du retrait du rappel",
+    customizeEventReminders: "Échec de l'enregistrement des rappels",
+    resetEventReminders: "Échec du retour aux rappels par défaut",
+    loadDefaultReminders: "Échec du chargement des rappels par défaut",
+    setDefaultReminders: "Échec de l'enregistrement des rappels par défaut",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",
     cancelAccountDeletion: "Échec de l'annulation",

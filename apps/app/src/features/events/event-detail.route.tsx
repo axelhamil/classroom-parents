@@ -21,8 +21,8 @@ import { deadlineLabel } from "../../shared/format/deadline-label";
 import { schoolToday } from "../../shared/format/school-today";
 import { Screen } from "../../shared/layout/screen";
 import { eventQueryOptions } from "./api/events.queries";
-import { AlertSetting } from "./components/alert-setting";
 import { DeleteEventDialog } from "./components/delete-event-dialog";
+import { EventReminders } from "./components/event-reminders";
 
 export const Route = createFileRoute("/_protected/_shell/events/$eventId")({
   component: EventDetailPage,
@@ -114,7 +114,11 @@ function EventSheet({ event }: EventSheetProps) {
         </a>
       </Button>
       <Separator />
-      <AlertSetting eventId={event.id} deadlineDate={event.deadlineDate} />
+      <EventReminders
+        eventId={event.id}
+        timed={event.deadlineTime !== undefined}
+        needsReview={event.status === "needs_review"}
+      />
       <Separator />
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
