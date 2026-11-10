@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Result } from "@packages/ddd-kit";
+import { Option, Result } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -31,7 +31,7 @@ beforeEach(() => {
   subscriptions = mockPort<IPushSubscriptionRepository>();
   outbox = mockPort<IOutboxRepository>();
   subscriptions.upsert.mockResolvedValue(Result.ok(SUBSCRIPTION_ID));
-  subscriptions.deleteOwned.mockResolvedValue(Result.ok());
+  subscriptions.deleteOwned.mockResolvedValue(Result.ok(Option.none()));
   subscriptions.countForUser.mockResolvedValue(Result.ok(2));
 
   service = new PushSubscriptionService(
@@ -64,19 +64,44 @@ describe("subscribe", () => {
     ]);
   });
 
-  it("given an endpoint that is not https, then PUSH_SUBSCRIPTION_INVALID and nothing is stored", async () => {
-    const result = await service.subscribe(PARENT, {
-      ...browserSubscription,
-      endpoint: "http://push.example.com/x",
-    });
+  it.each([
+    "https://fcm.googleapis.com/fcm/send/abc",
+    "https://updates.push.services.mozilla.com/wpush/v2/abc",
+    "https://wns2-par02p.notify.windows.com/w/?token=abc",
+    "https://web.push.apple.com/QGuQyavXutnMH",
+    "https://api.push.apple.com/3/device/abc",
+  ])("given the known push service %s, then the subscription is stored", async (endpoint) => {
+    const result = await service.subscribe(PARENT, { ...browserSubscription, endpoint });
 
-    expect(result.getError().code).toBe("PUSH_SUBSCRIPTION_INVALID");
-    expect(subscriptions.upsert).not.toHaveBeenCalled();
+    expect(result.isSuccess).toBe(true);
   });
+
+  it.each([
+    "http://fcm.googleapis.com/fcm/send/abc",
+    "https://push.example.com/x",
+    "https://169.254.169.254/latest/meta-data",
+    "https://127.0.0.1:5432/x",
+    "https://localhost/x",
+    "https://[::1]/x",
+    "https://api.railway.internal/admin",
+    "https://fcm.googleapis.com:8443/fcm/send/abc",
+    "https://user:pass@fcm.googleapis.com/fcm/send/abc",
+    "https://fcm.googleapis.com.evil.example/x",
+    "https://evilpush.apple.com.example/x",
+    "https://notify.windows.com/x",
+  ])(
+    "given the endpoint %s outside the known push services, then PUSH_SUBSCRIPTION_INVALID and nothing is stored",
+    async (endpoint) => {
+      const result = await service.subscribe(PARENT, { ...browserSubscription, endpoint });
+
+      expect(result.getError().code).toBe("PUSH_SUBSCRIPTION_INVALID");
+      expect(subscriptions.upsert).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("unsubscribe and status", () => {
-  it("given another family's endpoint, then the delete is scoped to the caller and still answers success", async () => {
+  it("given another family's endpoint, then the delete is scoped to the caller, still answers success and emits nothing", async () => {
     const result = await service.unsubscribe(PARENT, "https://push.example.com/other-family");
 
     expect(result.isSuccess).toBe(true);
@@ -84,6 +109,21 @@ describe("unsubscribe and status", () => {
       PARENT,
       "https://push.example.com/other-family",
     );
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given the parent's own subscription, then it is deleted and PUSH_UNSUBSCRIBED names the parent", async () => {
+    subscriptions.deleteOwned.mockResolvedValue(Result.ok(Option.some(SUBSCRIPTION_ID)));
+
+    await service.unsubscribe(PARENT, browserSubscription.endpoint);
+
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.PUSH_UNSUBSCRIBED,
+        aggregateId: SUBSCRIPTION_ID,
+        payload: { userId: PARENT, subscriptionId: SUBSCRIPTION_ID, actorUserId: PARENT },
+      },
+    ]);
   });
 
   it("given two live subscriptions, then status counts them", async () => {

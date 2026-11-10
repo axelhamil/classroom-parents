@@ -56,7 +56,7 @@ const planner: IAlertPlanner = {
     return Result.ok<AppError>();
   },
   replan: async () => Result.ok<AppError>(),
-  cancel: async (eventId) => {
+  cancel: async (eventId, _actorUserId) => {
     cancelled.push(eventId);
     return Result.ok<AppError>();
   },
@@ -404,6 +404,10 @@ run(async () => {
     "alerts read no deadline for a deleted coursework, and again for the announcement it hid",
     (await alertable(a, w26.id)) === "none" && (await alertable(a, ann26.id)) === "2030-01-26",
   );
+  await step(
+    "the announcement a deleted coursework hid gets its alert planned, the parent as actor",
+    planned.some(({ eventId, actorUserId }) => eventId === ann26.id && actorUserId === a),
+  );
   await ingestCoursework(a, aNoe, [], { complete: false, presentIds: [] });
   await step(
     "a partial listing without the coursework withdraws nothing",
@@ -422,6 +426,10 @@ run(async () => {
   await step(
     "alerts read no deadline for a withdrawn coursework, and again for the announcement it hid",
     (await alertable(a, w27.id)) === "none" && (await alertable(a, ann27.id)) === "2030-01-27",
+  );
+  await step(
+    "the announcement a withdrawn coursework hid gets its alert planned by the system",
+    planned.some(({ eventId, actorUserId }) => eventId === ann27.id && actorUserId === null),
   );
   await ingestCoursework(a, aNoe, [homework({ id: "w-noe-27", deadlineDate: "2030-01-27" })]);
   await step(

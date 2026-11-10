@@ -35,6 +35,7 @@ beforeEach(() => {
   uow = mockUnitOfWork();
 
   repo.save.mockResolvedValue(Result.ok());
+  repo.listAnnouncementsOn.mockResolvedValue(Result.ok([]));
   planner.planDefault.mockResolvedValue(Result.ok());
   planner.replan.mockResolvedValue(Result.ok());
   planner.cancel.mockResolvedValue(Result.ok());
@@ -64,6 +65,7 @@ describe("edit", () => {
       userId: PARENT,
       deadlineDate: "2026-11-26",
       deadlineTime: undefined,
+      actorUserId: PARENT,
     });
     expect(enqueuedEvents(outbox)).toEqual([
       {
@@ -146,6 +148,7 @@ describe("confirm", () => {
       userId: PARENT,
       deadlineDate: "2026-11-19",
       deadlineTime: "08:30",
+      actorUserId: PARENT,
     });
     expect(enqueuedEvents(outbox)[0]?.payload).toMatchObject({ fields: ["status"] });
   });
@@ -165,7 +168,7 @@ describe("remove", () => {
 
     expect(result.isSuccess).toBe(true);
     expect(repo.save.mock.calls[0]?.[0].get("deletedAt")).toEqual(Option.some(NOW));
-    expect(planner.cancel).toHaveBeenCalledWith(event.id.value);
+    expect(planner.cancel).toHaveBeenCalledWith(event.id.value, PARENT);
     expect(enqueuedEvents(outbox)).toEqual([
       {
         eventType: EventTypes.EVENT_DELETED,
@@ -173,6 +176,39 @@ describe("remove", () => {
         payload: { userId: PARENT, eventId: event.id.value },
       },
     ]);
+  });
+
+  it("given the parent deletes a coursework hiding an announcement of its day, then the announcement's alert is planned with the parent as actor", async () => {
+    const coursework = given({ source: "coursework" });
+    const hidden = agendaEvent();
+    repo.listAnnouncementsOn.mockResolvedValue(Result.ok([hidden]));
+
+    await service.remove(PARENT, coursework.id.value);
+
+    expect(repo.listAnnouncementsOn).toHaveBeenCalledWith(PARENT, {
+      childId: coursework.get("childId"),
+      courseId: "course-1",
+      deadlineDate: "2026-11-19",
+    });
+    expect(planner.planDefault).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: hidden.id.value, actorUserId: PARENT }),
+    );
+  });
+
+  it("given the parent moves a coursework to another day, then the announcement of the day it left gets its alert", async () => {
+    given({ source: "coursework" });
+    const hidden = agendaEvent();
+    repo.listAnnouncementsOn.mockResolvedValue(Result.ok([hidden]));
+
+    await service.edit(PARENT, event.id.value, { deadlineDate: "2026-11-26" });
+
+    expect(repo.listAnnouncementsOn).toHaveBeenCalledWith(
+      PARENT,
+      expect.objectContaining({ deadlineDate: "2026-11-19" }),
+    );
+    expect(planner.planDefault).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: hidden.id.value, actorUserId: PARENT }),
+    );
   });
 
   it("given an event already deleted, then the second delete answers EVENT_NOT_FOUND", async () => {

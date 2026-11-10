@@ -21,6 +21,7 @@ export interface AlertOverrides {
   date?: string;
   time?: string;
   deadlineAt?: Date;
+  version?: number;
 }
 
 export function existingAlert(overrides: AlertOverrides = {}): Alert {
@@ -37,7 +38,9 @@ export function existingAlert(overrides: AlertOverrides = {}): Alert {
       deadlineAt: overrides.deadlineAt ?? paris("2026-11-15", "23:59"),
       origin: AlertOrigin.create(overrides.origin ?? "default").getValue(),
       status: AlertStatus.create(overrides.status ?? "pending").getValue(),
-      sentAt: Option.none(),
+      sentAt:
+        overrides.status === "sent" ? Option.some(paris("2026-11-13", "18:00")) : Option.none(),
+      version: overrides.version ?? 1,
     },
     new AlertId(overrides.id ?? ALERT_ID),
   );

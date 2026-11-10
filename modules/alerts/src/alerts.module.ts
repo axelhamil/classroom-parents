@@ -1,7 +1,7 @@
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
-import type { IEmailService } from "@packages/email/email.port";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
+import { Resend } from "resend";
 import type { AlertsSettings } from "./application/config/alerts-settings";
 import type { IAlertContextReader } from "./application/ports/alert-context-reader.port";
 import type { IAlertEmailSender } from "./application/ports/alert-email-sender.port";
@@ -21,7 +21,6 @@ export interface AlertsPrerequisites {
   IInstrumentation: IInstrumentation;
   ITransactionService: IUnitOfWork;
   IOutboxRepository: IOutboxRepository;
-  IEmailService: IEmailService;
   IEventDeadlines: IEventDeadlines;
   IAlertContextReader: IAlertContextReader;
   alertsSettings: AlertsSettings;
@@ -40,7 +39,12 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
     .add("IPushSender", (c): IPushSender => new WebPushSender(c.IInstrumentation, c.alertsSettings))
     .add(
       "IAlertEmailSender",
-      (c): IAlertEmailSender => new ResendAlertEmailSender(c.IEmailService, c.IInstrumentation),
+      (c): IAlertEmailSender =>
+        new ResendAlertEmailSender(
+          c.alertsSettings.resendApiKey ? new Resend(c.alertsSettings.resendApiKey) : null,
+          c.alertsSettings.emailFrom,
+          c.IInstrumentation,
+        ),
     )
     .add(
       "AlertPlanningService",

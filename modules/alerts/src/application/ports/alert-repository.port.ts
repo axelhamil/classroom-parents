@@ -23,11 +23,13 @@ export type DeliveryOutcome = "sent" | "failed";
 export interface AlertLease {
   alertId: string;
   attempts: number;
+  version: number;
 }
 
 export interface ClaimedAlert {
   alert: Alert;
   lease: AlertLease;
+  failures: number;
 }
 
 export interface AlertDelivery {
@@ -51,6 +53,8 @@ export interface IAlertRepository {
   ): Promise<Result<ClaimedAlert[], AlertsError>>;
 
   settle(alert: Alert, lease: AlertLease): Promise<Result<boolean, AlertsError>>;
+
+  addFailure(lease: AlertLease): Promise<Result<boolean, AlertsError>>;
 
   recordDelivery(delivery: AlertDelivery): Promise<Result<void, AlertsError>>;
 }

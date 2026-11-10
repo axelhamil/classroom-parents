@@ -21,6 +21,18 @@ import type { EventDeadline, IEventDeadlines } from "../ports/event-deadlines.po
 export interface PlannedEvent {
   eventId: string;
   userId: string;
+  actorUserId: string | null;
+}
+
+interface Occurrence {
+  pending: boolean;
+  version: number;
+}
+
+const NO_OCCURRENCE: Occurrence = { pending: false, version: 0 };
+
+function occurrenceOf(alert: Alert): Occurrence {
+  return { pending: alert.isPending(), version: alert.get("version") };
 }
 
 type PlanningError = AlertsError | AppError;
@@ -66,18 +78,13 @@ export class AlertPlanningService {
     return this.span("replan", () => this.follow(event));
   }
 
-  async cancel(eventId: string): Promise<Result<void, AppError>> {
+  async cancel(eventId: string, actorUserId: string | null): Promise<Result<void, AppError>> {
     return this.span("cancel", () =>
       this.transactions.run(async (): Promise<Result<void, AppError>> => {
         const found = await this.alerts.findByEvent(eventId);
         if (found.isFailure) return Result.fail(found.getError());
-        if (found.getValue().isNone()) return Result.ok();
 
-        const alert = found.getValue().unwrap();
-        if (!alert.isPending()) return Result.ok();
-
-        alert.cancel();
-        return this.alerts.save(alert);
+        return this.cancelFound(found.getValue(), actorUserId);
       }),
     );
   }
@@ -95,17 +102,16 @@ export class AlertPlanningService {
         const time = AlertTime.fromParisWallTime(wall.date, wall.time);
         if (time.isFailure) return Result.fail(timeInvalid);
 
-        const alert = await this.alertFor(userId, eventId, deadline.getValue());
-        if (alert.isFailure) return Result.fail(alert.getError());
+        const found = await this.alertFor(userId, eventId, deadline.getValue());
+        if (found.isFailure) return Result.fail(found.getError());
+        const { alert, before } = found.getValue();
 
-        const set = alert
-          .getValue()
-          .setByUser(time.getValue(), deadline.getValue().deadlineAt, this.clock());
+        const set = alert.setByUser(time.getValue(), deadline.getValue().deadlineAt, this.clock());
         if (set.isFailure)
           return Result.fail(set.getError() === "in_past" ? timeInPast : timeAfterDeadline);
 
-        const saved = await this.store(alert.getValue(), userId);
-        return saved.map(() => toAlertDto(alert.getValue()));
+        const saved = await this.persist(alert, before, userId);
+        return saved.map(() => toAlertDto(alert));
       }),
     );
   }
@@ -121,10 +127,11 @@ export class AlertPlanningService {
         if (found.getValue().isNone()) return Result.ok();
 
         const alert = found.getValue().unwrap();
+        const before = occurrenceOf(alert);
         const reset = alert.resetToDefault(alertDeadline(deadline.getValue()), this.clock());
         if (reset.isFailure) return Result.fail(corrupted(reset.getError()));
 
-        return this.store(alert, userId);
+        return this.persist(alert, before, userId);
       }),
     );
   }
@@ -150,42 +157,49 @@ export class AlertPlanningService {
     return this.transactions.run(async (): Promise<Result<void, AppError>> => {
       const deadline = await this.deadlines.forUser(event.userId, event.eventId);
       if (deadline.isFailure) return Result.fail(deadline.getError());
-      if (deadline.getValue().isNone()) return this.cancelOwned(event);
+
+      const found = await this.alerts.findOwned(event.userId, event.eventId);
+      if (found.isFailure) return Result.fail(found.getError());
+      if (deadline.getValue().isNone())
+        return this.cancelFound(found.getValue(), event.actorUserId);
 
       const now = this.clock();
       const target = alertDeadline(deadline.getValue().unwrap());
-      const found = await this.alerts.findOwned(event.userId, event.eventId);
-      if (found.isFailure) return Result.fail(found.getError());
-
       if (found.getValue().isNone()) {
         const created = Alert.scheduleDefault({ ...event, deadline: target, now });
         if (created.isFailure) return Result.fail(corrupted(created.getError()));
         if (!created.getValue().isPending()) return Result.ok();
 
-        return this.store(created.getValue(), null);
+        return this.persist(created.getValue(), NO_OCCURRENCE, event.actorUserId);
       }
 
       const alert = found.getValue().unwrap();
-      if (alert.get("status").value === "sent") return Result.ok();
-
-      const wasPending = alert.isPending();
-      const before = alert.get("time");
+      const before = occurrenceOf(alert);
       const followed = alert.follow(target, now);
       if (followed.isFailure) return Result.fail(corrupted(followed.getError()));
 
-      const rescheduled = alert.isPending() && !(wasPending && before.equals(alert.get("time")));
-      return rescheduled ? this.store(alert, null) : this.alerts.save(alert);
+      return this.persist(alert, before, event.actorUserId);
     });
   }
 
-  private async cancelOwned(event: PlannedEvent): Promise<Result<void, AppError>> {
-    const found = await this.alerts.findOwned(event.userId, event.eventId);
-    if (found.isFailure) return Result.fail(found.getError());
-    if (found.getValue().isNone() || !found.getValue().unwrap().isPending()) return Result.ok();
+  private async cancelFound(
+    found: Option<Alert>,
+    actorUserId: string | null,
+  ): Promise<Result<void, AppError>> {
+    if (found.isNone() || !found.unwrap().isPending()) return Result.ok();
 
-    const alert = found.getValue().unwrap();
+    const alert = found.unwrap();
     alert.cancel();
-    return this.alerts.save(alert);
+    const saved = await this.alerts.save(alert);
+    if (saved.isFailure) return saved;
+
+    await emitEvent(this.outbox, EventTypes.ALERT_CANCELLED, "alert", alert.id.value, {
+      userId: alert.get("userId"),
+      alertId: alert.id.value,
+      eventId: alert.get("eventId"),
+      actorUserId,
+    });
+    return Result.ok();
   }
 
   private async ownedDeadline(
@@ -202,10 +216,13 @@ export class AlertPlanningService {
     userId: string,
     eventId: string,
     deadline: EventDeadline,
-  ): Promise<Result<Alert, PlanningError>> {
+  ): Promise<Result<{ alert: Alert; before: Occurrence }, PlanningError>> {
     const found = await this.alerts.findOwned(userId, eventId);
     if (found.isFailure) return Result.fail(found.getError());
-    if (found.getValue().isSome()) return Result.ok(found.getValue().unwrap());
+    if (found.getValue().isSome()) {
+      const alert = found.getValue().unwrap();
+      return Result.ok({ alert, before: occurrenceOf(alert) });
+    }
 
     const created = Alert.scheduleDefault({
       eventId,
@@ -213,24 +230,32 @@ export class AlertPlanningService {
       deadline: alertDeadline(deadline),
       now: this.clock(),
     });
-    return created.mapError(corrupted);
+    return created.mapError(corrupted).map((alert) => ({ alert, before: NO_OCCURRENCE }));
   }
 
-  private async store(
+  private async persist(
     alert: Alert,
+    before: Occurrence,
     actorUserId: string | null,
   ): Promise<Result<void, AlertsError>> {
     const saved = await this.alerts.save(alert);
     if (saved.isFailure) return saved;
 
-    await emitEvent(this.outbox, EventTypes.ALERT_SCHEDULED, "alert", alert.id.value, {
-      userId: alert.get("userId"),
-      eventId: alert.get("eventId"),
-      alertId: alert.id.value,
-      dueAt: alert.get("time").value.at.toISOString(),
-      origin: alert.get("origin").value,
-      actorUserId,
-    });
+    const ids = { userId: alert.get("userId"), alertId: alert.id.value };
+    if (alert.isPending() && alert.get("version") !== before.version) {
+      await emitEvent(this.outbox, EventTypes.ALERT_SCHEDULED, "alert", alert.id.value, {
+        ...ids,
+        eventId: alert.get("eventId"),
+        dueAt: alert.get("time").value.at.toISOString(),
+        origin: alert.get("origin").value,
+        actorUserId,
+      });
+    }
+    if (before.pending && !alert.isPending())
+      await emitEvent(this.outbox, EventTypes.ALERT_SKIPPED, "alert", alert.id.value, {
+        ...ids,
+        actorUserId,
+      });
     return Result.ok();
   }
 

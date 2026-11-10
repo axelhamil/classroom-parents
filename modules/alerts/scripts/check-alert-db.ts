@@ -25,6 +25,7 @@ import {
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { alert } from "../schemas/alert.schema";
 import { pushSubscription } from "../schemas/push-subscription.schema";
+import { DISPATCH_BATCH, DISPATCH_LEASE_SECONDS } from "../src/application/config/dispatch-budget";
 import type {
   AlertContext,
   IAlertContextReader,
@@ -145,6 +146,7 @@ async function seedAlerts(
   family: { userId: string; childId: string },
   count: number,
   status: "pending" | "sent",
+  label: string = status,
 ): Promise<string[]> {
   const deadlineAt = new Date(NOW.getTime() + 5 * DAY_MS);
   const ids: string[] = [];
@@ -156,7 +158,7 @@ async function seedAlerts(
         Array.from({ length: size }, (_, i) => ({
           userId: family.userId,
           childId: family.childId,
-          announcementId: `${status}-${offset + i}`,
+          announcementId: `${label}-${offset + i}`,
           ordinal: 0,
           courseId: "course-alert",
           announcementUrl: "https://classroom.google.com/c/alert",
@@ -190,7 +192,7 @@ async function seedAlerts(
 }
 
 async function explainClaim(): Promise<string> {
-  const { sql, params } = alertClaimQuery(db, NOW, 50, 60).toSQL();
+  const { sql, params } = alertClaimQuery(db, NOW, DISPATCH_BATCH, DISPATCH_LEASE_SECONDS).toSQL();
   const client = await db.$client.connect();
   try {
     await client.query("BEGIN");
@@ -270,6 +272,49 @@ run(async () => {
   );
   await step("no email fallback while a push got through", emails === 0, { emails });
 
+  const [racedEvent] = await seedAlerts(b, 1, "pending", "raced");
+  if (!racedEvent) throw new Error("raced alert not seeded");
+  await db.update(alert).set({ origin: "user" }).where(eq(alert.eventId, racedEvent));
+  let racedPushes = 0;
+  const racingPush: IPushSender = {
+    send: async () => {
+      racedPushes += 1;
+      if (racedPushes > 1) return Result.ok();
+
+      const later = new Date(NOW.getTime() + 6 * DAY_MS);
+      await db
+        .update(agendaEvent)
+        .set({ deadlineAt: later, deadlineDate: later.toISOString().slice(0, 10) })
+        .where(eq(agendaEvent.id, racedEvent));
+      const replanned = await planning.replan({
+        eventId: racedEvent,
+        userId: b.userId,
+        actorUserId: null,
+      });
+      if (replanned.isFailure) throw new Error(replanned.getError().code);
+      return Result.ok();
+    },
+  };
+  const racing = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    racingPush,
+    emailSender,
+    contexts,
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  await racing.runOnce(NOW);
+  await racing.runOnce(NOW);
+  const [raced] = await db.select().from(alert).where(eq(alert.eventId, racedEvent));
+  await step(
+    "the deadline moving while an alert is being sent sends it once",
+    racedPushes === 1 && raced?.status === "sent",
+    { pushes: racedPushes, status: raced?.status, attempts: raced?.attempts },
+  );
+
   const eventOfB = dueEvents[0] ?? "";
   const [before] = await db.select().from(alert).where(eq(alert.eventId, eventOfB));
   const read = await planning.get(a.userId, eventOfB);
@@ -297,5 +342,8 @@ run(async () => {
     .select({ id: pushSubscription.id })
     .from(pushSubscription)
     .where(eq(pushSubscription.userId, b.userId));
-  await step("A cannot delete B's push subscription", removed.isSuccess && left.length === 1);
+  await step(
+    "A cannot delete B's push subscription",
+    removed.isSuccess && removed.getValue().isNone() && left.length === 1,
+  );
 }, "alerts are sent once under concurrency and stay inside their family on a real database");

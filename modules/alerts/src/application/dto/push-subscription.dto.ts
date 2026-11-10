@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isKnownPushService } from "../config/push-services";
 
 const base64Url = z
   .string()
@@ -7,7 +8,10 @@ const base64Url = z
   .max(256);
 
 export const pushSubscriptionSchema = z.object({
-  endpoint: z.url({ protocol: /^https$/ }).max(2048),
+  endpoint: z
+    .url({ protocol: /^https$/ })
+    .max(2048)
+    .refine(isKnownPushService),
   keys: z.object({ p256dh: base64Url, auth: base64Url }),
   userAgent: z.string().optional(),
 });

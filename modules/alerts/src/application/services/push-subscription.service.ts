@@ -62,7 +62,23 @@ export class PushSubscriptionService {
   }
 
   async unsubscribe(userId: string, endpoint: string): Promise<Result<void, AlertsError>> {
-    return this.span("unsubscribe", () => this.subscriptions.deleteOwned(userId, endpoint));
+    return this.span("unsubscribe", () =>
+      this.transactions.run(async (): Promise<Result<void, AlertsError>> => {
+        const deleted = await this.subscriptions.deleteOwned(userId, endpoint);
+        if (deleted.isFailure) return Result.fail(deleted.getError());
+        if (deleted.getValue().isNone()) return Result.ok();
+
+        const subscriptionId = deleted.getValue().unwrap();
+        await emitEvent(
+          this.outbox,
+          EventTypes.PUSH_UNSUBSCRIBED,
+          "push_subscription",
+          subscriptionId,
+          { userId, subscriptionId, actorUserId: userId },
+        );
+        return Result.ok();
+      }),
+    );
   }
 
   async status(userId: string): Promise<Result<PushStatusDto, AlertsError>> {

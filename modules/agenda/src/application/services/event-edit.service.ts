@@ -13,9 +13,11 @@ import { CLEAR_TIME, type EventDto, type EventPatch, toEventDto } from "../dto/e
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import {
   type AgendaError,
+  type CourseDay,
   eventNotFound,
   type IEventRepository,
 } from "../ports/event-repository.port";
+import { alertAnnouncementsOn, courseDayOf, leftItsDay } from "./alert-planning";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
 
@@ -48,15 +50,18 @@ export class EventEditService {
         const fields = event.changedFields(changes.getValue());
         if (fields.length === 0) return Result.ok(toEventDto(event));
 
+        const day = courseDayOf(event);
         if (event.edit(changes.getValue(), this.clock()).isFailure)
           return Result.fail(eventNotFound);
         const saved = await this.events.save(event);
         if (saved.isFailure) return Result.fail(saved.getError());
 
         if (fields.includes("deadline") && !event.needsReview()) {
-          const replanned = await this.alerts.replan(plannedDeadline(event));
+          const replanned = await this.alerts.replan(plannedDeadline(event, userId));
           if (replanned.isFailure) return Result.fail(replanned.getError());
         }
+        const unmasked = await this.unmask(event, day, userId);
+        if (unmasked.isFailure) return Result.fail(unmasked.getError());
 
         await this.emitUpdated(event, fields);
         return Result.ok(toEventDto(event));
@@ -76,7 +81,7 @@ export class EventEditService {
         const saved = await this.events.save(event);
         if (saved.isFailure) return Result.fail(saved.getError());
 
-        const planned = await this.alerts.planDefault(plannedDeadline(event));
+        const planned = await this.alerts.planDefault(plannedDeadline(event, userId));
         if (planned.isFailure) return Result.fail(planned.getError());
 
         await this.emitUpdated(event, ["status"]);
@@ -92,12 +97,16 @@ export class EventEditService {
         if (found.isFailure) return Result.fail(found.getError());
         const event = found.getValue();
 
+        const day = courseDayOf(event);
         if (event.delete(this.clock()).isFailure) return Result.fail(eventNotFound);
         const saved = await this.events.save(event);
         if (saved.isFailure) return saved;
 
-        const cancelled = await this.alerts.cancel(eventId);
+        const cancelled = await this.alerts.cancel(eventId, userId);
         if (cancelled.isFailure) return cancelled;
+
+        const unmasked = await this.unmask(event, day, userId);
+        if (unmasked.isFailure) return unmasked;
 
         await emitEvent(this.outbox, EventTypes.EVENT_DELETED, "event", eventId, {
           userId,
@@ -106,6 +115,16 @@ export class EventEditService {
         return Result.ok();
       }),
     );
+  }
+
+  private async unmask(
+    event: AgendaEvent,
+    day: CourseDay,
+    userId: string,
+  ): Promise<Result<void, AppError>> {
+    if (!leftItsDay(event, day)) return Result.ok();
+
+    return alertAnnouncementsOn(this.events, this.alerts, { userId, day, actorUserId: userId });
   }
 
   private async owned(userId: string, eventId: string): Promise<Result<AgendaEvent, AgendaError>> {

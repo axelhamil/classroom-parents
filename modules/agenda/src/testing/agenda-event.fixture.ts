@@ -15,6 +15,7 @@ export interface AgendaEventOverrides {
   status?: EventStatusValue;
   deadlineDate?: string;
   deadlineTime?: string;
+  source?: "announcement" | "coursework";
 }
 
 export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
@@ -22,7 +23,8 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
     {
       userId: PARENT,
       childId: CHILD,
-      source: EventSource.announcement(),
+      source:
+        overrides.source === "coursework" ? EventSource.coursework() : EventSource.announcement(),
       announcementId: "announcement-1",
       ordinal: 0,
       courseId: "course-1",

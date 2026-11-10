@@ -1,8 +1,19 @@
-import { type AppError, type IInstrumentation, type IUnitOfWork, Result } from "@packages/ddd-kit";
+import {
+  type AppError,
+  type IInstrumentation,
+  type IUnitOfWork,
+  mapBounded,
+  Result,
+} from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import type { Alert } from "../../domain/alert.aggregate";
+import {
+  DISPATCH_BATCH,
+  DISPATCH_CONCURRENCY,
+  DISPATCH_LEASE_SECONDS,
+} from "../config/dispatch-budget";
 import type { AlertContext, IAlertContextReader } from "../ports/alert-context-reader.port";
 import type { IAlertEmailSender } from "../ports/alert-email-sender.port";
 import type {
@@ -18,9 +29,7 @@ import type {
   PushSubscriptionRecord,
 } from "../ports/push-subscription-repository.port";
 
-export const DISPATCH_BATCH = 50;
-export const DISPATCH_LEASE_SECONDS = 60;
-export const MAX_ATTEMPTS = 5;
+export const MAX_EMAIL_FAILURES = 5;
 export const PUSH_TTL_SECONDS = 2 * 3600;
 
 export interface DispatchOutcome {
@@ -79,11 +88,14 @@ export class AlertDispatchService {
         if (contexts.isFailure) return Result.fail(contexts.getError());
         const byAlert = new Map(contexts.getValue().map((context) => [context.alertId, context]));
 
-        for (const item of batch) {
-          const delivered = await this.dispatch(item, byAlert.get(item.lease.alertId), now);
+        const outcomes = await mapBounded(batch, DISPATCH_CONCURRENCY, async (item) => ({
+          alertId: item.lease.alertId,
+          delivered: await this.dispatch(item, byAlert.get(item.lease.alertId), now),
+        }));
+        for (const { alertId, delivered } of outcomes) {
           if (delivered.isFailure) {
             this.instrumentation.capture(
-              new Error(`alert ${item.lease.alertId}: ${delivered.getError().code}`),
+              new Error(`alert ${alertId}: ${delivered.getError().code}`),
             );
             continue;
           }
@@ -97,7 +109,7 @@ export class AlertDispatchService {
   }
 
   private async dispatch(
-    { alert, lease }: ClaimedAlert,
+    { alert, lease, failures }: ClaimedAlert,
     context: AlertContext | undefined,
     now: Date,
   ): Promise<Result<Delivered, AppError>> {
@@ -116,6 +128,7 @@ export class AlertDispatchService {
 
     const emailed = await this.email.send(context.email, {
       alertId: alert.id.value,
+      version: alert.get("version"),
       eventTitle: context.eventTitle,
       childLabel: context.childLabel,
       deadlineLabel: context.deadlineLabel,
@@ -123,7 +136,7 @@ export class AlertDispatchService {
     });
     if (emailed.isSuccess) return this.markSent(alert, lease, "email", now);
 
-    return this.emailFailed(alert, lease, emailed.getError().code, now);
+    return this.emailFailed(alert, { lease, failures }, emailed.getError().code, now);
   }
 
   private async pushAll(alert: Alert, context: AlertContext): Promise<Result<boolean, AppError>> {
@@ -131,9 +144,15 @@ export class AlertDispatchService {
     const live = await this.subscriptions.listForUser(userId);
     if (live.isFailure) return Result.fail(live.getError());
 
+    const outcomes = await Promise.all(
+      live.getValue().map(async (subscription) => ({
+        subscription,
+        sent: await this.push.send(subscription, pushPayload(context), pushOptions(alert)),
+      })),
+    );
+
     let delivered = false;
-    for (const subscription of live.getValue()) {
-      const sent = await this.push.send(subscription, pushPayload(context), pushOptions(alert));
+    for (const { subscription, sent } of outcomes) {
       if (sent.isSuccess) {
         delivered = true;
         continue;
@@ -205,7 +224,7 @@ export class AlertDispatchService {
 
   private emailFailed(
     alert: Alert,
-    lease: AlertLease,
+    { lease, failures }: { lease: AlertLease; failures: number },
     code: string,
     now: Date,
   ): Promise<Result<Delivered, AppError>> {
@@ -219,24 +238,50 @@ export class AlertDispatchService {
       if (recorded.isFailure) return Result.fail(recorded.getError());
 
       await this.emitFailure(alert, "email", code);
-      if (lease.attempts < MAX_ATTEMPTS) return Result.ok("none");
+      if (failures + 1 < MAX_EMAIL_FAILURES) {
+        const counted = await this.alerts.addFailure(lease);
+        return counted.map((): Delivered => "none");
+      }
 
-      alert.markMissed();
-      const settled = await this.alerts.settle(alert, lease);
-      return settled.map((held) => (held ? "missed" : "none"));
+      return this.settleMissed(alert, lease);
     });
   }
 
-  private async giveUp(alert: Alert, lease: AlertLease): Promise<Result<Delivered, AppError>> {
-    alert.markMissed();
-    const settled = await this.alerts.settle(alert, lease);
-    return settled.map((held) => (held ? "missed" : "none"));
+  private giveUp(alert: Alert, lease: AlertLease): Promise<Result<Delivered, AppError>> {
+    return this.transactions.run(() => this.settleMissed(alert, lease));
   }
 
-  private async skip(alert: Alert, lease: AlertLease): Promise<Result<Delivered, AppError>> {
-    alert.skip();
+  private async settleMissed(
+    alert: Alert,
+    lease: AlertLease,
+  ): Promise<Result<Delivered, AppError>> {
+    alert.markMissed();
     const settled = await this.alerts.settle(alert, lease);
-    return settled.map(() => "none");
+    if (settled.isFailure) return Result.fail(settled.getError());
+    if (!settled.getValue()) return Result.ok("none");
+
+    await emitEvent(this.outbox, EventTypes.ALERT_MISSED, "alert", alert.id.value, {
+      userId: alert.get("userId"),
+      alertId: alert.id.value,
+      actorUserId: null,
+    });
+    return Result.ok("missed");
+  }
+
+  private skip(alert: Alert, lease: AlertLease): Promise<Result<Delivered, AppError>> {
+    return this.transactions.run(async (): Promise<Result<Delivered, AppError>> => {
+      alert.skip();
+      const settled = await this.alerts.settle(alert, lease);
+      if (settled.isFailure) return Result.fail(settled.getError());
+      if (!settled.getValue()) return Result.ok("none");
+
+      await emitEvent(this.outbox, EventTypes.ALERT_SKIPPED, "alert", alert.id.value, {
+        userId: alert.get("userId"),
+        alertId: alert.id.value,
+        actorUserId: null,
+      });
+      return Result.ok("none");
+    });
   }
 
   private async emitFailure(alert: Alert, channel: DeliveryChannel, code: string): Promise<void> {

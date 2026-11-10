@@ -20,6 +20,7 @@ import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/h
 import { agendaEvent } from "../../../schemas/event.schema";
 import {
   type AgendaError,
+  type CourseDay,
   type CourseworkCourses,
   type EventFilter,
   type EventPage,
@@ -260,39 +261,65 @@ export class DrizzleEventRepository implements IEventRepository {
     childId: string,
     courses: CourseworkCourses,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
+    return this.selectMany(
+      "lockLiveCoursework",
+      and(
+        eq(agendaEvent.userId, userId),
+        eq(agendaEvent.childId, childId),
+        ...("courseId" in courses
+          ? [eq(agendaEvent.courseId, courses.courseId)]
+          : [
+              notInArray(agendaEvent.courseId, courses.outsideCourseIds),
+              gte(agendaEvent.deadlineAt, courses.dueFrom),
+            ]),
+        sql`${agendaEvent.source} = 'coursework'`,
+        isNull(agendaEvent.deletedAt),
+        isNull(agendaEvent.withdrawnAt),
+      ),
+      true,
+    );
+  }
+
+  async listAnnouncementsOn(
+    userId: string,
+    day: CourseDay,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    return this.selectMany(
+      "listAnnouncementsOn",
+      and(
+        eq(agendaEvent.userId, userId),
+        eq(agendaEvent.childId, day.childId),
+        eq(agendaEvent.courseId, day.courseId),
+        eq(agendaEvent.deadlineDate, day.deadlineDate),
+        sql`${agendaEvent.source} = 'announcement'`,
+        isNull(agendaEvent.deletedAt),
+        isNull(agendaEvent.withdrawnAt),
+      ),
+      false,
+    );
+  }
+
+  private async selectMany(
+    method: string,
+    where: SQL | undefined,
+    forUpdate: boolean,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
-      { name: "DrizzleEventRepository > lockLiveCoursework" },
+      { name: `DrizzleEventRepository > ${method}` },
       async () => {
         try {
-          const query = exec
-            .select()
-            .from(agendaEvent)
-            .where(
-              and(
-                eq(agendaEvent.userId, userId),
-                eq(agendaEvent.childId, childId),
-                ...("courseId" in courses
-                  ? [eq(agendaEvent.courseId, courses.courseId)]
-                  : [
-                      notInArray(agendaEvent.courseId, courses.outsideCourseIds),
-                      gte(agendaEvent.deadlineAt, courses.dueFrom),
-                    ]),
-                sql`${agendaEvent.source} = 'coursework'`,
-                isNull(agendaEvent.deletedAt),
-                isNull(agendaEvent.withdrawnAt),
-              ),
-            )
-            .for("update");
+          const select = exec.select().from(agendaEvent).where(where);
+          const query = forUpdate ? select.for("update") : select;
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
           );
 
-          return this.mapRows(rows, "lockLiveCoursework");
+          return this.mapRows(rows, method);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("lockLiveCoursework"));
+          return Result.fail(repositoryFailure(method));
         }
       },
     );

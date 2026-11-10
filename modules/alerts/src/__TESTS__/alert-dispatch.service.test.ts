@@ -6,6 +6,12 @@ import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork } from "@packages/test/bun/unit-of-work";
+import {
+  DISPATCH_BATCH,
+  DISPATCH_CONCURRENCY,
+  DISPATCH_LEASE_SECONDS,
+  worstCaseBatchMs,
+} from "../application/config/dispatch-budget";
 import type {
   AlertContext,
   IAlertContextReader,
@@ -62,10 +68,18 @@ let deadlines: PortMock<IEventDeadlines>;
 let outbox: PortMock<IOutboxRepository>;
 let service: AlertDispatchService;
 
-function givenClaimed(overrides: AlertOverrides = {}, attempts = 1): Alert {
+function claimed(alert: Alert, failures = 0): ClaimedAlert {
+  return {
+    alert,
+    lease: { alertId: alert.id.value, attempts: 1, version: alert.get("version") },
+    failures,
+  };
+}
+
+function givenClaimed(overrides: AlertOverrides = {}, failures = 0): Alert {
   const alert = existingAlert(overrides);
   alerts.claimDue.mockResolvedValue(
-    Result.ok<ClaimedAlert[], AlertsError>([{ alert, lease: { alertId: ALERT_ID, attempts } }]),
+    Result.ok<ClaimedAlert[], AlertsError>([claimed(alert, failures)]),
   );
   return alert;
 }
@@ -90,6 +104,7 @@ beforeEach(() => {
   givenClaimed({ date: "2026-11-13", time: "18:00" });
   alerts.settle.mockResolvedValue(Result.ok(true));
   alerts.recordDelivery.mockResolvedValue(Result.ok());
+  alerts.addFailure.mockResolvedValue(Result.ok(true));
   givenSubscriptions([PHONE]);
   subscriptions.deleteGone.mockResolvedValue(Result.ok());
   push.send.mockResolvedValue(Result.ok());
@@ -119,7 +134,7 @@ describe("runOnce", () => {
     const result = await service.runOnce(NOW);
 
     expect(result.getValue()).toEqual({ claimed: 1, sent: 1, emailed: 0, missed: 0 });
-    expect(alerts.claimDue).toHaveBeenCalledWith(NOW, 50, 60);
+    expect(alerts.claimDue).toHaveBeenCalledWith(NOW, DISPATCH_BATCH, DISPATCH_LEASE_SECONDS);
     expect(push.send).toHaveBeenCalledTimes(1);
     expect(push.send.mock.calls[0]?.[1]).toEqual({
       web_push: 8030,
@@ -167,6 +182,7 @@ describe("runOnce", () => {
 
     expect(email.send).toHaveBeenCalledWith("parent@example.com", {
       alertId: ALERT_ID,
+      version: 1,
       eventTitle: "Contrôle de maths",
       childLabel: "Léa",
       deadlineLabel: "dimanche 15 novembre",
@@ -185,6 +201,7 @@ describe("runOnce", () => {
 
     expect(result.getValue()).toEqual({ claimed: 1, sent: 0, emailed: 0, missed: 0 });
     expect(alerts.settle).not.toHaveBeenCalled();
+    expect(alerts.addFailure).toHaveBeenCalledTimes(1);
     expect(enqueuedEvents(outbox)).toEqual([
       {
         eventType: EventTypes.ALERT_DELIVERY_FAILED,
@@ -200,8 +217,8 @@ describe("runOnce", () => {
     ]);
   });
 
-  it("given the fifth attempt fails, then the alert is missed", async () => {
-    givenClaimed({}, 5);
+  it("given the fifth email failure of this occurrence, then the alert is missed and ALERT_MISSED is emitted", async () => {
+    givenClaimed({}, 4);
     givenSubscriptions([]);
     email.send.mockResolvedValue(
       Result.fail({ code: "EMAIL_PROVIDER_FAILURE", message: "resend down" }),
@@ -211,6 +228,24 @@ describe("runOnce", () => {
 
     expect(result.getValue()).toEqual({ claimed: 1, sent: 0, emailed: 0, missed: 1 });
     expect(settledStatus()).toBe("missed");
+    expect(enqueuedEvents(outbox).at(-1)).toEqual({
+      eventType: EventTypes.ALERT_MISSED,
+      aggregateId: ALERT_ID,
+      payload: { userId: PARENT, alertId: ALERT_ID, actorUserId: null },
+    });
+  });
+
+  it("given a re-armed occurrence whose earlier occurrence failed four times, then one email failure does not miss it", async () => {
+    givenClaimed({ version: 2 }, 0);
+    givenSubscriptions([]);
+    email.send.mockResolvedValue(
+      Result.fail({ code: "EMAIL_PROVIDER_FAILURE", message: "resend down" }),
+    );
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toMatchObject({ missed: 0 });
+    expect(alerts.settle).not.toHaveBeenCalled();
   });
 
   it("given an alert due 7 hours ago, then it is missed and nothing is sent", async () => {
@@ -218,6 +253,9 @@ describe("runOnce", () => {
 
     expect(result.getValue()).toMatchObject({ missed: 1, sent: 0 });
     expect(settledStatus()).toBe("missed");
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
+      EventTypes.ALERT_MISSED,
+    ]);
     expect(push.send).not.toHaveBeenCalled();
     expect(email.send).not.toHaveBeenCalled();
   });
@@ -229,6 +267,13 @@ describe("runOnce", () => {
 
     expect(settledStatus()).toBe("skipped");
     expect(push.send).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.ALERT_SKIPPED,
+        aggregateId: ALERT_ID,
+        payload: { userId: PARENT, alertId: ALERT_ID, actorUserId: null },
+      },
+    ]);
   });
 
   it("given the agenda no longer shows the event (masked by a coursework or withdrawn), then the alert is skipped", async () => {
@@ -239,6 +284,36 @@ describe("runOnce", () => {
     expect(deadlines.forUser).toHaveBeenCalledWith(PARENT, ALERT_EVENT);
     expect(settledStatus()).toBe("skipped");
     expect(push.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("dispatch budget", () => {
+  it("given the per-send timeouts and the batch, then the worst case of a batch stays under half the lease", () => {
+    expect(worstCaseBatchMs()).toBeLessThan((DISPATCH_LEASE_SECONDS * 1000) / 2);
+  });
+
+  it("given more due alerts than the concurrency, then no more than the concurrency are sent at once", async () => {
+    const batch = Array.from({ length: DISPATCH_CONCURRENCY * 2 + 3 }, (_, i) =>
+      claimed(existingAlert({ id: `0196a000-0000-7000-8000-${String(i).padStart(12, "0")}` })),
+    );
+    alerts.claimDue.mockResolvedValue(Result.ok<ClaimedAlert[], AlertsError>(batch));
+    contexts.load.mockResolvedValue(
+      Result.ok(batch.map(({ alert }) => ({ ...CONTEXT, alertId: alert.id.value }))),
+    );
+    let inFlight = 0;
+    let peak = 0;
+    push.send.mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return Result.ok();
+    });
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toMatchObject({ sent: batch.length });
+    expect(peak).toBe(DISPATCH_CONCURRENCY);
   });
 });
 

@@ -97,6 +97,19 @@ beforeEach(() => {
       ),
     ),
   );
+  repo.listAnnouncementsOn.mockImplementation(async (_userId, day) =>
+    Result.ok(
+      [...stored.values()].filter(
+        (event) =>
+          event.get("source").value === "announcement" &&
+          event.get("childId") === day.childId &&
+          event.get("courseId") === day.courseId &&
+          event.get("deadline").value.date === day.deadlineDate &&
+          event.get("deletedAt").isNone() &&
+          event.get("withdrawnAt").isNone(),
+      ),
+    ),
+  );
   planner.planDefault.mockResolvedValue(Result.ok());
   planner.replan.mockResolvedValue(Result.ok());
   planner.cancel.mockResolvedValue(Result.ok());
@@ -177,6 +190,7 @@ describe("ingest", () => {
       userId: PARENT,
       deadlineDate: "2026-11-19",
       deadlineTime: "08:30",
+      actorUserId: null,
     });
   });
 
@@ -332,7 +346,7 @@ describe("ingestCoursework", () => {
     expect(row?.get("title").value).toBe("Exercices p. 44");
     expect(row?.get("done")).toBe(true);
     expect(planner.replan).not.toHaveBeenCalled();
-    expect(planner.cancel).toHaveBeenCalledWith(row?.id.value);
+    expect(planner.cancel).toHaveBeenCalledWith(row?.id.value, null);
     expect(updatedFields()).toEqual([["title", "done"]]);
   });
 
@@ -411,7 +425,7 @@ describe("ingestCoursework", () => {
     expect(w1?.get("withdrawnAt").isSome()).toBe(true);
     expect(w1?.get("deletedAt").isNone()).toBe(true);
     expect(courseworkRow("w2")?.get("withdrawnAt").isNone()).toBe(true);
-    expect(planner.cancel).toHaveBeenCalledWith(w1?.id.value);
+    expect(planner.cancel).toHaveBeenCalledWith(w1?.id.value, null);
     expect(updatedFields()).toEqual([["withdrawn"]]);
   });
 
@@ -453,6 +467,48 @@ describe("ingestCoursework", () => {
   });
 });
 
+describe("an announcement hidden by a coursework of its day", () => {
+  const hiddenAnnouncement = async () => {
+    await ingest([extracted({ deadlineDate: "2026-11-19" })]);
+    await ingestCoursework([homework({ id: "w1", deadlineDate: "2026-11-19" })]);
+    planner.planDefault.mockClear();
+    return [...stored.values()].find((event) => event.get("source").value === "announcement");
+  };
+
+  it("given the teacher withdraws the coursework, then the announcement's alert is planned by the system and the coursework's is cancelled", async () => {
+    const shown = await hiddenAnnouncement();
+
+    await ingestCoursework([]);
+
+    expect(planner.cancel).toHaveBeenCalledWith(courseworkRow("w1")?.id.value, null);
+    expect(planner.planDefault).toHaveBeenCalledWith({
+      eventId: shown?.id.value,
+      userId: PARENT,
+      deadlineDate: "2026-11-19",
+      deadlineTime: undefined,
+      actorUserId: null,
+    });
+  });
+
+  it("given the teacher moves the coursework to another day, then the announcement of the day it left gets its alert", async () => {
+    const shown = await hiddenAnnouncement();
+
+    await ingestCoursework([homework({ id: "w1", deadlineDate: "2026-11-23" })]);
+
+    expect(planner.planDefault).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: shown?.id.value, actorUserId: null }),
+    );
+  });
+
+  it("given the teacher only renames the coursework, then no announcement is replanned", async () => {
+    await hiddenAnnouncement();
+
+    await ingestCoursework([homework({ id: "w1", title: "Exercices p. 50" })]);
+
+    expect(planner.planDefault).not.toHaveBeenCalled();
+  });
+});
+
 describe("withdrawCourseworkOutside", () => {
   it("given the child's active courses, then the coursework of the other courses is withdrawn", async () => {
     await ingestCoursework([homework({ id: "w1" })]);
@@ -474,7 +530,7 @@ describe("withdrawCourseworkOutside", () => {
     expect(result.getValue()).toEqual({ withdrawn: 1 });
     expect(courseworkRow("w1")?.get("withdrawnAt").isNone()).toBe(true);
     expect(courseworkRow("w2")?.get("withdrawnAt").isSome()).toBe(true);
-    expect(planner.cancel).toHaveBeenCalledWith(courseworkRow("w2")?.id.value);
+    expect(planner.cancel).toHaveBeenCalledWith(courseworkRow("w2")?.id.value, null);
   });
 
   it("given a course archived at the end of the term, then its past coursework stays in the history", async () => {

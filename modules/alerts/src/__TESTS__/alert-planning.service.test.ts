@@ -10,7 +10,7 @@ import type { AlertsError, IAlertRepository } from "../application/ports/alert-r
 import type { EventDeadline, IEventDeadlines } from "../application/ports/event-deadlines.port";
 import { AlertPlanningService } from "../application/services/alert-planning.service";
 import type { Alert } from "../domain/alert.aggregate";
-import { ALERT_EVENT, existingAlert, PARENT, paris } from "../testing/alert.fixture";
+import { ALERT_EVENT, ALERT_ID, existingAlert, PARENT, paris } from "../testing/alert.fixture";
 
 const NOW = new Date("2026-11-10T09:00:00.000Z");
 
@@ -38,7 +38,7 @@ function saved(): Alert | undefined {
   return alerts.save.mock.calls.at(-1)?.[0];
 }
 
-const planned = { eventId: ALERT_EVENT, userId: PARENT };
+const planned = { eventId: ALERT_EVENT, userId: PARENT, actorUserId: null };
 
 beforeEach(() => {
   alerts = mockPort<IAlertRepository>();
@@ -114,16 +114,72 @@ describe("planDefault", () => {
     expect(saved()?.get("time").value.at).toEqual(new Date("2026-11-13T17:00:00.000Z"));
   });
 
-  it("given an alert already sent, then it is never sent twice", async () => {
+  it("given an alert already sent, when the agenda plans it again for the same day, then it is never sent twice", async () => {
     givenAlert(existingAlert({ status: "sent" }));
 
     await service.planDefault(planned);
 
-    expect(alerts.save).not.toHaveBeenCalled();
+    expect(saved()?.get("status").value ?? "sent").toBe("sent");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given a pending alert, when the agenda no longer shows its event, then it is cancelled by the system and ALERT_CANCELLED is emitted", async () => {
+    givenAlert(existingAlert({ status: "pending" }));
+    deadlines.forUser.mockResolvedValue(Result.ok(Option.none()));
+
+    await service.planDefault(planned);
+
+    expect(saved()?.get("status").value).toBe("skipped");
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.ALERT_CANCELLED,
+        aggregateId: ALERT_ID,
+        payload: { userId: PARENT, alertId: ALERT_ID, eventId: ALERT_EVENT, actorUserId: null },
+      },
+    ]);
   });
 });
 
 describe("replan", () => {
+  it("given an alert already sent, when the teacher pushes the deadline to another day, then a new occurrence is planned at J-2 18:00 of the new day", async () => {
+    givenAlert(existingAlert({ status: "sent" }));
+    givenEvent(deadlineOn("2026-11-22"));
+
+    await service.replan(planned);
+
+    expect(saved()?.get("status").value).toBe("pending");
+    expect(saved()?.get("origin").value).toBe("default");
+    expect(saved()?.get("time").value.at).toEqual(paris("2026-11-20", "18:00"));
+    expect(saved()?.get("sentAt").isNone()).toBe(true);
+    expect(saved()?.get("version")).toBe(2);
+    expect(enqueuedEvents(outbox)[0]).toMatchObject({
+      eventType: EventTypes.ALERT_SCHEDULED,
+      payload: { dueAt: "2026-11-20T17:00:00.000Z", actorUserId: null },
+    });
+  });
+
+  it("given an alert already sent, when only the hour of the deadline changes, then it stays sent", async () => {
+    givenAlert(existingAlert({ status: "sent" }));
+    givenEvent(deadlineOn("2026-11-15", "08:00"));
+
+    await service.replan(planned);
+
+    expect(saved()?.get("status").value ?? "sent").toBe("sent");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given the parent moved the deadline, then ALERT_SCHEDULED names the parent as actor", async () => {
+    givenAlert(existingAlert({ origin: "default", date: "2026-11-13", time: "18:00" }));
+    givenEvent(deadlineOn("2026-11-25"));
+
+    await service.replan({ ...planned, actorUserId: PARENT });
+
+    expect(enqueuedEvents(outbox)[0]).toMatchObject({
+      eventType: EventTypes.ALERT_SCHEDULED,
+      payload: { actorUserId: PARENT },
+    });
+  });
+
   it("given a user alert, when the deadline moves, then the user alert keeps its time", async () => {
     givenAlert(existingAlert({ origin: "user", date: "2026-11-12", time: "07:30" }));
     givenEvent(deadlineOn("2026-11-20"));
@@ -144,6 +200,13 @@ describe("replan", () => {
 
     expect(saved()?.get("status").value).toBe("skipped");
     expect(saved()?.get("time").value.at).toEqual(paris("2026-11-14", "18:00"));
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.ALERT_SKIPPED,
+        aggregateId: ALERT_ID,
+        payload: { userId: PARENT, alertId: ALERT_ID, actorUserId: null },
+      },
+    ]);
   });
 
   it("given a default alert, when the deadline moves, then the default time follows it", async () => {
@@ -158,13 +221,20 @@ describe("replan", () => {
 });
 
 describe("cancel", () => {
-  it("given a pending alert, then it becomes skipped", async () => {
+  it("given a pending alert, when the parent deletes its event, then it becomes skipped and ALERT_CANCELLED names the parent", async () => {
     givenAlert(existingAlert({ status: "pending" }));
 
-    const result = await service.cancel(ALERT_EVENT);
+    const result = await service.cancel(ALERT_EVENT, PARENT);
 
     expect(result.isSuccess).toBe(true);
     expect(saved()?.get("status").value).toBe("skipped");
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.ALERT_CANCELLED,
+        aggregateId: ALERT_ID,
+        payload: { userId: PARENT, alertId: ALERT_ID, eventId: ALERT_EVENT, actorUserId: PARENT },
+      },
+    ]);
   });
 });
 
@@ -188,6 +258,15 @@ describe("setUserAlert", () => {
       eventType: EventTypes.ALERT_SCHEDULED,
       payload: { origin: "user", dueAt: "2027-03-28T16:00:00.000Z", actorUserId: PARENT },
     });
+  });
+
+  it("given an alert already sent, when the parent sets a new time, then it is a new occurrence that can be sent again", async () => {
+    givenAlert(existingAlert({ status: "sent" }));
+
+    await service.setUserAlert(PARENT, ALERT_EVENT, { date: "2026-11-14", time: "07:30" });
+
+    expect(saved()?.get("status").value).toBe("pending");
+    expect(saved()?.get("version")).toBe(2);
   });
 
   it("given a time after the deadline, then ALERT_AFTER_DEADLINE and nothing is saved", async () => {

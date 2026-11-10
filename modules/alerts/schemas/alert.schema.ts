@@ -24,6 +24,8 @@ export const alert = pgTable(
     origin: text("origin", { enum: ALERT_ORIGINS }).notNull(),
     status: text("status", { enum: ALERT_STATUSES }).notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    version: integer("version").notNull().default(1),
+    failures: integer("failures").notNull().default(0),
     attempts: integer("attempts").notNull().default(0),
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
   },

@@ -1,0 +1,40 @@
+import { type AppError, Result } from "@packages/ddd-kit";
+import type { AgendaEvent } from "../../domain/event.aggregate";
+import type { IAlertPlanner } from "../ports/alert-planner.port";
+import type { CourseDay, IEventRepository } from "../ports/event-repository.port";
+import { plannedDeadline } from "./planned-deadline";
+
+export function courseDayOf(event: AgendaEvent): CourseDay {
+  return {
+    childId: event.get("childId"),
+    courseId: event.get("courseId"),
+    deadlineDate: event.get("deadline").value.date,
+  };
+}
+
+export function leftItsDay(coursework: AgendaEvent, day: CourseDay): boolean {
+  if (coursework.get("source").value !== "coursework") return false;
+
+  return (
+    coursework.get("deletedAt").isSome() ||
+    coursework.get("withdrawnAt").isSome() ||
+    coursework.get("deadline").value.date !== day.deadlineDate
+  );
+}
+
+export async function alertAnnouncementsOn(
+  events: IEventRepository,
+  alerts: IAlertPlanner,
+  { userId, day, actorUserId }: { userId: string; day: CourseDay; actorUserId: string | null },
+): Promise<Result<void, AppError>> {
+  const found = await events.listAnnouncementsOn(userId, day);
+  if (found.isFailure) return Result.fail(found.getError());
+
+  for (const announcement of found.getValue()) {
+    if (announcement.needsReview() || announcement.get("done")) continue;
+
+    const planned = await alerts.planDefault(plannedDeadline(announcement, actorUserId));
+    if (planned.isFailure) return planned;
+  }
+  return Result.ok();
+}

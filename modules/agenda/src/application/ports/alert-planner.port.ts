@@ -5,6 +5,7 @@ export interface PlannedDeadline {
   userId: string;
   deadlineDate: string;
   deadlineTime?: string;
+  actorUserId: string | null;
 }
 
 export interface IAlertPlanner {
@@ -12,5 +13,5 @@ export interface IAlertPlanner {
 
   replan(deadline: PlannedDeadline): Promise<Result<void, AppError>>;
 
-  cancel(eventId: string): Promise<Result<void, AppError>>;
+  cancel(eventId: string, actorUserId: string | null): Promise<Result<void, AppError>>;
 }

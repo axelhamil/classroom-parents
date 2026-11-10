@@ -12,6 +12,7 @@ import {
   lte,
   resolveExecutor,
   type SQL,
+  sql,
 } from "@packages/drizzle";
 import { alert, alertDelivery } from "../../../schemas/alert.schema";
 import type {
@@ -53,6 +54,7 @@ function toDomain(row: AlertRow): Result<Alert, string> {
         origin: origin.getValue(),
         status: status.getValue(),
         sentAt: Option.fromNullable(row.sentAt),
+        version: row.version,
       },
       id.getValue(),
     ),
@@ -72,9 +74,16 @@ function plannedColumns(entity: Alert) {
     dueAt: entity.get("time").value.at,
     deadlineAt: entity.get("deadlineAt"),
     origin: entity.get("origin").value,
-    attempts: 0,
-    nextAttemptAt: null,
+    version: entity.get("version"),
   };
+}
+
+function fencedBy(lease: AlertLease): SQL | undefined {
+  return and(
+    leasedBy(alert, { id: lease.alertId, attempts: lease.attempts }),
+    eq(alert.version, lease.version),
+    eq(alert.status, "pending"),
+  );
 }
 
 export function alertClaimQuery(
@@ -124,7 +133,10 @@ export class DrizzleAlertRepository implements IAlertRepository {
           })
           .onConflictDoUpdate({
             target: alert.eventId,
-            set: columns,
+            set: {
+              ...columns,
+              failures: sql`case when ${alert.version} = ${columns.version} then ${alert.failures} else 0 end`,
+            },
             setWhere: eq(alert.userId, entity.get("userId")),
           })
           .returning({ id: alert.id });
@@ -168,7 +180,8 @@ export class DrizzleAlertRepository implements IAlertRepository {
             }
             claimed.push({
               alert: mapped.getValue(),
-              lease: { alertId: row.id, attempts: row.attempts },
+              lease: { alertId: row.id, attempts: row.attempts, version: row.version },
+              failures: row.failures,
             });
           }
           return Result.ok(claimed);
@@ -187,12 +200,7 @@ export class DrizzleAlertRepository implements IAlertRepository {
         const query = exec
           .update(alert)
           .set({ ...stateColumns(entity), nextAttemptAt: null })
-          .where(
-            and(
-              leasedBy(alert, { id: lease.alertId, attempts: lease.attempts }),
-              eq(alert.status, "pending"),
-            ),
-          )
+          .where(fencedBy(lease))
           .returning({ id: alert.id });
         const updated = await this.instrumentation.startSpan(
           { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
@@ -205,6 +213,31 @@ export class DrizzleAlertRepository implements IAlertRepository {
         return Result.fail(repositoryFailure("settle"));
       }
     });
+  }
+
+  async addFailure(lease: AlertLease): Promise<Result<boolean, AlertsError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleAlertRepository > addFailure" },
+      async () => {
+        try {
+          const query = exec
+            .update(alert)
+            .set({ failures: sql`${alert.failures} + 1` })
+            .where(fencedBy(lease))
+            .returning({ id: alert.id });
+          const updated = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return Result.ok(updated.length === 1);
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("addFailure"));
+        }
+      },
+    );
   }
 
   async recordDelivery(delivery: AlertDelivery): Promise<Result<void, AlertsError>> {

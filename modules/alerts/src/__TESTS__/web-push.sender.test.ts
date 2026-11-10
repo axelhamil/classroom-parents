@@ -8,6 +8,7 @@ import {
   type RequestOptions,
   WebPushError,
 } from "web-push";
+import { SEND_TIMEOUT_MS } from "../application/config/dispatch-budget";
 import type { PushPayload } from "../application/ports/push-sender.port";
 import { WebPushSender } from "../infrastructure/adapters/web-push.sender";
 
@@ -43,7 +44,7 @@ const options = {
   topic: "0196a0000000700080000000000000a1",
 };
 
-function senderFailingWith(statusCode: number) {
+function senderFailingWith(statusCode: number, instrumentation = mockInstrumentation()) {
   const send = mock(async () => {
     throw new WebPushError(
       "Received unexpected response code",
@@ -53,7 +54,7 @@ function senderFailingWith(statusCode: number) {
       target.endpoint,
     );
   });
-  return { send, sender: new WebPushSender(mockInstrumentation(), settings, send) };
+  return { send, sender: new WebPushSender(instrumentation, settings, send) };
 }
 
 describe("WebPushSender", () => {
@@ -73,6 +74,20 @@ describe("WebPushSender", () => {
     expect(result.getError()).toBe("PUSH_FAILED");
   });
 
+  it("given the push service answers 429, then the captured error names the status and the service host, never the device endpoint", async () => {
+    const instrumentation = mockInstrumentation();
+    const { sender } = senderFailingWith(429, instrumentation);
+
+    await sender.send(target, payload, options);
+
+    const captured = instrumentation.capture.mock.calls[0]?.[0];
+    expect(captured).toBeInstanceOf(Error);
+    expect(captured).not.toBeInstanceOf(WebPushError);
+    expect(String(captured)).toContain("429 push.example.com");
+    expect(JSON.stringify(captured)).not.toContain("/send/abc");
+    expect(String(captured)).not.toContain("/send/abc");
+  });
+
   it("given a delivery, then the declarative payload and the high urgency, 2 h TTL and topic reach the library", async () => {
     const send = mock(
       async (_subscription: PushSubscription, _body: string, _options: RequestOptions) => ({
@@ -90,7 +105,12 @@ describe("WebPushSender", () => {
       keys: { p256dh: target.p256dh, auth: target.auth },
     });
     expect(JSON.parse(String(body))).toEqual(payload);
-    expect(libOptions).toMatchObject({ urgency: "high", TTL: 7200, topic: options.topic });
+    expect(libOptions).toMatchObject({
+      urgency: "high",
+      TTL: 7200,
+      topic: options.topic,
+      timeout: SEND_TIMEOUT_MS,
+    });
   });
 
   it("spike: under Bun the library signs VAPID and encrypts the payload for a real browser key", () => {

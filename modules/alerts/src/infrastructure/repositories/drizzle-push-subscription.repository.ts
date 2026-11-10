@@ -1,4 +1,4 @@
-import { type IInstrumentation, Result } from "@packages/ddd-kit";
+import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import { and, count, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
 import { pushSubscription } from "../../../schemas/push-subscription.schema";
 import type { AlertsError } from "../../application/ports/alert-repository.port";
@@ -48,7 +48,10 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
     );
   }
 
-  async deleteOwned(userId: string, endpoint: string): Promise<Result<void, AlertsError>> {
+  async deleteOwned(
+    userId: string,
+    endpoint: string,
+  ): Promise<Result<Option<string>, AlertsError>> {
     return this.remove(
       "deleteOwned",
       and(eq(pushSubscription.userId, userId), eq(pushSubscription.endpoint, endpoint)),
@@ -56,10 +59,11 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
   }
 
   async deleteGone(userId: string, subscriptionId: string): Promise<Result<void, AlertsError>> {
-    return this.remove(
+    const removed = await this.remove(
       "deleteGone",
       and(eq(pushSubscription.userId, userId), eq(pushSubscription.id, subscriptionId)),
     );
+    return removed.map(() => undefined);
   }
 
   async listForUser(userId: string): Promise<Result<PushSubscriptionRecord[], AlertsError>> {
@@ -119,19 +123,22 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
   private async remove(
     method: string,
     where: ReturnType<typeof and>,
-  ): Promise<Result<void, AlertsError>> {
+  ): Promise<Result<Option<string>, AlertsError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: `DrizzlePushSubscriptionRepository > ${method}` },
       async () => {
         try {
-          const query = exec.delete(pushSubscription).where(where);
-          await this.instrumentation.startSpan(
+          const query = exec
+            .delete(pushSubscription)
+            .where(where)
+            .returning({ id: pushSubscription.id });
+          const [row] = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
           );
 
-          return Result.ok();
+          return Result.ok(Option.fromNullable(row?.id));
         } catch (err) {
           this.instrumentation.capture(err);
           return Result.fail(repositoryFailure(method));

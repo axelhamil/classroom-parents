@@ -6,6 +6,7 @@ import {
   WebPushError,
 } from "web-push";
 import type { AlertsSettings } from "../../application/config/alerts-settings";
+import { SEND_TIMEOUT_MS } from "../../application/config/dispatch-budget";
 import type {
   IPushSender,
   PushFailure,
@@ -15,7 +16,6 @@ import type {
 } from "../../application/ports/push-sender.port";
 
 const GONE_STATUSES = new Set([404, 410]);
-const PUSH_TIMEOUT_MS = 10_000;
 
 type SendNotification = (
   subscription: PushSubscription,
@@ -26,7 +26,10 @@ type SendNotification = (
 export class WebPushSender implements IPushSender {
   constructor(
     private readonly instrumentation: IInstrumentation,
-    private readonly settings: AlertsSettings,
+    private readonly settings: Pick<
+      AlertsSettings,
+      "vapidPublicKey" | "vapidPrivateKey" | "vapidSubject"
+    >,
     private readonly deliver: SendNotification = sendNotification,
   ) {}
 
@@ -35,13 +38,14 @@ export class WebPushSender implements IPushSender {
     payload: PushPayload,
     options: PushOptions,
   ): Promise<Result<void, PushFailure>> {
+    const host = new URL(target.endpoint).host;
     return this.instrumentation.startSpan({ name: "WebPushSender > send" }, async () => {
       try {
         await this.instrumentation.startSpan(
           {
             name: "POST push service",
             op: "http.client",
-            attributes: { "server.address": new URL(target.endpoint).host },
+            attributes: { "server.address": host },
           },
           () =>
             this.deliver(
@@ -56,16 +60,17 @@ export class WebPushSender implements IPushSender {
                 urgency: options.urgency,
                 TTL: options.ttlSeconds,
                 topic: options.topic,
-                timeout: PUSH_TIMEOUT_MS,
+                timeout: SEND_TIMEOUT_MS,
               },
             ),
         );
         return Result.ok();
       } catch (err) {
+        const status = err instanceof WebPushError ? String(err.statusCode) : "network";
         if (err instanceof WebPushError && GONE_STATUSES.has(err.statusCode))
           return Result.fail("PUSH_GONE");
 
-        this.instrumentation.capture(err);
+        this.instrumentation.capture(new Error(`push failed ${status} ${host}`));
         return Result.fail("PUSH_FAILED");
       }
     });

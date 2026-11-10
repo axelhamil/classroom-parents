@@ -19,9 +19,11 @@ import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
 import type {
   AgendaError,
+  CourseDay,
   CourseworkCourses,
   IEventRepository,
 } from "../ports/event-repository.port";
+import { alertAnnouncementsOn, courseDayOf, leftItsDay } from "./alert-planning";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
 
@@ -218,9 +220,10 @@ export class EventIngestService {
     let withdrawn = 0;
     for (const event of live.getValue()) {
       if (listed.has(event.get("announcementId"))) continue;
+      const day = courseDayOf(event);
       if (event.withdraw(this.clock()).isFailure) continue;
 
-      const saved = await this.saveFollowed(event, ["withdrawn"]);
+      const saved = await this.saveFollowed(event, ["withdrawn"], day);
       if (saved.isFailure) return Result.fail(saved.getError());
       withdrawn += 1;
     }
@@ -265,21 +268,32 @@ export class EventIngestService {
     }
 
     const event = stored.unwrap();
+    const day = courseDayOf(event);
     const followed = event.followCoursework({ title, deadline, done: item.done });
     if (followed.isFailure || followed.getValue().length === 0) return Result.ok("unchanged");
 
-    return this.saveFollowed(event, followed.getValue());
+    return this.saveFollowed(event, followed.getValue(), day);
   }
 
   private async saveFollowed(
     event: AgendaEvent,
     fields: EventField[],
+    day: CourseDay,
   ): Promise<Result<CourseworkOutcome, IngestError>> {
     const saved = await this.events.save(event);
     if (saved.isFailure) return Result.fail(saved.getError());
 
     const alerted = await this.realert(event, fields);
     if (alerted.isFailure) return Result.fail(alerted.getError());
+
+    if (leftItsDay(event, day)) {
+      const unmasked = await alertAnnouncementsOn(this.events, this.alerts, {
+        userId: event.get("userId"),
+        day,
+        actorUserId: null,
+      });
+      if (unmasked.isFailure) return Result.fail(unmasked.getError());
+    }
 
     await emitEvent(this.outbox, EventTypes.EVENT_UPDATED, "event", event.id.value, {
       userId: event.get("userId"),
@@ -291,12 +305,13 @@ export class EventIngestService {
   }
 
   private async realert(event: AgendaEvent, fields: EventField[]): Promise<Result<void, AppError>> {
-    if (event.get("withdrawnAt").isSome()) return this.alerts.cancel(event.id.value);
-    if (event.get("done") && fields.includes("done")) return this.alerts.cancel(event.id.value);
+    if (event.get("withdrawnAt").isSome()) return this.alerts.cancel(event.id.value, null);
+    if (event.get("done") && fields.includes("done"))
+      return this.alerts.cancel(event.id.value, null);
     if (event.get("done")) return Result.ok();
     if (fields.includes("withdrawn") || fields.includes("done"))
-      return this.alerts.planDefault(plannedDeadline(event));
-    if (fields.includes("deadline")) return this.alerts.replan(plannedDeadline(event));
+      return this.alerts.planDefault(plannedDeadline(event, null));
+    if (fields.includes("deadline")) return this.alerts.replan(plannedDeadline(event, null));
 
     return Result.ok();
   }
@@ -351,7 +366,7 @@ export class EventIngestService {
     });
     if (event.needsReview() || event.get("done")) return Result.ok(true);
 
-    const planned = await this.alerts.planDefault(plannedDeadline(event));
+    const planned = await this.alerts.planDefault(plannedDeadline(event, null));
     return planned.map(() => true);
   }
 }

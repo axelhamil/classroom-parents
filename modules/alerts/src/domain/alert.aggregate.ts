@@ -1,8 +1,9 @@
 import { Aggregate, Option, Result } from "@packages/ddd-kit";
+import { utcToZonedWall } from "@packages/ddd-kit/zoned-time";
 import { AlertId } from "./alert-id";
 import { AlertOrigin } from "./value-objects/alert-origin.vo";
 import { AlertStatus } from "./value-objects/alert-status.vo";
-import { AlertTime } from "./value-objects/alert-time.vo";
+import { ALERT_TIME_ZONE, AlertTime } from "./value-objects/alert-time.vo";
 
 export const MISSED_AFTER_MS = 6 * 3_600_000;
 
@@ -14,6 +15,7 @@ export interface AlertProps {
   origin: AlertOrigin;
   status: AlertStatus;
   sentAt: Option<Date>;
+  version: number;
 }
 
 export interface AlertDeadline {
@@ -50,6 +52,7 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
         origin: AlertOrigin.byDefault(),
         status: AlertStatus.skipped(),
         sentAt: Option.none(),
+        version: 1,
       },
       new AlertId(),
     );
@@ -70,17 +73,23 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
   }
 
   follow(deadline: AlertDeadline, now: Date): Result<void> {
-    if (this._props.status.value === "sent") return Result.ok();
+    if (this._props.status.value === "sent") {
+      if (this.deadlineDay() === deadline.date) {
+        this._props.deadlineAt = deadline.at;
+        return Result.ok();
+      }
+      return this.resetToDefault(deadline, now);
+    }
 
-    const wasPending = this.isPending();
-    const previous = this._props.time;
+    const before = this.occurrence();
     if (this._props.origin.value === "default") {
       const time = AlertTime.defaultBefore(deadline.date);
       if (time.isFailure) return Result.fail(time.getError());
       this._props.time = time.getValue();
     }
     this._props.deadlineAt = deadline.at;
-    this.settleStatus(now, wasPending && previous.equals(this._props.time));
+    this.settleStatus(now, before.pending && before.time.equals(this._props.time));
+    this.renewSince(before);
     return Result.ok();
   }
 
@@ -88,11 +97,13 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     const time = AlertTime.defaultBefore(deadline.date);
     if (time.isFailure) return Result.fail(time.getError());
 
+    const before = this.occurrence();
     this._props.origin = AlertOrigin.byDefault();
     this._props.time = time.getValue();
     this._props.deadlineAt = deadline.at;
     this._props.sentAt = Option.none();
     this.settleStatus(now, false);
+    this.renewSince(before);
     return Result.ok();
   }
 
@@ -100,11 +111,13 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     if (!time.isAfter(now)) return Result.fail("in_past");
     if (time.value.at.getTime() >= deadlineAt.getTime()) return Result.fail("after_deadline");
 
+    const before = this.occurrence();
     this._props.origin = AlertOrigin.user();
     this._props.time = time;
     this._props.deadlineAt = deadlineAt;
     this._props.status = AlertStatus.pending();
     this._props.sentAt = Option.none();
+    this.renewSince(before);
     return Result.ok();
   }
 
@@ -132,6 +145,23 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
 
   skip(): void {
     this._props.status = AlertStatus.skipped();
+  }
+
+  private occurrence(): { pending: boolean; time: AlertTime } {
+    return { pending: this.isPending(), time: this._props.time };
+  }
+
+  private renewSince(before: { pending: boolean; time: AlertTime }): void {
+    if (!this.isPending()) return;
+    if (before.pending && before.time.equals(this._props.time)) return;
+
+    this._props.version += 1;
+  }
+
+  private deadlineDay(): string {
+    return utcToZonedWall(this._props.deadlineAt, ALERT_TIME_ZONE)
+      .map((wall) => wall.date)
+      .unwrapOr("");
   }
 
   private settleStatus(now: Date, keepOverdue: boolean): void {

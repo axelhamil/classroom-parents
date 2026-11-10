@@ -21,7 +21,7 @@ export interface NewPushSubscription {
 export interface IPushSubscriptionRepository {
   upsert(subscription: NewPushSubscription): Promise<Result<string, AlertsError>>;
 
-  deleteOwned(userId: string, endpoint: string): Promise<Result<void, AlertsError>>;
+  deleteOwned(userId: string, endpoint: string): Promise<Result<Option<string>, AlertsError>>;
 
   deleteGone(userId: string, subscriptionId: string): Promise<Result<void, AlertsError>>;
 

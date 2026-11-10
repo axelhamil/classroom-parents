@@ -38,6 +38,12 @@ export type CourseworkCourses =
   | { courseId: string }
   | { outsideCourseIds: string[]; dueFrom: Date };
 
+export interface CourseDay {
+  childId: string;
+  courseId: string;
+  deadlineDate: string;
+}
+
 export interface IEventRepository {
   insertIfAbsent(event: AgendaEvent): Promise<Result<boolean, AgendaError>>;
 
@@ -54,6 +60,8 @@ export interface IEventRepository {
     childId: string,
     courses: CourseworkCourses,
   ): Promise<Result<AgendaEvent[], AgendaError>>;
+
+  listAnnouncementsOn(userId: string, day: CourseDay): Promise<Result<AgendaEvent[], AgendaError>>;
 
   findOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
