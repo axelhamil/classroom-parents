@@ -1,0 +1,274 @@
+import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
+import {
+  and,
+  asc,
+  dbOperationFailure,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  resolveExecutor,
+  type SQL,
+} from "@packages/drizzle";
+import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/http/time-id-cursor";
+import { agendaEvent } from "../../../schemas/event.schema";
+import type {
+  AgendaError,
+  EventFilter,
+  EventPage,
+  IEventRepository,
+} from "../../application/ports/event-repository.port";
+import { AgendaEvent } from "../../domain/event.aggregate";
+import { EventId } from "../../domain/event-id";
+import { EventCategory } from "../../domain/value-objects/event-category.vo";
+import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
+import { EventDescription } from "../../domain/value-objects/event-description.vo";
+import { EventStatus } from "../../domain/value-objects/event-status.vo";
+import { EventTitle } from "../../domain/value-objects/event-title.vo";
+
+const dbAttrs = { "db.system.name": "postgresql" } as const;
+
+const repositoryFailure = dbOperationFailure("EVENT_PROVIDER_FAILURE");
+
+const eventNotFound: AgendaError = {
+  code: "EVENT_NOT_FOUND",
+  message: "Cet événement n'existe pas ou a été supprimé.",
+};
+
+type EventRow = typeof agendaEvent.$inferSelect;
+
+type Order = "asc" | "desc";
+
+function toDomain(row: EventRow): Result<AgendaEvent, string> {
+  const id = EventId.parse(row.id);
+  const title = EventTitle.create(row.title);
+  const description = EventDescription.create(row.description);
+  const category = EventCategory.create(row.category);
+  const deadline = EventDeadline.fromParisWallTime(row.deadlineDate, row.deadlineTime?.slice(0, 5));
+  const status = EventStatus.create(row.status);
+  if (id.isFailure) return Result.fail(id.getError());
+  if (title.isFailure) return Result.fail(title.getError());
+  if (description.isFailure) return Result.fail(description.getError());
+  if (category.isFailure) return Result.fail(category.getError());
+  if (deadline.isFailure) return Result.fail(deadline.getError());
+  if (status.isFailure) return Result.fail(status.getError());
+
+  return Result.ok(
+    AgendaEvent.reconstitute(
+      {
+        userId: row.userId,
+        childId: row.childId,
+        announcementId: row.announcementId,
+        ordinal: row.ordinal,
+        courseId: row.courseId,
+        announcementUrl: row.announcementUrl,
+        title: title.getValue(),
+        description: description.getValue(),
+        category: category.getValue(),
+        deadline: deadline.getValue(),
+        receivedAt: row.receivedAt,
+        status: status.getValue(),
+        editedAt: Option.fromNullable(row.editedAt),
+        deletedAt: Option.fromNullable(row.deletedAt),
+        createdAt: row.createdAt,
+      },
+      id.getValue(),
+    ),
+  );
+}
+
+function mutableColumns(event: AgendaEvent) {
+  const deadline = event.get("deadline").value;
+
+  return {
+    title: event.get("title").value,
+    description: event.get("description").value,
+    category: event.get("category").value,
+    deadlineDate: deadline.date,
+    deadlineTime: deadline.time ?? null,
+    deadlineAt: deadline.at,
+    status: event.get("status").value,
+    editedAt: event.get("editedAt").toNull(),
+    deletedAt: event.get("deletedAt").toNull(),
+  };
+}
+
+function ownedAlive(userId: string): SQL | undefined {
+  return and(eq(agendaEvent.userId, userId), isNull(agendaEvent.deletedAt));
+}
+
+function filtered(filter: EventFilter, order: Order): (SQL | undefined)[] {
+  return [
+    filter.childIds?.length ? inArray(agendaEvent.childId, filter.childIds) : undefined,
+    filter.categories?.length ? inArray(agendaEvent.category, filter.categories) : undefined,
+    filter.cursor
+      ? afterTimeIdCursor(agendaEvent.deadlineAt, agendaEvent.id, filter.cursor, order)
+      : undefined,
+  ];
+}
+
+export class DrizzleEventRepository implements IEventRepository {
+  constructor(private readonly instrumentation: IInstrumentation) {}
+
+  async insertIfAbsent(event: AgendaEvent): Promise<Result<boolean, AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleEventRepository > insertIfAbsent" },
+      async () => {
+        try {
+          const query = exec
+            .insert(agendaEvent)
+            .values({
+              id: event.id.value,
+              userId: event.get("userId"),
+              childId: event.get("childId"),
+              announcementId: event.get("announcementId"),
+              ordinal: event.get("ordinal"),
+              courseId: event.get("courseId"),
+              announcementUrl: event.get("announcementUrl"),
+              receivedAt: event.get("receivedAt"),
+              createdAt: event.get("createdAt"),
+              ...mutableColumns(event),
+            })
+            .onConflictDoNothing({
+              target: [agendaEvent.childId, agendaEvent.announcementId, agendaEvent.ordinal],
+            })
+            .returning({ id: agendaEvent.id });
+          const inserted = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return Result.ok(inserted.length > 0);
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("insertIfAbsent"));
+        }
+      },
+    );
+  }
+
+  async save(event: AgendaEvent): Promise<Result<void, AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan({ name: "DrizzleEventRepository > save" }, async () => {
+      try {
+        const query = exec
+          .update(agendaEvent)
+          .set(mutableColumns(event))
+          .where(and(eq(agendaEvent.id, event.id.value), ownedAlive(event.get("userId"))))
+          .returning({ id: agendaEvent.id });
+        const updated = await this.instrumentation.startSpan(
+          { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+          () => query.execute(),
+        );
+        if (updated.length === 0) return Result.fail(eventNotFound);
+
+        return Result.ok();
+      } catch (err) {
+        this.instrumentation.capture(err);
+        return Result.fail(repositoryFailure("save"));
+      }
+    });
+  }
+
+  async findOwned(
+    userId: string,
+    eventId: string,
+  ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleEventRepository > findOwned" },
+      async () => {
+        try {
+          const query = exec
+            .select()
+            .from(agendaEvent)
+            .where(and(eq(agendaEvent.id, eventId), ownedAlive(userId)))
+            .limit(1)
+            .for("update");
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return this.mapRows(rows, "findOwned").map((events) => Option.fromNullable(events[0]));
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("findOwned"));
+        }
+      },
+    );
+  }
+
+  async listUpcoming(
+    userId: string,
+    filter: EventFilter,
+    now: Date,
+  ): Promise<Result<EventPage, AgendaError>> {
+    return this.page("listUpcoming", gte(agendaEvent.deadlineAt, now), userId, filter, "asc");
+  }
+
+  async listHistory(
+    userId: string,
+    filter: EventFilter,
+    now: Date,
+  ): Promise<Result<EventPage, AgendaError>> {
+    return this.page("listHistory", lt(agendaEvent.deadlineAt, now), userId, filter, "desc");
+  }
+
+  private async page(
+    method: string,
+    window: SQL,
+    userId: string,
+    filter: EventFilter,
+    order: Order,
+  ): Promise<Result<EventPage, AgendaError>> {
+    const exec = resolveExecutor();
+    const sort = order === "asc" ? asc : desc;
+    return this.instrumentation.startSpan(
+      { name: `DrizzleEventRepository > ${method}` },
+      async () => {
+        try {
+          const query = exec
+            .select({ row: agendaEvent, cursorAt: exactInstant(agendaEvent.deadlineAt) })
+            .from(agendaEvent)
+            .where(and(ownedAlive(userId), window, ...filtered(filter, order)))
+            .orderBy(sort(agendaEvent.deadlineAt), sort(agendaEvent.id))
+            .limit(filter.limit + 1);
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          const shown = rows.slice(0, filter.limit);
+          const last = shown.at(-1);
+          const nextCursor = Option.fromNullable(rows.length > filter.limit ? last : undefined).map(
+            ({ row, cursorAt }) => encodeTimeIdCursor(cursorAt, row.id),
+          );
+          return this.mapRows(
+            shown.map(({ row }) => row),
+            method,
+          ).map((events) => ({ events, nextCursor }));
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure(method));
+        }
+      },
+    );
+  }
+
+  private mapRows(rows: EventRow[], method: string): Result<AgendaEvent[], AgendaError> {
+    const events: AgendaEvent[] = [];
+    for (const row of rows) {
+      const mapped = toDomain(row);
+      if (mapped.isFailure) {
+        this.instrumentation.capture(new Error(`event ${row.id}: ${mapped.getError()}`));
+        return Result.fail(repositoryFailure(method));
+      }
+      events.push(mapped.getValue());
+    }
+    return Result.ok(events);
+  }
+}

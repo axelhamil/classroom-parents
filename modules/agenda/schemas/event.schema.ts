@@ -1,0 +1,54 @@
+import { childAccount } from "@modules/children/schemas/child.schema";
+import { authSchema } from "@packages/drizzle";
+import { sql } from "drizzle-orm";
+import {
+  date,
+  index,
+  integer,
+  pgTable,
+  text,
+  time,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { EVENT_CATEGORIES } from "../src/domain/value-objects/event-category.vo";
+import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
+
+export const agendaEvent = pgTable(
+  "event",
+  {
+    id: uuid("id").primaryKey().default(sql`uuidv7()`),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authSchema.user.id, { onDelete: "cascade" }),
+    childId: uuid("child_id")
+      .notNull()
+      .references(() => childAccount.id, { onDelete: "cascade" }),
+    announcementId: text("announcement_id").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    courseId: text("course_id").notNull(),
+    announcementUrl: text("announcement_url").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    category: text("category", { enum: EVENT_CATEGORIES }).notNull(),
+    deadlineDate: date("deadline_date", { mode: "string" }).notNull(),
+    deadlineTime: time("deadline_time"),
+    deadlineAt: timestamp("deadline_at", { withTimezone: true }).notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    status: text("status", { enum: EVENT_STATUSES }).notNull(),
+    editedAt: timestamp("edited_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("event_child_announcement_ordinal_key").on(
+      table.childId,
+      table.announcementId,
+      table.ordinal,
+    ),
+    index("event_user_deadline_idx")
+      .on(table.userId, table.deadlineAt)
+      .where(sql`${table.deletedAt} is null`),
+  ],
+);

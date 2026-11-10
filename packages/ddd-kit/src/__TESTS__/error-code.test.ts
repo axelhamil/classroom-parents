@@ -33,4 +33,11 @@ describe("httpStatusFromCode", () => {
     expect(httpStatusFromCode("CHILD_REFRESH_TOKEN_MISSING")).toBe(409);
     expect(httpStatusFromCode("CHILD_TOKEN_INVALID_GRANT")).toBe(409);
   });
+
+  it("resolves the agenda field codes to 400 so the form shows them inline", () => {
+    expect(httpStatusFromCode("EVENT_INVALID_TITLE")).toBe(400);
+    expect(httpStatusFromCode("EVENT_INVALID_DESCRIPTION")).toBe(400);
+    expect(httpStatusFromCode("EVENT_INVALID_CATEGORY")).toBe(400);
+    expect(httpStatusFromCode("EVENT_INVALID_DEADLINE")).toBe(400);
+  });
 });
