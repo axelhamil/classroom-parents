@@ -28,7 +28,10 @@ import type {
   IPushSubscriptionRepository,
   PushSubscriptionRecord,
 } from "../application/ports/push-subscription-repository.port";
-import { AlertDispatchService } from "../application/services/alert-dispatch.service";
+import {
+  AlertDispatchService,
+  MAX_EMAIL_FAILURES,
+} from "../application/services/alert-dispatch.service";
 import type { Alert } from "../domain/alert.aggregate";
 import {
   ALERT_EVENT,
@@ -253,6 +256,22 @@ describe("runOnce", () => {
     expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
       EventTypes.ALERT_DELIVERY_FAILED,
       EventTypes.ALERT_MISSED,
+    ]);
+  });
+
+  it("given the provider refuses our configuration on the fifth failure, then the alert is not missed and stays claimable after its lease", async () => {
+    givenClaimed({}, MAX_EMAIL_FAILURES - 1);
+    givenSubscriptions([]);
+    email.send.mockResolvedValue(
+      Result.fail<void, AlertsError>({ code: "ALERT_EMAIL_UNAVAILABLE", message: "bad key" }),
+    );
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toMatchObject({ missed: 0, emailed: 0 });
+    expect(alerts.settle).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
+      EventTypes.ALERT_DELIVERY_FAILED,
     ]);
   });
 

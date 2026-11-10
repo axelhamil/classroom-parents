@@ -47,6 +47,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           resendBatchSender(c.IResendClient, c.IInstrumentation, c.ILogger, SEND_TIMEOUT_MS),
           c.alertsSettings.emailFrom,
           c.IInstrumentation,
+          c.ILogger,
         ),
     )
     .add(

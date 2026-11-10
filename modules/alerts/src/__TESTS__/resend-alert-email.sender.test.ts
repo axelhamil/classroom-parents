@@ -18,20 +18,30 @@ const content: AlertEmailContent = {
 type BatchAnswer = Awaited<ReturnType<ResendBatchClient["batch"]["send"]>>;
 type ProviderError = Extract<BatchAnswer, { data: null }>["error"];
 
+function senderOver(client: ResendBatchClient | null) {
+  const instrumentation = mockInstrumentation();
+  const logger = mockPort<ILogger>();
+  const kit = resendBatchSender(client, instrumentation, logger);
+  return {
+    instrumentation,
+    logger,
+    sender: new ResendAlertEmailSender(kit, "alerts@example.com", instrumentation, logger),
+  };
+}
+
 function senderAnswering(answer: BatchAnswer) {
   const send = mock(
     async (_entries: unknown, _options: { idempotencyKey?: string; signal: AbortSignal }) => answer,
   );
-  const kit = resendBatchSender({ batch: { send } }, mockInstrumentation(), mockPort<ILogger>());
-  return {
-    send,
-    sender: new ResendAlertEmailSender(kit, "alerts@example.com", mockInstrumentation()),
-  };
+  return { send, ...senderOver({ batch: { send } }) };
 }
 
 function failingWith(error: ProviderError) {
   return senderAnswering({ data: null, error });
 }
+
+const INVALID_TO =
+  "Invalid `to` field. The email address needs to follow the `email@example.com` or `Name <email@example.com>` format.";
 
 describe("ResendAlertEmailSender", () => {
   it("given an occurrence of an alert, then one escaped email goes straight to the provider through the email kit, under a key bound to that occurrence", async () => {
@@ -67,10 +77,10 @@ describe("ResendAlertEmailSender", () => {
     expect(result.getError().code).toBe("ALERT_PROVIDER_FAILURE");
   });
 
-  it("given the provider rejects the email for good, then ALERT_EMAIL_INVALID so the dispatcher stops retrying", async () => {
+  it("given the provider refuses the parent's address, then ALERT_EMAIL_INVALID so the dispatcher stops retrying", async () => {
     const { sender } = failingWith({
       name: "validation_error",
-      message: "invalid to",
+      message: INVALID_TO,
       statusCode: 422,
     });
 
@@ -79,15 +89,69 @@ describe("ResendAlertEmailSender", () => {
     expect(result.getError().code).toBe("ALERT_EMAIL_INVALID");
   });
 
-  it("given the provider refuses this one email of the batch, then ALERT_EMAIL_INVALID", async () => {
+  it("given the provider refuses the parent's address inside the batch, then ALERT_EMAIL_INVALID", async () => {
     const { sender } = senderAnswering({
-      data: { data: [], errors: [{ index: 0, message: "invalid to" }] },
+      data: { data: [], errors: [{ index: 0, message: INVALID_TO }] },
       error: null,
     });
 
     const result = await sender.send("parent@example.com", content);
 
     expect(result.getError().code).toBe("ALERT_EMAIL_INVALID");
+  });
+
+  it.each<[string, ProviderError]>([
+    ["a refused key", { name: "invalid_api_key", message: "API key is invalid", statusCode: 403 }],
+    ["a missing key", { name: "missing_api_key", message: "Missing API key", statusCode: 401 }],
+    [
+      "an unverified domain",
+      {
+        name: "validation_error",
+        message: "The example.com domain is not verified. Please, add and verify your domain.",
+        statusCode: 403,
+      },
+    ],
+    [
+      "an invalid sender",
+      {
+        name: "invalid_from_address",
+        message:
+          "Invalid `from` field. The email address needs to follow the `email@example.com` format.",
+        statusCode: 422,
+      },
+    ],
+  ])(
+    "given %s on our side, then ALERT_EMAIL_UNAVAILABLE so the alert is retried, captured and logged for the operator",
+    async (_case, error) => {
+      const { sender, instrumentation, logger } = failingWith(error);
+
+      const result = await sender.send("parent@example.com", content);
+
+      expect(result.getError().code).toBe("ALERT_EMAIL_UNAVAILABLE");
+      expect(instrumentation.capture).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          alertId: content.alertId,
+          version: 2,
+          statusCode: error.statusCode,
+        }),
+        expect.any(String),
+      );
+      expect(JSON.stringify(logger.error.mock.calls)).not.toContain("parent@example.com");
+    },
+  );
+
+  it("given no Resend key in development, then the email counts as sent and the log names only ids, never the parent's address nor the child", async () => {
+    const { sender, logger } = senderOver(null);
+
+    const result = await sender.send("parent@example.com", content);
+
+    expect(result.isSuccess).toBe(true);
+    const logged = JSON.stringify(logger.info.mock.calls);
+    expect(logged).toContain(`alert-${content.alertId}-v2`);
+    expect(logged).not.toContain("parent@example.com");
+    expect(logged).not.toContain("Léa");
+    expect(logged).not.toContain("Contrôle");
   });
 
   it("given the provider already holds an email under this occurrence's key, then the email counts as sent", async () => {

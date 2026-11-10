@@ -452,12 +452,10 @@ export function resendBatchSender(
   return {
     async batchSend(entries: BatchEntry[], idempotencyKey: Option<string>): Promise<BatchResult> {
       if (!client) {
-        for (const e of entries) {
-          logger.info(
-            { to: e.to, subject: e.subject },
-            "[email-dev] not delivered: no RESEND_API_KEY",
-          );
-        }
+        logger.info(
+          { count: entries.length, idempotencyKey: idempotencyKey.toUndefined() },
+          "[email-dev] not delivered: no RESEND_API_KEY",
+        );
         return { data: entries.map((_, i) => ({ id: `dev-${i}` })), error: null };
       }
       return instrumentation.startSpan(

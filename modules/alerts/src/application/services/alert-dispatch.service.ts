@@ -239,6 +239,8 @@ export class AlertDispatchService {
       if (recorded.isFailure) return Result.fail(recorded.getError());
 
       await this.emitFailure(alert, "email", code);
+      if (code === "ALERT_EMAIL_UNAVAILABLE") return Result.ok<Delivered, AppError>("none");
+
       const retryable = code !== "ALERT_EMAIL_INVALID";
       if (retryable && failures + 1 < MAX_EMAIL_FAILURES) {
         const counted = await this.alerts.addFailure(lease);

@@ -130,6 +130,7 @@ describe("dispatch budget under silent providers", () => {
         resendBatchSender(hangingMailProvider, instrumentation, mockPort<ILogger>(), SEND_TIMEOUT),
         "alerts@example.com",
         instrumentation,
+        mockPort<ILogger>(),
       ),
       contexts,
       deadlines,
