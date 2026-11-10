@@ -20,6 +20,8 @@ const STATUS_BY_SUFFIX = {
   _SCOPES_MISSING: 403,
   _TOKEN_MISSING: 409,
   _INVALID_GRANT: 409,
+  _AFTER_DEADLINE: 400,
+  _IN_PAST: 400,
 } as const satisfies Record<string, number>;
 
 export type ErrorSuffix = keyof typeof STATUS_BY_SUFFIX;

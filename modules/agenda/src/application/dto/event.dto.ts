@@ -21,6 +21,12 @@ export interface EventDto {
   edited: boolean;
 }
 
+export interface EventDeadlineDto {
+  deadlineAt: Date;
+  deadlineDate: string;
+  deadlineTime?: string;
+}
+
 export interface EventPageDto {
   items: EventDto[];
   nextCursor?: string;
@@ -59,4 +65,10 @@ export function toEventDto(event: AgendaEvent): EventDto {
     receivedAt: event.get("receivedAt").toISOString(),
     edited: event.get("editedAt").isSome(),
   };
+}
+
+export function toEventDeadlineDto(event: AgendaEvent): EventDeadlineDto {
+  const deadline = event.get("deadline").value;
+
+  return { deadlineAt: deadline.at, deadlineDate: deadline.date, deadlineTime: deadline.time };
 }

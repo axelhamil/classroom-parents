@@ -1,5 +1,11 @@
 import { type IInstrumentation, type Option, type Result, traced } from "@packages/ddd-kit";
-import { type EventDto, type EventPageDto, toEventDto } from "../dto/event.dto";
+import {
+  type EventDeadlineDto,
+  type EventDto,
+  type EventPageDto,
+  toEventDeadlineDto,
+  toEventDto,
+} from "../dto/event.dto";
 import type {
   AgendaError,
   EventFilter,
@@ -40,6 +46,17 @@ export class EventQueryService {
   async get(userId: string, eventId: string): Promise<Result<Option<EventDto>, AgendaError>> {
     return traced(this.instrumentation, "EventQueryService > get", async () =>
       (await this.events.findOwned(userId, eventId)).map((found) => found.map(toEventDto)),
+    );
+  }
+
+  async alertDeadline(
+    userId: string,
+    eventId: string,
+  ): Promise<Result<Option<EventDeadlineDto>, AgendaError>> {
+    return traced(this.instrumentation, "EventQueryService > alertDeadline", async () =>
+      (await this.events.findAlertable(userId, eventId)).map((found) =>
+        found.map(toEventDeadlineDto),
+      ),
     );
   }
 }

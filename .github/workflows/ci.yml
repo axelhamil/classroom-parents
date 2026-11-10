@@ -154,6 +154,16 @@ jobs:
         # only Postgres proves the earlier write and its outbox row are discarded.
         run: pnpm --filter api check:uow-rollback
 
+      - name: Check that alert messages read only the alert owner's family
+        # The owner filter lives in the joins of the host query; only Postgres proves an
+        # alert forged onto another family's event reads nothing. Removes its probe rows.
+        run: pnpm --filter api check:alert-context
+
+      - name: Check the alert dispatch claim against a real database
+        # Skip locked and the lease live in the claim query; only concurrent dispatchers
+        # on Postgres prove each alert is sent once and the partial index is read.
+        run: pnpm --filter @modules/alerts check:alert-db
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:

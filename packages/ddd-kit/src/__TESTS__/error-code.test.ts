@@ -33,4 +33,9 @@ describe("httpStatusFromCode", () => {
     expect(httpStatusFromCode("CHILD_REFRESH_TOKEN_MISSING")).toBe(409);
     expect(httpStatusFromCode("CHILD_TOKEN_INVALID_GRANT")).toBe(409);
   });
+
+  it("resolves the alert time codes to 400 so the alert form shows them inline", () => {
+    expect(httpStatusFromCode("ALERT_AFTER_DEADLINE")).toBe(400);
+    expect(httpStatusFromCode("ALERT_IN_PAST")).toBe(400);
+  });
 });

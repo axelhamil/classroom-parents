@@ -312,6 +312,13 @@ export class DrizzleEventRepository implements IEventRepository {
     return this.findOne("lockOwned", userId, eventId, true);
   }
 
+  async findAlertable(
+    userId: string,
+    eventId: string,
+  ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
+    return this.findOne("findAlertable", userId, eventId, false, notShadowedByCoursework);
+  }
+
   async listUpcoming(
     userId: string,
     filter: EventFilter,
@@ -381,6 +388,7 @@ export class DrizzleEventRepository implements IEventRepository {
     userId: string,
     eventId: string,
     lock: boolean,
+    shown?: (exec: ReturnType<typeof resolveExecutor>) => SQL,
   ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -390,7 +398,7 @@ export class DrizzleEventRepository implements IEventRepository {
           const read = exec
             .select()
             .from(agendaEvent)
-            .where(and(eq(agendaEvent.id, eventId), ownedAlive(userId)))
+            .where(and(eq(agendaEvent.id, eventId), ownedAlive(userId), shown?.(exec)))
             .limit(1);
           const query = lock ? read.for("update") : read;
           const rows = await this.instrumentation.startSpan(

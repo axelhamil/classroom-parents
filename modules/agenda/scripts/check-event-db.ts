@@ -169,6 +169,15 @@ async function rowsOf(childId: string, announcementId: string) {
 const idsOf = (page: Result<EventPageDto, AppError>) =>
   page.isSuccess ? page.getValue().items.map((item) => item.id) : ["failed"];
 
+async function alertable(userId: string, eventId: string): Promise<string> {
+  const read = await query.alertDeadline(userId, eventId);
+  if (read.isFailure) return "failed";
+  return read
+    .getValue()
+    .map((deadline) => deadline.deadlineDate)
+    .unwrapOr("none");
+}
+
 const codeOf = (result: Result<unknown, AppError>) =>
   result.isFailure ? result.getError().code : "ok";
 
@@ -343,6 +352,11 @@ run(async () => {
     "an announcement deadline on a coursework's course and day is hidden from the lists",
     idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10 }, NOW)).join() === miaWork.id,
   );
+  await step(
+    "alerts read no deadline for the hidden announcement, only for the coursework of its day",
+    (await alertable(a, announced.id)) === "none" &&
+      (await alertable(a, miaWork.id)) === "2030-01-22",
+  );
   await ingestCoursework(a, aMia, [homework({ deadlineDate: "2030-01-23" })]);
   await step(
     "once the teacher moves the coursework, it follows and the announcement deadline reappears",
@@ -386,6 +400,10 @@ run(async () => {
     "once the parent deletes the coursework, the announcement deadline of its day reappears",
     (await noeUpcoming()) === sameIds(ann26.id, w27.id),
   );
+  await step(
+    "alerts read no deadline for a deleted coursework, and again for the announcement it hid",
+    (await alertable(a, w26.id)) === "none" && (await alertable(a, ann26.id)) === "2030-01-26",
+  );
   await ingestCoursework(a, aNoe, [], { complete: false, presentIds: [] });
   await step(
     "a partial listing without the coursework withdraws nothing",
@@ -401,11 +419,19 @@ run(async () => {
       cancelled.includes(w27.id) &&
       (await noeUpcoming()) === sameIds(ann26.id, ann27.id),
   );
+  await step(
+    "alerts read no deadline for a withdrawn coursework, and again for the announcement it hid",
+    (await alertable(a, w27.id)) === "none" && (await alertable(a, ann27.id)) === "2030-01-27",
+  );
   await ingestCoursework(a, aNoe, [homework({ id: "w-noe-27", deadlineDate: "2030-01-27" })]);
   await step(
     "a withdrawn coursework listed and dated again comes back and hides its day's announcement",
     (await rowsOf(aNoe, "w-noe-27"))[0]?.withdrawnAt === null &&
       (await noeUpcoming()) === sameIds(ann26.id, w27.id),
+  );
+  await step(
+    "once the withdrawal is lifted, alerts read the coursework deadline again and not the announcement",
+    (await alertable(a, w27.id)) === "2030-01-27" && (await alertable(a, ann27.id)) === "none",
   );
   await ingestCoursework(a, aNoe, [
     homework({ id: "w-noe-27", deadlineDate: "2030-01-27" }),
@@ -453,6 +479,10 @@ run(async () => {
       codeOf(await edits.remove(a, bEvent.id)) === "EVENT_NOT_FOUND" &&
       (await rowsOf(bZoe, "ann-b"))[0]?.title === "Événement de B" &&
       (await rowsOf(bZoe, "ann-b"))[0]?.deletedAt === null,
+  );
+  await step(
+    "A reads no alert deadline of B's event, B reads it",
+    (await alertable(a, bEvent.id)) === "none" && (await alertable(b, bEvent.id)) === "2030-01-20",
   );
   await step(
     "A's lists never show B's event, B's lists show only it",

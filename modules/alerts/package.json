@@ -5,13 +5,15 @@
   "type": "module",
   "exports": {
     "./alerts.module": "./src/alerts.module.ts",
+    "./application/*": "./src/application/*.ts",
     "./schemas/*": "./schemas/*.ts",
     "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts"
   },
   "scripts": {
     "test": "bun test --isolate",
     "type-check": "tsc --noEmit",
-    "check": "biome check ."
+    "check": "biome check .",
+    "check:alert-db": "bun --env-file=../../packages/drizzle/.env scripts/check-alert-db.ts"
   },
   "dependencies": {
     "@packages/ddd-kit": "workspace:*",

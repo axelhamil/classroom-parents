@@ -59,6 +59,8 @@ export interface IEventRepository {
 
   lockOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
+  findAlertable(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
+
   listUpcoming(
     userId: string,
     filter: EventFilter,
