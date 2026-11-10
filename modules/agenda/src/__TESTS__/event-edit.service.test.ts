@@ -24,7 +24,7 @@ let event: AgendaEvent;
 
 function given(overrides: AgendaEventOverrides = {}): AgendaEvent {
   event = agendaEvent(overrides);
-  repo.findOwned.mockResolvedValue(Result.ok<Option<AgendaEvent>, AgendaError>(Option.some(event)));
+  repo.lockOwned.mockResolvedValue(Result.ok<Option<AgendaEvent>, AgendaError>(Option.some(event)));
   return event;
 }
 
@@ -121,7 +121,7 @@ describe("edit", () => {
   );
 
   it("given an event the parent does not own, then EVENT_NOT_FOUND", async () => {
-    repo.findOwned.mockResolvedValue(Result.ok(Option.none()));
+    repo.lockOwned.mockResolvedValue(Result.ok(Option.none()));
 
     const result = await service.edit(PARENT, event.id.value, { title: "Pirate" });
 
@@ -172,7 +172,7 @@ describe("remove", () => {
 
   it("given an event already deleted, then the second delete answers EVENT_NOT_FOUND", async () => {
     await service.remove(PARENT, event.id.value);
-    repo.findOwned.mockResolvedValue(Result.ok(Option.none()));
+    repo.lockOwned.mockResolvedValue(Result.ok(Option.none()));
 
     const second = await service.remove(PARENT, event.id.value);
 

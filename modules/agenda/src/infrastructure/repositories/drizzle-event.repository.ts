@@ -14,11 +14,12 @@ import {
 } from "@packages/drizzle";
 import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/http/time-id-cursor";
 import { agendaEvent } from "../../../schemas/event.schema";
-import type {
-  AgendaError,
-  EventFilter,
-  EventPage,
-  IEventRepository,
+import {
+  type AgendaError,
+  type EventFilter,
+  type EventPage,
+  eventNotFound,
+  type IEventRepository,
 } from "../../application/ports/event-repository.port";
 import { AgendaEvent } from "../../domain/event.aggregate";
 import { EventId } from "../../domain/event-id";
@@ -31,11 +32,6 @@ import { EventTitle } from "../../domain/value-objects/event-title.vo";
 const dbAttrs = { "db.system.name": "postgresql" } as const;
 
 const repositoryFailure = dbOperationFailure("EVENT_PROVIDER_FAILURE");
-
-const eventNotFound: AgendaError = {
-  code: "EVENT_NOT_FOUND",
-  message: "Cet événement n'existe pas ou a été supprimé.",
-};
 
 type EventRow = typeof agendaEvent.$inferSelect;
 
@@ -177,29 +173,14 @@ export class DrizzleEventRepository implements IEventRepository {
     userId: string,
     eventId: string,
   ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
-    const exec = resolveExecutor();
-    return this.instrumentation.startSpan(
-      { name: "DrizzleEventRepository > findOwned" },
-      async () => {
-        try {
-          const query = exec
-            .select()
-            .from(agendaEvent)
-            .where(and(eq(agendaEvent.id, eventId), ownedAlive(userId)))
-            .limit(1)
-            .for("update");
-          const rows = await this.instrumentation.startSpan(
-            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
-            () => query.execute(),
-          );
+    return this.findOne("findOwned", userId, eventId, false);
+  }
 
-          return this.mapRows(rows, "findOwned").map((events) => Option.fromNullable(events[0]));
-        } catch (err) {
-          this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("findOwned"));
-        }
-      },
-    );
+  async lockOwned(
+    userId: string,
+    eventId: string,
+  ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
+    return this.findOne("lockOwned", userId, eventId, true);
   }
 
   async listUpcoming(
@@ -251,6 +232,37 @@ export class DrizzleEventRepository implements IEventRepository {
             shown.map(({ row }) => row),
             method,
           ).map((events) => ({ events, nextCursor }));
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure(method));
+        }
+      },
+    );
+  }
+
+  private async findOne(
+    method: string,
+    userId: string,
+    eventId: string,
+    lock: boolean,
+  ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: `DrizzleEventRepository > ${method}` },
+      async () => {
+        try {
+          const read = exec
+            .select()
+            .from(agendaEvent)
+            .where(and(eq(agendaEvent.id, eventId), ownedAlive(userId)))
+            .limit(1);
+          const query = lock ? read.for("update") : read;
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return this.mapRows(rows, method).map((events) => Option.fromNullable(events[0]));
         } catch (err) {
           this.instrumentation.capture(err);
           return Result.fail(repositoryFailure(method));

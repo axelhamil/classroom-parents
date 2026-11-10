@@ -2,6 +2,7 @@ import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
 import type { IAlertPlanner } from "./application/ports/alert-planner.port";
+import type { IChildOwnership } from "./application/ports/child-ownership.port";
 import type { IEventRepository } from "./application/ports/event-repository.port";
 import { EventEditService } from "./application/services/event-edit.service";
 import { EventIngestService } from "./application/services/event-ingest.service";
@@ -13,6 +14,7 @@ export interface AgendaPrerequisites {
   ITransactionService: IUnitOfWork;
   IOutboxRepository: IOutboxRepository;
   IAlertPlanner: IAlertPlanner;
+  IChildOwnership: IChildOwnership;
 }
 
 export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
@@ -26,6 +28,7 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
       (c) =>
         new EventIngestService(
           c.IEventRepository,
+          c.IChildOwnership,
           c.IAlertPlanner,
           c.ITransactionService,
           c.IOutboxRepository,

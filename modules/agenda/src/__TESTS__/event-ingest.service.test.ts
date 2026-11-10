@@ -7,6 +7,7 @@ import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
 import type { IAlertPlanner } from "../application/ports/alert-planner.port";
+import type { IChildOwnership } from "../application/ports/child-ownership.port";
 import type { IEventRepository } from "../application/ports/event-repository.port";
 import {
   EventIngestService,
@@ -35,6 +36,7 @@ function extracted(overrides: Partial<IngestedEvent> = {}): IngestedEvent {
 
 let repo: PortMock<IEventRepository>;
 let planner: PortMock<IAlertPlanner>;
+let children: PortMock<IChildOwnership>;
 let outbox: PortMock<IOutboxRepository>;
 let uow: UnitOfWorkMock;
 let service: EventIngestService;
@@ -46,6 +48,8 @@ const keyOf = (event: AgendaEvent) =>
 beforeEach(() => {
   repo = mockPort<IEventRepository>();
   planner = mockPort<IAlertPlanner>();
+  children = mockPort<IChildOwnership>();
+  children.isOwnedBy.mockResolvedValue(Result.ok(true));
   outbox = mockPort<IOutboxRepository>();
   uow = mockUnitOfWork();
   stored = new Map();
@@ -58,7 +62,14 @@ beforeEach(() => {
   });
   planner.planDefault.mockResolvedValue(Result.ok());
 
-  service = new EventIngestService(repo, planner, uow.unitOfWork, outbox, mockInstrumentation());
+  service = new EventIngestService(
+    repo,
+    children,
+    planner,
+    uow.unitOfWork,
+    outbox,
+    mockInstrumentation(),
+  );
 });
 
 const ingest = (events: IngestedEvent[]) =>
@@ -151,5 +162,16 @@ describe("ingest", () => {
 
     expect(result.getError().code).toBe("ALERT_PROVIDER_FAILURE");
     expect(uow.outcome()).toBe("rolled_back");
+  });
+
+  it("given a child that is not the parent's, then EVENT_CHILD_NOT_FOUND and nothing is written", async () => {
+    children.isOwnedBy.mockResolvedValue(Result.ok(false));
+
+    const result = await ingest([extracted()]);
+
+    expect(children.isOwnedBy).toHaveBeenCalledWith(PARENT, CHILD);
+    expect(result.getError().code).toBe("EVENT_CHILD_NOT_FOUND");
+    expect(repo.insertIfAbsent).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
   });
 });

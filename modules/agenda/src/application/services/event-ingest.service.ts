@@ -4,6 +4,7 @@ import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { AgendaEvent } from "../../domain/event.aggregate";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
+import type { IChildOwnership } from "../ports/child-ownership.port";
 import type { AgendaError, IEventRepository } from "../ports/event-repository.port";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 
@@ -28,9 +29,15 @@ export interface IngestOutput {
   skipped: number;
 }
 
+const childNotFound: AgendaError = {
+  code: "EVENT_CHILD_NOT_FOUND",
+  message: "Cet enfant n'est pas relié à votre compte, ses événements ne sont pas enregistrés.",
+};
+
 export class EventIngestService {
   constructor(
     private readonly events: IEventRepository,
+    private readonly children: IChildOwnership,
     private readonly alerts: IAlertPlanner,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
@@ -44,6 +51,10 @@ export class EventIngestService {
       async () => {
         const built = this.build(input);
         if (built.isFailure) return Result.fail(built.getError());
+
+        const owned = await this.children.isOwnedBy(input.userId, input.childId);
+        if (owned.isFailure) return Result.fail(owned.getError());
+        if (!owned.getValue()) return Result.fail(childNotFound);
 
         return this.transactions.run(async () => {
           const outcome: IngestOutput = { created: 0, skipped: 0 };

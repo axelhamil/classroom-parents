@@ -5,14 +5,12 @@ import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import type { AgendaEvent, EventChanges, EventField } from "../../domain/event.aggregate";
 import { CLEAR_TIME, type EventDto, type EventPatch, toEventDto } from "../dto/event.dto";
 import type { IAlertPlanner, PlannedDeadline } from "../ports/alert-planner.port";
-import type { AgendaError, IEventRepository } from "../ports/event-repository.port";
 import {
+  type AgendaError,
   eventNotFound,
-  parseCategory,
-  parseDeadline,
-  parseDescription,
-  parseTitle,
-} from "./event-fields";
+  type IEventRepository,
+} from "../ports/event-repository.port";
+import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 
 type EditError = AgendaError | AppError;
 
@@ -122,7 +120,7 @@ export class EventEditService {
   }
 
   private async owned(userId: string, eventId: string): Promise<Result<AgendaEvent, AgendaError>> {
-    const found = await this.events.findOwned(userId, eventId);
+    const found = await this.events.lockOwned(userId, eventId);
     if (found.isFailure) return Result.fail(found.getError());
 
     return found.getValue().toResult(eventNotFound);

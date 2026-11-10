@@ -8,11 +8,6 @@ import {
 import { EVENT_TITLE_MAX, EventTitle } from "../../domain/value-objects/event-title.vo";
 import type { AgendaError } from "../ports/event-repository.port";
 
-export const eventNotFound: AgendaError = {
-  code: "EVENT_NOT_FOUND",
-  message: "Cet événement n'existe pas ou a été supprimé.",
-};
-
 const invalidTitle: AgendaError = {
   code: "EVENT_INVALID_TITLE",
   message: `Le titre doit faire entre 1 et ${EVENT_TITLE_MAX} caractères.`,

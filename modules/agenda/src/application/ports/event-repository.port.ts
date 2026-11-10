@@ -4,12 +4,18 @@ import type { EventCategoryValue } from "../../domain/value-objects/event-catego
 
 export type AgendaError = AppError<
   | "EVENT_NOT_FOUND"
+  | "EVENT_CHILD_NOT_FOUND"
   | "EVENT_INVALID_DEADLINE"
   | "EVENT_INVALID_TITLE"
   | "EVENT_INVALID_DESCRIPTION"
   | "EVENT_INVALID_CATEGORY"
   | "EVENT_PROVIDER_FAILURE"
 >;
+
+export const eventNotFound: AgendaError = {
+  code: "EVENT_NOT_FOUND",
+  message: "Cet événement n'existe pas ou a été supprimé.",
+};
 
 export interface EventCursor {
   at: string;
@@ -34,6 +40,8 @@ export interface IEventRepository {
   save(event: AgendaEvent): Promise<Result<void, AgendaError>>;
 
   findOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
+
+  lockOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
   listUpcoming(
     userId: string,

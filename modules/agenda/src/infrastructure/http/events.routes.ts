@@ -5,8 +5,8 @@ import { zV } from "@packages/http/validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import { editEventBodySchema, eventIdParamSchema } from "../../application/dto/event.dto";
+import { eventNotFound } from "../../application/ports/event-repository.port";
 import type { EventEditService } from "../../application/services/event-edit.service";
-import { eventNotFound } from "../../application/services/event-fields";
 import type { EventQueryService } from "../../application/services/event-query.service";
 import { eventCategorySchema } from "../../domain/value-objects/event-category.vo";
 

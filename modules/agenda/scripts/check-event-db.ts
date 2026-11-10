@@ -13,6 +13,7 @@ exitUnlessLocalDatabase("check-event-db", process.env.DATABASE_URL);
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { type AppError, Result } from "@packages/ddd-kit";
 import {
+  and,
   authSchema,
   db,
   eq,
@@ -25,6 +26,7 @@ import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.reposit
 import { agendaEvent } from "../schemas/event.schema";
 import type { EventPageDto } from "../src/application/dto/event.dto";
 import type { IAlertPlanner, PlannedDeadline } from "../src/application/ports/alert-planner.port";
+import type { IChildOwnership } from "../src/application/ports/child-ownership.port";
 import type { EventFilter } from "../src/application/ports/event-repository.port";
 import { EventEditService } from "../src/application/services/event-edit.service";
 import {
@@ -53,6 +55,16 @@ const planner: IAlertPlanner = {
   },
 };
 
+const children: IChildOwnership = {
+  isOwnedBy: async (userId, childId) => {
+    const rows = await db
+      .select({ id: childAccount.id })
+      .from(childAccount)
+      .where(and(eq(childAccount.id, childId), eq(childAccount.userId, userId)));
+    return Result.ok<boolean, AppError>(rows.length === 1);
+  },
+};
+
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const transactions = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check-event-db" });
@@ -60,6 +72,7 @@ const transactions = new TransactionService(instrumentation, async (events) => {
 const repository = new DrizzleEventRepository(instrumentation);
 const ingestService = new EventIngestService(
   repository,
+  children,
   planner,
   transactions,
   outbox,
@@ -283,6 +296,19 @@ run(async () => {
       fullHistory.length === 3,
     { upcoming: pagedUpcoming.length, history: pagedHistory.length },
   );
+
+  const stolen = await ingest(a, bZoe, "ann-stolen", [extracted()]);
+  await step(
+    "an ingest pairing a parent with another family's child is refused and writes nothing",
+    codeOf(stolen) === "EVENT_CHILD_NOT_FOUND" && (await rowsOf(bZoe, "ann-stolen")).length === 0,
+  );
+
+  const unblocked = await db.transaction(async (tx) => {
+    await tx.select().from(agendaEvent).where(eq(agendaEvent.id, exam.id)).for("update");
+    const timer = new Promise<"blocked">((resolve) => setTimeout(() => resolve("blocked"), 1500));
+    return Promise.race([query.get(a, exam.id).then(() => "read" as const), timer]);
+  });
+  await step("reading an event is never blocked by a write holding its row", unblocked === "read");
 
   await ingest(b, bZoe, "ann-b", [extracted({ title: "Événement de B", needsReview: true })]);
   const [bEvent] = await rowsOf(bZoe, "ann-b");
