@@ -2,7 +2,9 @@
  * Drives BetterAuth's real OAuth endpoints in process for the real-database checks:
  * start a sign-in or a link, then hit the callback with a fixture code. Google's token
  * endpoint is stubbed: a code `<sub>|<email>` yields an unsigned id token for that
- * identity, a refresh yields a numbered access token and no new refresh token.
+ * identity, a refresh yields a numbered access token and no new refresh token. A caller
+ * can choose the tokens and scope a code grants, as the journey server does for the fake
+ * Classroom children.
  */
 
 import { authSchema, db, eq, inArray, like, outboxSchema } from "@packages/drizzle";
@@ -47,7 +49,20 @@ function idToken(identity: GoogleIdentity): string {
   return `${base64url({ alg: "RS256", kid: "fixture" })}.${base64url(claims)}.fixture`;
 }
 
-export function stubGoogleTokenEndpoint(): () => void {
+export interface TokenGrant {
+  accessToken: string;
+  refreshToken: string;
+  scope?: string;
+}
+
+const fixtureGrant = (identity: GoogleIdentity): TokenGrant => ({
+  accessToken: plainAccessToken(identity),
+  refreshToken: plainRefreshToken(identity),
+});
+
+export function stubGoogleTokenEndpoint(
+  grantFor: (identity: GoogleIdentity) => TokenGrant = fixtureGrant,
+): () => void {
   const realFetch = globalThis.fetch;
   let refreshes = 0;
 
@@ -68,12 +83,14 @@ export function stubGoogleTokenEndpoint(): () => void {
 
       const [sub = "", email = ""] = String(form.get("code")).split("|");
       const identity = { sub, email };
+      const grant = grantFor(identity);
       return Response.json({
-        access_token: plainAccessToken(identity),
-        refresh_token: plainRefreshToken(identity),
+        access_token: grant.accessToken,
+        refresh_token: grant.refreshToken,
         id_token: idToken(identity),
         expires_in: 3599,
         token_type: "Bearer",
+        ...(grant.scope === undefined ? {} : { scope: grant.scope }),
       });
     },
     { preconnect: realFetch.preconnect },

@@ -33,3 +33,7 @@ export function demoChild(key: DatasetChildKey): DatasetChild {
 export function demoRefreshToken(key: DatasetChildKey): string {
   return `fake-refresh:${key}`;
 }
+
+export function demoAccessToken(key: DatasetChildKey): string {
+  return `fake-access:${key}`;
+}

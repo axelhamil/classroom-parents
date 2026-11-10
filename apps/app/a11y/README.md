@@ -89,3 +89,22 @@ oklch → sRGB blend misjudges anything with an alpha suffix: during this phase
 the arithmetic condemned every destructive button in dark (fine in reality) and
 cleared `--primary` (actually failing). Propose a value by calculation if it
 helps, then let the gate rule on it.
+
+## The journey
+
+`journey.spec.ts` is the end-to-end proof, outside the audit: a parent signs in, links
+two children, follows their deadlines (filter, detail, own alert, edit, deletion,
+resync, history), sees a school block and reconnects, disconnects a child, then
+deletes the account and the test checks that no row names them anymore. It runs against
+`pnpm --filter api serve:journey`, the real api over FAKE_PROVIDERS with Google's
+token endpoint stubbed and its periodic workers stopped: time moves only when the
+journey asks the control server for a sync, alert or wipe tick at a chosen instant.
+
+```sh
+pnpm --filter app check:journey
+```
+
+Playwright starts that api and a preview build of its own (`dist/journey`, pointed at
+it), so it needs only Postgres and this worktree's database. The ports default to
+4183 (app), 3183 (api) and 3189 (control) and move with `JOURNEY_APP_URL`,
+`JOURNEY_API_URL` and `JOURNEY_CONTROL_PORT`.

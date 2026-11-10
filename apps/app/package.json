@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "type-check": "tsc --noEmit && tsc --noEmit -p a11y",
     "test": "vitest run",
-    "check:a11y": "playwright test --config a11y/playwright.config.ts"
+    "check:a11y": "playwright test --config a11y/playwright.config.ts",
+    "check:journey": "playwright test --config a11y/journey.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.1",

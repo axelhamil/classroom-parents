@@ -35,6 +35,7 @@ export default defineConfig({
     {
       name: "audit",
       testMatch: /\.spec\.ts$/,
+      testIgnore: /journey\.spec\.ts$/,
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"] },
     },
