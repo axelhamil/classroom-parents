@@ -21,7 +21,9 @@ import {
   eq,
   inArray,
   like,
+  or,
   outboxSchema,
+  sql,
   TransactionService,
 } from "@packages/drizzle";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
@@ -139,6 +141,8 @@ async function accountRow(id: string) {
 const codeOf = (result: Result<unknown, ChildrenError>) =>
   result.isFailure ? result.getError().code : "ok";
 
+const probeOutboxRows = like(sql`${outboxSchema.outboxEvent.payload}->>'userId'`, `${probe}%`);
+
 async function cleanup(): Promise<void> {
   const children = await db
     .select({ id: childAccount.id })
@@ -149,10 +153,13 @@ async function cleanup(): Promise<void> {
     .from(authSchema.user)
     .where(like(authSchema.user.id, `${probe}%`));
   const aggregateIds = [...children.map(({ id }) => id), ...users.map(({ id }) => id)];
-  if (aggregateIds.length > 0)
-    await db
-      .delete(outboxSchema.outboxEvent)
-      .where(inArray(outboxSchema.outboxEvent.aggregateId, aggregateIds));
+  await db
+    .delete(outboxSchema.outboxEvent)
+    .where(
+      aggregateIds.length > 0
+        ? or(inArray(outboxSchema.outboxEvent.aggregateId, aggregateIds), probeOutboxRows)
+        : probeOutboxRows,
+    );
   await db.delete(authSchema.user).where(like(authSchema.user.id, `${probe}%`));
 }
 
@@ -466,4 +473,13 @@ run(async () => {
 
   await db.delete(authSchema.user).where(eq(authSchema.user.id, b));
   await step("deleting a user cascades its children", (await childRow(bChild)) === undefined);
+
+  await cleanup();
+  const leftover = await db
+    .select({ id: outboxSchema.outboxEvent.id })
+    .from(outboxSchema.outboxEvent)
+    .where(probeOutboxRows);
+  await step("the cleanup leaves no outbox row of the probe users", leftover.length === 0, {
+    leftover: leftover.length,
+  });
 }, "children stay inside their family, erasure and claims hold on a real database");

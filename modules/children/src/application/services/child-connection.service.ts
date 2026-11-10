@@ -174,7 +174,10 @@ export class ChildConnectionService {
       if (refused.isSome())
         return Result.fail({
           ...refused.unwrap(),
-          metadata: { unusableLinkedAccountIds: unusable },
+          metadata: {
+            unusableLinkedAccountIds: unusable,
+            ...(retry.length > 0 ? { retryLinkedAccountIds: retry } : {}),
+          },
         });
       if (transient.isSome())
         return Result.fail({

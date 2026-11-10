@@ -429,6 +429,24 @@ describe("linkable", () => {
     expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
     expect(result.getError().metadata).toEqual({ retryLinkedAccountIds: ["flaky"] });
   });
+
+  it("given one refused account and one failing transiently, then the refusal also names the account to retry", async () => {
+    linked.listForUser.mockResolvedValue(
+      ok([
+        linkedAccount({ linkedAccountId: "noscope", grantedScopes: ["openid"] }),
+        linkedAccount({ linkedAccountId: "flaky" }),
+      ]),
+    );
+    google.profile.mockResolvedValue(fail<GoogleProfile>("CHILD_PROVIDER_FAILURE"));
+
+    const result = await service.linkable(PARENT);
+
+    expect(result.getError().code).toBe("CHILD_SCOPES_MISSING");
+    expect(result.getError().metadata).toEqual({
+      unusableLinkedAccountIds: ["noscope"],
+      retryLinkedAccountIds: ["flaky"],
+    });
+  });
 });
 
 describe("discardLinked", () => {
