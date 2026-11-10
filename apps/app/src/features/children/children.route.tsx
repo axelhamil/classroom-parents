@@ -9,9 +9,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { childrenQueryOptions } from "../../shared/api/queries/children";
 import { Screen } from "../../shared/layout/screen";
 import { reconnectChildMutationOptions, syncChildMutationOptions } from "./api/children.mutations";
-import { childrenQueryOptions } from "./api/children.queries";
 import { childrenSearchSchema } from "./children.schema";
 import { ChildCard } from "./components/child-card";
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const EVENT_STATUSES = ["confirmed", "needs_review"] as const;
 
-const eventStatusSchema = z.enum(EVENT_STATUSES);
+export const eventStatusSchema = z.enum(EVENT_STATUSES);
 
 export type EventStatusValue = z.infer<typeof eventStatusSchema>;
 

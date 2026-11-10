@@ -1,5 +1,12 @@
 export default {
   brand: "Échéances Classroom",
+  deadline: {
+    today: "Aujourd'hui",
+    tomorrow: "Demain",
+    dateWithTime: "{{date}}, {{time}}",
+    hours: "{{hours}} h",
+    hoursMinutes: "{{hours}} h {{minutes}}",
+  },
   actions: {
     save: "Enregistrer",
     cancel: "Annuler",

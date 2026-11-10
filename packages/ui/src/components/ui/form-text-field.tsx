@@ -12,7 +12,7 @@ import { Input } from "./input";
 type RevealToggleLabels =
   | { type: "password"; showPasswordLabel: string; hidePasswordLabel: string }
   | {
-      type?: "text" | "email" | "url" | "tel" | "search" | "number";
+      type?: "text" | "email" | "url" | "tel" | "search" | "number" | "date" | "time";
       showPasswordLabel?: never;
       hidePasswordLabel?: never;
     };

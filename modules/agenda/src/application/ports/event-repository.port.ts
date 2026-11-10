@@ -1,6 +1,7 @@
 import type { AppError, Option, Result } from "@packages/ddd-kit";
 import type { AgendaEvent } from "../../domain/event.aggregate";
 import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
+import type { EventStatusValue } from "../../domain/value-objects/event-status.vo";
 
 export type AgendaError = AppError<
   | "EVENT_NOT_FOUND"
@@ -25,6 +26,7 @@ export interface EventCursor {
 export interface EventFilter {
   childIds?: string[];
   categories?: EventCategoryValue[];
+  statuses?: EventStatusValue[];
   cursor?: EventCursor;
   limit: number;
 }

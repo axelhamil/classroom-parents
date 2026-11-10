@@ -1,4 +1,4 @@
-import type { ChildDto } from "./api/children.queries";
+import type { ChildDto } from "../../shared/api/queries/children";
 
 type ChildStatus = ChildDto["status"];
 

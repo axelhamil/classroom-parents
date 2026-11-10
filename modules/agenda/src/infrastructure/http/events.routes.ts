@@ -9,6 +9,7 @@ import { eventNotFound } from "../../application/ports/event-repository.port";
 import type { EventEditService } from "../../application/services/event-edit.service";
 import type { EventQueryService } from "../../application/services/event-query.service";
 import { eventCategorySchema } from "../../domain/value-objects/event-category.vo";
+import { eventStatusSchema } from "../../domain/value-objects/event-status.vo";
 
 const DEFAULT_PAGE_SIZE = 30;
 const MAX_PAGE_SIZE = 100;
@@ -24,6 +25,7 @@ const listEventsQuerySchema = z.object({
   scope: z.enum(["upcoming", "history"]).default("upcoming"),
   category: oneOrMany(eventCategorySchema),
   childId: oneOrMany(z.uuid()),
+  status: oneOrMany(eventStatusSchema),
   cursor: timeIdCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });
@@ -39,8 +41,8 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
 
   return new Hono<RouteEnv>()
     .get("/", g.requireAuth, zV("query", listEventsQuerySchema), async (c) => {
-      const { scope, category, childId, cursor, limit } = c.req.valid("query");
-      const filter = { categories: category, childIds: childId, cursor, limit };
+      const { scope, category, childId, status, cursor, limit } = c.req.valid("query");
+      const filter = { categories: category, childIds: childId, statuses: status, cursor, limit };
       const userId = g.currentUserId(c);
       const now = new Date();
       const result =

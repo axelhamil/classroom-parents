@@ -10,6 +10,7 @@ import { LoaderCircle } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
+import { childrenQueryOptions } from "../../shared/api/queries/children";
 import { Screen } from "../../shared/layout/screen";
 import {
   ADD_CHILD,
@@ -17,11 +18,7 @@ import {
   registerChildMutationOptions,
   syncChildMutationOptions,
 } from "./api/children.mutations";
-import {
-  childrenQueryOptions,
-  firstEventQueryOptions,
-  linkableAccountsQueryOptions,
-} from "./api/children.queries";
+import { firstEventQueryOptions, linkableAccountsQueryOptions } from "./api/children.queries";
 import { newChildSearchSchema } from "./children.schema";
 import { AddChildExplainer } from "./components/add-child-explainer";
 import { ChildCard } from "./components/child-card";

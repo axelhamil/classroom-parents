@@ -3,23 +3,12 @@ import { queryOptions } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { api } from "../../../shared/api/api-client";
 
-const $list = api.children.$get;
 const $linkable = api.children.linkable.$get;
 const $linkConfig = api.children["link-config"].$get;
 const $events = api.events.$get;
 
-export type ChildDto = InferResponseType<typeof $list, 200>[number];
 export type LinkableAccount = InferResponseType<typeof $linkable, 200>[number];
 export type LinkConfig = InferResponseType<typeof $linkConfig, 200>;
-
-export const childrenQueryOptions = queryOptions({
-  queryKey: ["children"] as const,
-  queryFn: async ({ signal }): Promise<ChildDto[]> => {
-    const res = await $list({}, { init: { signal } });
-    if (!res.ok) await throwApiError(res, "loadChildren");
-    return res.json();
-  },
-});
 
 export const linkableAccountsQueryOptions = queryOptions({
   queryKey: ["children", "linkable"] as const,

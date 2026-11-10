@@ -7,8 +7,8 @@ import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { childrenQueryOptions } from "../../../shared/api/queries/children";
 import { renameChildMutationOptions } from "../api/children.mutations";
-import { childrenQueryOptions } from "../api/children.queries";
 import { type RenameChildFormInput, renameChildSchema } from "../children.schema";
 
 export interface RenameChildFormProps {

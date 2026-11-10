@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "radix-ui";
 import type * as React from "react";
 
 import { cn } from "../../libs/utils";
@@ -8,6 +9,7 @@ const listRowVariants = cva("flex items-center justify-between gap-3", {
     variant: {
       default: "rounded-md border p-3",
       plain: "py-2",
+      ruled: "border-b py-1 last:border-b-0",
     },
   },
   defaultVariants: { variant: "default" },
@@ -40,19 +42,25 @@ function ListRowContent({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+interface ListRowButtonProps extends React.ComponentProps<"button"> {
+  asChild?: boolean;
+}
+
 /**
  * The row's content as one click target (mark a notification read, open an
  * item). It keeps the content's stacked text layout, which a `Button`, sized
  * for a single-line label, cannot hold without overriding its height and
- * padding.
+ * padding. `asChild` makes a router link the target when the row navigates.
  */
-function ListRowButton({ className, type = "button", ...props }: React.ComponentProps<"button">) {
+function ListRowButton({ className, type, asChild = false, ...props }: ListRowButtonProps) {
+  const Comp = asChild ? Slot.Root : "button";
+
   return (
-    <button
+    <Comp
       data-slot="list-row-button"
-      type={type}
+      type={asChild ? type : (type ?? "button")}
       className={cn(
-        "flex flex-col items-start gap-1 rounded-sm text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-default",
+        "flex flex-col items-start gap-1 rounded-sm px-2 py-2 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring active:bg-accent disabled:cursor-default",
         className,
       )}
       {...props}

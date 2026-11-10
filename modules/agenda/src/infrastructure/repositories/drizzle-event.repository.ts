@@ -10,6 +10,7 @@ import {
   inArray,
   isNull,
   lt,
+  not,
   notExists,
   notInArray,
   resolveExecutor,
@@ -140,6 +141,7 @@ function filtered(filter: EventFilter, order: Order): (SQL | undefined)[] {
   return [
     filter.childIds?.length ? inArray(agendaEvent.childId, filter.childIds) : undefined,
     filter.categories?.length ? inArray(agendaEvent.category, filter.categories) : undefined,
+    filter.statuses?.length ? inArray(agendaEvent.status, filter.statuses) : undefined,
     filter.cursor
       ? afterTimeIdCursor(agendaEvent.deadlineAt, agendaEvent.id, filter.cursor, order)
       : undefined,
@@ -351,7 +353,8 @@ export class DrizzleEventRepository implements IEventRepository {
     filter: EventFilter,
     now: Date,
   ): Promise<Result<EventPage, AgendaError>> {
-    return this.page("listUpcoming", gte(agendaEvent.deadlineAt, now), userId, filter, "asc");
+    const window = [gte(agendaEvent.deadlineAt, now), not(agendaEvent.done)];
+    return this.page("listUpcoming", window, userId, filter, "asc");
   }
 
   async listHistory(
@@ -359,12 +362,12 @@ export class DrizzleEventRepository implements IEventRepository {
     filter: EventFilter,
     now: Date,
   ): Promise<Result<EventPage, AgendaError>> {
-    return this.page("listHistory", lt(agendaEvent.deadlineAt, now), userId, filter, "desc");
+    return this.page("listHistory", [lt(agendaEvent.deadlineAt, now)], userId, filter, "desc");
   }
 
   private async page(
     method: string,
-    window: SQL,
+    window: SQL[],
     userId: string,
     filter: EventFilter,
     order: Order,
@@ -381,7 +384,7 @@ export class DrizzleEventRepository implements IEventRepository {
             .where(
               and(
                 ownedAlive(userId),
-                window,
+                ...window,
                 notShadowedByCoursework(exec),
                 ...filtered(filter, order),
               ),

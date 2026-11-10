@@ -3,9 +3,10 @@ import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { mutationOptions } from "@tanstack/react-query";
 import type { InferRequestType, InferResponseType } from "hono/client";
 import { api } from "../../../shared/api/api-client";
+import { childrenQueryOptions } from "../../../shared/api/queries/children";
 import { queryClient } from "../../../shared/api/query-client";
 import { authClient } from "../../../shared/auth/auth-client";
-import { childrenQueryOptions, linkConfigQueryOptions } from "./children.queries";
+import { linkConfigQueryOptions } from "./children.queries";
 
 const $register = api.children.$post;
 const $sync = api.sync[":childId"].$post;

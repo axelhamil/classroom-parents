@@ -16,6 +16,7 @@ const badgeVariants = cva(
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
+        review: "border-dashed border-foreground/60 text-foreground",
         assessment: "bg-category-assessment-tint text-category-assessment",
         homework: "bg-category-homework-tint text-category-homework",
         schoolTrip: "bg-category-school-trip-tint text-category-school-trip",

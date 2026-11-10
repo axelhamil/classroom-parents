@@ -2,6 +2,7 @@
  * Proves against a real Postgres what mocked ports cannot: 20 concurrent ingests of one
  * announcement create its events once, a parent edit or deletion survives a later ingest,
  * upcoming and history split on the deadline instant with their filters and keyset cursors,
+ * a turned-in coursework leaves upcoming, the status filter isolates the events to review,
  * a family never reads, edits, confirms or deletes another family's event, deleting a user
  * cascades its events, a coursework is stored once and follows its teacher until the parent edits
  * the field, an announcement deadline on a coursework's course and day stays hidden only while a
@@ -392,8 +393,8 @@ run(async () => {
       .join();
   const sameIds = (...ids: string[]) => ids.sort().join();
   await step(
-    "a turned-in coursework still hides the announcement deadline of its day",
-    (await noeUpcoming()) === sameIds(w26.id, w27.id),
+    "a turned-in coursework leaves the upcoming list and still hides its day's announcement",
+    (await noeUpcoming()) === sameIds(w27.id),
   );
   await edits.remove(a, w26.id);
   await step(
@@ -498,6 +499,12 @@ run(async () => {
       idsOf(await query.listUpcoming(b, { limit: 100 }, NOW)).join() === bEvent.id &&
       idsOf(await query.listHistory(b, { limit: 100 }, NOW)).length === 0 &&
       idsOf(await query.listUpcoming(a, { childIds: [bZoe], limit: 100 }, NOW)).length === 0,
+  );
+  await step(
+    "the status filter lists only the events to review, wherever they sit in the list",
+    idsOf(await query.listUpcoming(b, { statuses: ["needs_review"], limit: 1 }, NOW)).join() ===
+      bEvent.id &&
+      idsOf(await query.listUpcoming(b, { statuses: ["confirmed"], limit: 100 }, NOW)).length === 0,
   );
   await step(
     "an event to review gets no alert until its parent confirms it",

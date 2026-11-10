@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ChildDto } from "../api/children.queries";
+import type { ChildDto } from "../../../shared/api/queries/children";
 import { classifySchoolError } from "../school-error";
 
 function child(status: ChildDto["status"]): ChildDto {
