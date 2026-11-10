@@ -67,7 +67,11 @@ const emailSender: IAlertEmailSender = {
 const deadlines: IEventDeadlines = {
   forUser: async (userId, eventId) => {
     const [row] = await db
-      .select({ deadlineAt: agendaEvent.deadlineAt, deadlineDate: agendaEvent.deadlineDate })
+      .select({
+        deadlineAt: agendaEvent.deadlineAt,
+        deadlineDate: agendaEvent.deadlineDate,
+        done: agendaEvent.done,
+      })
       .from(agendaEvent)
       .where(
         and(

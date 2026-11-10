@@ -15,10 +15,11 @@ export function eventDeadlinesFor(
   return {
     forUser: async (userId, eventId) =>
       (await agenda.alertDeadline(userId, eventId)).map((found) =>
-        found.map(({ deadlineAt, deadlineDate, deadlineTime }) => ({
+        found.map(({ deadlineAt, deadlineDate, deadlineTime, done }) => ({
           deadlineAt,
           deadlineDate,
           deadlineTime,
+          done,
         })),
       ),
   };

@@ -3,7 +3,7 @@ import { utcToZonedWall } from "@packages/ddd-kit/zoned-time";
 import { AlertId } from "./alert-id";
 import { AlertOrigin } from "./value-objects/alert-origin.vo";
 import { AlertStatus } from "./value-objects/alert-status.vo";
-import { ALERT_TIME_ZONE, AlertTime } from "./value-objects/alert-time.vo";
+import { ALERT_TIME_ZONE, AlertTime, daysBetween } from "./value-objects/alert-time.vo";
 
 export const MISSED_AFTER_MS = 6 * 3_600_000;
 
@@ -78,6 +78,7 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
         this._props.deadlineAt = deadline.at;
         return Result.ok();
       }
+      if (this._props.origin.value === "user") return this.carryOver(deadline, now);
       return this.resetToDefault(deadline, now);
     }
 
@@ -145,6 +146,22 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
 
   skip(): void {
     this._props.status = AlertStatus.skipped();
+  }
+
+  private carryOver(deadline: AlertDeadline, now: Date): Result<void> {
+    const chosen = this._props.time.value;
+    const days = daysBetween(chosen.date, this.deadlineDay());
+    if (days.isFailure) return Result.fail(days.getError());
+    const time = AlertTime.before(deadline.date, days.getValue(), chosen.time);
+    if (time.isFailure) return Result.fail(time.getError());
+
+    const before = this.occurrence();
+    this._props.time = time.getValue();
+    this._props.deadlineAt = deadline.at;
+    this._props.sentAt = Option.none();
+    this.settleStatus(now, false);
+    this.renewSince(before);
+    return Result.ok();
   }
 
   private occurrence(): { pending: boolean; time: AlertTime } {

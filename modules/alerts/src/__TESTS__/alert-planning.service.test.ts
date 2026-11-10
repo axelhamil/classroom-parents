@@ -19,8 +19,13 @@ let deadlines: PortMock<IEventDeadlines>;
 let outbox: PortMock<IOutboxRepository>;
 let service: AlertPlanningService;
 
-function deadlineOn(deadlineDate: string, deadlineTime?: string): EventDeadline {
-  return { deadlineAt: paris(deadlineDate, deadlineTime ?? "23:59"), deadlineDate, deadlineTime };
+function deadlineOn(deadlineDate: string, deadlineTime?: string, done = false): EventDeadline {
+  return {
+    deadlineAt: paris(deadlineDate, deadlineTime ?? "23:59"),
+    deadlineDate,
+    deadlineTime,
+    done,
+  };
 }
 
 function givenEvent(deadline: EventDeadline): void {
@@ -158,6 +163,36 @@ describe("replan", () => {
     });
   });
 
+  it("given a parent's alert already sent 1 day before at 07:30, when the deadline moves to another day, then the new occurrence keeps 1 day before at 07:30 Paris", async () => {
+    givenAlert(
+      existingAlert({ status: "sent", origin: "user", date: "2026-11-14", time: "07:30" }),
+    );
+    givenEvent(deadlineOn("2026-11-22"));
+
+    await service.replan(planned);
+
+    expect(saved()?.get("status").value).toBe("pending");
+    expect(saved()?.get("origin").value).toBe("user");
+    expect(saved()?.get("time").value.at).toEqual(paris("2026-11-21", "07:30"));
+    expect(saved()?.get("version")).toBe(2);
+    expect(enqueuedEvents(outbox)[0]).toMatchObject({
+      eventType: EventTypes.ALERT_SCHEDULED,
+      payload: { origin: "user", dueAt: "2026-11-21T06:30:00.000Z" },
+    });
+  });
+
+  it("given a parent's alert already sent 3 days before, when the deadline moves to a day whose 3 days before is past, then the new occurrence is not planned", async () => {
+    givenAlert(
+      existingAlert({ status: "sent", origin: "user", date: "2026-11-12", time: "07:30" }),
+    );
+    givenEvent(deadlineOn("2026-11-12"));
+
+    await service.replan(planned);
+
+    expect(saved()?.get("status").value).toBe("skipped");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
   it("given an alert already sent, when only the hour of the deadline changes, then it stays sent", async () => {
     givenAlert(existingAlert({ status: "sent" }));
     givenEvent(deadlineOn("2026-11-15", "08:00"));
@@ -217,6 +252,40 @@ describe("replan", () => {
 
     expect(saved()?.get("time").value.at).toEqual(paris("2026-11-23", "18:00"));
     expect(saved()?.get("status").value).toBe("pending");
+  });
+});
+
+describe("a done deadline", () => {
+  it("given a pending default alert, when the date of a done homework changes, then no alert is replanned", async () => {
+    givenAlert(existingAlert({ status: "pending", origin: "default" }));
+    givenEvent(deadlineOn("2026-11-25", undefined, true));
+
+    await service.replan(planned);
+
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).not.toContain(
+      EventTypes.ALERT_SCHEDULED,
+    );
+    expect(saved()?.get("time").value.at ?? paris("2026-11-13", "18:00")).toEqual(
+      paris("2026-11-13", "18:00"),
+    );
+  });
+
+  it("given an alert already sent, when the date of a done homework changes, then no new occurrence is planned", async () => {
+    givenAlert(existingAlert({ status: "sent" }));
+    givenEvent(deadlineOn("2026-11-22", undefined, true));
+
+    await service.replan(planned);
+
+    expect(saved()?.get("status").value ?? "sent").toBe("sent");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given no alert yet, when a done homework is planned, then no alert is written", async () => {
+    givenEvent(deadlineOn("2026-11-22", undefined, true));
+
+    await service.planDefault(planned);
+
+    expect(alerts.save).not.toHaveBeenCalled();
   });
 });
 

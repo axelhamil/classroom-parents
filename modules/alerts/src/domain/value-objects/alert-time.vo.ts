@@ -32,6 +32,15 @@ function daysBefore(date: string, days: number): Result<string> {
   return Result.ok(shifted.toISOString().slice(0, 10));
 }
 
+export function daysBetween(earlier: string, later: string): Result<number> {
+  const from = DATE_PATTERN.test(earlier) ? Date.parse(`${earlier}T00:00:00.000Z`) : Number.NaN;
+  const to = DATE_PATTERN.test(later) ? Date.parse(`${later}T00:00:00.000Z`) : Number.NaN;
+  if (Number.isNaN(from) || Number.isNaN(to))
+    return Result.fail(`${earlier} or ${later} is not a YYYY-MM-DD date`);
+
+  return Result.ok(Math.round((to - from) / 86_400_000));
+}
+
 export class AlertTime extends ValueObject<AlertTimeValue> {
   static fromParisWallTime(date: string, time: string): Result<AlertTime> {
     const at = parisInstant(date, time);
@@ -41,10 +50,14 @@ export class AlertTime extends ValueObject<AlertTimeValue> {
   }
 
   static defaultBefore(deadlineDate: string): Result<AlertTime> {
-    const date = daysBefore(deadlineDate, DEFAULT_DAYS_BEFORE);
+    return AlertTime.before(deadlineDate, DEFAULT_DAYS_BEFORE, DEFAULT_WALL_TIME);
+  }
+
+  static before(deadlineDate: string, days: number, time: string): Result<AlertTime> {
+    const date = daysBefore(deadlineDate, days);
     if (date.isFailure) return Result.fail(date.getError());
 
-    return AlertTime.fromParisWallTime(date.getValue(), DEFAULT_WALL_TIME);
+    return AlertTime.fromParisWallTime(date.getValue(), time);
   }
 
   static fromInstant(instant: Date): Result<AlertTime> {

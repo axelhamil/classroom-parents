@@ -25,6 +25,7 @@ export interface EventDeadlineDto {
   deadlineAt: Date;
   deadlineDate: string;
   deadlineTime?: string;
+  done: boolean;
 }
 
 export interface EventPageDto {
@@ -70,5 +71,10 @@ export function toEventDto(event: AgendaEvent): EventDto {
 export function toEventDeadlineDto(event: AgendaEvent): EventDeadlineDto {
   const deadline = event.get("deadline").value;
 
-  return { deadlineAt: deadline.at, deadlineDate: deadline.date, deadlineTime: deadline.time };
+  return {
+    deadlineAt: deadline.at,
+    deadlineDate: deadline.date,
+    deadlineTime: deadline.time,
+    done: event.get("done"),
+  };
 }

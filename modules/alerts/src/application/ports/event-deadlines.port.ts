@@ -4,6 +4,7 @@ export interface EventDeadline {
   deadlineAt: Date;
   deadlineDate: string;
   deadlineTime?: string;
+  done: boolean;
 }
 
 export interface IEventDeadlines {

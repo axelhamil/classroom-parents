@@ -160,7 +160,7 @@ export class AlertPlanningService {
 
       const found = await this.alerts.findOwned(event.userId, event.eventId);
       if (found.isFailure) return Result.fail(found.getError());
-      if (deadline.getValue().isNone())
+      if (deadline.getValue().isNone() || deadline.getValue().unwrap().done)
         return this.cancelFound(found.getValue(), event.actorUserId);
 
       const now = this.clock();

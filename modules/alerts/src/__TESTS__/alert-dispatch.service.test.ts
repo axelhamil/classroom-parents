@@ -112,7 +112,11 @@ beforeEach(() => {
   contexts.load.mockResolvedValue(Result.ok([CONTEXT]));
   deadlines.forUser.mockResolvedValue(
     Result.ok<Option<EventDeadline>, AppError>(
-      Option.some({ deadlineAt: paris("2026-11-15", "23:59"), deadlineDate: "2026-11-15" }),
+      Option.some({
+        deadlineAt: paris("2026-11-15", "23:59"),
+        deadlineDate: "2026-11-15",
+        done: false,
+      }),
     ),
   );
 

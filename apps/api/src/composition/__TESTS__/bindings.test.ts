@@ -45,6 +45,7 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
     deadlineAt: new Date("2026-11-19T07:30:00.000Z"),
     deadlineDate: "2026-11-19",
     deadlineTime: "08:30",
+    done: true,
   };
 
   it("passes every deadline field of the parent's own alertable event", async () => {
