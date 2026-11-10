@@ -29,6 +29,7 @@ import type {
   LedgerEntry,
   SeenAnnouncement,
 } from "../application/ports/seen-announcement-repository.port";
+import { ClassroomReader } from "../application/services/classroom-reader.service";
 import { SyncChildService } from "../application/services/sync-child.service";
 import type { SyncError } from "../application/sync-error";
 
@@ -131,8 +132,11 @@ export function syncHarness(): SyncHarness {
   ledger.record.mockResolvedValue(Result.ok<boolean, SyncError>(true));
   outbox.enqueue.mockResolvedValue(undefined);
 
+  const reader = new ClassroomReader(client, ledger, instrumentation, async (ms) => {
+    sleeps.push(ms);
+  });
   const service = new SyncChildService(
-    client,
+    reader,
     tokens,
     extractor,
     ingest,
@@ -142,9 +146,6 @@ export function syncHarness(): SyncHarness {
     outbox,
     instrumentation,
     logger,
-    async (ms) => {
-      sleeps.push(ms);
-    },
   );
 
   return {

@@ -40,6 +40,7 @@ import type {
   IClassroomClient,
 } from "../src/application/ports/classroom-client.port";
 import type { IEventIngest } from "../src/application/ports/event-ingest.port";
+import { ClassroomReader } from "../src/application/services/classroom-reader.service";
 import { SyncChildService } from "../src/application/services/sync-child.service";
 import { DrizzleSeenAnnouncementRepository } from "../src/infrastructure/repositories/drizzle-seen-announcement.repository";
 
@@ -126,13 +127,14 @@ const syncState: IChildSyncState = {
 
 const quiet: ILogger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 
+const ledger = new DrizzleSeenAnnouncementRepository(instrumentation);
 const service = new SyncChildService(
-  classroom,
+  new ClassroomReader(classroom, ledger, instrumentation),
   { accessTokenFor: async (childId) => Result.ok(childId) },
   extractor,
   ingest,
   syncState,
-  new DrizzleSeenAnnouncementRepository(instrumentation),
+  ledger,
   transactions,
   outbox,
   instrumentation,

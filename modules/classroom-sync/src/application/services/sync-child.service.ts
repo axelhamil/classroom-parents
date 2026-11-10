@@ -4,7 +4,6 @@ import {
   type ILogger,
   type IUnitOfWork,
   mapBounded,
-  Option,
   Result,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
@@ -14,19 +13,10 @@ import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import {
   extractedVerdict,
   failedVerdict,
-  type LedgerState,
   type LedgerVerdict,
-  needsExtraction,
   nextAttempt,
 } from "../../domain/announcement-ledger";
-import { courseworkTitle, schoolDeadline } from "../../domain/coursework-deadline";
-import {
-  isDayWithinWindow,
-  isWithinWindow,
-  nextSyncAt,
-  retryAt,
-  windowStart,
-} from "../../domain/sync-window";
+import { nextSyncAt, retryAt } from "../../domain/sync-window";
 import {
   type IAnnouncementExtractor,
   isExtractorOutage,
@@ -35,33 +25,25 @@ import type { IChildAccessTokens } from "../ports/child-access-tokens.port";
 import type { IChildSyncState, ReconnectCause, SyncLease } from "../ports/child-sync-state.port";
 import type {
   Announcement,
-  ClassroomError,
   ClassroomErrorCode,
-  ClassroomListing,
   Course,
-  Coursework,
-  IClassroomClient,
   ReadScope,
 } from "../ports/classroom-client.port";
-import type { CourseworkDeadline, IEventIngest } from "../ports/event-ingest.port";
+import type {
+  ClassroomAccess,
+  CourseFailure,
+  CourseList,
+  CourseRead,
+  IClassroomReader,
+  PendingAnnouncement,
+} from "../ports/classroom-reader.port";
+import type { IEventIngest } from "../ports/event-ingest.port";
 import type { ISeenAnnouncementRepository } from "../ports/seen-announcement-repository.port";
 import type { SyncError } from "../sync-error";
 
 const COURSE_CONCURRENCY = 4;
 const EXTRACTION_CONCURRENCY = 8;
-const RATE_LIMIT_RETRIES = 3;
-const RATE_LIMIT_BACKOFF_MS = 2_000;
 const SYNC_JITTER_BASE_MS = 60_000;
-
-const SCHOOL_BLOCKS: readonly ClassroomErrorCode[] = [
-  "CLASSROOM_PERMISSION_DENIED",
-  "CLASSROOM_ACCESS_NOT_CONFIGURED",
-];
-
-const RECONNECT_NEEDED: readonly ClassroomErrorCode[] = [
-  "CLASSROOM_UNAUTHORIZED",
-  "CLASSROOM_SCOPE_MISSING",
-];
 
 const SYNC_ERROR_CODES: readonly string[] = [
   "SYNC_CHILD_NOT_FOUND",
@@ -110,61 +92,11 @@ export interface SyncReport {
   failedCoursework: number;
 }
 
-type CourseFailure = "lease_lost" | "reconnect" | "school_block" | "misconfigured" | "transient";
-
-interface PendingAnnouncement {
-  announcement: Announcement;
-  state: Option<LedgerState>;
-}
-
-interface CourseRead {
-  courseId: string;
-  pending: PendingAnnouncement[];
-  coursework: CourseworkDeadline[];
-  courseworkComplete: boolean;
-  presentIds: string[];
-}
-
-interface CourseList {
-  courses: Course[];
-  complete: boolean;
-}
-
-function trackCuts(scope: ReadScope): { scope: ReadScope; cut: Set<ClassroomListing> } {
-  const cut = new Set<ClassroomListing>();
-  return {
-    cut,
-    scope: {
-      mayContinue: () => scope.mayContinue(),
-      truncated: (listing) => {
-        cut.add(listing);
-        scope.truncated(listing);
-      },
-    },
-  };
-}
-
-interface GoogleAccess {
-  token: string;
-  scope: ReadScope;
-}
-
 type SyncOutcome = { kind: "done"; created: number } | { kind: "failed" } | { kind: "lease_lost" };
-
-function courseFailure(code: ClassroomErrorCode): CourseFailure {
-  if (code === "CLASSROOM_READ_STOPPED") return "lease_lost";
-  if (RECONNECT_NEEDED.includes(code)) return "reconnect";
-  if (SCHOOL_BLOCKS.includes(code)) return "school_block";
-  if (code === "CLASSROOM_SERVICE_DISABLED") return "misconfigured";
-
-  return "transient";
-}
-
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export class SyncChildService {
   constructor(
-    private readonly classroom: IClassroomClient,
+    private readonly reader: IClassroomReader,
     private readonly tokens: IChildAccessTokens,
     private readonly extractor: IAnnouncementExtractor,
     private readonly events: IEventIngest,
@@ -174,7 +106,6 @@ export class SyncChildService {
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
     private readonly logger: ILogger,
-    private readonly sleep: (ms: number) => Promise<void> = wait,
   ) {}
 
   async syncChild(input: SyncChildInput, now: Date): Promise<Result<SyncReport, SyncError>> {
@@ -190,20 +121,11 @@ export class SyncChildService {
           return this.needsReconnect(input.childId, "invalid_grant");
         if (token.isFailure) return this.failed(lease, now, providerFailure("jeton Google"));
 
-        const scope = this.readScope(lease);
-        const listing = trackCuts(scope);
-        const courses = await this.withRetry(() =>
-          this.classroom.listCourses(token.getValue(), listing.scope),
-        );
-        if (courses.isFailure) return this.courseListFailed(lease, courses.getError().code, now);
+        const access: ClassroomAccess = { token: token.getValue(), scope: this.readScope(lease) };
+        const courses = await this.reader.listCourses(access);
+        if (courses.isFailure) return this.courseListFailed(lease, courses.getError(), now);
 
-        return this.syncCourses(
-          input,
-          lease,
-          { token: token.getValue(), scope },
-          { courses: courses.getValue(), complete: !listing.cut.has("courses") },
-          now,
-        );
+        return this.syncCourses(input, lease, access, courses.getValue(), now);
       },
     );
   }
@@ -211,12 +133,12 @@ export class SyncChildService {
   private async syncCourses(
     input: SyncChildInput,
     lease: SyncLease,
-    access: GoogleAccess,
+    access: ClassroomAccess,
     { courses, complete }: CourseList,
     now: Date,
   ): Promise<Result<SyncReport, SyncError>> {
     const reads = await mapBounded(courses, COURSE_CONCURRENCY, (course) =>
-      this.readCourse(input.childId, access, course, now),
+      this.reader.readCourse(input.childId, access, course, now),
     );
     const failures = reads.filter((read) => read.isFailure).map((read) => read.getError());
     if (failures.includes("lease_lost")) return Result.fail(leaseLost);
@@ -249,98 +171,6 @@ export class SyncChildService {
       ),
       failedAnnouncements: extracted.filter(({ kind }) => kind === "failed").length,
       failedCoursework: saved.filter(({ kind }) => kind === "failed").length,
-    });
-  }
-
-  private async readCourse(
-    childId: string,
-    { token, scope }: GoogleAccess,
-    course: Course,
-    now: Date,
-  ): Promise<Result<CourseRead, CourseFailure>> {
-    if (!(await scope.mayContinue())) return Result.fail("lease_lost");
-
-    const { scope: courseScope, cut } = trackCuts(scope);
-    const [listed, coursework, turnedIn] = await Promise.all([
-      this.withRetry(() =>
-        this.classroom.listAnnouncements(token, course.id, windowStart(now), courseScope),
-      ),
-      this.withRetry(() => this.classroom.listCoursework(token, course.id, courseScope)),
-      this.withRetry(() => this.classroom.listTurnedIn(token, course.id, courseScope)),
-    ]);
-    const refused = [listed, coursework, turnedIn].find((read) => read.isFailure);
-    if (refused?.isFailure) return Result.fail(courseFailure(refused.getError().code));
-
-    const pending = await this.pendingAnnouncements(childId, listed.getValue(), now);
-    if (pending.isFailure) return Result.fail(pending.getError());
-
-    return Result.ok({
-      courseId: course.id,
-      pending: pending.getValue(),
-      coursework: this.courseworkDeadlines(coursework.getValue(), turnedIn.getValue(), now),
-      courseworkComplete: !cut.has("coursework"),
-      presentIds: coursework
-        .getValue()
-        .filter(({ due }) => due.isSome())
-        .map(({ id }) => id),
-    });
-  }
-
-  private async pendingAnnouncements(
-    childId: string,
-    listed: Announcement[],
-    now: Date,
-  ): Promise<Result<PendingAnnouncement[], CourseFailure>> {
-    const recent = listed.filter(({ publishedAt }) => isWithinWindow(publishedAt, now));
-    if (recent.length === 0) return Result.ok([]);
-
-    const seen = await this.ledger.findForCourse(
-      childId,
-      recent.map(({ id }) => id),
-    );
-    if (seen.isFailure) return Result.fail("transient");
-
-    const byId = new Map(seen.getValue().map((entry) => [entry.announcementId, entry]));
-    return Result.ok(
-      recent
-        .map((announcement) => ({
-          announcement,
-          state: Option.fromNullable<LedgerState>(byId.get(announcement.id)),
-        }))
-        .filter(({ state }) => needsExtraction(state)),
-    );
-  }
-
-  private courseworkDeadlines(
-    coursework: Coursework[],
-    turnedIn: string[],
-    now: Date,
-  ): CourseworkDeadline[] {
-    const done = new Set(turnedIn);
-    return coursework.flatMap(({ id, title, url, due }) => {
-      if (due.isNone()) return [];
-
-      const deadline = schoolDeadline(due.unwrap().utcDate, due.unwrap().utcTime);
-      if (deadline.isFailure) {
-        this.instrumentation.capture(deadline.getError(), { metadata: { courseworkId: id } });
-        return [];
-      }
-
-      const { deadlineDate, deadlineTime } = deadline.getValue();
-      if (!isDayWithinWindow(deadlineDate, now)) return [];
-
-      return [
-        {
-          id,
-          title: courseworkTitle(title),
-          url,
-          deadlineDate,
-          ...deadlineTime
-            .map((time): Partial<CourseworkDeadline> => ({ deadlineTime: time }))
-            .unwrapOr({}),
-          done: done.has(id),
-        },
-      ];
     });
   }
 
@@ -402,7 +232,7 @@ export class SyncChildService {
   ): Promise<SyncOutcome[]> {
     if (pending.length === 0) return [];
 
-    const names = await this.withRetry(() => this.classroom.profileNames(token));
+    const names = await this.reader.profileNames(token);
     if (names.isFailure) {
       this.instrumentation.capture(names.getError(), { metadata: { childId: input.childId } });
       return pending.map((): SyncOutcome => ({ kind: "failed" }));
@@ -546,10 +376,9 @@ export class SyncChildService {
 
   private async courseListFailed(
     lease: SyncLease,
-    code: ClassroomErrorCode,
+    failure: CourseFailure,
     now: Date,
   ): Promise<Result<SyncReport, SyncError>> {
-    const failure = courseFailure(code);
     if (failure === "lease_lost") return Result.fail(leaseLost);
     if (failure === "reconnect") return this.needsReconnect(lease.childId, "invalid_grant");
     if (failure === "school_block") return this.needsReconnect(lease.childId, "school_blocked");
@@ -601,23 +430,5 @@ export class SyncChildService {
       this.instrumentation.capture(marked.getError(), { metadata: { childId: lease.childId } });
 
     return Result.fail(error);
-  }
-
-  private async withRetry<T>(
-    call: () => Promise<Result<T, ClassroomError>>,
-  ): Promise<Result<T, ClassroomError>> {
-    let result = await call();
-    for (
-      let retry = 0;
-      retry < RATE_LIMIT_RETRIES &&
-      result.isFailure &&
-      result.getError().code === "CLASSROOM_RATE_LIMITED";
-      retry += 1
-    ) {
-      await this.sleep(RATE_LIMIT_BACKOFF_MS * 2 ** retry);
-      result = await call();
-    }
-
-    return result;
   }
 }

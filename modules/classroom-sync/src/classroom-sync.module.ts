@@ -6,10 +6,12 @@ import type { IAnnouncementExtractor } from "./application/ports/announcement-ex
 import type { IChildAccessTokens } from "./application/ports/child-access-tokens.port";
 import type { IChildSyncState } from "./application/ports/child-sync-state.port";
 import type { IClassroomClient } from "./application/ports/classroom-client.port";
+import type { IClassroomReader } from "./application/ports/classroom-reader.port";
 import type { IDueChildren } from "./application/ports/due-children.port";
 import type { IEventIngest } from "./application/ports/event-ingest.port";
 import type { IManualSyncGate } from "./application/ports/manual-sync-gate.port";
 import type { ISeenAnnouncementRepository } from "./application/ports/seen-announcement-repository.port";
+import { ClassroomReader } from "./application/services/classroom-reader.service";
 import { ManualSyncService } from "./application/services/manual-sync.service";
 import { SyncChildService } from "./application/services/sync-child.service";
 import { SyncDueChildrenService } from "./application/services/sync-due-children.service";
@@ -40,10 +42,15 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
       (c): ISeenAnnouncementRepository => new DrizzleSeenAnnouncementRepository(c.IInstrumentation),
     )
     .add(
+      "IClassroomReader",
+      (c): IClassroomReader =>
+        new ClassroomReader(c.IClassroomClient, c.ISeenAnnouncementRepository, c.IInstrumentation),
+    )
+    .add(
       "SyncChildService",
       (c) =>
         new SyncChildService(
-          c.IClassroomClient,
+          c.IClassroomReader,
           c.IChildAccessTokens,
           c.IAnnouncementExtractor,
           c.IEventIngest,
