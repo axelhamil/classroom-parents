@@ -75,7 +75,7 @@ export class WebPushSender implements IPushSender {
     const response = await fetch(request.endpoint, {
       method: request.method,
       headers,
-      body: request.body,
+      body: new Uint8Array(request.body),
       signal,
     });
     await response.body?.cancel();

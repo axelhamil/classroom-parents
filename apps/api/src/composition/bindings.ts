@@ -1,7 +1,9 @@
+import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
 import type { IChildOwnership } from "@modules/agenda/application/ports/child-ownership.port";
 import type { EventIngestService } from "@modules/agenda/application/services/event-ingest.service";
 import type { EventQueryService } from "@modules/agenda/application/services/event-query.service";
 import type { IEventDeadlines } from "@modules/alerts/application/ports/event-deadlines.port";
+import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
 import type { IAnnouncementExtractor } from "@modules/classroom-sync/application/ports/announcement-extractor.port";
@@ -147,4 +149,16 @@ export function manualSyncGateFor(children: Children<"list" | "claimManualSync">
 
 export function childConnectionsFor(children: Children<"revokeAllFor">): IChildConnections {
   return { revokeAll: (userId) => children.revokeAllFor(userId) };
+}
+
+export function alertPlannerFor(
+  planning: () => Pick<AlertPlanningService, "planDefault" | "replan" | "cancel">,
+): IAlertPlanner {
+  return {
+    planDefault: ({ eventId, userId, actorUserId }) =>
+      planning().planDefault({ eventId, userId, actorUserId }),
+    replan: ({ eventId, userId, actorUserId }) =>
+      planning().replan({ eventId, userId, actorUserId }),
+    cancel: (eventId, actorUserId) => planning().cancel(eventId, actorUserId),
+  };
 }

@@ -219,6 +219,9 @@ importers:
       '@modules/agenda':
         specifier: workspace:*
         version: link:../../modules/agenda
+      '@modules/alerts':
+        specifier: workspace:*
+        version: link:../../modules/alerts
       '@modules/children':
         specifier: workspace:*
         version: link:../../modules/children

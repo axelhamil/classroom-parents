@@ -18,6 +18,7 @@ import {
   TELEMETRY_FLUSH_MARGIN_MS,
   TELEMETRY_FLUSH_TIMEOUT_MS,
 } from "./shared/shutdown";
+import { startAlertWorkers } from "./workers/alert-worker";
 import { startRgpdWorkers } from "./workers/rgpd-worker";
 import { startSyncWorkers } from "./workers/sync-worker";
 
@@ -41,6 +42,7 @@ const periodicWorkers = new AbortController();
 globalThis.apiPeriodicWorkers = periodicWorkers;
 const periodicLoops = Promise.all([
   startSyncWorkers(di, periodicWorkers.signal, logger),
+  startAlertWorkers(di, periodicWorkers.signal, logger),
   startRgpdWorkers(
     di,
     {

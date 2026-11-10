@@ -132,6 +132,42 @@ CREATE TABLE "event" (
 	CONSTRAINT "event_child_source_item_key" UNIQUE("child_id","source","announcement_id","ordinal")
 );
 --> statement-breakpoint
+CREATE TABLE "alert" (
+	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"event_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
+	"due_at" timestamp with time zone NOT NULL,
+	"deadline_at" timestamp with time zone NOT NULL,
+	"origin" text NOT NULL,
+	"status" text NOT NULL,
+	"sent_at" timestamp with time zone,
+	"version" integer DEFAULT 1 NOT NULL,
+	"failures" integer DEFAULT 0 NOT NULL,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"next_attempt_at" timestamp with time zone,
+	CONSTRAINT "alert_event_id_unique" UNIQUE("event_id")
+);
+--> statement-breakpoint
+CREATE TABLE "alert_delivery" (
+	"alert_id" uuid NOT NULL,
+	"channel" text NOT NULL,
+	"outcome" text NOT NULL,
+	"at" timestamp with time zone NOT NULL,
+	CONSTRAINT "alert_delivery_alert_channel_key" UNIQUE("alert_id","channel")
+);
+--> statement-breakpoint
+CREATE TABLE "push_subscription" (
+	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"user_id" text NOT NULL,
+	"endpoint" text NOT NULL,
+	"p256dh" text NOT NULL,
+	"auth" text NOT NULL,
+	"user_agent" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"last_seen_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "push_subscription_endpoint_unique" UNIQUE("endpoint")
+);
+--> statement-breakpoint
 CREATE TABLE "child_account" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"user_id" text NOT NULL,
@@ -164,6 +200,10 @@ ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "event" ADD CONSTRAINT "event_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "event" ADD CONSTRAINT "event_child_id_child_account_id_fk" FOREIGN KEY ("child_id") REFERENCES "public"."child_account"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "alert" ADD CONSTRAINT "alert_event_id_event_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."event"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "alert" ADD CONSTRAINT "alert_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "alert_delivery" ADD CONSTRAINT "alert_delivery_alert_id_alert_id_fk" FOREIGN KEY ("alert_id") REFERENCES "public"."alert"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "push_subscription" ADD CONSTRAINT "push_subscription_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "child_account" ADD CONSTRAINT "child_account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "child_account" ADD CONSTRAINT "child_account_linked_account_id_account_id_fk" FOREIGN KEY ("linked_account_id") REFERENCES "public"."account"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "seen_announcement" ADD CONSTRAINT "seen_announcement_child_id_child_account_id_fk" FOREIGN KEY ("child_id") REFERENCES "public"."child_account"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -189,6 +229,8 @@ CREATE INDEX "outbox_event_payload_actor_idx" ON "outbox_event" USING btree (("p
 CREATE INDEX "rate_limit_expire_idx" ON "rate_limit" USING btree ("expire") WHERE "rate_limit"."expire" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "event_coursework_day_idx" ON "event" USING btree ("child_id","course_id","deadline_date") WHERE "event"."source" = 'coursework' and "event"."deleted_at" is null and "event"."withdrawn_at" is null;--> statement-breakpoint
 CREATE INDEX "event_user_deadline_idx" ON "event" USING btree ("user_id","deadline_at");--> statement-breakpoint
+CREATE INDEX "alert_pending_due_idx" ON "alert" USING btree ("due_at") WHERE "alert"."status" = 'pending';--> statement-breakpoint
+CREATE INDEX "push_subscription_user_idx" ON "push_subscription" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "child_account_user_idx" ON "child_account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "child_account_due_idx" ON "child_account" USING btree ("next_sync_at") WHERE "child_account"."status" = 'connected';--> statement-breakpoint
 CREATE INDEX "child_account_disconnecting_idx" ON "child_account" USING btree ("next_sync_at") WHERE "child_account"."status" = 'disconnecting';

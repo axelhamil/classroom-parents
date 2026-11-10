@@ -1,4 +1,8 @@
 import { agendaModule } from "@modules/agenda/agenda.module";
+import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
+import { alertsModule } from "@modules/alerts/alerts.module";
+import type { IAlertContextReader } from "@modules/alerts/application/ports/alert-context-reader.port";
+import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import { childrenModule } from "@modules/children/children.module";
 import { classroomSyncModule } from "@modules/classroom-sync/classroom-sync.module";
 import { extractionModule } from "@modules/extraction/extraction.module";
@@ -25,14 +29,15 @@ import {
 import { OutboxRelay } from "@packages/outbox/outbox-relay";
 import { container } from "inwire";
 import { Resend } from "resend";
-import { alertsNotComposedYet } from "./composition/alert-planner";
 import {
+  alertPlannerFor,
   announcementExtractorFor,
   childAccessTokensFor,
   childConnectionsFor,
   childOwnershipFor,
   childSyncStateFor,
   dueChildrenFor,
+  eventDeadlinesFor,
   eventIngestFor,
   manualSyncGateFor,
 } from "./composition/bindings";
@@ -40,6 +45,7 @@ import { fakeProviderBindings } from "./composition/fake-bindings";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import { rgpdModule } from "./modules/rgpd/module";
+import { AlertContextQuery } from "./queries/alert-context.query";
 import { authSecretKey } from "./shared/auth/auth-secrets";
 import { googleTokenSealing } from "./shared/auth/token-sealing";
 import type { OutermostUnitOfWork } from "./shared/auth/unit-of-work-adapter";
@@ -60,6 +66,8 @@ import {
 import { SentryInstrumentation } from "./shared/services/sentry-instrumentation";
 import { SiteverifyCaptchaService } from "./shared/services/siteverify-captcha.service";
 import { PgUserStreamPublisher, userStreamRelay } from "./shared/services/user-stream-relay";
+
+type AlertPlanner = Pick<AlertPlanningService, "planDefault" | "replan" | "cancel">;
 
 declare module "inwire" {
   interface AppDeps {
@@ -150,8 +158,17 @@ export const di = container()
   .addModule(healthModule)
   .addModule(childrenModule)
   .add("IChildOwnership", (c) => childOwnershipFor(c.ChildConnectionService))
-  .add("IAlertPlanner", () => alertsNotComposedYet)
+  .add(
+    "IAlertPlanner",
+    (): IAlertPlanner => alertPlannerFor((): AlertPlanner => di.AlertPlanningService),
+  )
   .addModule(agendaModule)
+  .add("IEventDeadlines", (c) => eventDeadlinesFor(c.EventQueryService))
+  .add(
+    "IAlertContextReader",
+    (c): IAlertContextReader => new AlertContextQuery(c.IInstrumentation, env.APP_ORIGIN),
+  )
+  .addModule(alertsModule)
   .addModule(extractionModule)
   .add("IChildAccessTokens", (c) => childAccessTokensFor(c.ChildConnectionService))
   .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))

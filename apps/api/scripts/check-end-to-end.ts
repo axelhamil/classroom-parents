@@ -6,8 +6,10 @@
  * edited across a resync; a pg_notify reaches the live stream; a school block turns a
  * child to `blocked_by_school` and tells the parent's stream, a reconnect brings it back;
  * an unregistered linked account is discarded; a disconnection erases the child and its
- * events; the account wipe revokes Google and leaves no row of the family behind.
- * Alerts join this proof once their module is composed.
+ * events; the first sync plans a default alert for each live upcoming deadline but none
+ * for one a coursework shadows or the parent deleted, and a due alert reaches the
+ * parent's push subscription once; the account wipe revokes Google and leaves no row of
+ * the family behind, alerts and push subscriptions included.
  */
 
 import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
@@ -15,18 +17,26 @@ import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
 exitUnlessLocalDatabase("check-end-to-end", process.env.DATABASE_URL);
 
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
+import { alert, alertDelivery } from "@modules/alerts/schemas/alert.schema";
+import { pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
 import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
 import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
 import {
   type AnyPgTable,
+  alias,
+  and,
   authSchema,
   count,
   db,
   emailSchema,
   eq,
+  exists,
   inArray,
+  isNotNull,
+  isNull,
+  or,
   outboxSchema,
   type SQL,
   sql,
@@ -99,7 +109,7 @@ async function agendaOf(call: Call) {
   return items.flat();
 }
 
-async function rowsIn(table: AnyPgTable, where: SQL): Promise<number> {
+async function rowsIn(table: AnyPgTable, where: SQL | undefined): Promise<number> {
   const [row] = await db.select({ total: count() }).from(table).where(where);
   return row?.total ?? 0;
 }
@@ -118,6 +128,36 @@ function nextMessage(userId: string, type: UserStreamMessage["type"]) {
       resolve(message);
     });
   });
+}
+
+const coursework = alias(agendaEvent, "coursework");
+
+function shadowedAnnouncement(): SQL {
+  return exists(
+    db
+      .select({ id: coursework.id })
+      .from(coursework)
+      .where(
+        and(
+          eq(agendaEvent.source, "announcement"),
+          eq(coursework.source, "coursework"),
+          isNull(coursework.deletedAt),
+          isNull(coursework.withdrawnAt),
+          eq(coursework.childId, agendaEvent.childId),
+          eq(coursework.courseId, agendaEvent.courseId),
+          eq(coursework.deadlineDate, agendaEvent.deadlineDate),
+        ),
+      ),
+  );
+}
+
+async function pendingAlertsOn(userId: string, where: SQL | undefined): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(alert)
+    .innerJoin(agendaEvent, eq(agendaEvent.id, alert.eventId))
+    .where(and(eq(alert.userId, userId), eq(alert.status, "pending"), where));
+  return row?.total ?? 0;
 }
 
 async function syncDue(at: Date): Promise<boolean> {
@@ -189,6 +229,73 @@ run(async () => {
       !afterEdits.some((event) => event.title === fractions.title) &&
       afterEdits.find((event) => event.id === quiz.id)?.title === "Quiz unité 4, relu",
     afterEdits.filter((event) => event.source === "coursework").map(({ title }) => title),
+  );
+
+  const planned = {
+    pending: await pendingAlertsOn(family.userId, sql`true`),
+    upcomingLive: await rowsIn(
+      agendaEvent,
+      and(
+        eq(agendaEvent.userId, family.userId),
+        isNull(agendaEvent.deletedAt),
+        isNull(agendaEvent.withdrawnAt),
+        sql`${agendaEvent.deadlineAt} > now() + interval '3 days'`,
+      ),
+    ),
+    shadowedAnnouncements: await rowsIn(
+      agendaEvent,
+      and(eq(agendaEvent.userId, family.userId), shadowedAnnouncement()),
+    ),
+    onShadowed: await pendingAlertsOn(family.userId, shadowedAnnouncement()),
+    onRemoved: await pendingAlertsOn(
+      family.userId,
+      or(isNotNull(agendaEvent.deletedAt), isNotNull(agendaEvent.withdrawnAt)),
+    ),
+  };
+  await step(
+    "the sync plans default alerts, none on a deadline a coursework shadows or the parent deleted",
+    planned.pending > 0 &&
+      planned.shadowedAnnouncements > 0 &&
+      planned.onShadowed === 0 &&
+      planned.onRemoved === 0,
+    planned,
+  );
+
+  const subscribed = await call("/push/subscriptions", "POST", {
+    endpoint: `https://fcm.googleapis.com/fcm/send/${probe}`,
+    keys: { p256dh: "demo-p256dh", auth: "demo-auth" },
+  });
+  const [due] = await db
+    .select({ id: alert.id })
+    .from(alert)
+    .where(and(eq(alert.userId, family.userId), eq(alert.status, "pending")))
+    .limit(1);
+  if (!due) throw new Error("no pending alert to dispatch");
+  await db
+    .update(alert)
+    .set({ dueAt: new Date(Date.now() - 60_000) })
+    .where(eq(alert.id, due.id));
+  const firstRun = await di.AlertDispatchService.runOnce(new Date());
+  const secondRun = await di.AlertDispatchService.runOnce(new Date());
+  const topic = due.id.replaceAll("-", "");
+  const [dispatched] = await db
+    .select({ status: alert.status })
+    .from(alert)
+    .where(eq(alert.id, due.id));
+  await step(
+    "a due alert reaches the parent's push subscription once, without an email",
+    subscribed.status === 204 &&
+      fakes.pushed().filter((push) => push.topic === topic).length === 1 &&
+      dispatched?.status === "sent" &&
+      firstRun.isSuccess &&
+      firstRun.getValue().emailed === 0 &&
+      secondRun.isSuccess &&
+      secondRun.getValue().sent === 0,
+    {
+      subscribed: subscribed.status,
+      dispatched,
+      first: firstRun.isSuccess ? firstRun.getValue() : firstRun.getError(),
+    },
   );
 
   await di.NotificationStreamHub.start();
@@ -273,6 +380,9 @@ run(async () => {
     children: await rowsIn(childAccount, eq(childAccount.userId, family.userId)),
     events: await rowsIn(agendaEvent, eq(agendaEvent.userId, family.userId)),
     seen: await rowsIn(seenAnnouncement, inArray(seenAnnouncement.childId, childIds)),
+    alerts: await rowsIn(alert, eq(alert.userId, family.userId)),
+    deliveries: await rowsIn(alertDelivery, eq(alertDelivery.alertId, due.id)),
+    pushSubscriptions: await rowsIn(pushSubscription, eq(pushSubscription.userId, family.userId)),
     accounts: await rowsIn(authSchema.account, eq(authSchema.account.userId, family.userId)),
     sessions: await rowsIn(authSchema.session, eq(authSchema.session.userId, family.userId)),
     users: await rowsIn(authSchema.user, eq(authSchema.user.id, family.userId)),

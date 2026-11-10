@@ -67,28 +67,6 @@
         "eval/*.ts"
       ],
       "project": ["**/*.ts"]
-    },
-    "modules/alerts": {
-      "entry": [
-        "src/*.module.ts",
-        "src/infrastructure/http/*.routes.ts",
-        "scripts/check-*.ts",
-        "eval/*.ts"
-      ],
-      "project": ["**/*.ts"],
-      // Pre-installed by T3 for the alerts module (T8), composed after its merge: drop a name
-      // once modules/alerts imports it, knip then prints "Remove from ignoreDependencies".
-      "ignoreDependencies": [
-        "@packages/email",
-        "@packages/events",
-        "@packages/http",
-        "@packages/outbox",
-        "@types/web-push",
-        "drizzle-orm",
-        "hono",
-        "web-push",
-        "zod"
-      ]
     }
   },
   "ignoreBinaries": ["src/index.ts"],

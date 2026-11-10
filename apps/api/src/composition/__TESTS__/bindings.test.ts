@@ -4,6 +4,7 @@ import type { AgendaError } from "@modules/agenda/application/ports/event-reposi
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
 import {
+  alertPlannerFor,
   announcementExtractorFor,
   childAccessTokensFor,
   childConnectionsFor,
@@ -580,5 +581,46 @@ describe("rgpd IChildConnections bound to children", () => {
     });
 
     expect((await connections.revokeAll(FAMILY_A)).getError().code).toBe("CHILD_PROVIDER_FAILURE");
+  });
+});
+
+describe("agenda IAlertPlanner bound to alerts", () => {
+  it("resolves the planning service only when agenda calls it, then forwards each call", async () => {
+    const calls: unknown[] = [];
+    let resolved = 0;
+    const planner = alertPlannerFor(() => {
+      resolved += 1;
+      return {
+        planDefault: async (event) => {
+          calls.push(["planDefault", event]);
+          return Result.ok();
+        },
+        replan: async (event) => {
+          calls.push(["replan", event]);
+          return Result.ok();
+        },
+        cancel: async (eventId, actorUserId) => {
+          calls.push(["cancel", eventId, actorUserId]);
+          return Result.ok();
+        },
+      };
+    });
+    const deadline = {
+      eventId: "event-1",
+      userId: FAMILY_A,
+      deadlineDate: "2026-11-19",
+      actorUserId: null,
+    };
+
+    expect(resolved).toBe(0);
+    await planner.planDefault(deadline);
+    await planner.replan({ ...deadline, actorUserId: FAMILY_A });
+    await planner.cancel("event-1", FAMILY_A);
+
+    expect(calls).toEqual([
+      ["planDefault", { eventId: "event-1", userId: FAMILY_A, actorUserId: null }],
+      ["replan", { eventId: "event-1", userId: FAMILY_A, actorUserId: FAMILY_A }],
+      ["cancel", "event-1", FAMILY_A],
+    ]);
   });
 });

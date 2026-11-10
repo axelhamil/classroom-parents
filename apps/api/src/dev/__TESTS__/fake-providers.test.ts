@@ -122,3 +122,23 @@ describe("fake extractor", () => {
     expect(extracted.getValue()).toEqual([]);
   });
 });
+
+describe("fake push sink", () => {
+  it("accepts every push and keeps it for the checks to read", async () => {
+    const fakes = providers();
+    const target = { endpoint: "https://fcm.googleapis.com/fcm/send/demo", p256dh: "k", auth: "a" };
+    const payload = {
+      web_push: 8030 as const,
+      notification: { title: "Contrôle", body: "jeudi", navigate: "https://app/events/1" },
+    };
+
+    const sent = await fakes.push.send(target, payload, {
+      urgency: "high",
+      ttlSeconds: 7200,
+      topic: "alert1",
+    });
+
+    expect(sent.isSuccess).toBe(true);
+    expect(fakes.pushed()).toEqual([{ endpoint: target.endpoint, payload, topic: "alert1" }]);
+  });
+});

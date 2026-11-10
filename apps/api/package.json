@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@modules/agenda": "workspace:*",
+    "@modules/alerts": "workspace:*",
     "@modules/children": "workspace:*",
     "@modules/classroom-sync": "workspace:*",
     "@modules/extraction": "workspace:*",

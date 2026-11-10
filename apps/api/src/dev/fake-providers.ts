@@ -1,3 +1,4 @@
+import type { IPushSender, PushPayload } from "@modules/alerts/application/ports/push-sender.port";
 import type { IGoogleOAuthClient } from "@modules/children/application/ports/google-oauth-client.port";
 import type { IAnnouncementExtractor } from "@modules/classroom-sync/application/ports/announcement-extractor.port";
 import type {
@@ -56,8 +57,15 @@ function courseOf(courseId: string) {
   return DATASET_COURSES.find((course) => course.id === courseId);
 }
 
+export interface FakePush {
+  endpoint: string;
+  payload: PushPayload;
+  topic: string;
+}
+
 export function fakeProviders(clock: () => Date = () => new Date()) {
   const blocked = new Set<DatasetChildKey>();
+  const pushes: FakePush[] = [];
 
   const reader = (token: string): Result<DatasetChildKey, ClassroomError> => {
     const key = childKeyOf(token, ACCESS_PREFIX);
@@ -172,10 +180,19 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
     },
   };
 
+  const push: IPushSender = {
+    send: async (target, payload, options) => {
+      pushes.push({ endpoint: target.endpoint, payload, topic: options.topic });
+      return Result.ok();
+    },
+  };
+
   return {
     googleOAuth,
     classroom,
     extractor,
+    push,
+    pushed: (): readonly FakePush[] => pushes,
     refreshTokenOf: demoRefreshToken,
     blockSchool: (key: DatasetChildKey) => blocked.add(key),
     unblockSchool: (key: DatasetChildKey) => blocked.delete(key),

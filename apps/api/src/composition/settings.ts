@@ -1,3 +1,4 @@
+import type { AlertsSettings } from "@modules/alerts/application/config/alerts-settings";
 import type { ChildrenSettings } from "@modules/children/application/config/children-settings";
 import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { defineModule } from "inwire";
@@ -14,6 +15,10 @@ type SettingsSource = Pick<
   | "GOOGLE_CLIENT_ID"
   | "GOOGLE_CLIENT_SECRET"
   | "ANTHROPIC_API_KEY"
+  | "VAPID_PUBLIC_KEY"
+  | "VAPID_PRIVATE_KEY"
+  | "VAPID_SUBJECT"
+  | "RESEND_FROM"
 >;
 
 export const apiSettings = (source: SettingsSource) => {
@@ -29,6 +34,12 @@ export const apiSettings = (source: SettingsSource) => {
     googleClientId: source.GOOGLE_CLIENT_ID,
     googleClientSecret: source.GOOGLE_CLIENT_SECRET,
   };
+  const alertsSettings: AlertsSettings = {
+    vapidPublicKey: source.VAPID_PUBLIC_KEY ?? "",
+    vapidPrivateKey: source.VAPID_PRIVATE_KEY ?? "",
+    vapidSubject: source.VAPID_SUBJECT ?? "",
+    emailFrom: source.RESEND_FROM ?? "",
+  };
   const extractionSettings = {
     anthropicApiKey: source.ANTHROPIC_API_KEY ?? "",
   };
@@ -37,6 +48,7 @@ export const apiSettings = (source: SettingsSource) => {
     b
       .add("rgpdSettings", (): RgpdSettings => rgpdSettings)
       .add("childrenSettings", (): ChildrenSettings => childrenSettings)
-      .add("extractionSettings", () => extractionSettings),
+      .add("extractionSettings", () => extractionSettings)
+      .add("alertsSettings", (): AlertsSettings => alertsSettings),
   );
 };
