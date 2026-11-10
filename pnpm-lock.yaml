@@ -648,6 +648,9 @@ importers:
       '@packages/drizzle':
         specifier: workspace:*
         version: link:../../packages/drizzle
+      '@packages/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       inwire:
         specifier: ^4.0.1
         version: 4.0.1

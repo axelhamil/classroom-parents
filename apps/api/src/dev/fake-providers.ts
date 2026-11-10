@@ -13,15 +13,9 @@ import {
   type DatasetChildKey,
 } from "@modules/extraction/eval/classroom-dataset";
 import { Option, Result } from "@packages/ddd-kit";
+import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
 import { requireLocalDatabase } from "@packages/test/db-check";
-import {
-  datasetShiftDays,
-  daysBetween,
-  demoChild,
-  demoRefreshToken,
-  shiftDate,
-  shiftInstant,
-} from "./demo-dataset";
+import { datasetShiftDays, daysBetween, demoChild, demoRefreshToken } from "./demo-dataset";
 
 const ACCESS_PREFIX = "fake-access:";
 const ACCESS_TTL_MS = 60 * 60_000;

@@ -10,6 +10,7 @@ import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-email-retention", process.env.DATABASE_URL);
 
+import { shiftInstant } from "@packages/ddd-kit/days";
 import {
   db,
   emailSchema,
@@ -31,14 +32,13 @@ import {
 } from "../src/workers/retention";
 
 const probe = `check-email-retention-${crypto.randomUUID()}`;
-const DAY_MS = 86_400_000;
 const instrumentation = new NoOpInstrumentation();
 const uow = new TransactionService(instrumentation, async () => {});
 const { emailMessage } = emailSchema;
 const { outboxEvent } = outboxSchema;
 
 function email(suffix: string, status: "sent" | "pending" | "failed" | "dead", ageDays: number) {
-  const at = new Date(Date.now() - ageDays * DAY_MS);
+  const at = shiftInstant(new Date(), -ageDays);
 
   return {
     id: `${probe}-${suffix}`,
@@ -61,7 +61,7 @@ async function remaining(): Promise<string[]> {
 }
 
 function outboxRow(suffix: string, state: "delivered" | "dead" | "pending", ageDays: number) {
-  const at = new Date(Date.now() - ageDays * DAY_MS);
+  const at = shiftInstant(new Date(), -ageDays);
 
   return {
     id: `${probe}-${suffix}`,

@@ -1,3 +1,4 @@
+import { DAY_MS } from "@packages/ddd-kit/days";
 import type { ReviewReason } from "../../domain/extracted-event";
 import type { ExtractedCandidate } from "./extraction-output.schema";
 import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
@@ -8,7 +9,6 @@ export interface CheckContext {
 }
 
 const MAX_DAYS_AHEAD = 400;
-const DAY_MS = 86_400_000;
 const HOLIDAY_WORDS = /\b(?:vacances|rentree|conges|toussaint|noel|paques)\b/;
 const ROLLED_FROM_PAST_WINDOW_DAYS = 30;
 const WRITTEN_DAY = new RegExp(

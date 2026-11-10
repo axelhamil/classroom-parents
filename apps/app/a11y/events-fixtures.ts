@@ -1,3 +1,4 @@
+import { shiftInstant } from "@packages/ddd-kit/days";
 import type { Page, Request } from "@playwright/test";
 
 export const LEA = {
@@ -20,7 +21,7 @@ export const MAXIMILIEN = {
 };
 
 export function inDays(days: number): string {
-  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  return shiftInstant(new Date(), days).toISOString().slice(0, 10);
 }
 
 const LONG_TITLE =

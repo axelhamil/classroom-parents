@@ -1,4 +1,4 @@
-const DAY_MS = 24 * 60 * 60_000;
+import { DAY_MS } from "@packages/ddd-kit/days";
 
 export const LOOKBACK_DAYS = 60;
 export const SYNC_INTERVAL_MS = 30 * 60_000;

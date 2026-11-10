@@ -14,6 +14,7 @@ exitUnlessLocalDatabase("check-sync-db", process.env.DATABASE_URL);
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, type ILogger, Result } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import {
   and,
   authSchema,
@@ -146,7 +147,7 @@ function post(id: string): Announcement {
     id: `${probe}-${id}`,
     courseId: "course-1",
     text: `Annonce ${id}`,
-    publishedAt: new Date(NOW.getTime() - 86_400_000),
+    publishedAt: shiftInstant(NOW, -1),
     url: `https://classroom.google.com/c/course-1/p/${id}`,
   };
 }

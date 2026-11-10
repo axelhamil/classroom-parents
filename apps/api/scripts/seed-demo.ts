@@ -2,10 +2,10 @@ import { exitUnlessLocalDatabase } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("seed-demo", process.env.DATABASE_URL);
 
+import { shiftInstant } from "@packages/ddd-kit/days";
 import { makeSignature } from "better-auth/crypto";
 import { auth } from "../src/auth";
 import { di } from "../src/container";
-import { shiftInstant } from "../src/dev/demo-dataset";
 import { requireFakeProviders, seedDemoFamily } from "./demo-family";
 
 const DEMO_EMAIL = "parent.demo@example.com";

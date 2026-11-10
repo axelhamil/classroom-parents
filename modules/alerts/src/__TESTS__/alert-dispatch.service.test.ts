@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -389,7 +390,7 @@ describe("dispatch across DST (RF 1)", () => {
   ])(
     "given an alert on %s, then nothing is sent one minute early and it is sent on time",
     async (_label, date, time, dueAt) => {
-      const deadlineAt = new Date(Date.parse(dueAt) + 86_400_000);
+      const deadlineAt = shiftInstant(new Date(dueAt), 1);
       givenClaimed({ date, time, deadlineAt });
       givenDeadline({ deadlineAt });
 

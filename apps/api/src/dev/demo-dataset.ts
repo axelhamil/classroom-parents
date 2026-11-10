@@ -4,8 +4,8 @@ import {
   type DatasetChild,
   type DatasetChildKey,
 } from "@modules/extraction/eval/classroom-dataset";
+import { DAY_MS } from "@packages/ddd-kit/days";
 
-const DAY_MS = 86_400_000;
 const WEEK_DAYS = 7;
 
 function mondayOf(now: Date): number {
@@ -17,14 +17,6 @@ function mondayOf(now: Date): number {
 
 export function datasetShiftDays(now: Date): number {
   return Math.round((mondayOf(now) - Date.parse(`${DATASET_TODAY}T00:00:00Z`)) / DAY_MS);
-}
-
-export function shiftDate(isoDate: string, days: number): string {
-  return new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
-}
-
-export function shiftInstant(instant: Date, days: number): Date {
-  return new Date(instant.getTime() + days * DAY_MS);
 }
 
 export function daysBetween(from: Date, to: Date): number {

@@ -1,6 +1,7 @@
 import { createSign } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import { zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import {
   CLASS_TEMPLATE,
@@ -13,7 +14,6 @@ import {
 
 const SCHOOL_TIME_ZONE = "Europe/Paris";
 const UNTIMED_DUE = "23:59";
-const DAY_MS = 86_400_000;
 const MONDAY = 1;
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CLASSROOM_API = "https://classroom.googleapis.com/v1";
@@ -162,7 +162,7 @@ export function readConfig(
 }
 
 function dayOf(anchor: string, day: number): Date {
-  return new Date(new Date(`${anchor}T00:00:00Z`).getTime() + day * DAY_MS);
+  return shiftInstant(new Date(`${anchor}T00:00:00Z`), day);
 }
 
 function isoDay(date: Date): string {

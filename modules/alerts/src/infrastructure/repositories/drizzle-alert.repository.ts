@@ -101,11 +101,14 @@ export function alertClaimQuery(
   now: Date,
   limit: number,
   leaseSeconds: number,
+  scope?: SQL,
 ) {
   const due = db
     .select({ id: alert.id })
     .from(alert)
-    .where(and(eq(alert.status, "pending"), lte(alert.dueAt, now), isDue(alert.nextAttemptAt)))
+    .where(
+      and(eq(alert.status, "pending"), lte(alert.dueAt, now), isDue(alert.nextAttemptAt), scope),
+    )
     .orderBy(asc(alert.dueAt))
     .limit(limit)
     .for("update", { skipLocked: true });
@@ -118,7 +121,10 @@ export function alertClaimQuery(
 }
 
 export class DrizzleAlertRepository implements IAlertRepository {
-  constructor(private readonly instrumentation: IInstrumentation) {}
+  constructor(
+    private readonly instrumentation: IInstrumentation,
+    private readonly claimScope?: SQL,
+  ) {}
 
   async listOwned(userId: string, eventId: string): Promise<Result<Alert[], AlertsError>> {
     return this.selectMany("listOwned", and(eq(alert.eventId, eventId), eq(alert.userId, userId)));
@@ -203,7 +209,7 @@ export class DrizzleAlertRepository implements IAlertRepository {
       { name: "DrizzleAlertRepository > claimDue" },
       async () => {
         try {
-          const query = alertClaimQuery(exec, now, limit, leaseSeconds);
+          const query = alertClaimQuery(exec, now, limit, leaseSeconds, this.claimScope);
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),

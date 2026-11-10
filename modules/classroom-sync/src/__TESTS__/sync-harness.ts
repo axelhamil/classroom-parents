@@ -5,6 +5,7 @@ import {
   Option,
   Result,
 } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
@@ -34,7 +35,6 @@ import { SyncChildService } from "../application/services/sync-child.service";
 import type { SyncError } from "../application/sync-error";
 
 export const NOW = new Date("2026-11-09T10:00:00.000Z");
-export const DAY_MS = 24 * 60 * 60_000;
 export const CHILD = { userId: "parent-1", childId: "child-1", label: "Léa", lease: 7 };
 
 export function announcement(id: string, courseId: string, daysAgo = 2): Announcement {
@@ -42,7 +42,7 @@ export function announcement(id: string, courseId: string, daysAgo = 2): Announc
     id,
     courseId,
     text: `Annonce ${id}`,
-    publishedAt: new Date(NOW.getTime() - daysAgo * DAY_MS),
+    publishedAt: shiftInstant(NOW, -daysAgo),
     url: `https://classroom.google.com/c/${courseId}/p/${id}`,
   };
 }

@@ -1,3 +1,4 @@
+import { DAY_MS } from "@packages/ddd-kit/days";
 import type { PinoLogger } from "hono-pino";
 import { z } from "zod";
 import type { SweepSpans } from "./sweep-span";
@@ -155,7 +156,7 @@ export async function runRetentionSweep(opts: RunRetentionSweepOptions): Promise
         // run: reading `now()` again here would burn a clock tick per pass for no benefit
         // (the deadline check below is what actually protects the budget) and would let a
         // slow earlier pass drift every later pass's retention window.
-        const cutoff = new Date(startMs - pass.retentionDays * 24 * 60 * 60 * 1000);
+        const cutoff = new Date(startMs - pass.retentionDays * DAY_MS);
         const run = await opts.spans.span(
           {
             name: `sweep > ${opts.label}:${pass.label}`,

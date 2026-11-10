@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { type AppError, Result } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import type { ExtractedDeadline } from "../application/ports/announcement-extractor.port";
@@ -16,7 +17,6 @@ import {
   CHILD,
   classroomFailure,
   coursework,
-  DAY_MS,
   deadline,
   NOW,
   type SyncHarness,
@@ -94,7 +94,7 @@ describe("syncChild", () => {
         id: "a1",
         courseId: "maths",
         url: "https://classroom.google.com/c/maths/p/a1",
-        publishedAt: new Date(NOW.getTime() - 2 * DAY_MS),
+        publishedAt: shiftInstant(NOW, -2),
       },
       events: [deadline("Contrôle")],
     });
@@ -129,7 +129,7 @@ describe("syncChild", () => {
     expect(h.client.profileNames).toHaveBeenCalledTimes(1);
     expect(h.extractor.extract.mock.calls[0]?.[0]).toEqual({
       text: "Annonce a1",
-      publishedAt: new Date(NOW.getTime() - 2 * DAY_MS),
+      publishedAt: shiftInstant(NOW, -2),
       childNames: ["Lili", "Inès Martin", "Inès"],
     });
   });
@@ -275,9 +275,7 @@ describe("syncChild", () => {
 
     await h.service.syncChild(CHILD, NOW);
 
-    expect(h.client.listAnnouncements.mock.calls[0]?.[2]).toEqual(
-      new Date(NOW.getTime() - 60 * DAY_MS),
-    );
+    expect(h.client.listAnnouncements.mock.calls[0]?.[2]).toEqual(shiftInstant(NOW, -60));
   });
 
   it("skips a course the child may not read and syncs the others", async () => {

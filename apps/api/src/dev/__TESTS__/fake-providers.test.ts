@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { DATASET_ANNOUNCEMENTS } from "@modules/extraction/eval/classroom-dataset";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import { assertFakesAllowed, fakeProviders } from "../fake-providers";
 
 const LOCAL_DB = "postgres://postgres:postgres@localhost:54329/classroom_parents_demo";
@@ -98,7 +99,7 @@ describe("fake extractor", () => {
     });
     const weekLater = await fakes.extractor.extract({
       text: trip.text,
-      publishedAt: new Date(new Date(trip.publishedAt).getTime() + 7 * 86_400_000),
+      publishedAt: shiftInstant(new Date(trip.publishedAt), 7),
       childNames: [],
     });
 

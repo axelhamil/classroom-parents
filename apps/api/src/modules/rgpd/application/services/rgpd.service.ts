@@ -1,4 +1,5 @@
 import { type IInstrumentation, type ILogger, type IUnitOfWork, Result } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import type { IEmailService } from "@packages/email/email.port";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
@@ -87,9 +88,7 @@ export class RgpdService {
         const freshness = await this.ensureFreshSession(input);
         if (freshness.isFailure) return Result.fail(freshness.getError());
 
-        const until = new Date(
-          this.clock().getTime() + this.settings.gracePeriodDays * 24 * 60 * 60 * 1000,
-        );
+        const until = shiftInstant(this.clock(), this.settings.gracePeriodDays);
         const txResult = await this.transactions.run(async () => {
           const marked = await this.rgpd.markPendingDeletion(input.userId, until);
           if (marked.isFailure || !marked.getValue()) return marked;

@@ -6,6 +6,8 @@
  * reminders nor deletes its push subscription, the claim query reads alert_pending_due_idx among
  * thousands of settled alerts, the reminders migration turns legacy alerts into reminders, and a
  * phone shared by two parents belongs to the last one who subscribed it: A's alerts stop reaching it.
+ * The dispatchers claim only the alerts of the parents this run creates, so another writer on the
+ * same database (a demo seed, a second run) neither fails the counts nor gets its alerts sent.
  */
 
 import { isDeepStrictEqual } from "node:util";
@@ -14,8 +16,9 @@ import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/tes
 exitUnlessLocalDatabase("check-alert-db", process.env.DATABASE_URL);
 
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
-import { childAccount } from "@modules/children/schemas/child.schema";
+import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE, utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import {
   and,
@@ -64,7 +67,6 @@ const DUE = 200;
 const SETTLED = 5_000;
 const WORKERS = 4;
 const NOW = new Date();
-const DAY_MS = 24 * 3600 * 1000;
 const probe = `check-alert-db-${crypto.randomUUID()}`;
 const { instrumentation, spans } = spanRecorder();
 
@@ -148,7 +150,7 @@ const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const transactions = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check-alert-db" });
 });
-const alerts = new DrizzleAlertRepository(instrumentation);
+const alerts = new DrizzleAlertRepository(instrumentation, like(alert.userId, `${probe}-%`));
 const subscriptions = new DrizzlePushSubscriptionRepository(instrumentation);
 const dispatch = new AlertDispatchService(
   alerts,
@@ -188,28 +190,7 @@ const pushService = new PushSubscriptionService(
 
 async function seedFamily(name: string): Promise<{ userId: string; childId: string }> {
   const userId = `${probe}-${name}`;
-  await db.insert(authSchema.user).values({ id: userId, name, email: `${userId}@example.com` });
-  await db.insert(authSchema.account).values({
-    id: `${userId}-account`,
-    accountId: `sub-${userId}`,
-    providerId: "google-classroom",
-    userId,
-    updatedAt: NOW,
-  });
-  const inserted = await db
-    .insert(childAccount)
-    .values({
-      userId,
-      linkedAccountId: `${userId}-account`,
-      googleEmail: `${name}-child@school.example`,
-      label: `${name} child`,
-      status: "connected",
-      connectedAt: NOW,
-      nextSyncAt: NOW,
-    })
-    .returning({ id: childAccount.id });
-  const childId = inserted[0]?.id;
-  if (!childId) throw new Error(`child of ${name} not created`);
+  const childId = await seedParentWithChild({ userId, name, at: NOW, label: `${name} child` });
 
   return { userId, childId };
 }
@@ -255,7 +236,7 @@ async function seedAlerts(
   reminders: string[],
   label: string = status,
 ): Promise<string[]> {
-  const deadlineAt = new Date(NOW.getTime() + 5 * DAY_MS);
+  const deadlineAt = shiftInstant(NOW, 5);
   const ids = await seedEvents(family, count, label, deadlineAt);
   for (let offset = 0; offset < ids.length; offset += 1000) {
     const slice = ids.slice(offset, offset + 1000);
@@ -442,7 +423,7 @@ run(async () => {
     { pushes: racedPushes, status: raced?.status, attempts: raced?.attempts },
   );
 
-  const deadlineOfC = new Date(NOW.getTime() + 6 * DAY_MS);
+  const deadlineOfC = shiftInstant(NOW, 6);
   const [followingDefaults, ownReminders] = await seedEvents(c, 2, "planned", deadlineOfC);
   if (!followingDefaults || !ownReminders) throw new Error("events of c not seeded");
   const setTwo = await settings.setDefaults(c.userId, [

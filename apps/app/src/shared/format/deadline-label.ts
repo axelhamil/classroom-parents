@@ -1,9 +1,9 @@
+import { DAY_MS } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE, utcToZonedWall } from "@packages/ddd-kit/zoned-time";
 import { frCatalog, utcDay, wallDateLabel, withWallTime } from "@packages/i18n";
 import { schoolToday } from "./school-today";
 
 const LOCALE = "fr-FR";
-const DAY_MS = 86_400_000;
 const copy = frCatalog.common.deadline;
 
 function capitalize(text: string): string {
