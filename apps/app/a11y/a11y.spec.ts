@@ -38,9 +38,9 @@ for (const colorScheme of COLOR_SCHEMES) {
 test.describe("locale resolution (fr)", () => {
   test.use({ colorScheme: "light" });
 
-  test("sign-in resolves a seeded fr cookie into <html lang>", async ({ page, context }) => {
-    const target = PUBLIC_PAGES.find((p) => p.name === "sign-in");
-    if (!target) throw new Error("sign-in page missing from PUBLIC_PAGES");
+  test("login resolves a seeded fr cookie into <html lang>", async ({ page, context }) => {
+    const target = PUBLIC_PAGES.find((p) => p.name === "login");
+    if (!target) throw new Error("login page missing from PUBLIC_PAGES");
 
     await context.addCookies([
       { name: LOCALE_COOKIE, value: "fr", url: BASE_URL, sameSite: "Lax" },

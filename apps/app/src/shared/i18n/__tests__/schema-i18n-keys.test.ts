@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { frCatalog, lookupCatalogValue } from "@packages/i18n";
 import { describe, expect, it } from "vitest";
 
-const SRC = resolve(__dirname, "../../..");
+const ROOTS = [
+  resolve(__dirname, "../../.."),
+  resolve(__dirname, "../../../../../../packages/web-kit/src"),
+];
 
 /**
  * `zod-error-map.ts` resolves a custom issue with `t(issue.params.i18nKey as never)`.
@@ -16,14 +19,18 @@ function keyExists(path: string): boolean {
 }
 
 function sourceFiles(): string[] {
-  return globSync("**/*.{ts,tsx}", { cwd: SRC }).filter((f) => !f.includes("__tests__"));
+  return ROOTS.flatMap((root) =>
+    globSync("**/*.{ts,tsx}", { cwd: root })
+      .filter((f) => !f.includes("__tests__"))
+      .map((f) => resolve(root, f)),
+  );
 }
 
 describe("schema i18nKey references", () => {
   it("every i18nKey literal resolves in the errors catalog", () => {
     const unknown: string[] = [];
     for (const file of sourceFiles()) {
-      const source = readFileSync(resolve(SRC, file), "utf8");
+      const source = readFileSync(file, "utf8");
       for (const match of source.matchAll(/i18nKey:\s*"([^"]+)"/g)) {
         const key = match[1];
         if (key !== undefined && !keyExists(key)) unknown.push(`${file}: ${key}`);
@@ -35,7 +42,7 @@ describe("schema i18nKey references", () => {
   it("finds the i18nKey call sites it is meant to guard", () => {
     // A regex that silently matches nothing would make the test above pass forever.
     const found = sourceFiles().flatMap((file) => [
-      ...readFileSync(resolve(SRC, file), "utf8").matchAll(/i18nKey:\s*"([^"]+)"/g),
+      ...readFileSync(file, "utf8").matchAll(/i18nKey:\s*"([^"]+)"/g),
     ]);
     expect(found.length).toBeGreaterThanOrEqual(1);
   });

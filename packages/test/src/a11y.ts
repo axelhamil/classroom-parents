@@ -52,12 +52,6 @@ export async function audit(
   expect(await blockingViolations(page)).toEqual([]);
 }
 
-export function signInForm(page: Page): Locator {
-  return page
-    .locator("form")
-    .filter({ has: page.getByRole("button", { name: "Se connecter", exact: true }) });
-}
-
 export async function tabTo(page: Page, target: Locator, maxPresses = 20): Promise<void> {
   for (let i = 0; i < maxPresses; i++) {
     if (await target.evaluate((el) => el === document.activeElement)) return;

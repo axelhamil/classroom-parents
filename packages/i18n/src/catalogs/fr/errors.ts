@@ -1,5 +1,15 @@
 export default {
   byCode: {
+    CHILD_SCOPES_MISSING:
+      "L'accès en lecture à Classroom n'a pas été accordé. Recommencez et cochez toutes les autorisations Classroom sur la page Google.",
+    CHILD_REFRESH_TOKEN_MISSING:
+      "Google n'a pas donné d'accès durable. Retirez l'application dans le compte Google de votre enfant (Sécurité, Applications tierces), puis recommencez.",
+    CHILD_TOKEN_INVALID_GRANT: "Google ne reconnaît plus cet accès. Recommencez l'ajout du compte.",
+    CHILD_ALREADY_CONNECTED:
+      "Ce compte Google est déjà relié à l'un de vos enfants. Choisissez le compte d'un autre élève.",
+    CHILD_ACCOUNT_NOT_LINKED: "Ce compte Google n'est plus relié. Recommencez l'ajout.",
+    CHILD_ACCOUNT_SIGN_IN_FORBIDDEN:
+      "Le compte Google d'un enfant sert uniquement à lire Classroom. Connectez-vous avec votre propre compte Google.",
     ACCOUNT_EXPORT_RATE_LIMITED: "Vous pourrez demander un nouvel export dans 24 heures.",
     ACCOUNT_PASSWORD_REQUIRED: "Confirmez avec votre mot de passe.",
     ACCOUNT_DELETION_BLOCKED:
@@ -254,6 +264,17 @@ export default {
     invalidEventSelection: "Contient un événement inconnu ou non abonnable.",
   },
   fallback: {
+    signInWithGoogle: "La connexion avec Google n'a pas pu démarrer",
+    loadChildren: "Échec du chargement des enfants",
+    loadLinkConfig: "Impossible de préparer l'ajout du compte Google",
+    loadLinkableAccounts: "Échec de la vérification du compte Google",
+    loadFirstEvent: "Échec du chargement de la première échéance",
+    linkChild: "Échec de l'ajout du compte de votre enfant",
+    syncChild: "Échec du lancement de la lecture de Classroom",
+    reconnectChild: "Échec de la reconnexion du compte",
+    renameChild: "Échec de l'enregistrement du prénom",
+    disconnectChild: "Échec de la déconnexion",
+    discardLinkedAccount: "Échec du retrait du lien Google",
     acceptPolicies: "Échec de l'acceptation des politiques",
     cancelAccountDeletion: "Échec de l'annulation",
     markNotificationsRead: "Échec du marquage des notifications comme lues",

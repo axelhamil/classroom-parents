@@ -6,8 +6,7 @@ import {
   CardHeader,
 } from "@packages/ui/components/ui/card";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
-import { TextLink } from "@packages/ui/components/ui/text-link";
-import { TypographyH1, TypographyMuted } from "@packages/ui/components/ui/typography";
+import { TypographyH1 } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
 import type { ReactNode } from "react";
 import { LegalFooter } from "../../../shared/components/legal-footer";
@@ -48,19 +47,5 @@ export function AuthShell({ title, description, children, footer }: AuthShellPro
 
       <LegalFooter />
     </div>
-  );
-}
-
-interface AuthShellFooterProps {
-  lead?: string;
-  link: ReactNode;
-}
-
-export function AuthShellFooter({ lead, link }: AuthShellFooterProps) {
-  return (
-    <TypographyMuted>
-      {lead ? `${lead} ` : null}
-      <TextLink asChild>{link}</TextLink>
-    </TypographyMuted>
   );
 }

@@ -92,7 +92,7 @@ const service = new ChildConnectionService(
   transactions,
   outbox,
   instrumentation,
-  { classroomScopes: CLASSROOM_SCOPES },
+  { classroomScopes: CLASSROOM_SCOPES, googleClientId: "check-client-id" },
   () => T0,
 );
 

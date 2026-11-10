@@ -11,7 +11,7 @@ interaction checks a rule engine cannot see. Runs on every PR
   decoration: `--primary` failed there while light passed.
 - **Landmarks**: exactly one `<main>` and one `<h1>` per page. Already a
   CLAUDE.md rule; this is what makes it enforceable.
-- **Keyboard**: every `/sign-in` control is reachable in DOM order; a dialog
+- **Keyboard**: the `/login` Google button is reachable from the keyboard; a dialog (account deletion, child disconnection)
   keeps focus inside on Tab and Shift+Tab and gives it back to its trigger on
   Escape.
 - **Focus ring**: the destructive button's ring holds 3:1 against the dialog
@@ -19,7 +19,7 @@ interaction checks a rule engine cannot see. Runs on every PR
   suffix is exactly what arithmetic misjudges, see below).
 - **Mobile shell**: the bottom navigation stays inside a 390, 768 and 1440 px
   viewport with no horizontal overflow, and every section is reachable from it
-  with `aria-current="page"` on the active tab. `/login` at 390 px keeps one
+  with `aria-current="page"` on the active tab. `/login` (Google only) at 390 px keeps one
   `<main>`, one `<h1>` and no blocking violation (`shell.spec.ts`).
 - **Reduced motion**: `prefers-reduced-motion: reduce` skips the theme view
   transition entirely (asserted through a `MutationObserver`, since the

@@ -1,4 +1,4 @@
-import { COLOR_SCHEMES, signInForm, tabTo } from "@packages/test/a11y";
+import { COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { STORAGE_STATE } from "./playwright.config";
 
@@ -58,22 +58,6 @@ async function ringContrastBelow(surface: Locator, control: Locator): Promise<nu
     { png: shot.toString("base64"), column, ringRow },
   );
 }
-
-test("reaches every sign-in control in order with the keyboard", async ({ page }) => {
-  await page.goto("/sign-in");
-
-  const form = signInForm(page);
-  await tabTo(page, form.getByLabel("E-mail", { exact: true }));
-
-  await page.keyboard.press("Tab");
-  await expect(form.getByLabel("Mot de passe", { exact: true })).toBeFocused();
-
-  await page.keyboard.press("Tab");
-  await expect(form.getByRole("checkbox", { name: "Se souvenir de moi" })).toBeFocused();
-
-  await page.keyboard.press("Tab");
-  await expect(form.getByRole("button", { name: "Se connecter", exact: true })).toBeFocused();
-});
 
 test("opens an icon button tooltip on keyboard focus and closes it with Escape", async ({
   page,

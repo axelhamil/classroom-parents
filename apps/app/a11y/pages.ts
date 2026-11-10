@@ -1,8 +1,8 @@
 import type { AuditedPage } from "@packages/test/a11y";
+import { stubChildrenApi } from "./children-fixture";
 
 export const PUBLIC_PAGES: readonly AuditedPage[] = [
-  { name: "sign-in", path: "/sign-in" },
-  { name: "sign-up", path: "/sign-up" },
+  { name: "login", path: "/login" },
   { name: "data rights", path: "/legal/data-rights" },
   { name: "accessibility statement", path: "/legal/accessibility" },
   { name: "privacy policy", path: "/legal/privacy-policy" },
@@ -19,5 +19,8 @@ export const PUBLIC_PAGES: readonly AuditedPage[] = [
 export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
   { name: "events", path: "/" },
   { name: "privacy settings", path: "/settings/privacy" },
+  { name: "children, every state", path: "/children", prepare: stubChildrenApi },
+  { name: "add a child", path: "/children/new" },
+  { name: "child link refused", path: "/children/link-error", prepare: stubChildrenApi },
   { name: "not found (signed in)", path: "/no-such-page" },
 ];

@@ -116,12 +116,16 @@ export class ChildConnectionService {
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
-    private readonly settings: Pick<ChildrenSettings, "classroomScopes">,
+    private readonly settings: Pick<ChildrenSettings, "classroomScopes" | "googleClientId">,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
-  linkConfig(): { scopes: string[] } {
-    return { scopes: [...this.settings.classroomScopes] };
+  linkConfig(): { providerId: string; scopes: string[]; clientId: string } {
+    return {
+      providerId: CHILD_PROVIDER_ID,
+      scopes: [...this.settings.classroomScopes],
+      clientId: this.settings.googleClientId,
+    };
   }
 
   async list(userId: string): Promise<Result<ChildDto[], ChildrenError>> {

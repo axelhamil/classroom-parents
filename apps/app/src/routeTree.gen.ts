@@ -11,10 +11,7 @@
 import { Route as rootRouteImport } from './router/__root'
 import { Route as routerGuestRouteImport } from './router/_guest'
 import { Route as routerProtectedRouteImport } from './router/_protected'
-import { Route as featuresAuthVerifyEmailDotrouteRouteImport } from './features/auth/verify-email.route'
 import { Route as featuresAuthLoginDotrouteRouteImport } from './features/auth/login.route'
-import { Route as featuresAuthSignInDotrouteRouteImport } from './features/auth/sign-in.route'
-import { Route as featuresAuthSignUpDotrouteRouteImport } from './features/auth/sign-up.route'
 import { Route as routerShellRouteImport } from './router/_shell'
 import { Route as featuresLegalAccessibilityDotrouteRouteImport } from './features/legal/accessibility.route'
 import { Route as featuresLegalCookiesDotrouteRouteImport } from './features/legal/cookies.route'
@@ -40,28 +37,10 @@ const routerProtectedRoute = routerProtectedRouteImport.update({
   id: '/_protected',
   getParentRoute: () => rootRouteImport,
 } as any)
-const featuresAuthVerifyEmailDotrouteRoute =
-  featuresAuthVerifyEmailDotrouteRouteImport.update({
-    id: '/verify-email',
-    path: '/verify-email',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const featuresAuthLoginDotrouteRoute =
   featuresAuthLoginDotrouteRouteImport.update({
     id: '/login',
     path: '/login',
-    getParentRoute: () => routerGuestRoute,
-  } as any)
-const featuresAuthSignInDotrouteRoute =
-  featuresAuthSignInDotrouteRouteImport.update({
-    id: '/sign-in',
-    path: '/sign-in',
-    getParentRoute: () => routerGuestRoute,
-  } as any)
-const featuresAuthSignUpDotrouteRoute =
-  featuresAuthSignUpDotrouteRouteImport.update({
-    id: '/sign-up',
-    path: '/sign-up',
     getParentRoute: () => routerGuestRoute,
   } as any)
 const routerShellRoute = routerShellRouteImport.update({
@@ -160,11 +139,8 @@ const featuresEventsEventEditDotrouteRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/verify-email': typeof featuresAuthVerifyEmailDotrouteRoute
   '/': typeof featuresEventsEventsDotrouteRoute
   '/login': typeof featuresAuthLoginDotrouteRoute
-  '/sign-in': typeof featuresAuthSignInDotrouteRoute
-  '/sign-up': typeof featuresAuthSignUpDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -181,11 +157,8 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRoutesByTo {
-  '/verify-email': typeof featuresAuthVerifyEmailDotrouteRoute
   '/': typeof featuresEventsEventsDotrouteRoute
   '/login': typeof featuresAuthLoginDotrouteRoute
-  '/sign-in': typeof featuresAuthSignInDotrouteRoute
-  '/sign-up': typeof featuresAuthSignUpDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -203,12 +176,9 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/verify-email': typeof featuresAuthVerifyEmailDotrouteRoute
   '/_guest': typeof routerGuestRouteWithChildren
   '/_protected': typeof routerProtectedRouteWithChildren
   '/_guest/login': typeof featuresAuthLoginDotrouteRoute
-  '/_guest/sign-in': typeof featuresAuthSignInDotrouteRoute
-  '/_guest/sign-up': typeof featuresAuthSignUpDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -229,11 +199,8 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/verify-email'
     | '/'
     | '/login'
-    | '/sign-in'
-    | '/sign-up'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -250,11 +217,8 @@ export interface FileRouteTypes {
     | '/events/$eventId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/verify-email'
     | '/'
     | '/login'
-    | '/sign-in'
-    | '/sign-up'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -271,12 +235,9 @@ export interface FileRouteTypes {
     | '/events/$eventId/edit'
   id:
     | '__root__'
-    | '/verify-email'
     | '/_guest'
     | '/_protected'
     | '/_guest/login'
-    | '/_guest/sign-in'
-    | '/_guest/sign-up'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -296,7 +257,6 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  featuresAuthVerifyEmailDotrouteRoute: typeof featuresAuthVerifyEmailDotrouteRoute
   routerGuestRoute: typeof routerGuestRouteWithChildren
   routerProtectedRoute: typeof routerProtectedRouteWithChildren
   featuresLegalAccessibilityDotrouteRoute: typeof featuresLegalAccessibilityDotrouteRoute
@@ -323,32 +283,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof routerProtectedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/verify-email': {
-      id: '/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof featuresAuthVerifyEmailDotrouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_guest/login': {
       id: '/_guest/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof featuresAuthLoginDotrouteRouteImport
-      parentRoute: typeof routerGuestRoute
-    }
-    '/_guest/sign-in': {
-      id: '/_guest/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof featuresAuthSignInDotrouteRouteImport
-      parentRoute: typeof routerGuestRoute
-    }
-    '/_guest/sign-up': {
-      id: '/_guest/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof featuresAuthSignUpDotrouteRouteImport
       parentRoute: typeof routerGuestRoute
     }
     '/_protected/_shell': {
@@ -468,14 +407,10 @@ declare module '@tanstack/react-router' {
 
 interface routerGuestRouteChildren {
   featuresAuthLoginDotrouteRoute: typeof featuresAuthLoginDotrouteRoute
-  featuresAuthSignInDotrouteRoute: typeof featuresAuthSignInDotrouteRoute
-  featuresAuthSignUpDotrouteRoute: typeof featuresAuthSignUpDotrouteRoute
 }
 
 const routerGuestRouteChildren: routerGuestRouteChildren = {
   featuresAuthLoginDotrouteRoute: featuresAuthLoginDotrouteRoute,
-  featuresAuthSignInDotrouteRoute: featuresAuthSignInDotrouteRoute,
-  featuresAuthSignUpDotrouteRoute: featuresAuthSignUpDotrouteRoute,
 }
 
 const routerGuestRouteWithChildren = routerGuestRoute._addFileChildren(
@@ -525,7 +460,6 @@ const routerProtectedRouteWithChildren = routerProtectedRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  featuresAuthVerifyEmailDotrouteRoute: featuresAuthVerifyEmailDotrouteRoute,
   routerGuestRoute: routerGuestRouteWithChildren,
   routerProtectedRoute: routerProtectedRouteWithChildren,
   featuresLegalAccessibilityDotrouteRoute:

@@ -42,6 +42,7 @@ import { GoogleEmail } from "../domain/value-objects/google-email.vo";
 
 const NOW = new Date("2026-11-09T10:00:00.000Z");
 const PARENT = "parent-1";
+const CLIENT_ID = "school-client.apps.googleusercontent.com";
 const LINKED = "account-1";
 
 function linkedAccount(overrides: Partial<LinkedGoogleAccount> = {}): LinkedGoogleAccount {
@@ -142,9 +143,19 @@ beforeEach(() => {
     uow.unitOfWork,
     outbox,
     instrumentation,
-    { classroomScopes: CLASSROOM_SCOPES },
+    { classroomScopes: CLASSROOM_SCOPES, googleClientId: CLIENT_ID },
     () => NOW,
   );
+});
+
+describe("linkConfig", () => {
+  it("given the app settings, then it serves the link provider, the Classroom scopes and the OAuth client id a school allows", () => {
+    expect(service.linkConfig()).toEqual({
+      providerId: "google-classroom",
+      scopes: [...CLASSROOM_SCOPES],
+      clientId: CLIENT_ID,
+    });
+  });
 });
 
 describe("register", () => {

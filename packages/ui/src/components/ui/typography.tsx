@@ -204,6 +204,16 @@ function TypographyList({ className, ...props }: React.ComponentProps<"ul">) {
   );
 }
 
+function TypographyOrderedList({ className, ...props }: React.ComponentProps<"ol">) {
+  return (
+    <ol
+      data-slot="typography-ordered-list"
+      className={cn("ml-6 list-decimal [&>li]:mt-2", className)}
+      {...props}
+    />
+  );
+}
+
 export {
   TypographyBlockquote,
   TypographyH1,
@@ -216,6 +226,7 @@ export {
   TypographyLead,
   TypographyList,
   TypographyMuted,
+  TypographyOrderedList,
   TypographyP,
   TypographySmall,
 };

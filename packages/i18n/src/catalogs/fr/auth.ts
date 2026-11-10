@@ -4,6 +4,10 @@ export default {
     promise: "Je ne rate plus aucune échéance scolaire.",
     readOnly:
       "Lecture seule : l'application lit les annonces de la classe et n'écrit jamais dans Classroom.",
+    google: "Se connecter avec Google",
+    pending: "Ouverture de Google…",
+    failed: "La connexion avec Google n'a pas pu démarrer. Réessayez.",
+    ownAccount: "Utilisez votre propre compte Google. Ceux de vos enfants s'ajoutent ensuite.",
   },
   signIn: {
     submit: "Se connecter",
