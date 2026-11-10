@@ -192,6 +192,9 @@ importers:
       '@modules/extraction':
         specifier: workspace:*
         version: link:modules/extraction
+      '@packages/ddd-kit':
+        specifier: workspace:*
+        version: link:packages/ddd-kit
       '@packages/typescript-config':
         specifier: workspace:*
         version: link:packages/typescript-config
