@@ -1,4 +1,10 @@
-import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
+import {
+  type AppError,
+  type IInstrumentation,
+  type ILogger,
+  Option,
+  Result,
+} from "@packages/ddd-kit";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
@@ -79,6 +85,7 @@ export interface SyncHarness {
   ledger: PortMock<ISeenAnnouncementRepository>;
   outbox: PortMock<IOutboxRepository>;
   logger: PortMock<ILogger>;
+  instrumentation: PortMock<IInstrumentation>;
   uow: UnitOfWorkMock;
   sleeps: number[];
   service: SyncChildService;
@@ -96,6 +103,7 @@ export function syncHarness(): SyncHarness {
   const ledger = mockPort<ISeenAnnouncementRepository>();
   const outbox = mockPort<IOutboxRepository>();
   const logger = mockPort<ILogger>();
+  const instrumentation = mockInstrumentation();
   const uow = mockUnitOfWork();
   const sleeps: number[] = [];
 
@@ -104,6 +112,7 @@ export function syncHarness(): SyncHarness {
   client.listAnnouncements.mockResolvedValue(Result.ok<Announcement[], ClassroomError>([]));
   client.listCoursework.mockResolvedValue(Result.ok<Coursework[], ClassroomError>([]));
   client.listTurnedIn.mockResolvedValue(Result.ok<string[], ClassroomError>([]));
+  client.profileNames.mockResolvedValue(Result.ok<string[], ClassroomError>([]));
   extractor.extract.mockResolvedValue(Result.ok<ExtractedDeadline[], AppError>([]));
   ingest.ingest.mockImplementation(async ({ events }) =>
     Result.ok<{ created: number }, AppError>({ created: events.length }),
@@ -131,7 +140,7 @@ export function syncHarness(): SyncHarness {
     ledger,
     uow.unitOfWork,
     outbox,
-    mockInstrumentation(),
+    instrumentation,
     logger,
     async (ms) => {
       sleeps.push(ms);
@@ -147,6 +156,7 @@ export function syncHarness(): SyncHarness {
     ledger,
     outbox,
     logger,
+    instrumentation,
     uow,
     sleeps,
     service,

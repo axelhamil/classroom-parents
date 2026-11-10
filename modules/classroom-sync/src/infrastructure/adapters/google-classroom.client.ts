@@ -13,12 +13,13 @@ import type {
 } from "../../application/ports/classroom-client.port";
 
 const API_URL = "https://classroom.googleapis.com/v1";
+const USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
 const TIMEOUT_MS = 15_000;
 const COURSE_PAGE_SIZE = "100";
 const ANNOUNCEMENT_PAGE_SIZE = "50";
 const COURSEWORK_PAGE_SIZE = "100";
 const MAX_PAGES = 20;
-const ACCESS_NOT_CONFIGURED = "accessNotConfigured";
+const SERVICE_DISABLED_REASONS = new Set(["accessNotConfigured", "SERVICE_DISABLED"]);
 const SCOPE_INSUFFICIENT = "ACCESS_TOKEN_SCOPE_INSUFFICIENT";
 const CLASSROOM_DISABLED = "@ClassroomApiDisabled";
 const RATE_LIMIT_REASONS = new Set(["rateLimitExceeded", "userRateLimitExceeded"]);
@@ -71,6 +72,11 @@ const courseworkPage = z.object({
   nextPageToken: z.string().optional(),
 });
 
+const userInfo = z.object({
+  name: z.string().optional(),
+  given_name: z.string().optional(),
+});
+
 const submissionsPage = z.object({
   studentSubmissions: z.array(z.object({ courseWorkId: z.string().min(1) })).optional(),
   nextPageToken: z.string().optional(),
@@ -121,6 +127,8 @@ const MESSAGES: Record<ClassroomErrorCode, string> = {
   CLASSROOM_PERMISSION_DENIED: "Classroom refuse la lecture de ce cours.",
   CLASSROOM_SCOPE_MISSING: "Le compte Google n'a pas accordé toutes les autorisations Classroom.",
   CLASSROOM_ACCESS_NOT_CONFIGURED: "L'école n'autorise pas cette application à lire Classroom.",
+  CLASSROOM_SERVICE_DISABLED:
+    "L'API Classroom n'est pas activée pour cette application, l'équipe est prévenue.",
   CLASSROOM_RATE_LIMITED: "Classroom limite le nombre de lectures, nouvel essai plus tard.",
   CLASSROOM_READ_STOPPED:
     "La lecture Classroom a été interrompue, la synchronisation est reprise ailleurs.",
@@ -143,11 +151,10 @@ function refusalCode(status: number, body: unknown): ClassroomErrorCode {
   const error = parsed.success ? parsed.data.error : {};
   const reasons = [...(error.errors ?? []), ...(error.details ?? [])].map(({ reason }) => reason);
 
-  if (
-    reasons.includes(ACCESS_NOT_CONFIGURED) ||
-    (error.message ?? "").startsWith(CLASSROOM_DISABLED)
-  )
+  if ((error.message ?? "").startsWith(CLASSROOM_DISABLED))
     return "CLASSROOM_ACCESS_NOT_CONFIGURED";
+  if (reasons.some((reason) => SERVICE_DISABLED_REASONS.has(reason ?? "")))
+    return "CLASSROOM_SERVICE_DISABLED";
   if (status === 429 || reasons.some((reason) => RATE_LIMIT_REASONS.has(reason ?? "")))
     return "CLASSROOM_RATE_LIMITED";
   if (reasons.includes(SCOPE_INSUFFICIENT)) return "CLASSROOM_SCOPE_MISSING";
@@ -245,6 +252,19 @@ export class GoogleClassroomClient implements IClassroomClient {
     );
   }
 
+  async profileNames(accessToken: string): Promise<Result<string[], ClassroomError>> {
+    return this.instrumentation.startSpan(
+      { name: "GoogleClassroomClient > profileNames" },
+      async () => {
+        const read = await this.page(accessToken, USERINFO_URL, userInfo, {});
+
+        return read.map(({ name, given_name }) =>
+          [name, given_name].flatMap((value) => (value?.trim() ? [value.trim()] : [])),
+        );
+      },
+    );
+  }
+
   private async collect<P extends { nextPageToken?: string }, R>(
     { accessToken, scope, listing }: Listing,
     path: string,
@@ -261,7 +281,10 @@ export class GoogleClassroomClient implements IClassroomClient {
       }
       if (!(await scope.mayContinue())) return failure("CLASSROOM_READ_STOPPED");
 
-      const read = await this.page(accessToken, path, schema, { ...query, pageToken });
+      const read = await this.page(accessToken, `${API_URL}${path}`, schema, {
+        ...query,
+        pageToken,
+      });
       if (read.isFailure) return Result.fail(read.getError());
 
       const body = read.getValue();
@@ -275,11 +298,11 @@ export class GoogleClassroomClient implements IClassroomClient {
 
   private async page<T>(
     accessToken: string,
-    path: string,
+    endpoint: string,
     schema: z.ZodType<T>,
     query: Query,
   ): Promise<Result<T, ClassroomError>> {
-    const url = new URL(`${API_URL}${path}`);
+    const url = new URL(endpoint);
     for (const [key, value] of Object.entries(query)) {
       for (const item of [value].flat()) {
         if (item !== "") url.searchParams.append(key, item);

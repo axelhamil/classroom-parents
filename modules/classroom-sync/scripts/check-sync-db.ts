@@ -12,6 +12,7 @@ import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/tes
 exitUnlessLocalDatabase("check-sync-db", process.env.DATABASE_URL);
 
 import { childAccount } from "@modules/children/schemas/child.schema";
+import { seedChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, type ILogger, Result } from "@packages/ddd-kit";
 import {
   and,
@@ -60,6 +61,7 @@ const classroom: IClassroomClient = {
     Result.ok<Announcement[], ClassroomError>(posts.get(token) ?? []),
   listCoursework: async () => Result.ok([]),
   listTurnedIn: async () => Result.ok([]),
+  profileNames: async () => Result.ok([]),
 };
 
 const extractor: IAnnouncementExtractor = {
@@ -150,30 +152,9 @@ function post(id: string): Announcement {
 async function family(name: string): Promise<{ userId: string; childId: string }> {
   const userId = `${probe}-${name}`;
   await db.insert(authSchema.user).values({ id: userId, name, email: `${userId}@example.com` });
-  const accountId = `${userId}-account`;
-  await db.insert(authSchema.account).values({
-    id: accountId,
-    accountId: `sub-${accountId}`,
-    providerId: "google-classroom",
-    userId,
-    updatedAt: NOW,
-  });
-  const [child] = await db
-    .insert(childAccount)
-    .values({
-      userId,
-      linkedAccountId: accountId,
-      googleEmail: `${name}@school.example`,
-      label: name,
-      status: "connected",
-      connectedAt: NOW,
-      nextSyncAt: NOW,
-      syncLease: 1,
-    })
-    .returning({ id: childAccount.id });
-  if (!child) throw new Error("child not seeded");
+  const childId = await seedChild({ userId, name, at: NOW, syncLease: 1 });
 
-  return { userId, childId: child.id };
+  return { userId, childId };
 }
 
 async function ledgerOf(childId: string) {

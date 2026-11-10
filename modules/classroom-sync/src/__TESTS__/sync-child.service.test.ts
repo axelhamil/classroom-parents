@@ -31,13 +31,21 @@ beforeEach(() => {
   h = syncHarness();
 });
 
-function extractorAnswers(byText: Record<string, ExtractedDeadline[] | "fails">): void {
+type ExtractorAnswer = ExtractedDeadline[] | "invalid" | "down" | "rate_limited";
+
+const EXTRACTOR_FAILURES = {
+  invalid: "EXTRACTION_OUTPUT_INVALID",
+  down: "EXTRACTION_PROVIDER_FAILURE",
+  rate_limited: "EXTRACTION_RATE_LIMITED",
+} as const;
+
+function extractorAnswers(byText: Record<string, ExtractorAnswer>): void {
   h.extractor.extract.mockImplementation(async ({ text }) => {
     const answer = byText[text] ?? [];
-    if (answer === "fails")
+    if (typeof answer === "string")
       return Result.fail<ExtractedDeadline[], AppError>({
-        code: "EXTRACTION_PROVIDER_FAILURE",
-        message: "model down",
+        code: EXTRACTOR_FAILURES[answer],
+        message: answer,
       });
     return Result.ok<ExtractedDeadline[], AppError>(answer);
   });
@@ -110,16 +118,41 @@ describe("syncChild", () => {
     ]);
   });
 
-  it("hands the child's name to the extractor so it can be masked", async () => {
-    h.givenCourses({ maths: [announcement("a1", "maths")] });
+  it("hands the label and the real Google names of the child to the extractor so all are masked", async () => {
+    h.givenCourses({ maths: [announcement("a1", "maths"), announcement("a2", "maths")] });
+    h.client.profileNames.mockResolvedValue(
+      Result.ok<string[], ClassroomError>(["Inès Martin", "Inès"]),
+    );
 
-    await h.service.syncChild(CHILD, NOW);
+    await h.service.syncChild({ ...CHILD, label: "Lili" }, NOW);
 
+    expect(h.client.profileNames).toHaveBeenCalledTimes(1);
     expect(h.extractor.extract.mock.calls[0]?.[0]).toEqual({
       text: "Annonce a1",
       publishedAt: new Date(NOW.getTime() - 2 * DAY_MS),
-      childName: "Léa",
+      childNames: ["Lili", "Inès Martin", "Inès"],
     });
+  });
+
+  it("reads no Google profile when no announcement needs the model", async () => {
+    h.givenCourses({ maths: [] });
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.client.profileNames).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing to the model and spends no attempt when the child's real names cannot be read", async () => {
+    h.givenCourses({ maths: [announcement("a1", "maths")] });
+    h.client.profileNames.mockResolvedValue(
+      classroomFailure<string[]>("CLASSROOM_PROVIDER_FAILURE"),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(h.extractor.extract).not.toHaveBeenCalled();
+    expect(h.recorded()).toEqual([]);
+    expect(result.getValue().failedAnnouncements).toBe(1);
   });
 
   it("never extracts an announcement already in the ledger, even edited upstream", async () => {
@@ -155,7 +188,7 @@ describe("syncChild", () => {
 
   it("records a failed extraction and keeps processing the others", async () => {
     h.givenCourses({ maths: [announcement("a1", "maths"), announcement("a2", "maths")] });
-    extractorAnswers({ "Annonce a1": "fails", "Annonce a2": [deadline("Contrôle")] });
+    extractorAnswers({ "Annonce a1": "invalid", "Annonce a2": [deadline("Contrôle")] });
 
     const result = await h.service.syncChild(CHILD, NOW);
 
@@ -171,12 +204,26 @@ describe("syncChild", () => {
   it("retries a failed announcement and abandons it at the third failure", async () => {
     h.givenCourses({ maths: [announcement("a1", "maths")] });
     ledgerHas([{ announcementId: "a1", outcome: "failed", attempts: 2 }]);
-    extractorAnswers({ "Annonce a1": "fails" });
+    extractorAnswers({ "Annonce a1": "invalid" });
 
     await h.service.syncChild(CHILD, NOW);
 
     expect(outcomes()).toEqual({ a1: { outcome: "abandoned", attempts: 3 } });
   });
+
+  for (const outage of ["down", "rate_limited"] as const) {
+    it(`spends no attempt when the model is ${outage}, the announcement waits for the next sync`, async () => {
+      h.givenCourses({ maths: [announcement("a1", "maths"), announcement("a2", "maths")] });
+      ledgerHas([{ announcementId: "a1", outcome: "failed", attempts: 2 }]);
+      extractorAnswers({ "Annonce a1": outage, "Annonce a2": outage });
+
+      for (let sync = 0; sync < 3; sync += 1) await h.service.syncChild(CHILD, NOW);
+
+      expect(h.recorded()).toEqual([]);
+      expect(h.extractor.extract).toHaveBeenCalledTimes(6);
+      expect(h.state.markSynced).toHaveBeenCalledTimes(3);
+    });
+  }
 
   it("never extracts an abandoned announcement again", async () => {
     h.givenCourses({ maths: [announcement("a1", "maths")] });
@@ -248,11 +295,7 @@ describe("syncChild", () => {
     expect(h.state.markNeedsReconnect).not.toHaveBeenCalled();
   });
 
-  for (const code of [
-    "CLASSROOM_UNAUTHORIZED",
-    "CLASSROOM_PERMISSION_DENIED",
-    "CLASSROOM_ACCESS_NOT_CONFIGURED",
-  ] as const) {
+  for (const code of ["CLASSROOM_PERMISSION_DENIED", "CLASSROOM_ACCESS_NOT_CONFIGURED"] as const) {
     it(`marks the child blocked by the school when the course list answers ${code}`, async () => {
       h.client.listCourses.mockResolvedValue(classroomFailure<Course[]>(code));
 
@@ -290,6 +333,60 @@ describe("syncChild", () => {
     expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
     expect(h.extractor.extract).not.toHaveBeenCalled();
     expect(h.state.markSynced).not.toHaveBeenCalled();
+  });
+
+  it("asks for a reconnection, never the school, when Google refuses the token with a 401", async () => {
+    h.client.listCourses.mockResolvedValue(classroomFailure<Course[]>("CLASSROOM_UNAUTHORIZED"));
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_BLOCKED");
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+  });
+
+  it("asks for a reconnection when every course answers 401", async () => {
+    h.givenCourses({ maths: [], art: [] });
+    h.client.listAnnouncements.mockResolvedValue(
+      classroomFailure<Announcement[]>("CLASSROOM_UNAUTHORIZED"),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_BLOCKED");
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+  });
+
+  it("leaves the child connected and retries later when the app's Google project has Classroom disabled", async () => {
+    h.client.listCourses.mockResolvedValue(
+      classroomFailure<Course[]>("CLASSROOM_SERVICE_DISABLED"),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_PROVIDER_FAILURE");
+    expect(h.state.markNeedsReconnect).not.toHaveBeenCalled();
+    expect(h.state.markSyncFailed).toHaveBeenCalledWith(
+      { childId: CHILD.childId, lease: CHILD.lease },
+      new Date(NOW.getTime() + 10 * MINUTE_MS),
+    );
+    expect(h.logger.error).toHaveBeenCalledWith(
+      { childId: CHILD.childId, code: "CLASSROOM_SERVICE_DISABLED" },
+      expect.any(String),
+    );
+    expect(h.instrumentation.capture).toHaveBeenCalled();
+  });
+
+  it("never sends a child to the school screen when only the app's Google project is at fault", async () => {
+    h.givenCourses({ maths: [], art: [] });
+    h.client.listAnnouncements.mockResolvedValue(
+      classroomFailure<Announcement[]>("CLASSROOM_SERVICE_DISABLED"),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getError().code).toBe("SYNC_PROVIDER_FAILURE");
+    expect(h.state.markNeedsReconnect).not.toHaveBeenCalled();
+    expect(h.logger.error).toHaveBeenCalled();
   });
 
   it("asks for a reconnection when the course list lacks the scope", async () => {

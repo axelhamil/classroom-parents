@@ -137,17 +137,38 @@ describe("GoogleClassroomClient", () => {
     expect(result.getError().code).toBe("CLASSROOM_UNAUTHORIZED");
   });
 
-  it("maps the accessNotConfigured reason to CLASSROOM_ACCESS_NOT_CONFIGURED", async () => {
+  it("maps a school that disabled Classroom for the account to CLASSROOM_ACCESS_NOT_CONFIGURED", async () => {
     answers.push(
       googleError(403, {
         status: "PERMISSION_DENIED",
-        errors: [{ reason: "accessNotConfigured", domain: "usageLimits" }],
+        message: "@ClassroomApiDisabled The user is not permitted to access the Classroom API.",
       }),
     );
 
     const result = await client.listCourses("ya29.token", open);
 
     expect(result.getError().code).toBe("CLASSROOM_ACCESS_NOT_CONFIGURED");
+  });
+
+  it("maps the Classroom API disabled in the app's own Google project to CLASSROOM_SERVICE_DISABLED", async () => {
+    answers.push(
+      googleError(403, {
+        status: "PERMISSION_DENIED",
+        message: "Google Classroom API has not been used in project 123 before or it is disabled.",
+        errors: [{ reason: "accessNotConfigured", domain: "usageLimits" }],
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+            reason: "SERVICE_DISABLED",
+            domain: "googleapis.com",
+          },
+        ],
+      }),
+    );
+
+    const result = await client.listCourses("ya29.token", open);
+
+    expect(result.getError().code).toBe("CLASSROOM_SERVICE_DISABLED");
   });
 
   it("maps a 429 to CLASSROOM_RATE_LIMITED", async () => {
@@ -260,6 +281,29 @@ describe("GoogleClassroomClient", () => {
 
     expect(result.getError().code).toBe("CLASSROOM_READ_STOPPED");
     expect(requests).toHaveLength(0);
+  });
+
+  it("reads the child's real names from the Google profile of the linked account", async () => {
+    answers.push(json(200, { sub: "1", name: "Inès Martin", given_name: "Inès" }));
+
+    const result = await client.profileNames("ya29.token");
+
+    expect(result.getValue()).toEqual(["Inès Martin", "Inès"]);
+    expect(requests[0]?.href).toBe("https://openidconnect.googleapis.com/v1/userinfo");
+  });
+
+  it("returns no name when the Google profile holds none", async () => {
+    answers.push(json(200, { sub: "1" }));
+
+    expect((await client.profileNames("ya29.token")).getValue()).toEqual([]);
+  });
+
+  it("maps a profile Google refuses to read like any Classroom refusal", async () => {
+    answers.push(googleError(401, { status: "UNAUTHENTICATED" }));
+
+    expect((await client.profileNames("ya29.token")).getError().code).toBe(
+      "CLASSROOM_UNAUTHORIZED",
+    );
   });
 
   it("reports a listing cut at the page cap and keeps the pages read", async () => {

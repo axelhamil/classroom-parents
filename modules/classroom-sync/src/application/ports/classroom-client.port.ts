@@ -5,6 +5,7 @@ export type ClassroomErrorCode =
   | "CLASSROOM_PERMISSION_DENIED"
   | "CLASSROOM_SCOPE_MISSING"
   | "CLASSROOM_ACCESS_NOT_CONFIGURED"
+  | "CLASSROOM_SERVICE_DISABLED"
   | "CLASSROOM_RATE_LIMITED"
   | "CLASSROOM_READ_STOPPED"
   | "CLASSROOM_PROVIDER_FAILURE";
@@ -67,4 +68,6 @@ export interface IClassroomClient {
     courseId: string,
     scope: ReadScope,
   ): Promise<Result<string[], ClassroomError>>;
+
+  profileNames(accessToken: string): Promise<Result<string[], ClassroomError>>;
 }

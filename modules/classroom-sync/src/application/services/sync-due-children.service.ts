@@ -1,6 +1,5 @@
-import { type AppError, type IInstrumentation, Result } from "@packages/ddd-kit";
+import { type AppError, type IInstrumentation, mapBounded, Result } from "@packages/ddd-kit";
 import type { IDueChildren } from "../ports/due-children.port";
-import { runPooled } from "./run-pooled";
 import type { SyncChildService } from "./sync-child.service";
 
 export interface SyncCadence {
@@ -36,7 +35,7 @@ export class SyncDueChildrenService {
         if (claimed.isFailure) return Result.fail(claimed.getError());
 
         const children = claimed.getValue();
-        const synced = await runPooled(children, this.cadence.parallelism, (child) =>
+        const synced = await mapBounded(children, this.cadence.parallelism, (child) =>
           this.sync.syncChild(child, now),
         );
         return Result.ok({
