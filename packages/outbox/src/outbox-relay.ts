@@ -4,6 +4,7 @@ import {
   type IInstrumentation,
   type ILogger,
   type IUnitOfWork,
+  mapBounded,
   uuidv7,
 } from "@packages/ddd-kit";
 import {
@@ -124,7 +125,7 @@ export class OutboxRelay {
       });
       if (claimed.isFailure) throw new Error(claimed.getError());
 
-      await this.eachBounded(claimed.getValue(), (record) =>
+      await mapBounded(claimed.getValue(), this.options.concurrency, (record) =>
         this.halted ? this.release(record, outcome) : this.settle(record, outcome),
       );
 
@@ -137,23 +138,6 @@ export class OutboxRelay {
     if (state.isFailure) throw new Error(state.getError());
 
     return state.getValue();
-  }
-
-  private async eachBounded(
-    records: readonly OutboxRecord[],
-    work: (record: OutboxRecord) => Promise<void>,
-  ): Promise<void> {
-    let next = 0;
-    const lane = async () => {
-      for (let record = records[next++]; record !== undefined; record = records[next++]) {
-        await work(record);
-      }
-    };
-    const lanes = await Promise.allSettled(
-      Array.from({ length: Math.min(this.options.concurrency, records.length) }, lane),
-    );
-    const failed = lanes.find((settled) => settled.status === "rejected");
-    if (failed) throw failed.reason;
   }
 
   private async release(record: OutboxRecord, outcome: DrainOutcome): Promise<void> {

@@ -27,3 +27,11 @@ export interface IInstrumentation {
   setSpanAttributes(attributes: Record<string, string | number | boolean>): void;
   flush(timeoutMs: number): Promise<boolean>;
 }
+
+export function traced<T>(
+  instrumentation: IInstrumentation,
+  name: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  return instrumentation.startSpan({ name, op: "function" }, work);
+}
