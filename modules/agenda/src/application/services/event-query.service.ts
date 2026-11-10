@@ -1,4 +1,4 @@
-import { type IInstrumentation, type Option, type Result, traced } from "@packages/ddd-kit";
+import { type AppError, type IInstrumentation, Option, Result, traced } from "@packages/ddd-kit";
 import {
   type EventDeadlineDto,
   type EventDto,
@@ -12,6 +12,13 @@ import type {
   EventPage,
   IEventRepository,
 } from "../ports/event-repository.port";
+import type { IVisibleChildren } from "../ports/visible-children.port";
+import { visibleEvent } from "./visible-event";
+
+type ListError = AgendaError | AppError;
+type PageReader = (filter: EventFilter) => Promise<Result<EventPage, AgendaError>>;
+
+const emptyPage: EventPageDto = { items: [], nextCursor: undefined };
 
 function toPageDto(page: EventPage): EventPageDto {
   return { items: page.events.map(toEventDto), nextCursor: page.nextCursor.toUndefined() };
@@ -20,6 +27,7 @@ function toPageDto(page: EventPage): EventPageDto {
 export class EventQueryService {
   constructor(
     private readonly events: IEventRepository,
+    private readonly children: IVisibleChildren,
     private readonly instrumentation: IInstrumentation,
   ) {}
 
@@ -27,9 +35,9 @@ export class EventQueryService {
     userId: string,
     filter: EventFilter,
     now: Date,
-  ): Promise<Result<EventPageDto, AgendaError>> {
-    return traced(this.instrumentation, "EventQueryService > listUpcoming", async () =>
-      (await this.events.listUpcoming(userId, filter, now)).map(toPageDto),
+  ): Promise<Result<EventPageDto, ListError>> {
+    return traced(this.instrumentation, "EventQueryService > listUpcoming", () =>
+      this.listVisible(userId, filter, (visible) => this.events.listUpcoming(userId, visible, now)),
     );
   }
 
@@ -37,16 +45,21 @@ export class EventQueryService {
     userId: string,
     filter: EventFilter,
     now: Date,
-  ): Promise<Result<EventPageDto, AgendaError>> {
-    return traced(this.instrumentation, "EventQueryService > listHistory", async () =>
-      (await this.events.listHistory(userId, filter, now)).map(toPageDto),
+  ): Promise<Result<EventPageDto, ListError>> {
+    return traced(this.instrumentation, "EventQueryService > listHistory", () =>
+      this.listVisible(userId, filter, (visible) => this.events.listHistory(userId, visible, now)),
     );
   }
 
-  async get(userId: string, eventId: string): Promise<Result<Option<EventDto>, AgendaError>> {
-    return traced(this.instrumentation, "EventQueryService > get", async () =>
-      (await this.events.findOwned(userId, eventId)).map((found) => found.map(toEventDto)),
-    );
+  async get(userId: string, eventId: string): Promise<Result<Option<EventDto>, ListError>> {
+    return traced(this.instrumentation, "EventQueryService > get", async () => {
+      const found = await this.events.findOwned(userId, eventId);
+      if (found.isFailure) return Result.fail(found.getError());
+
+      return (await visibleEvent(this.children, userId, found.getValue())).map((visible) =>
+        visible.map(toEventDto),
+      );
+    });
   }
 
   async alertDeadline(
@@ -58,5 +71,33 @@ export class EventQueryService {
         found.map(toEventDeadlineDto),
       ),
     );
+  }
+
+  private async listVisible(
+    userId: string,
+    filter: EventFilter,
+    read: PageReader,
+  ): Promise<Result<EventPageDto, ListError>> {
+    const visible = await this.visibleFilter(userId, filter);
+    if (visible.isFailure) return Result.fail(visible.getError());
+    if (visible.getValue().isNone()) return Result.ok(emptyPage);
+
+    return (await read(visible.getValue().unwrap())).map(toPageDto);
+  }
+
+  private async visibleFilter(
+    userId: string,
+    filter: EventFilter,
+  ): Promise<Result<Option<EventFilter>, AppError>> {
+    const ids = await this.children.idsOf(userId);
+    if (ids.isFailure) return Result.fail(ids.getError());
+
+    const visible = ids.getValue();
+    const childIds = filter.childIds
+      ? filter.childIds.filter((id) => visible.includes(id))
+      : visible;
+    if (childIds.length === 0) return Result.ok(Option.none());
+
+    return Result.ok(Option.some({ ...filter, childIds }));
   }
 }

@@ -9,7 +9,8 @@
  * live coursework matches, a complete listing retires a coursework the teacher removed while
  * an archived course keeps its past coursework in the history, the user cascade on event reads
  * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx and
- * event_coursework_day_idx.
+ * event_coursework_day_idx. A child being disconnected hides its events from lists, detail,
+ * edit, confirm and delete.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -26,6 +27,7 @@ import {
   eq,
   inArray,
   like,
+  not,
   outboxSchema,
   TransactionService,
 } from "@packages/drizzle";
@@ -35,6 +37,7 @@ import type { EventPageDto } from "../src/application/dto/event.dto";
 import type { IAlertPlanner, PlannedDeadline } from "../src/application/ports/alert-planner.port";
 import type { IChildOwnership } from "../src/application/ports/child-ownership.port";
 import type { EventFilter } from "../src/application/ports/event-repository.port";
+import type { IVisibleChildren } from "../src/application/ports/visible-children.port";
 import { EventEditService } from "../src/application/services/event-edit.service";
 import {
   EventIngestService,
@@ -73,6 +76,16 @@ const children: IChildOwnership = {
   },
 };
 
+const visibleChildren: IVisibleChildren = {
+  idsOf: async (userId) => {
+    const rows = await db
+      .select({ id: childAccount.id })
+      .from(childAccount)
+      .where(and(eq(childAccount.userId, userId), not(eq(childAccount.status, "disconnecting"))));
+    return Result.ok<string[], AppError>(rows.map((row) => row.id));
+  },
+};
+
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const transactions = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check-event-db" });
@@ -89,13 +102,14 @@ const ingestService = new EventIngestService(
 );
 const edits = new EventEditService(
   repository,
+  visibleChildren,
   planner,
   transactions,
   outbox,
   instrumentation,
   () => NOW,
 );
-const query = new EventQueryService(repository, instrumentation);
+const query = new EventQueryService(repository, visibleChildren, instrumentation);
 
 async function createUser(name: string): Promise<string> {
   const id = `${probe}-${name}`;
@@ -535,6 +549,19 @@ run(async () => {
       planned.filter((p) => p.eventId === bEvent.id).length === 1,
   );
 
+  await db.update(childAccount).set({ status: "disconnecting" }).where(eq(childAccount.id, bZoe));
+  await step(
+    "while B's child is being disconnected, B neither lists, gets, edits, confirms nor deletes its event",
+    idsOf(await query.listUpcoming(b, { limit: 100 }, NOW)).length === 0 &&
+      (await query.get(b, bEvent.id)).getValue().isNone() &&
+      codeOf(await edits.edit(b, bEvent.id, { title: "Trop tard" })) === "EVENT_NOT_FOUND" &&
+      codeOf(await edits.confirm(b, bEvent.id)) === "EVENT_NOT_FOUND" &&
+      codeOf(await edits.remove(b, bEvent.id)) === "EVENT_NOT_FOUND" &&
+      (await rowsOf(bZoe, "ann-b"))[0]?.title === "Événement de B" &&
+      (await rowsOf(bZoe, "ann-b"))[0]?.deletedAt === null,
+  );
+  await db.update(childAccount).set({ status: "connected" }).where(eq(childAccount.id, bZoe));
+
   const cascadePlan = await explainRolledBack(
     `EXPLAIN (ANALYZE, BUFFERS) DELETE FROM ONLY "event" WHERE $1 = "user_id"`,
     [b],
@@ -583,6 +610,7 @@ run(async () => {
   const plan = await db.$client.query(`EXPLAIN (ANALYZE, BUFFERS) ${listSql}`, [
     c,
     NOW.toISOString(),
+    cChild,
     31,
   ]);
   const planText = plan.rows
@@ -593,8 +621,8 @@ run(async () => {
     `listUpcoming on ${SEEDED} rows reads event_user_deadline_idx`,
     cPage.isSuccess &&
       cPage.getValue().items.length === 30 &&
-      listSql.includes("$3") &&
-      !listSql.includes("$4") &&
+      listSql.includes("$4") &&
+      !listSql.includes("$5") &&
       planText.includes("event_user_deadline_idx") &&
       planText.includes("event_coursework_day_idx"),
   );

@@ -22,8 +22,8 @@ apps/api/src/
     settings.ts                 `apiSettings(env)`: env mapped once onto each module's typed settings
     route-guards.ts             `routeGuards`: the `RouteGuards` of `@packages/http` built from `shared/middleware`
     bindings.ts                 one adapter per port a module declares towards another (`<port>For(service)`)
-    fake-bindings.ts            `FAKE_PROVIDERS=1`: overrides Google, Classroom, the extractor and web push with `dev/fake-providers.ts`
-  workers/                      periodic loops started by `index.ts` (sync, alert dispatch, rgpd sweep, email retention), one tick never overlaps the next
+    fake-bindings.ts            `FAKE_PROVIDERS=1`: overrides Google, Classroom, the extractor and web push with `dev/fake-providers.ts`, imported dynamically so the prod boot never loads it
+  workers/                      periodic loops started by `index.ts` (sync, alert dispatch, rgpd sweep, email and outbox retention), one tick never overlaps the next
   dev/                          fakes over the French dataset of `@modules/extraction/eval/classroom-dataset`, local database only
   auth.ts                       BetterAuth singleton, deliberate exception to the modules rule (config-as-code, the lib owns the model), mounted on `/api/auth/*`
   app.ts                        `Hono` construction, middleware, chained `.route()` mounts, `export const routes` / `export type AppType`. No server boot.

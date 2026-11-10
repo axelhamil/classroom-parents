@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { EventDeadlineDto } from "@modules/agenda/application/dto/event.dto";
 import type { AgendaError } from "@modules/agenda/application/ports/event-repository.port";
+import type { ChildDto } from "@modules/children/application/dto/child.dto";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
 import {
@@ -14,6 +15,7 @@ import {
   eventDeadlinesFor,
   eventIngestFor,
   manualSyncGateFor,
+  visibleChildrenFor,
 } from "../bindings";
 
 const FAMILY_A = "parent-a";
@@ -51,6 +53,47 @@ describe("agenda IChildOwnership bound to children", () => {
     };
 
     const result = await childOwnershipFor(failing).isOwnedBy(FAMILY_A, LEA);
+
+    expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
+  });
+});
+
+describe("agenda IVisibleChildren bound to children", () => {
+  const child = (id: string, status: ChildDto["status"]): ChildDto => ({
+    id,
+    label: id,
+    googleEmail: `${id}@example.fr`,
+    status,
+    syncing: false,
+  });
+
+  it("hides a child being disconnected and keeps every other state", async () => {
+    let asked: unknown;
+    const visible = visibleChildrenFor({
+      list: async (userId) => {
+        asked = userId;
+        return Result.ok<ChildDto[], ChildrenError>([
+          child("lea", "connected"),
+          child("tom", "disconnecting"),
+          child("mia", "needs_reconnect"),
+          child("noe", "blocked_by_school"),
+        ]);
+      },
+    });
+
+    const result = await visible.idsOf(FAMILY_A);
+
+    expect(asked).toBe(FAMILY_A);
+    expect(result.getValue()).toEqual(["lea", "mia", "noe"]);
+  });
+
+  it("passes a children failure through", async () => {
+    const visible = visibleChildrenFor({
+      list: async () =>
+        Result.fail<ChildDto[], ChildrenError>(childFailure("CHILD_PROVIDER_FAILURE")),
+    });
+
+    const result = await visible.idsOf(FAMILY_A);
 
     expect(result.getError().code).toBe("CHILD_PROVIDER_FAILURE");
   });
@@ -484,12 +527,12 @@ describe("sync IManualSyncGate bound to children", () => {
       })),
     );
 
-  const gate = (overrides: Partial<Parameters<typeof manualSyncGateFor>[0]> = {}) =>
-    manualSyncGateFor({
-      list: async () => listed([]),
-      claimManualSync: async () => Result.ok({ outcome: "throttled" as const }),
-      ...overrides,
-    });
+  type GateParts = Parameters<typeof manualSyncGateFor>;
+
+  const gate = ({
+    list = async () => listed([]),
+    claimManualSync = async () => Result.ok({ outcome: "throttled" as const }),
+  }: Partial<GateParts[0] & GateParts[1]> = {}) => manualSyncGateFor({ list }, { claimManualSync });
 
   it("lists the parent's child ids", async () => {
     let asked: unknown;

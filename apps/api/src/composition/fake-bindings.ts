@@ -4,7 +4,7 @@ import type { IAnnouncementExtractor } from "@modules/classroom-sync/application
 import type { IClassroomClient } from "@modules/classroom-sync/application/ports/classroom-client.port";
 import { Option } from "@packages/ddd-kit";
 import { defineModule } from "inwire";
-import { assertFakesAllowed, type FakeProviders, fakeProviders } from "../dev/fake-providers";
+import type { FakeProviders } from "../dev/fake-providers";
 import type { env } from "../shared/env";
 
 interface ProviderBindings {
@@ -16,12 +16,13 @@ interface ProviderBindings {
 
 type FakesSource = Pick<typeof env, "FAKE_PROVIDERS" | "NODE_ENV" | "DATABASE_URL">;
 
-export const fakeProviderBindings = (source: FakesSource) => {
+export const fakeProviderBindings = async (source: FakesSource) => {
   if (!source.FAKE_PROVIDERS)
     return defineModule<ProviderBindings>()((b) =>
       b.add("FakeProviders", (): Option<FakeProviders> => Option.none()),
     );
 
+  const { assertFakesAllowed, fakeProviders } = await import("../dev/fake-providers");
   assertFakesAllowed(source);
   const fakes = fakeProviders();
 

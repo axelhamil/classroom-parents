@@ -1,5 +1,6 @@
 import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
 import type { IChildOwnership } from "@modules/agenda/application/ports/child-ownership.port";
+import type { IVisibleChildren } from "@modules/agenda/application/ports/visible-children.port";
 import type { EventIngestService } from "@modules/agenda/application/services/event-ingest.service";
 import type { EventQueryService } from "@modules/agenda/application/services/event-query.service";
 import type { IEventDeadlines } from "@modules/alerts/application/ports/event-deadlines.port";
@@ -46,6 +47,15 @@ function withLeaseConflict(error: ChildrenError): AppError {
 
 export function childOwnershipFor(children: ChildSync<"isOwnedBy">): IChildOwnership {
   return { isOwnedBy: (userId, childId) => children.isOwnedBy(userId, childId) };
+}
+
+export function visibleChildrenFor(children: Children<"list">): IVisibleChildren {
+  return {
+    idsOf: async (userId) =>
+      (await children.list(userId)).map((listed) =>
+        listed.filter(({ status }) => status !== "disconnecting").map(({ id }) => id),
+      ),
+  };
 }
 
 export function eventDeadlinesFor(
@@ -135,15 +145,16 @@ export function childSyncStateFor(
 }
 
 export function manualSyncGateFor(
-  children: Children<"list"> & ChildSync<"claimManualSync">,
+  connection: Children<"list">,
+  sync: ChildSync<"claimManualSync">,
 ): IManualSyncGate {
   return {
     childIdsOf: async (userId) =>
-      (await children.list(userId))
+      (await connection.list(userId))
         .map((listed) => listed.map(({ id }) => id))
         .mapError(asSyncError),
     claim: async (userId, childId, now) => {
-      const claimed = await children.claimManualSync(userId, childId, now);
+      const claimed = await sync.claimManualSync(userId, childId, now);
       if (claimed.isFailure) return Result.fail(asSyncError(claimed.getError()));
 
       const claim = claimed.getValue();

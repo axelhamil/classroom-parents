@@ -1,5 +1,16 @@
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
-import { and, emailSchema, eq, inArray, lt } from "@packages/drizzle";
+import {
+  type AnyPgColumn,
+  type AnyPgTable,
+  and,
+  emailSchema,
+  eq,
+  inArray,
+  isNotNull,
+  lt,
+  outboxSchema,
+  type SQL,
+} from "@packages/drizzle";
 import { countEligibleWithTimeout } from "../shared/internal-routes/sweep-count";
 import { beatOfSweep, withSweepHeartbeat } from "../shared/internal-routes/sweep-heartbeat";
 import { sweepLockFor } from "../shared/internal-routes/sweep-lock";
@@ -14,96 +25,116 @@ import type { Logger } from "../shared/logger";
 import type { ISweepRunStore } from "../shared/ports/sweep-run.port";
 
 export const EMAIL_RETENTION_LABEL = "sweep-email-messages";
+export const OUTBOX_RETENTION_LABEL = "sweep-outbox-events";
+export const OUTBOX_RETENTION_DAYS = 7;
 
 const { emailMessage } = emailSchema;
+const { outboxEvent } = outboxSchema;
 
-function sentBefore(cutoff: Date) {
-  return requireFilter(
-    and(eq(emailMessage.status, "sent"), lt(emailMessage.sentAt, cutoff)),
-    EMAIL_RETENTION_LABEL,
-  );
+interface PassTarget {
+  label: string;
+  sweep: string;
+  table: AnyPgTable;
+  idColumn: AnyPgColumn;
+  orderBy: AnyPgColumn;
+  before: (cutoff: Date) => SQL | undefined;
 }
 
-function undeliveredBefore(cutoff: Date) {
-  return requireFilter(
-    and(inArray(emailMessage.status, ["failed", "dead"]), lt(emailMessage.createdAt, cutoff)),
-    EMAIL_RETENTION_LABEL,
-  );
-}
-
-function undeliveredEmailPass(
+function retentionPass(
+  target: PassTarget,
   retentionDays: number,
   spans: SweepSpans,
   uow: IUnitOfWork,
 ): RetentionPass {
+  const where = (cutoff: Date) => requireFilter(target.before(cutoff), target.sweep);
+
   return {
-    label: "undelivered",
+    label: target.label,
     retentionDays,
     purgeBatch: (cutoff, batchSize) =>
       purgeBatchWithTimeout({
-        table: emailMessage,
-        idColumn: emailMessage.id,
-        where: undeliveredBefore(cutoff),
-        orderBy: emailMessage.createdAt,
+        table: target.table,
+        idColumn: target.idColumn,
+        where: where(cutoff),
+        orderBy: target.orderBy,
         batchSize,
         spans,
         uow,
       }),
-    countEligible: (cutoff) =>
-      countEligibleWithTimeout(emailMessage, undeliveredBefore(cutoff), spans, uow),
+    countEligible: (cutoff) => countEligibleWithTimeout(target.table, where(cutoff), spans, uow),
   };
 }
 
-function sentEmailPass(retentionDays: number, spans: SweepSpans, uow: IUnitOfWork): RetentionPass {
-  return {
-    label: "sent",
-    retentionDays,
-    purgeBatch: (cutoff, batchSize) =>
-      purgeBatchWithTimeout({
-        table: emailMessage,
-        idColumn: emailMessage.id,
-        where: sentBefore(cutoff),
-        orderBy: emailMessage.sentAt,
-        batchSize,
-        spans,
-        uow,
-      }),
-    countEligible: (cutoff) =>
-      countEligibleWithTimeout(emailMessage, sentBefore(cutoff), spans, uow),
-  };
-}
+const sentEmails: PassTarget = {
+  label: "sent",
+  sweep: EMAIL_RETENTION_LABEL,
+  table: emailMessage,
+  idColumn: emailMessage.id,
+  orderBy: emailMessage.sentAt,
+  before: (cutoff) => and(eq(emailMessage.status, "sent"), lt(emailMessage.sentAt, cutoff)),
+};
 
-export interface EmailRetentionDeps {
+const undeliveredEmails: PassTarget = {
+  label: "undelivered",
+  sweep: EMAIL_RETENTION_LABEL,
+  table: emailMessage,
+  idColumn: emailMessage.id,
+  orderBy: emailMessage.createdAt,
+  before: (cutoff) =>
+    and(inArray(emailMessage.status, ["failed", "dead"]), lt(emailMessage.createdAt, cutoff)),
+};
+
+const deliveredEvents: PassTarget = {
+  label: "delivered",
+  sweep: OUTBOX_RETENTION_LABEL,
+  table: outboxEvent,
+  idColumn: outboxEvent.id,
+  orderBy: outboxEvent.dispatchedAt,
+  before: (cutoff) =>
+    and(isNotNull(outboxEvent.dispatchedAt), lt(outboxEvent.dispatchedAt, cutoff)),
+};
+
+export interface RetentionDeps {
   uow: IUnitOfWork;
   instrumentation: IInstrumentation;
   sweepRuns: ISweepRunStore;
   logger: Logger;
-  retentionDays: number;
   deadlineMs?: number;
 }
 
-export function sweepOldEmails(deps: EmailRetentionDeps): Promise<SweepResponse> {
+export interface EmailRetentionDeps extends RetentionDeps {
+  retentionDays: number;
+}
+
+function sweep(
+  label: string,
+  deps: RetentionDeps,
+  passes: (spans: SweepSpans) => RetentionPass[],
+): Promise<SweepResponse> {
   const spans = sweepSpans(deps.instrumentation);
 
-  return withSweepHeartbeat(
-    {
-      label: EMAIL_RETENTION_LABEL,
-      store: deps.sweepRuns,
+  return withSweepHeartbeat({ label, store: deps.sweepRuns, spans, beatOf: beatOfSweep }, () =>
+    runRetentionSweep({
+      body: {},
+      passes: passes(spans),
+      logger: deps.logger,
+      label,
+      deadlineMs: deps.deadlineMs,
+      lock: sweepLockFor(label, spans),
       spans,
-      beatOf: beatOfSweep,
-    },
-    () =>
-      runRetentionSweep({
-        body: {},
-        passes: [
-          sentEmailPass(deps.retentionDays, spans, deps.uow),
-          undeliveredEmailPass(deps.retentionDays, spans, deps.uow),
-        ],
-        logger: deps.logger,
-        label: EMAIL_RETENTION_LABEL,
-        deadlineMs: deps.deadlineMs,
-        lock: sweepLockFor(EMAIL_RETENTION_LABEL, spans),
-        spans,
-      }),
+    }),
   );
+}
+
+export function sweepOldEmails(deps: EmailRetentionDeps): Promise<SweepResponse> {
+  return sweep(EMAIL_RETENTION_LABEL, deps, (spans) => [
+    retentionPass(sentEmails, deps.retentionDays, spans, deps.uow),
+    retentionPass(undeliveredEmails, deps.retentionDays, spans, deps.uow),
+  ]);
+}
+
+export function sweepDeliveredOutbox(deps: RetentionDeps): Promise<SweepResponse> {
+  return sweep(OUTBOX_RETENTION_LABEL, deps, (spans) => [
+    retentionPass(deliveredEvents, OUTBOX_RETENTION_DAYS, spans, deps.uow),
+  ]);
 }

@@ -147,6 +147,17 @@ module.exports = {
       },
     },
     {
+      name: "api-boot-never-loads-dev-fixtures",
+      comment:
+        "The production start path never loads fakes, evaluation datasets or the test kit: they are reached by a dynamic import behind the fakes guard, so a runtime without dev dependencies still boots.",
+      severity: "error",
+      from: { path: "^apps/api/src/", pathNot: [TESTS, "^apps/api/src/dev/"] },
+      to: {
+        path: ["^apps/api/src/dev/", "^packages/test/", `${MODULES}/[^/]+/eval/`],
+        dependencyTypesNot: ["type-only", "dynamic-import"],
+      },
+    },
+    {
       name: "front-never-imports-api",
       comment:
         "A front reaches the api only through the typed Hono RPC client factory (api/client), never its internals.",

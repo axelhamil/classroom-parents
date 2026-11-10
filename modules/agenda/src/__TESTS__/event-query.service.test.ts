@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Option, Result } from "@packages/ddd-kit";
+import { type AppError, Option, Result } from "@packages/ddd-kit";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import type {
@@ -7,17 +7,23 @@ import type {
   EventPage,
   IEventRepository,
 } from "../application/ports/event-repository.port";
+import type { IVisibleChildren } from "../application/ports/visible-children.port";
 import { EventQueryService } from "../application/services/event-query.service";
+import type { AgendaEvent } from "../domain/event.aggregate";
 import { agendaEvent, CHILD, PARENT } from "../testing/agenda-event.fixture";
 
 const NOW = new Date("2026-11-10T09:00:00.000Z");
+const LEAVING = "0196a000-0000-7000-8000-000000000002";
 
 let repo: PortMock<IEventRepository>;
+let children: PortMock<IVisibleChildren>;
 let service: EventQueryService;
 
 beforeEach(() => {
   repo = mockPort<IEventRepository>();
-  service = new EventQueryService(repo, mockInstrumentation());
+  children = mockPort<IVisibleChildren>();
+  children.idsOf.mockResolvedValue(Result.ok([CHILD]));
+  service = new EventQueryService(repo, children, mockInstrumentation());
 });
 
 describe("list", () => {
@@ -67,12 +73,71 @@ describe("list", () => {
 
     const result = await service.listHistory(PARENT, { limit: 20 }, NOW);
 
-    expect(repo.listHistory).toHaveBeenCalledWith(PARENT, { limit: 20 }, NOW);
+    expect(repo.listHistory).toHaveBeenCalledWith(PARENT, { limit: 20, childIds: [CHILD] }, NOW);
     expect(result.getValue()).toEqual({ items: [], nextCursor: undefined });
   });
 });
 
+describe("list while a child is being disconnected", () => {
+  beforeEach(() => {
+    repo.listUpcoming.mockResolvedValue(
+      Result.ok<EventPage, AgendaError>({ events: [], nextCursor: Option.none() }),
+    );
+  });
+
+  it("given no child filter, then only the children still visible are listed", async () => {
+    await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(children.idsOf).toHaveBeenCalledWith(PARENT);
+    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { limit: 20, childIds: [CHILD] }, NOW);
+  });
+
+  it("given a filter naming the child being disconnected, then it is dropped from the filter", async () => {
+    await service.listUpcoming(PARENT, { limit: 20, childIds: [CHILD, LEAVING] }, NOW);
+
+    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { limit: 20, childIds: [CHILD] }, NOW);
+  });
+
+  it("given only the child being disconnected, then the page is empty without reading events", async () => {
+    const result = await service.listHistory(PARENT, { limit: 20, childIds: [LEAVING] }, NOW);
+
+    expect(repo.listHistory).not.toHaveBeenCalled();
+    expect(result.getValue()).toEqual({ items: [], nextCursor: undefined });
+  });
+
+  it("given the children cannot be read, then the listing fails", async () => {
+    const down: AppError = { code: "CHILD_PROVIDER_FAILURE", message: "down" };
+    children.idsOf.mockResolvedValue(Result.fail(down));
+
+    const result = await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(result.getError()).toEqual(down);
+    expect(repo.listUpcoming).not.toHaveBeenCalled();
+  });
+});
+
 describe("get", () => {
+  it("given an event of a child being disconnected, then nothing is found", async () => {
+    repo.findOwned.mockResolvedValue(
+      Result.ok<Option<AgendaEvent>, AgendaError>(Option.some(agendaEvent())),
+    );
+    children.idsOf.mockResolvedValue(Result.ok([]));
+
+    const result = await service.get(PARENT, "0196a000-0000-7000-8000-00000000abcd");
+
+    expect(result.getValue().isNone()).toBe(true);
+  });
+
+  it("given an event of a visible child, then it is found", async () => {
+    repo.findOwned.mockResolvedValue(
+      Result.ok<Option<AgendaEvent>, AgendaError>(Option.some(agendaEvent())),
+    );
+
+    const result = await service.get(PARENT, "0196a000-0000-7000-8000-00000000abcd");
+
+    expect(result.getValue().isSome()).toBe(true);
+  });
+
   it("given an event the parent does not own, then nothing is found", async () => {
     repo.findOwned.mockResolvedValue(Result.ok(Option.none()));
 

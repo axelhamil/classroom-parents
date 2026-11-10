@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "bun --hot src/index.ts",
-    "build": "bun build src/index.ts src/migrate.ts --outdir dist --target bun --minify",
+    "build": "bun build src/index.ts src/migrate.ts --outdir dist --target bun --minify --splitting",
     "migrate": "bun src/migrate.ts",
     "db:seed": "bun scripts/seed-dev-session.ts",
     "db:seed:demo": "FAKE_PROVIDERS=1 bun scripts/seed-demo.ts",

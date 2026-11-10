@@ -40,6 +40,7 @@ import {
   eventDeadlinesFor,
   eventIngestFor,
   manualSyncGateFor,
+  visibleChildrenFor,
 } from "./composition/bindings";
 import { fakeProviderBindings } from "./composition/fake-bindings";
 import { apiSettings } from "./composition/settings";
@@ -158,6 +159,7 @@ export const di = container()
   .addModule(healthModule)
   .addModule(childrenModule)
   .add("IChildOwnership", (c) => childOwnershipFor(c.ChildSyncService))
+  .add("IVisibleChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
   .add(
     "IAlertPlanner",
     (): IAlertPlanner => alertPlannerFor((): AlertPlanner => di.AlertPlanningService),
@@ -175,17 +177,11 @@ export const di = container()
   .add("IEventIngest", (c) => eventIngestFor(c.EventIngestService))
   .add("IDueChildren", (c) => dueChildrenFor(c.ChildSyncService))
   .add("IChildSyncState", (c) => childSyncStateFor(c.ChildSyncService))
-  .add("IManualSyncGate", (c) =>
-    manualSyncGateFor({
-      list: (userId) => c.ChildConnectionService.list(userId),
-      claimManualSync: (userId, childId, now) =>
-        c.ChildSyncService.claimManualSync(userId, childId, now),
-    }),
-  )
+  .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService, c.ChildSyncService))
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .addModule(rgpdModule)
-  .addModule(fakeProviderBindings(env))
+  .addModule(await fakeProviderBindings(env))
   .add(
     "OutboxDispatcher",
     (c) =>

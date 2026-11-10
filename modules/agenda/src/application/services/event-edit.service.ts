@@ -17,15 +17,18 @@ import {
   eventNotFound,
   type IEventRepository,
 } from "../ports/event-repository.port";
+import type { IVisibleChildren } from "../ports/visible-children.port";
 import { alertAnnouncementsOn, courseDayOf, leftItsDay } from "./alert-planning";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
+import { visibleEvent } from "./visible-event";
 
 type EditError = AgendaError | AppError;
 
 export class EventEditService {
   constructor(
     private readonly events: IEventRepository,
+    private readonly children: IVisibleChildren,
     private readonly alerts: IAlertPlanner,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
@@ -127,11 +130,14 @@ export class EventEditService {
     return alertAnnouncementsOn(this.events, this.alerts, { userId, day, actorUserId: userId });
   }
 
-  private async owned(userId: string, eventId: string): Promise<Result<AgendaEvent, AgendaError>> {
+  private async owned(userId: string, eventId: string): Promise<Result<AgendaEvent, EditError>> {
     const found = await this.events.lockOwned(userId, eventId);
     if (found.isFailure) return Result.fail(found.getError());
 
-    return found.getValue().toResult(eventNotFound);
+    const visible = await visibleEvent(this.children, userId, found.getValue());
+    if (visible.isFailure) return Result.fail(visible.getError());
+
+    return visible.getValue().toResult(eventNotFound);
   }
 
   private changesFrom(event: AgendaEvent, patch: EventPatch): Result<EventChanges, AgendaError> {

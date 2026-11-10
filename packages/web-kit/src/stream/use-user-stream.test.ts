@@ -1,5 +1,7 @@
+import type { QueryKey } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  batchInvalidations,
   handleStreamChunk,
   invalidationsFor,
   isServerFailure,
@@ -202,5 +204,70 @@ describe("isServerFailure", () => {
   it("given a refusal or a dropped network, then it stays out of telemetry", () => {
     expect(isServerFailure(new UserStreamError(429))).toBe(false);
     expect(isServerFailure(new TypeError("Failed to fetch"))).toBe(false);
+  });
+});
+
+describe("batchInvalidations", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("given a burst of messages from one sync, then each key is invalidated once after the window", () => {
+    const invalidated: QueryKey[][] = [];
+    const batch = batchInvalidations((keys) => invalidated.push([...keys]), 250);
+
+    for (let i = 0; i < 40; i += 1) batch.add([["probe"]]);
+    batch.add([["probe"], ["other"]]);
+
+    expect(invalidated).toEqual([]);
+    vi.advanceTimersByTime(250);
+    expect(invalidated).toEqual([[["probe"], ["other"]]]);
+  });
+
+  it("given messages after the window closed, then they open a new batch", () => {
+    const invalidated: QueryKey[][] = [];
+    const batch = batchInvalidations((keys) => invalidated.push([...keys]), 250);
+
+    batch.add([["probe"]]);
+    vi.advanceTimersByTime(250);
+    batch.add([["other"]]);
+    vi.advanceTimersByTime(250);
+
+    expect(invalidated).toEqual([[["probe"]], [["other"]]]);
+  });
+
+  it("given the stream stops before the window ends, then the pending keys are invalidated at once", () => {
+    const invalidated: QueryKey[][] = [];
+    const batch = batchInvalidations((keys) => invalidated.push([...keys]), 250);
+
+    batch.add([["probe"], ["other"]]);
+    batch.close();
+    expect(invalidated).toEqual([[["probe"], ["other"]]]);
+
+    vi.advanceTimersByTime(250);
+    expect(invalidated).toEqual([[["probe"], ["other"]]]);
+  });
+
+  it("given the stream stops with nothing pending, then nothing is invalidated", () => {
+    const invalidate = vi.fn();
+    const batch = batchInvalidations(invalidate, 250);
+
+    batch.close();
+
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it("given no key to invalidate, then no batch is opened", () => {
+    const invalidate = vi.fn();
+    const batch = batchInvalidations(invalidate, 250);
+
+    batch.add([]);
+    vi.advanceTimersByTime(250);
+
+    expect(invalidate).not.toHaveBeenCalled();
   });
 });

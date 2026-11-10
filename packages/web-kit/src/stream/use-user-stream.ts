@@ -1,4 +1,4 @@
-import { type QueryKey, useQueryClient } from "@tanstack/react-query";
+import { hashKey, type QueryKey, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 const FRAME_SEPARATOR = /\r?\n\r?\n/;
@@ -15,6 +15,9 @@ const TERMINAL_STATUSES: readonly number[] = [401, 403, 404];
 // one missed ping plus network jitter before treating a silent-but-open connection as dead.
 const PING_INTERVAL_MS = 25_000;
 const STALL_TIMEOUT_MS = PING_INTERVAL_MS * 2 + 5_000;
+// A sync announces each event it stores: the keys of one burst are invalidated once, at the
+// end of this window, instead of refetching every open list once per message.
+const INVALIDATION_WINDOW_MS = 250;
 
 export type StreamInvalidations<Type extends string> = Readonly<Record<Type, readonly QueryKey[]>>;
 
@@ -60,6 +63,38 @@ export function invalidationsFor<Type extends string>(
   const message = parse(value);
 
   return message ? invalidations[message.type] : [];
+}
+
+export interface InvalidationBatch {
+  add: (keys: readonly QueryKey[]) => void;
+  close: () => void;
+}
+
+export function batchInvalidations(
+  invalidate: (keys: readonly QueryKey[]) => void,
+  windowMs: number,
+): InvalidationBatch {
+  const pending = new Map<string, QueryKey>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const flush = () => {
+    timer = undefined;
+    const keys = [...pending.values()];
+    pending.clear();
+    invalidate(keys);
+  };
+
+  return {
+    add: (keys) => {
+      for (const key of keys) pending.set(hashKey(key), key);
+      if (pending.size > 0 && timer === undefined) timer = setTimeout(flush, windowMs);
+    },
+    close: () => {
+      clearTimeout(timer);
+      timer = undefined;
+      if (pending.size > 0) flush();
+    },
+  };
 }
 
 const backoffDelay = (attempt: number) => {
@@ -185,29 +220,32 @@ export function useUserStream<Type extends string>(
 
   useEffect(() => {
     const controller = new AbortController();
-    const invalidate = (keys: readonly QueryKey[]) => {
+    const batch = batchInvalidations((keys) => {
       for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
-    };
+    }, INVALIDATION_WINDOW_MS);
     let connections = 0;
 
     void runUserStream(
       () => ({
         connect: latest.current.connect,
         onData: (data) =>
-          invalidate(invalidationsFor(data, latest.current.parse, latest.current.invalidations)),
+          batch.add(invalidationsFor(data, latest.current.parse, latest.current.invalidations)),
         onDisconnect: (_attempt, error) => {
           if (isServerFailure(error)) latest.current.onServerFailure(error);
         },
         onConnect: () => {
           connections += 1;
-          if (connections > 1) invalidate(latest.current.reconnectKeys);
+          if (connections > 1) batch.add(latest.current.reconnectKeys);
         },
       }),
       controller.signal,
       setConnected,
     );
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      batch.close();
+    };
   }, [queryClient]);
 
   return { connected };

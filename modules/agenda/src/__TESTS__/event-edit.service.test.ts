@@ -9,15 +9,22 @@ import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-
 import type { EventPatch } from "../application/dto/event.dto";
 import type { IAlertPlanner } from "../application/ports/alert-planner.port";
 import type { AgendaError, IEventRepository } from "../application/ports/event-repository.port";
+import type { IVisibleChildren } from "../application/ports/visible-children.port";
 import { EventEditService } from "../application/services/event-edit.service";
 import type { AgendaEvent } from "../domain/event.aggregate";
-import { type AgendaEventOverrides, agendaEvent, PARENT } from "../testing/agenda-event.fixture";
+import {
+  type AgendaEventOverrides,
+  agendaEvent,
+  CHILD,
+  PARENT,
+} from "../testing/agenda-event.fixture";
 
 const NOW = new Date("2026-11-10T09:00:00.000Z");
 
 let repo: PortMock<IEventRepository>;
 let planner: PortMock<IAlertPlanner>;
 let outbox: PortMock<IOutboxRepository>;
+let children: PortMock<IVisibleChildren>;
 let uow: UnitOfWorkMock;
 let service: EventEditService;
 let event: AgendaEvent;
@@ -32,6 +39,8 @@ beforeEach(() => {
   repo = mockPort<IEventRepository>();
   planner = mockPort<IAlertPlanner>();
   outbox = mockPort<IOutboxRepository>();
+  children = mockPort<IVisibleChildren>();
+  children.idsOf.mockResolvedValue(Result.ok([CHILD]));
   uow = mockUnitOfWork();
 
   repo.save.mockResolvedValue(Result.ok());
@@ -43,6 +52,7 @@ beforeEach(() => {
 
   service = new EventEditService(
     repo,
+    children,
     planner,
     uow.unitOfWork,
     outbox,
@@ -225,5 +235,36 @@ describe("remove", () => {
 
     expect(second.getError().code).toBe("EVENT_NOT_FOUND");
     expect(planner.cancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("an event of a child being disconnected", () => {
+  beforeEach(() => {
+    children.idsOf.mockResolvedValue(Result.ok([]));
+  });
+
+  it("given an edit, then it answers not found and writes nothing", async () => {
+    const result = await service.edit(PARENT, event.id.value, { title: "Autre" });
+
+    expect(result.getError().code).toBe("EVENT_NOT_FOUND");
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given a confirmation, then it answers not found and plans nothing", async () => {
+    given({ status: "needs_review" });
+
+    const result = await service.confirm(PARENT, event.id.value);
+
+    expect(result.getError().code).toBe("EVENT_NOT_FOUND");
+    expect(planner.planDefault).not.toHaveBeenCalled();
+  });
+
+  it("given a deletion, then it answers not found and cancels nothing", async () => {
+    const result = await service.remove(PARENT, event.id.value);
+
+    expect(result.getError().code).toBe("EVENT_NOT_FOUND");
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(planner.cancel).not.toHaveBeenCalled();
   });
 });
