@@ -47,7 +47,9 @@ import { env } from "./shared/env";
 import { logger } from "./shared/logger";
 import type { ICaptchaService } from "./shared/ports/captcha.port";
 import type { IRateLimiter, IRateLimitUsage } from "./shared/ports/rate-limiter.port";
+import type { ISweepRunStore } from "./shared/ports/sweep-run.port";
 import { getRequestId } from "./shared/request-context";
+import { DrizzleSweepRunStore } from "./shared/services/drizzle-sweep-run.store";
 import { LoggingInstrumentation } from "./shared/services/logging-instrumentation";
 import { NoopCaptchaService } from "./shared/services/noop-captcha.service";
 import { NotificationStreamHub } from "./shared/services/notification-stream-hub";
@@ -140,6 +142,7 @@ export const di = container()
           })
         : new NoopCaptchaService(),
   )
+  .add("ISweepRunStore", (c): ISweepRunStore => new DrizzleSweepRunStore(c.IInstrumentation))
   .add(
     "NotificationStreamHub",
     (c) => new NotificationStreamHub(logger, env.DATABASE_URL, c.IInstrumentation),

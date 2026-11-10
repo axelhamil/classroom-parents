@@ -1,8 +1,9 @@
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
 import type { RgpdService } from "../modules/rgpd/application/services/rgpd.service";
 import type { Logger } from "../shared/logger";
+import type { ISweepRunStore } from "../shared/ports/sweep-run.port";
 import { startPeriodic } from "./periodic";
-import { sweepSentEmails } from "./retention";
+import { sweepOldEmails } from "./retention";
 
 export const RGPD_TICK_MS = 60 * 60_000;
 
@@ -10,6 +11,7 @@ export interface RgpdWorkerDeps {
   RgpdService: Pick<RgpdService, "processPendingDeletions">;
   ITransactionService: IUnitOfWork;
   IInstrumentation: IInstrumentation;
+  ISweepRunStore: ISweepRunStore;
 }
 
 export interface RgpdWorkerSettings {
@@ -35,10 +37,11 @@ export function startRgpdWorkers(
     if (swept.isFailure) logger.warn({ code: swept.getError().code }, "rgpd sweep failed");
   };
 
-  const purgeSentEmails = () =>
-    sweepSentEmails({
+  const purgeOldEmails = () =>
+    sweepOldEmails({
       uow: deps.ITransactionService,
       instrumentation: deps.IInstrumentation,
+      sweepRuns: deps.ISweepRunStore,
       logger,
       retentionDays: settings.emailRetentionDays,
       deadlineMs: settings.sweepDeadlineMs,
@@ -46,6 +49,6 @@ export function startRgpdWorkers(
 
   return Promise.all([
     startPeriodic(wipeDueAccounts, RGPD_TICK_MS, signal, { onError }),
-    startPeriodic(purgeSentEmails, RGPD_TICK_MS, signal, { onError }),
+    startPeriodic(purgeOldEmails, RGPD_TICK_MS, signal, { onError }),
   ]).then(() => undefined);
 }
