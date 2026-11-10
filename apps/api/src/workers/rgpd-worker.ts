@@ -26,7 +26,10 @@ export function startRgpdWorkers(
   signal: AbortSignal,
   logger: Logger,
 ): Promise<void> {
-  const onError = (err: unknown) => deps.IInstrumentation.capture(err);
+  const options = {
+    onError: (err: unknown) => deps.IInstrumentation.capture(err),
+    runAtStart: true,
+  };
 
   const wipeDueAccounts = async () => {
     const swept = await deps.RgpdService.processPendingDeletions({
@@ -49,8 +52,8 @@ export function startRgpdWorkers(
   const purgeDeliveredEvents = () => sweepDeliveredOutbox(retention);
 
   return Promise.all([
-    startPeriodic(wipeDueAccounts, RGPD_TICK_MS, signal, { onError }),
-    startPeriodic(purgeOldEmails, RGPD_TICK_MS, signal, { onError }),
-    startPeriodic(purgeDeliveredEvents, RGPD_TICK_MS, signal, { onError }),
+    startPeriodic(wipeDueAccounts, RGPD_TICK_MS, signal, options),
+    startPeriodic(purgeOldEmails, RGPD_TICK_MS, signal, options),
+    startPeriodic(purgeDeliveredEvents, RGPD_TICK_MS, signal, options),
   ]).then(() => undefined);
 }

@@ -59,6 +59,25 @@ describe("startPeriodic", () => {
     expect(calls).toBeGreaterThan(1);
   });
 
+  it("runs at start without waiting a whole interval when asked, so a restart never delays it", async () => {
+    const controller = new AbortController();
+    let calls = 0;
+
+    const loop = startPeriodic(
+      async () => {
+        calls += 1;
+      },
+      60 * 60_000,
+      controller.signal,
+      { onError: quiet, runAtStart: true },
+    );
+    await wait(TICK_MS);
+    controller.abort();
+    await loop;
+
+    expect(calls).toBe(1);
+  });
+
   it("runs no further tick once aborted, even mid-wait", async () => {
     const controller = new AbortController();
     let calls = 0;

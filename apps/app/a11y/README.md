@@ -41,6 +41,14 @@ pnpm --filter app check:a11y                 # builds nothing, run `pnpm --filte
 ```
 
 Playwright starts the preview server itself and reuses one already listening.
+`A11Y_BASE_URL` (default `http://localhost:4173`) moves it to another host and
+port, and `VITE_API_URL` at build time points the build at another API, so a
+worktree audits without taking a port another one holds:
+
+```sh
+pnpm --filter app build                       # with VITE_API_URL=http://<host>:<api port> in apps/app/.env
+A11Y_BASE_URL=http://<host>:<port> pnpm --filter app check:a11y
+```
 Sign-in is Google only, so the setup does not sign in: `db:seed` creates a
 session through BetterAuth and writes its signed cookie to `a11y/.auth/state.json`,
 which the setup checks against `/` (the signed-in home) before the audit uses it.

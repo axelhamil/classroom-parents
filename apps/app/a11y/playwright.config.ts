@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
 export const BASE_URL = process.env.A11Y_BASE_URL ?? "http://localhost:4173";
+const PREVIEW = new URL(BASE_URL);
 const APP_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 export const STORAGE_STATE = fileURLToPath(new URL(".auth/state.json", import.meta.url));
@@ -39,7 +40,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm preview --port 4173 --strictPort",
+    command: `pnpm preview --host ${PREVIEW.hostname} --port ${PREVIEW.port} --strictPort`,
     cwd: APP_ROOT,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,

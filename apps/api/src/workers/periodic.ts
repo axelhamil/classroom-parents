@@ -3,6 +3,7 @@ import { raceWithTimeout } from "@packages/outbox/race-with-timeout";
 export interface PeriodicOptions {
   onError: (err: unknown) => void;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
+  runAtStart?: boolean;
 }
 
 function aborted(signal: AbortSignal): Promise<void> {
@@ -23,9 +24,11 @@ export async function startPeriodic(
   options: PeriodicOptions,
 ): Promise<void> {
   const sleep = options.sleep ?? sleepUnlessAborted;
+  let first = options.runAtStart === true;
 
   while (!signal.aborted) {
-    await sleep(intervalMs, signal);
+    if (!first) await sleep(intervalMs, signal);
+    first = false;
     if (signal.aborted) return;
 
     try {
