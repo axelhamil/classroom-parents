@@ -121,6 +121,9 @@
   --touch-target: 2.75rem;
   --nav-height: 4.25rem;
   --app-bar-height: 4rem;
+  --scroll-region-height: 30rem;
+  --scroll-edge-size: 1.5rem;
+  --scroll-edge-shadow: color-mix(in oklch, var(--foreground) 16%, transparent);
   --sidebar-width: 16rem;
   --sidebar-width-icon: 3.5rem;
   --sidebar-width-mobile: 18rem;
@@ -273,6 +276,7 @@
   --spacing-touch: var(--touch-target);
   --spacing-nav: var(--nav-height);
   --spacing-app-bar: var(--app-bar-height);
+  --spacing-scroll-region: var(--scroll-region-height);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -560,4 +564,15 @@ html.theme-switching *::after {
     /* biome-ignore lint/complexity/noImportantStyles: a11y override, must beat inline styles + 3rd-party animations (framer, tw-animate-css) */
     scroll-behavior: auto !important;
   }
+}
+
+@utility scroll-edges {
+  background:
+    linear-gradient(var(--card) 30%, transparent) top / 100% var(--scroll-edge-size) no-repeat local,
+    linear-gradient(transparent, var(--card) 70%) bottom / 100% var(--scroll-edge-size) no-repeat
+    local,
+    radial-gradient(farthest-side at 50% 0, var(--scroll-edge-shadow), transparent) top / 100%
+    calc(var(--scroll-edge-size) / 2) no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--scroll-edge-shadow), transparent) bottom / 100%
+    calc(var(--scroll-edge-size) / 2) no-repeat scroll;
 }

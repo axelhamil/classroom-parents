@@ -35,6 +35,7 @@ export default {
     current: "Cet appareil",
     currentActivity: "Celui que vous utilisez en ce moment.",
     lastActive: "Dernière activité le {{date}}.",
+    others: "Vos autres appareils",
     alone: "Aucun autre appareil n'est connecté à votre compte.",
     revoke: "Déconnecter",
     revoked: "Appareil déconnecté. Il ne reçoit plus vos alertes.",

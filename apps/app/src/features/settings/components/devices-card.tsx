@@ -11,15 +11,16 @@ import {
   ItemTitle,
 } from "@packages/ui/components/ui/item";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
+import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Globe, Laptop, LogOut, type LucideIcon, Smartphone } from "lucide-react";
-import { type ComponentProps, useId, useLayoutEffect, useRef, useState } from "react";
+import { type ComponentProps, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   revokeOtherSessionsMutationOptions,
@@ -79,9 +80,8 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
   });
 
   const sessions = [...(query.data ?? [])].sort(byLatestActivity);
-  const thisDevice = sessions.filter((session) => session.token === currentSessionToken);
+  const thisDevice = sessions.find((session) => session.token === currentSessionToken);
   const others = sessions.filter((session) => session.token !== currentSessionToken);
-  const ordered = [...thisDevice, ...others];
 
   return (
     <SectionCard
@@ -121,12 +121,22 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
           }
         />
       ) : (
-        <DeviceList
-          sessions={ordered}
-          currentSessionToken={currentSessionToken}
-          locked={revokeOthers.isPending}
-          onRevoked={refresh}
-        />
+        <>
+          {thisDevice ? (
+            <ItemGroup>
+              <DeviceRow
+                className="animate-enter"
+                session={thisDevice}
+                isCurrent
+                locked={revokeOthers.isPending}
+                onRevoked={refresh}
+              />
+            </ItemGroup>
+          ) : null}
+          {others.length > 0 ? (
+            <OtherDevices sessions={others} locked={revokeOthers.isPending} onRevoked={refresh} />
+          ) : null}
+        </>
       )}
       {query.isSuccess && others.length === 0 ? (
         <TypographyMuted>{t("devices.alone")}</TypographyMuted>
@@ -135,50 +145,56 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
   );
 }
 
-interface DeviceListProps {
+interface OtherDevicesProps {
   sessions: readonly DeviceSession[];
-  currentSessionToken: string;
   locked: boolean;
   onRevoked: () => Promise<void>;
 }
 
-function DeviceList(props: DeviceListProps) {
-  if (props.sessions.length > VIRTUALIZE_ABOVE) return <VirtualDeviceList {...props} />;
+function OtherDevices(props: OtherDevicesProps) {
+  const { t } = useTranslation("settings");
+  const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
 
   return (
-    <ItemGroup className="gap-2">
-      {props.sessions.map((session) => (
-        <DeviceRow
-          key={session.id}
-          className="animate-enter"
-          session={session}
-          isCurrent={session.token === props.currentSessionToken}
-          locked={props.locked}
-          onRevoked={props.onRevoked}
-        />
-      ))}
-    </ItemGroup>
+    <ScrollRegion ref={setScrollElement} label={t("devices.others")} className="@container">
+      {props.sessions.length > VIRTUALIZE_ABOVE ? (
+        scrollElement ? (
+          <VirtualDeviceRows {...props} scrollElement={scrollElement} />
+        ) : null
+      ) : (
+        <ItemGroup className="gap-2">
+          {props.sessions.map((session) => (
+            <DeviceRow
+              key={session.id}
+              className="animate-enter"
+              session={session}
+              isCurrent={false}
+              locked={props.locked}
+              onRevoked={props.onRevoked}
+            />
+          ))}
+        </ItemGroup>
+      )}
+    </ScrollRegion>
   );
 }
 
-function VirtualDeviceList({ sessions, currentSessionToken, locked, onRevoked }: DeviceListProps) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const scrollMargin = useDocumentTop(listRef);
-  const virtualizer = useWindowVirtualizer({
+interface VirtualDeviceRowsProps extends OtherDevicesProps {
+  scrollElement: HTMLElement;
+}
+
+function VirtualDeviceRows({ sessions, locked, onRevoked, scrollElement }: VirtualDeviceRowsProps) {
+  const virtualizer = useVirtualizer({
     count: sessions.length,
+    getScrollElement: () => scrollElement,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     gap: ROW_GAP,
     overscan: OVERSCAN_ROWS,
-    scrollMargin,
     getItemKey: (index) => sessions[index]?.id ?? index,
   });
 
   return (
-    <ItemGroup
-      ref={listRef}
-      className="relative w-full"
-      style={{ height: virtualizer.getTotalSize() }}
-    >
+    <ItemGroup className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
       {virtualizer.getVirtualItems().map((row) => {
         const session = sessions[row.index];
         if (!session) return null;
@@ -189,9 +205,9 @@ function VirtualDeviceList({ sessions, currentSessionToken, locked, onRevoked }:
             ref={virtualizer.measureElement}
             data-index={row.index}
             className="absolute inset-x-0 top-0"
-            style={{ transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)` }}
+            style={{ transform: `translateY(${row.start}px)` }}
             session={session}
-            isCurrent={session.token === currentSessionToken}
+            isCurrent={false}
             locked={locked}
             onRevoked={onRevoked}
           />
@@ -199,23 +215,6 @@ function VirtualDeviceList({ sessions, currentSessionToken, locked, onRevoked }:
       })}
     </ItemGroup>
   );
-}
-
-function useDocumentTop(ref: { current: HTMLElement | null }): number {
-  const [top, setTop] = useState(0);
-
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    const measure = () => setTop(element.getBoundingClientRect().top + window.scrollY);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(document.body);
-    return () => observer.disconnect();
-  }, [ref]);
-
-  return top;
 }
 
 interface DeviceRowProps extends ComponentProps<typeof Item> {
@@ -252,7 +251,7 @@ function DeviceRow({ session, isCurrent, locked, onRevoked, ...props }: DeviceRo
       <ItemMedia variant="icon">
         <Icon aria-hidden />
       </ItemMedia>
-      <ItemContent className="basis-40">
+      <ItemContent className="basis-36">
         <ItemTitle id={labelId}>
           {label}
           {isCurrent ? <Badge variant="secondary">{t("devices.current")}</Badge> : null}
@@ -272,7 +271,8 @@ function DeviceRow({ session, isCurrent, locked, onRevoked, ...props }: DeviceRo
             disabled={locked || revoke.isPending}
             onClick={() => revoke.mutate(session.token)}
           >
-            {t("devices.revoke")}
+            <LogOut />
+            <span className="sr-only @sm:not-sr-only">{t("devices.revoke")}</span>
           </Button>
         </ItemActions>
       )}

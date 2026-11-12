@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { byRoute, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
@@ -54,6 +54,10 @@ function writesTo(calls: ReturnType<typeof stubApi>) {
 }
 
 describe("devices card", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  });
+
   afterEach(() => {
     resetApp();
     vi.restoreAllMocks();
@@ -111,8 +115,7 @@ describe("devices card", () => {
     expect(writesTo(calls)).toEqual([{ path: "/api/auth/revoke-other-sessions", body: {} }]);
   });
 
-  it("a long list of devices starts with this device once the parent scrolls down to it", async () => {
-    const LIST_TOP_ON_A_PHONE = 1373;
+  it("a long list keeps this device on top and the others in a keyboard scrollable list", async () => {
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -121,14 +124,8 @@ describe("devices card", () => {
         disconnect() {}
       },
     );
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
-      this: Element,
-    ) {
-      const top = this.getAttribute("role") === "list" ? LIST_TOP_ON_A_PHONE - window.scrollY : 0;
-      return DOMRect.fromRect({ x: 0, y: top, width: 358, height: 72 });
-    });
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(72);
-    window.scrollY = LIST_TOP_ON_A_PHONE;
+    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(360);
     givenSessions([
       session("s-1", "token-1", IPHONE, "2026-11-12T08:00:00.000Z"),
       ...Array.from({ length: 24 }, (_, index) =>
@@ -138,9 +135,14 @@ describe("devices card", () => {
     await renderAppAt("/settings");
 
     const card = await screen.findByRole("region", { name: "Appareils connectés" });
+    const others = await within(card).findByRole("region", { name: "Vos autres appareils" });
+    const shownOthers = await within(others).findAllByRole("listitem");
 
-    expect(await within(card).findByText("Cet appareil")).toBeTruthy();
-    window.scrollY = 0;
+    expect(within(card).getByText("Cet appareil")).toBeTruthy();
+    expect(within(others).queryByText("Cet appareil")).toBeNull();
+    expect(others.tabIndex).toBe(0);
+    expect(shownOthers.length).toBeGreaterThan(0);
+    expect(shownOthers.length).toBeLessThan(24);
     vi.unstubAllGlobals();
   });
 });
