@@ -6,7 +6,6 @@ import {
   StepListItem,
   StepListTitle,
 } from "@packages/ui/components/ui/step-list";
-import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { useTranslation } from "react-i18next";
 
 const STEPS = ["signIn", "addChild", "alerts"] as const;
@@ -17,7 +16,6 @@ export function HowItWorks() {
   return (
     <LandingSection aria-labelledby="how-it-works">
       <LandingSectionTitle id="how-it-works">{t("landing.steps.title")}</LandingSectionTitle>
-      <TypographyMuted>{t("landing.steps.intro")}</TypographyMuted>
       <StepList>
         {STEPS.map((step) => (
           <StepListItem key={step}>

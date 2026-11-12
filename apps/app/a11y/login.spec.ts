@@ -10,7 +10,7 @@ test("signs in with Google only, from one main and one h1, reachable with the ke
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.getByLabel("Mot de passe")).toHaveCount(0);
 
-  const google = page.getByRole("button", { name: "Se connecter avec Google" });
+  const google = page.getByRole("button", { name: "Continuer avec Google" }).first();
   await tabTo(page, google);
   await expect(google).toBeFocused();
 });

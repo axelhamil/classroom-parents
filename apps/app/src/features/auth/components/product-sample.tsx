@@ -1,6 +1,11 @@
 import { DAY_MS } from "@packages/ddd-kit/days";
 import { utcDay } from "@packages/i18n";
-import { SampleFrame, SampleStack } from "@packages/ui/components/ui/landing";
+import {
+  LandingSection,
+  LandingSectionTitle,
+  SampleFrame,
+  SampleStack,
+} from "@packages/ui/components/ui/landing";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { EventCard } from "../../../shared/events/event-card";
@@ -83,15 +88,18 @@ export function ProductSample() {
   ];
 
   return (
-    <SampleFrame>
-      <SampleStack inert>
-        {deadlines.map(({ event, childLabel, hue }) => (
-          <li key={event.id}>
-            <EventCard event={event} childLabel={childLabel} hue={hue} />
-          </li>
-        ))}
-      </SampleStack>
-      <figcaption>{t("landing.sample.caption")}</figcaption>
-    </SampleFrame>
+    <LandingSection aria-labelledby="sample-title">
+      <LandingSectionTitle id="sample-title">{t("landing.sample.title")}</LandingSectionTitle>
+      <SampleFrame>
+        <SampleStack inert>
+          {deadlines.map(({ event, childLabel, hue }) => (
+            <li key={event.id}>
+              <EventCard event={event} childLabel={childLabel} hue={hue} />
+            </li>
+          ))}
+        </SampleStack>
+        <figcaption>{t("landing.sample.caption")}</figcaption>
+      </SampleFrame>
+    </LandingSection>
   );
 }
