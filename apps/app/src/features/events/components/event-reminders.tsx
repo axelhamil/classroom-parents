@@ -37,7 +37,11 @@ export function EventReminders({ eventId, timed, needsReview }: EventRemindersPr
   if (query.isError && apiErrorFields(query.error).status === 404) return null;
 
   return (
-    <section aria-labelledby="event-reminders-title" className="flex flex-col gap-3">
+    <section
+      aria-labelledby="event-reminders-title"
+      data-tour="event-detail-reminders"
+      className="flex flex-col gap-3"
+    >
       <TypographyH2 id="event-reminders-title" variant="section">
         {t("reminders.title")}
       </TypographyH2>

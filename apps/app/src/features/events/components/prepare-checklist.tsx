@@ -63,7 +63,11 @@ export function PrepareChecklist({ event }: PrepareChecklistProps) {
   const allSet = total > 0 && checklist.doneCount === total;
 
   return (
-    <section aria-labelledby={titleId} className="flex flex-col gap-3">
+    <section
+      aria-labelledby={titleId}
+      data-tour="event-detail-prepare"
+      className="flex flex-col gap-3"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <TypographyH2 id={titleId} variant="section">
           {t("prepare.title")}

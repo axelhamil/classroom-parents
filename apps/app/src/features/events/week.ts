@@ -23,6 +23,13 @@ export function weekDates(now: Date): string[] {
   );
 }
 
+export function mondayOf(now: Date): string {
+  const today = utcDay(schoolToday(now));
+  const sinceMonday = (new Date(today).getUTCDay() + 6) % WEEK_LENGTH;
+
+  return new Date(today - sinceMonday * DAY_MS).toISOString().slice(0, 10);
+}
+
 export function isInWeek(date: string, now: Date): boolean {
   const days = daysUntil(date, now);
 

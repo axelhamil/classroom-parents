@@ -8,6 +8,7 @@ import {
   PlannerStickerTitle,
 } from "@packages/ui/components/ui/planner-sticker";
 import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@packages/ui/components/ui/tooltip";
 import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -49,6 +50,7 @@ function WeekStrip({ days, family, now }: WeekViewProps) {
         size="day"
         spacing={1}
         aria-label={t("week.days")}
+        data-tour="home-week"
         value={day?.date}
         onValueChange={(next) => next && setSelected(next)}
         className="grid w-full grid-cols-7"
@@ -104,7 +106,7 @@ function WeekColumns({ days, family, now }: WeekViewProps) {
   const { t } = useTranslation("events");
 
   return (
-    <div className="grid grid-cols-7 items-start gap-2">
+    <div data-tour="home-week" className="grid grid-cols-7 items-start gap-2">
       {days.map((day, index) => {
         const parts = wallDateParts(day.date);
         const label = dayLabel(day.date, now);
@@ -132,27 +134,31 @@ function WeekColumns({ days, family, now }: WeekViewProps) {
               const childLabel = childLabelOf(family, event.childId);
 
               return (
-                <PlannerSticker
-                  key={event.id}
-                  asChild
-                  hue={hue}
-                  urgent={countdown !== null && countdown.kind !== "soon"}
-                >
-                  <EventLink eventId={event.id}>
-                    <PlannerStickerTitle>{event.title}</PlannerStickerTitle>
-                    <PlannerStickerMeta>
-                      <CategoryIcon aria-hidden />
-                      {t(CATEGORY_LABEL_KEYS[event.category])}
-                      {event.deadlineTime && <span>{wallTimeLabel(event.deadlineTime)}</span>}
-                    </PlannerStickerMeta>
-                    {family.length > 1 && childLabel && (
-                      <PlannerStickerMeta>
-                        <ChildAvatar name={childLabel} tone={hue} size="xs" />
-                        <span className="truncate">{childLabel}</span>
-                      </PlannerStickerMeta>
-                    )}
-                  </EventLink>
-                </PlannerSticker>
+                <Tooltip key={event.id}>
+                  <TooltipTrigger asChild>
+                    <PlannerSticker
+                      asChild
+                      hue={hue}
+                      urgent={countdown !== null && countdown.kind !== "soon"}
+                    >
+                      <EventLink eventId={event.id}>
+                        <PlannerStickerTitle>{event.title}</PlannerStickerTitle>
+                        <PlannerStickerMeta>
+                          <CategoryIcon aria-hidden />
+                          {t(CATEGORY_LABEL_KEYS[event.category])}
+                          {event.deadlineTime && <span>{wallTimeLabel(event.deadlineTime)}</span>}
+                        </PlannerStickerMeta>
+                        {family.length > 1 && childLabel && (
+                          <PlannerStickerMeta>
+                            <ChildAvatar name={childLabel} tone={hue} size="xs" />
+                            <span className="truncate">{childLabel}</span>
+                          </PlannerStickerMeta>
+                        )}
+                      </EventLink>
+                    </PlannerSticker>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{event.title}</TooltipContent>
+                </Tooltip>
               );
             })}
           </section>

@@ -129,6 +129,7 @@
   --scroll-region-height: 30rem;
   --scroll-edge-size: 1.5rem;
   --scroll-edge-shadow: color-mix(in oklch, var(--foreground) 16%, transparent);
+  --tour-halo: color-mix(in oklch, var(--primary) 22%, transparent);
   --sidebar-width: 16rem;
   --sidebar-width-icon: 3.5rem;
   --sidebar-width-mobile: 18rem;
@@ -446,6 +447,10 @@
       min-height: var(--touch-target);
     }
 
+    [data-slot="tooltip-content"] {
+      pointer-events: none;
+    }
+
     [data-slot="checkbox"],
     [data-slot="switch"] {
       position: relative;
@@ -755,6 +760,60 @@ html.theme-switching *::after {
 ::view-transition-new(root) {
   animation-duration: var(--duration-base);
   animation-timing-function: var(--ease-out);
+}
+
+::view-transition-new(root) {
+  animation-name: enter;
+}
+
+html:not(.theme-transitioning) [data-slot="app-bar"] {
+  view-transition-name: app-bar;
+}
+
+html:not(.theme-transitioning) [data-slot="app-navigation"] {
+  view-transition-name: app-navigation;
+}
+
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: scale(1.4) rotate(-18deg);
+  }
+}
+
+@layer base {
+  [data-slot="celebration-stamp"] {
+    transform: rotate(-8deg);
+    animation: stamp-in var(--duration-slow) var(--ease-emphasized) var(--duration-fast) both;
+  }
+
+  [data-tour-active] {
+    outline: var(--ring-width) solid var(--ring);
+    outline-offset: 0.25rem;
+    box-shadow: 0 0 0 0.5rem var(--tour-halo);
+  }
+
+  [data-slot="tour-step"] {
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(var(--enter-distance));
+    }
+  }
+
+  [data-slot="radio-group-indicator"] > svg {
+    transition:
+      opacity var(--duration-fast) var(--ease-out),
+      scale var(--duration-fast) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      scale: 0.6;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

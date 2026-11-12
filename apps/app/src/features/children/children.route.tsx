@@ -13,6 +13,7 @@ import { BoardEmpty } from "../../shared/events/event-board";
 import { childHue } from "../../shared/format/child-hue";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
+import { ScreenTour } from "../../shared/tour/screen-tour";
 import { reconnectChildMutationOptions } from "./api/children.mutations";
 import { childrenSearchSchema } from "./children.schema";
 import { ChildCard } from "./components/child-card";
@@ -53,6 +54,7 @@ function useReconnectOnReturn(childId: string | undefined) {
 function ChildrenPage() {
   const { t } = useTranslation("children");
   const { reconnect } = Route.useSearch();
+  const { user } = Route.useRouteContext();
   const reconnecting = useReconnectOnReturn(reconnect);
   const children = useQuery(childrenQueryOptions);
 
@@ -63,7 +65,7 @@ function ChildrenPage() {
       width="wide"
       actions={
         children.data?.length ? (
-          <Button asChild>
+          <Button asChild data-tour="children-add">
             <Link to="/children/new">
               <Plus aria-hidden />
               {t("list.add")}
@@ -99,13 +101,16 @@ function ChildrenPage() {
         isEmpty={(family) => family.length === 0}
       >
         {(family) => (
-          <ul className="grid items-start gap-x-4 gap-y-6 md:grid-cols-2">
-            {family.map((child) => (
-              <li key={child.id}>
-                <ChildCard child={child} hue={childHue(family, child.id)} />
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="grid items-start gap-x-4 gap-y-6 md:grid-cols-2">
+              {family.map((child) => (
+                <li key={child.id} data-tour="children-card">
+                  <ChildCard child={child} hue={childHue(family, child.id)} />
+                </li>
+              ))}
+            </ul>
+            <ScreenTour screen="children" userId={user.id} />
+          </>
         )}
       </QueryState>
     </Screen>

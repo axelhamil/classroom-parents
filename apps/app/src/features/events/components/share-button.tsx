@@ -11,9 +11,10 @@ const FEEDBACK_MS = 2000;
 export interface ShareButtonProps {
   label: string;
   payload: () => SharedText;
+  "data-tour"?: string;
 }
 
-export function ShareButton({ label, payload }: ShareButtonProps) {
+export function ShareButton({ label, payload, "data-tour": tour }: ShareButtonProps) {
   const { t } = useTranslation("events");
   const [copied, setCopied] = useState(false);
 
@@ -31,7 +32,7 @@ export function ShareButton({ label, payload }: ShareButtonProps) {
   };
 
   return (
-    <Button type="button" variant="outline" onClick={() => void share()}>
+    <Button type="button" variant="outline" data-tour={tour} onClick={() => void share()}>
       {copied ? (
         <CheckIcon key="copied" data-slot="feedback-icon" aria-hidden />
       ) : (

@@ -31,7 +31,11 @@ export function DefaultRemindersCard({ userId }: DefaultRemindersCardProps) {
   });
 
   return (
-    <SectionCard title={t("reminders.title")} description={t("reminders.description")}>
+    <SectionCard
+      title={t("reminders.title")}
+      description={t("reminders.description")}
+      data-tour="settings-reminders"
+    >
       {query.isPending ? (
         <SkeletonGroup label={t("reminders.loading")}>
           <Skeleton className="h-24 w-full" />

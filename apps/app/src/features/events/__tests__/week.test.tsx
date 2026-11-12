@@ -240,4 +240,27 @@ describe("Accueil, the family week", () => {
 
     expect(await screen.findByRole("heading", { name: "Préparer la semaine" })).toBeDefined();
   });
+
+  it("celebration shows once when the last deadline of the day is done", async () => {
+    at("2026-11-12T17:30:00.000Z");
+    givenFamily(
+      [CHILD],
+      [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-16", "Exposé")],
+    );
+    await renderAppAt("/");
+
+    const tonight = await screen.findByRole("region", { name: "Ce soir" });
+    const check = within(tonight).getByRole("checkbox", { name: "Vérifier qu'il est fait" });
+    const message = "Tout est prêt pour demain. Bien joué.";
+
+    expect(screen.queryByText(message)).toBeNull();
+
+    fireEvent.click(check);
+    expect(await screen.findByText(message)).toBeDefined();
+    expect(screen.queryByText("Toute la semaine est prête. Profitez de la soirée.")).toBeNull();
+
+    fireEvent.click(check);
+    fireEvent.click(check);
+    await waitFor(() => expect(screen.getAllByText(message)).toHaveLength(1));
+  });
 });

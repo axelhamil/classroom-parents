@@ -44,9 +44,9 @@ function PlannerSticker({
 
   return (
     <Comp
-      data-slot="planner-sticker"
       className={cn(plannerStickerVariants({ hue, urgent }), className)}
       {...props}
+      data-slot="planner-sticker"
     />
   );
 }

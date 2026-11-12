@@ -8,6 +8,7 @@ import { vi } from "vitest";
 import { router } from "../router";
 import { sessionQueryOptions } from "../shared/api/queries/session";
 import { queryClient } from "../shared/api/query-client";
+import { markToursSeen } from "./app-harness";
 import { ensureGetAnimations, ensureMatchMedia } from "./match-media";
 
 export interface ApiCall {
@@ -64,6 +65,7 @@ export async function renderApp(
   url: string,
   { signedIn = true }: RenderAppOptions = {},
 ): Promise<{ unmount: () => void }> {
+  markToursSeen("user-1");
   ensureMatchMedia();
   ensureGetAnimations();
   const i18n = await createI18n({ locale: "fr", resources: frCatalog });

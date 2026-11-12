@@ -22,6 +22,7 @@ import { countdownOf, wallDateParts } from "../../shared/format/deadline-label";
 import { schoolToday } from "../../shared/format/school-today";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
+import { ScreenTour } from "../../shared/tour/screen-tour";
 import { reviewEventsQueryOptions } from "./api/events.queries";
 import { BlockedChildrenNotice } from "./components/blocked-children-notice";
 import { EventOverlay } from "./components/event-overlay";
@@ -32,6 +33,7 @@ import { TonightCard } from "./components/tonight-card";
 import { WeekShareButton } from "./components/week-share-button";
 import { WeekView } from "./components/week-view";
 import { HOME_TABS, type HomeSearch, type HomeTab, homeSearchSchema } from "./events.schema";
+import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
 import { useNow } from "./hooks/use-now";
 import { useWeekEvents } from "./hooks/use-week-events";
 import {
@@ -165,6 +167,7 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   const shown = childId ? weekEvents.filter((event) => event.childId === childId) : weekEvents;
   const days = weekOf(shown, now);
   const toReview = review.data ?? [];
+  useCelebrateProgress(week.isSuccess ? weekEvents : undefined, now);
 
   const setSearch = (next: Partial<HomeSearch>) =>
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
@@ -208,7 +211,12 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
         />
       )}
       <Tabs value={tab} onValueChange={selectTab} className="gap-6">
-        <TabsList size="touch" aria-label={t("home.tabs.label")} className="w-full @md:w-fit">
+        <TabsList
+          size="touch"
+          aria-label={t("home.tabs.label")}
+          data-tour="home-tabs"
+          className="w-full @md:w-fit"
+        >
           <TabsTrigger value="week">{t("home.tabs.week")}</TabsTrigger>
           <TabsTrigger value="upcoming">{t("home.tabs.upcoming")}</TabsTrigger>
           <TabsTrigger value="history">{t("home.tabs.history")}</TabsTrigger>
@@ -223,7 +231,12 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
                   <>
                     {tonight.length > 0 && <TonightCard events={tonight} family={family} />}
                     <div className="flex justify-end">
-                      <WeekShareButton days={days} family={family} now={now} />
+                      <WeekShareButton
+                        days={days}
+                        family={family}
+                        now={now}
+                        data-tour="home-share"
+                      />
                     </div>
                   </>
                 )}
@@ -237,6 +250,7 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
                   <WeekView days={days} family={family} now={now} />
                 )}
                 {reviewCard}
+                {!search.event && <ScreenTour screen="home" userId={user.id} />}
               </>
             )}
           </QueryState>

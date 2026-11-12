@@ -59,7 +59,6 @@ function ToggleGroupItem({
 
   return (
     <ToggleGroupPrimitive.Item
-      data-slot="toggle-group-item"
       data-variant={context.variant || variant}
       data-size={context.size || size}
       data-spacing={context.spacing}
@@ -73,6 +72,7 @@ function ToggleGroupItem({
         className,
       )}
       {...props}
+      data-slot="toggle-group-item"
     >
       {children}
     </ToggleGroupPrimitive.Item>

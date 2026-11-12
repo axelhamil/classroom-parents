@@ -10,7 +10,7 @@ async function openDeletionDialog(page: Page): Promise<{ trigger: Locator; dialo
   await page.goto("/settings");
 
   const trigger = page.getByRole("button", { name: "Supprimer mon compte" });
-  await tabTo(page, trigger);
+  await tabTo(page, trigger, 40);
   await page.keyboard.press("Enter");
 
   const dialog = page.getByRole("alertdialog", { name: "Supprimer votre compte ?" });

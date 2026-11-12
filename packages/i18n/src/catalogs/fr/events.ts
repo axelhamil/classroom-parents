@@ -17,6 +17,9 @@ export default {
     count_zero: "Rien cette semaine",
     count_one: "{{count}} cette semaine",
     count_other: "{{count}} cette semaine",
+    hint_zero: "Voir seulement {{child}}, rien cette semaine",
+    hint_one: "Voir seulement {{child}}, {{count}} échéance cette semaine",
+    hint_other: "Voir seulement {{child}}, {{count}} échéances cette semaine",
   },
   week: {
     days: "Jours de la semaine",
@@ -163,6 +166,10 @@ export default {
         check: "Vérifier qu'il est fait",
       },
     },
+  },
+  celebration: {
+    day: "Tout est prêt pour {{day}}. Bien joué.",
+    week: "Toute la semaine est prête. Profitez de la soirée.",
   },
   share: {
     action: "Partager",

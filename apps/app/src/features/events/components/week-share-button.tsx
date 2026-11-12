@@ -9,9 +9,10 @@ export interface WeekShareButtonProps {
   days: readonly WeekDay[];
   family: readonly ChildDto[];
   now: Date;
+  "data-tour"?: string;
 }
 
-export function WeekShareButton({ days, family, now }: WeekShareButtonProps) {
+export function WeekShareButton({ days, family, now, "data-tour": tour }: WeekShareButtonProps) {
   const { t } = useTranslation("events");
 
   const payload = () => {
@@ -37,5 +38,5 @@ export function WeekShareButton({ days, family, now }: WeekShareButtonProps) {
     return { title, text: `${title}\n\n${body}` };
   };
 
-  return <ShareButton label={t("week.share")} payload={payload} />;
+  return <ShareButton label={t("week.share")} payload={payload} data-tour={tour} />;
 }

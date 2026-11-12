@@ -69,13 +69,15 @@ export function clearUserStorage(userId: string): void {
     key.startsWith(prefix),
   );
 
-  for (const key of keys) {
-    removeRaw(key);
-    notify(key);
-  }
+  for (const key of keys) removeStoredValue(key);
 }
 
-function writeStoredValue(key: string, value: unknown): void {
+export function removeStoredValue(key: string): void {
+  removeRaw(key);
+  notify(key);
+}
+
+export function writeStoredValue(key: string, value: unknown): void {
   const raw = JSON.stringify(value);
   try {
     window.localStorage.setItem(key, raw);
@@ -83,6 +85,10 @@ function writeStoredValue(key: string, value: unknown): void {
     unsavable.set(key, raw);
   }
   notify(key);
+}
+
+export function readStoredValue<T>(key: string, schema: z.ZodType<T>, fallback: T): T {
+  return parseStored(readRaw(key), schema, fallback);
 }
 
 export function useStoredValue<T>(

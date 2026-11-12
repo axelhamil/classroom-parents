@@ -132,7 +132,9 @@ describe("event detail, family helpers", () => {
 
     fireEvent.click(await screen.findByRole("checkbox", { name: "Vérifier qu'il est fait" }));
 
-    expect(Object.keys(localStorage)).toEqual([`user:user-1:checklist:${EVENT.id}`]);
+    expect(Object.keys(localStorage).filter((key) => !key.startsWith("tour:"))).toEqual([
+      `user:user-1:checklist:${EVENT.id}`,
+    ]);
   });
 
   it("an event without a Classroom link offers no Classroom button", async () => {

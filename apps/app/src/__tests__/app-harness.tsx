@@ -2,6 +2,7 @@ import { createI18n, frCatalog } from "@packages/i18n";
 import { Toaster } from "@packages/ui/components/ui/sonner";
 import { TooltipProvider } from "@packages/ui/components/ui/tooltip";
 import { ZodLocale } from "@packages/web-kit/i18n/zod-locale";
+import { tourKey } from "@packages/web-kit/tour/tour-store";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { type RenderResult, render } from "@testing-library/react";
@@ -77,7 +78,21 @@ export async function renderWithProviders(ui: ReactNode): Promise<RenderResult> 
   );
 }
 
-export async function renderAppAt(path: string): Promise<typeof router> {
+const TOUR_SCREENS = ["home", "event-detail", "children", "settings"];
+
+export function markToursSeen(userId: string): void {
+  for (const screen of TOUR_SCREENS) localStorage.setItem(tourKey(userId, screen), "true");
+}
+
+export interface RenderAppAtOptions {
+  firstRun?: boolean;
+}
+
+export async function renderAppAt(
+  path: string,
+  { firstRun = false }: RenderAppAtOptions = {},
+): Promise<typeof router> {
+  if (!firstRun) markToursSeen("user-1");
   ensureMatchMedia();
   ensureGetAnimations();
   queryClient.setQueryData(sessionQueryOptions.queryKey, {
