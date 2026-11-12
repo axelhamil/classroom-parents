@@ -35,6 +35,8 @@ const calendarDayVariants = cva("flex min-w-0 flex-col gap-2 scroll-mt-24", {
       today:
         "[&>[data-slot=calendar-day-header]]:border-warning [&>[data-slot=calendar-day-header]]:bg-warning/20",
       past: "[&>[data-slot=calendar-day-header]]:text-muted-foreground",
+      overdue:
+        "[&>[data-slot=calendar-day-header]]:border-destructive/40 [&>[data-slot=calendar-day-header]]:bg-destructive/10",
     },
     crunch: {
       true: "[&_[data-slot=calendar-day-crunch]]:inline-flex",

@@ -14,7 +14,7 @@ import type { EventItem } from "../../../../shared/api/queries/events";
 import { CATEGORY_ICONS, CATEGORY_LABEL_KEYS } from "../../../../shared/events/event-labels";
 import { EventLink } from "../../../../shared/events/event-link";
 import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
-import { countdownOf } from "../../../../shared/format/deadline-label";
+import { countdownOf, dayLabel } from "../../../../shared/format/deadline-label";
 import { isOverdue } from "../../calendar";
 import { useToggleDone } from "../../hooks/use-toggle-done";
 
@@ -24,6 +24,7 @@ export interface CalendarEventRowProps {
   now: Date;
   today: string;
   density?: "row" | "sticker";
+  dated?: boolean;
 }
 
 function stateOf(event: EventItem, now: Date, today: string) {
@@ -40,6 +41,7 @@ export function CalendarEventRow({
   now,
   today,
   density = "row",
+  dated = false,
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
@@ -62,6 +64,7 @@ export function CalendarEventRow({
         <CalendarEntryMeta>
           <CategoryIcon aria-hidden />
           <span>{t(CATEGORY_LABEL_KEYS[event.category])}</span>
+          {dated && <span>{dayLabel(event.deadlineDate, now)}</span>}
           {event.deadlineTime && <span>{wallTimeLabel(event.deadlineTime)}</span>}
           {childLabel && (
             <span className="flex min-w-0 items-center gap-1">

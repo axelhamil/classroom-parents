@@ -63,6 +63,29 @@ export interface CalendarRange {
 
 export const CALENDAR_KEY = ["events", "calendar"] as const;
 
+const OVERDUE_LIMIT = 50;
+
+export function overdueEventsQueryOptions(childId: string | null) {
+  return queryOptions({
+    queryKey: [...CALENDAR_KEY, "overdue", childId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await $list(
+        {
+          query: {
+            scope: "history",
+            done: "false",
+            limit: String(OVERDUE_LIMIT),
+            ...eventFilterQuery({ category: null, childId }),
+          },
+        },
+        { init: { signal } },
+      );
+      if (!res.ok) await throwApiError(res, "loadEvents");
+      return (await res.json()).items;
+    },
+  });
+}
+
 export function calendarEventsQueryOptions({ from, to }: CalendarRange) {
   return queryOptions({
     queryKey: [...CALENDAR_KEY, from, to] as const,

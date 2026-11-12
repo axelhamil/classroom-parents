@@ -62,7 +62,7 @@ function ChildrenPage() {
     <Screen
       title={t("list.title")}
       description={t("list.description")}
-      width="wide"
+      width="app"
       actions={
         children.data?.length ? (
           <Button asChild data-tour="children-add">

@@ -272,6 +272,67 @@ describe("Accueil, the family calendar", () => {
     expect(await screen.findByText("Sortie au musée")).toBeDefined();
   });
 
+  it("open deadlines the period hides are surfaced as En retard and leave once done", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const stub = givenCalendar(
+      [CHILD, HUGO],
+      [
+        deadline(1, "2026-11-10", "Cahier de liaison à signer", { childId: HUGO.id }),
+        deadline(2, "2026-11-09", "Fiche déjà rendue", { done: true }),
+        deadline(3, "2026-11-13", "Piscine"),
+      ],
+    );
+    await renderAppAt("/");
+
+    const overdue = await screen.findByRole("region", { name: "En retard" });
+    expect(within(overdue).getByRole("link", { name: "Cahier de liaison à signer" })).toBeDefined();
+    expect(within(overdue).getByText("Hugo")).toBeDefined();
+    expect(within(overdue).getByText("Mardi 10 novembre")).toBeDefined();
+    expect(within(overdue).queryByText("Fiche déjà rendue")).toBeNull();
+    expect(within(overdue).queryByText("Piscine")).toBeNull();
+
+    fireEvent.click(
+      within(overdue).getByRole("checkbox", {
+        name: "Marquer comme fait : Cahier de liaison à signer",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        stub.calls.some((call) => call.method === "POST" && call.url.pathname.endsWith("/done")),
+      ).toBe(true),
+    );
+    await waitFor(() => expect(screen.queryByRole("region", { name: "En retard" })).toBeNull());
+  });
+
+  it("a long backlog shows the three latest and opens the rest on demand", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenCalendar(
+      [CHILD],
+      ["2026-11-11", "2026-11-10", "2026-11-09", "2026-11-06", "2026-11-05"].map((date, index) =>
+        deadline(index + 1, date, `Retard ${index + 1}`),
+      ),
+    );
+    await renderAppAt("/");
+
+    const overdue = await screen.findByRole("region", { name: "En retard" });
+    await waitFor(() => expect(within(overdue).getAllByRole("link")).toHaveLength(3));
+    expect(within(overdue).queryByText("Retard 4")).toBeNull();
+
+    fireEvent.click(
+      within(overdue).getByRole("button", { name: "Voir les 2 autres échéances en retard" }),
+    );
+    expect(within(overdue).getAllByRole("link")).toHaveLength(5);
+  });
+
+  it("no strip when nothing is late, and a late day the week shows stays on its day", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
+    await renderAppAt("/?view=week");
+
+    expect(await screen.findByRole("radiogroup", { name: "Jours de la semaine" })).toBeDefined();
+    await waitFor(() => expect(screen.queryByRole("region", { name: "En retard" })).toBeNull());
+  });
+
   it("closing a deadline opened from the calendar gives focus back to its row", async () => {
     at("2026-11-12T09:00:00.000Z");
     const homework = deadline(1, "2026-11-13", "Lire le chapitre 2");

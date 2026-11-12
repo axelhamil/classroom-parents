@@ -24,6 +24,8 @@ export default {
     backToCalendar: "Retour au calendrier",
     markDone: "Marquer comme fait : {{title}}",
     overdue: "En retard",
+    overdueMore_one: "Voir l'autre échéance en retard",
+    overdueMore_other: "Voir les {{count}} autres échéances en retard",
     crunch: "Journée chargée",
     dayEmpty: "Rien de prévu ce jour-là.",
     periodEmpty: "Rien de prévu sur cette période.",

@@ -37,8 +37,14 @@ export function givenCalendar(
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     if (url.pathname === "/calendar-feed" && method === "GET") return json({ exists: false });
     if (url.pathname === "/events" && method === "GET") {
-      if (url.searchParams.get("status") !== "confirmed") return json({ items: [] });
       const today = new Date().toISOString().slice(0, 10);
+      if (url.searchParams.get("scope") === "history" && url.searchParams.get("done") === "false")
+        return json({
+          items: stub.events
+            .filter((event) => event.deadlineDate < today && !event.done)
+            .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate)),
+        });
+      if (url.searchParams.get("status") !== "confirmed") return json({ items: [] });
       const next = stub.events
         .filter((event) => event.deadlineDate >= today)
         .sort((left, right) => left.deadlineDate.localeCompare(right.deadlineDate));

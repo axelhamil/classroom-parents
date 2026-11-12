@@ -39,6 +39,30 @@ test.describe("the calendar on a phone", () => {
       expect(await blockingViolations(page)).toEqual([]);
     });
 
+    test(`a late deadline sits above the period (${colorScheme})`, async ({ page }) => {
+      const morning = new Date();
+      morning.setHours(9, 0, 0, 0);
+      await page.clock.setFixedTime(morning);
+      await showColorScheme(page, colorScheme);
+      const late = {
+        ...REVIEW_EVENT,
+        id: "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a80",
+        childId: MAXIMILIEN.id,
+        title: "Cahier de liaison à signer",
+        status: "confirmed",
+        done: false,
+        deadlineDate: inDays(-3),
+        deadlineAt: `${inDays(-3)}T07:00:00.000Z`,
+      };
+      await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [late] });
+      await page.goto("/");
+
+      const strip = page.getByRole("region", { name: "En retard" });
+      await expect(strip.getByRole("link", { name: late.title })).toBeVisible();
+      await expectOnePageWithoutOverflow(page);
+      expect(await blockingViolations(page)).toEqual([]);
+    });
+
     test(`first sync still running (${colorScheme})`, async ({ page }) => {
       await showColorScheme(page, colorScheme);
       await serveFamily(page, {
@@ -131,6 +155,29 @@ test.describe("the week on a tablet", () => {
 
     await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeVisible();
     await expectOnePageWithoutOverflow(page);
+  });
+});
+
+test.describe("the week on a desktop", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  test("gives each of the seven columns room for a title, and only the calendar widens", async ({
+    page,
+  }) => {
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+    await page.goto(`/?view=week&date=${inDays(3)}`);
+
+    const columns = page.locator("[data-slot=calendar-period] [data-slot=calendar-day]");
+    await expect(columns).toHaveCount(7);
+    const widths = await columns.evaluateAll((days) =>
+      days.map((day) => day.getBoundingClientRect().width),
+    );
+    expect(Math.min(...widths)).toBeGreaterThanOrEqual(160);
+    await expectOnePageWithoutOverflow(page);
+
+    await page.goto("/settings");
+    const settings = await page.locator("main").evaluate((main) => main.clientWidth);
+    expect(settings).toBeLessThanOrEqual(1024);
   });
 });
 

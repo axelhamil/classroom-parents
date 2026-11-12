@@ -31,6 +31,7 @@ import { AgendaView } from "./agenda-view";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { MonthView } from "./month-view";
+import { OverdueStrip } from "./overdue-strip";
 import { PeriodEmpty } from "./period-empty";
 import { WeekView } from "./week-view";
 
@@ -154,6 +155,13 @@ export function CalendarBoard({
           onChange={onChildChange}
         />
       )}
+      <OverdueStrip
+        family={family}
+        childId={childId}
+        now={now}
+        today={today}
+        before={period.from}
+      />
       {CALENDAR_VIEWS.map((candidate) => (
         <TabsContent key={candidate} value={candidate}>
           <QueryState query={query} skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}>
