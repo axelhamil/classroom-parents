@@ -28,6 +28,35 @@ export function pushPermission(): PushPermission {
   return Notification.permission;
 }
 
+const PERMISSION_OF_STATE: Record<PermissionState, NotificationPermission> = {
+  prompt: "default",
+  granted: "granted",
+  denied: "denied",
+};
+
+export function watchPermission(onChange: (permission: PushPermission) => void): () => void {
+  if (pushPermission() === "unsupported" || !navigator.permissions) return () => undefined;
+
+  let status: PermissionStatus | undefined;
+  let active = true;
+  const onStateChange = () => {
+    if (status) onChange(PERMISSION_OF_STATE[status.state]);
+  };
+  navigator.permissions
+    .query({ name: "notifications" })
+    .then((found) => {
+      if (!active) return;
+      status = found;
+      status.addEventListener("change", onStateChange);
+    })
+    .catch(() => undefined);
+
+  return () => {
+    active = false;
+    status?.removeEventListener("change", onStateChange);
+  };
+}
+
 export async function currentPushSubscription(): Promise<PushSubscription | null> {
   const registration = await navigator.serviceWorker.ready;
 

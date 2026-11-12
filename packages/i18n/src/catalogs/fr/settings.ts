@@ -72,8 +72,18 @@ export default {
     unsupported:
       "Ce navigateur ne sait pas recevoir de notifications. Ouvrez l'application dans Chrome, Edge, Firefox ou Safari récent.",
     deniedTitle: "Notifications bloquées",
-    denied:
-      "Vous avez refusé les notifications pour cette application. Pour les autoriser : sur Android, touchez le cadenas à gauche de l'adresse, puis Autorisations, puis Notifications. Sur iPhone, ouvrez Réglages, puis Notifications, puis cette application. Revenez ensuite sur cette page.",
+    denied: {
+      androidBrowser:
+        "Vous avez refusé les notifications. Pour les autoriser : touchez le cadenas à gauche de l'adresse, puis Autorisations, puis Notifications. Revenez ensuite sur cette page.",
+      androidApp:
+        "Vous avez refusé les notifications. Pour les autoriser : ouvrez les Paramètres du téléphone, puis Applications, puis KeepUpKids, puis Notifications. Revenez ensuite dans l'application.",
+      ios: "Vous avez refusé les notifications. Pour les autoriser : ouvrez Réglages, puis Notifications, puis KeepUpKids, et activez Autoriser les notifications. Revenez ensuite dans l'application.",
+      desktop:
+        "Vous avez refusé les notifications. Pour les autoriser : cliquez sur l'icône à gauche de l'adresse, autorisez les notifications pour ce site, puis rechargez la page.",
+    },
+    install: "Installer l'application",
+    installHint:
+      "Installée, l'application s'ouvre comme les autres et reçoit les alertes plus fiablement.",
     emailFallback:
       "Aucun appareil ne reçoit vos alertes pour l'instant : elles vous sont envoyées par e-mail, à l'adresse de votre compte Google.",
     installFirst: "Ajoutez d'abord l'application à l'écran d'accueil.",

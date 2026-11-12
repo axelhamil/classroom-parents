@@ -13,6 +13,7 @@ import {
   isOwnedBy,
   type PushPermission,
   pushPermission,
+  watchPermission,
 } from "./push-support";
 
 export interface PushSubscriptionState {
@@ -28,6 +29,8 @@ export function usePushSubscription(userId: string): PushSubscriptionState {
   const queryClient = useQueryClient();
   const [permission, setPermission] = useState(pushPermission);
   const [subscribed, setSubscribed] = useState(false);
+
+  useEffect(() => watchPermission(setPermission), []);
 
   useEffect(() => {
     if (permission === "unsupported") return;

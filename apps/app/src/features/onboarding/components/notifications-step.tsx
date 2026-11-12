@@ -1,8 +1,10 @@
-import { Alert, AlertDescription, AlertTitle } from "@packages/ui/components/ui/alert";
+import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
 import { BellOff, BellRing, CircleCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { InstallButton } from "../../../shared/pwa/install-button";
 import { InstallGuide } from "../../../shared/pwa/install-guide";
+import { PushDeniedAlert } from "../../../shared/pwa/push-denied-alert";
 import { useInstallState } from "../../../shared/pwa/use-install-state";
 import { usePushSubscription } from "../../../shared/pwa/use-push-subscription";
 import { StepFrame } from "./step-frame";
@@ -63,13 +65,8 @@ export function NotificationsStep({ userId, onNext }: NotificationsStepProps) {
           <AlertDescription>{tSettings("push.unsupported")}</AlertDescription>
         </Alert>
       )}
-      {push.permission === "denied" && (
-        <Alert>
-          <BellOff aria-hidden />
-          <AlertTitle>{tSettings("push.deniedTitle")}</AlertTitle>
-          <AlertDescription>{tSettings("push.denied")}</AlertDescription>
-        </Alert>
-      )}
+      <InstallButton />
+      {push.permission === "denied" && <PushDeniedAlert />}
     </StepFrame>
   );
 }

@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle } from "@packages/ui/components/ui/alert";
+import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
 import {
@@ -21,7 +21,9 @@ import { setLockScreenMutationOptions } from "../../../shared/api/mutations/set-
 import { defaultRemindersQueryOptions } from "../../../shared/api/queries/default-reminders";
 import { lockScreenQueryOptions } from "../../../shared/api/queries/lock-screen";
 import { pushStatusQueryOptions } from "../../../shared/api/queries/push-status";
+import { InstallButton } from "../../../shared/pwa/install-button";
 import { InstallGuide } from "../../../shared/pwa/install-guide";
+import { PushDeniedAlert } from "../../../shared/pwa/push-denied-alert";
 import { useInstallState } from "../../../shared/pwa/use-install-state";
 import {
   type PushSubscriptionState,
@@ -49,6 +51,7 @@ export function PushCard({ userId }: PushCardProps) {
     >
       <DefaultRemindersSummary userId={userId} />
       {needsInstall ? <InstallGuide /> : null}
+      <InstallButton />
       <PushControl push={push} needsInstall={needsInstall} />
       {push.subscribed ? <LockScreenSwitch userId={userId} /> : null}
       {emailFallback ? (
@@ -112,15 +115,7 @@ function PushControl({ push, needsInstall }: PushControlProps) {
     );
   }
 
-  if (push.permission === "denied") {
-    return (
-      <Alert>
-        <BellOff />
-        <AlertTitle>{t("push.deniedTitle")}</AlertTitle>
-        <AlertDescription>{t("push.denied")}</AlertDescription>
-      </Alert>
-    );
-  }
+  if (push.permission === "denied") return <PushDeniedAlert />;
 
   if (push.subscribed) {
     return (
