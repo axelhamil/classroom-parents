@@ -4,13 +4,9 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { byRoute, json, renderWithProviders, stubApi } from "../../../__tests__/app-harness";
 import { givenPushBrowser, VAPID_PUBLIC_KEY } from "../../../__tests__/push-browser";
-import { queryClient } from "../../../shared/api/query-client";
-import {
-  base64UrlToBytes,
-  rememberPushOwner,
-  storedPushOwner,
-} from "../../../shared/pwa/push-support";
-import { type PushSubscriptionState, usePushSubscription } from "../hooks/use-push-subscription";
+import { queryClient } from "../../api/query-client";
+import { base64UrlToBytes, rememberPushOwner, storedPushOwner } from "../push-support";
+import { type PushSubscriptionState, usePushSubscription } from "../use-push-subscription";
 
 let latest: PushSubscriptionState | undefined;
 

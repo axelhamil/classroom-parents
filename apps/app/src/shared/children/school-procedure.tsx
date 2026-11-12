@@ -1,3 +1,10 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@packages/ui/components/ui/accordion";
+import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
 import {
   DescriptionDetails,
@@ -10,7 +17,7 @@ import {
   TypographyH2,
   TypographyInline,
   TypographyList,
-  TypographyOrderedList,
+  TypographyMuted,
   TypographyP,
 } from "@packages/ui/components/ui/typography";
 import { toastSuccess } from "@packages/web-kit/api/errors/toast";
@@ -19,15 +26,10 @@ import type { TFunction } from "i18next";
 import { Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { type LinkConfig, linkConfigQueryOptions } from "../api/children.queries";
-import type { SchoolBlockKind } from "../school-error";
+import { type LinkConfig, linkConfigQueryOptions } from "./child-link.queries";
+import type { SchoolBlockKind } from "./school-error";
 
-const STEP_KEYS = [
-  "school.steps.console",
-  "school.steps.path",
-  "school.steps.pending",
-  "school.steps.configure",
-] as const;
+const STEPS = ["console", "path", "pending", "configure"] as const;
 
 export interface SchoolProcedureProps {
   kind: SchoolBlockKind;
@@ -37,7 +39,9 @@ function procedureText(t: TFunction<"children">, kind: SchoolBlockKind, config: 
   return [
     t(`school.kinds.${kind}`),
     "",
-    ...STEP_KEYS.map((key, index) => t("school.shareStep", { index: index + 1, step: t(key) })),
+    ...STEPS.map((step, index) =>
+      t("school.shareStep", { index: index + 1, step: t(`school.steps.${step}`) }),
+    ),
     "",
     t("school.shareClientId", { clientId: config.clientId }),
     t("school.shareScopes"),
@@ -65,19 +69,31 @@ export function SchoolProcedure({ kind }: SchoolProcedureProps) {
     <Panel tone="muted" size="md" className="flex flex-col gap-4">
       <TypographyP>{t(`school.kinds.${kind}`)}</TypographyP>
 
-      <TypographyH2 variant="section">{t("school.title")}</TypographyH2>
-      <TypographyOrderedList>
-        {STEP_KEYS.map((key) => (
-          <li key={key}>{t(key)}</li>
+      <div className="flex flex-col gap-1">
+        <TypographyH2 variant="section">{t("school.title")}</TypographyH2>
+        <TypographyMuted>{t("school.intro")}</TypographyMuted>
+      </div>
+
+      <Accordion type="single" collapsible defaultValue={STEPS[0]}>
+        {STEPS.map((step, index) => (
+          <AccordionItem key={step} value={step}>
+            <AccordionTrigger>
+              <span className="flex items-start gap-3">
+                <Badge variant="secondary">{index + 1}</Badge>
+                {t(`school.stepTitles.${step}`)}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>{t(`school.steps.${step}`)}</AccordionContent>
+          </AccordionItem>
         ))}
-      </TypographyOrderedList>
+      </Accordion>
 
       {config && (
         <>
           <DescriptionList>
             <DescriptionItem>
               <DescriptionTerm>{t("school.clientId")}</DescriptionTerm>
-              <DescriptionDetails className="break-all">
+              <DescriptionDetails className="wrap-anywhere">
                 <TypographyInline font="mono">{config.clientId}</TypographyInline>
               </DescriptionDetails>
             </DescriptionItem>
@@ -86,7 +102,7 @@ export function SchoolProcedure({ kind }: SchoolProcedureProps) {
               <DescriptionDetails>
                 <TypographyList>
                   {config.scopes.map((scope) => (
-                    <li key={scope} className="break-all">
+                    <li key={scope} className="wrap-anywhere">
                       <TypographyInline font="mono" size="xs">
                         {scope}
                       </TypographyInline>
@@ -99,6 +115,7 @@ export function SchoolProcedure({ kind }: SchoolProcedureProps) {
 
           <Button
             variant="outline"
+            className="self-start"
             onClick={() =>
               void shareProcedure(t("school.shareTitle"), procedureText(t, kind, config), t)
             }

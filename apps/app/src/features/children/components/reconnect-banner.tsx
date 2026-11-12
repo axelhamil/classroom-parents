@@ -1,7 +1,7 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { useTranslation } from "react-i18next";
+import { useStartChildLink } from "../../../shared/children/use-start-child-link";
 import { ActionAlert } from "../../../shared/components/action-alert";
-import { useStartChildLink } from "../hooks/use-start-child-link";
 
 export interface ReconnectBannerProps {
   childId: string;

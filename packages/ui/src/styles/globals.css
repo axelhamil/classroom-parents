@@ -116,6 +116,10 @@
   --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
   --press-scale: 0.97;
   --press-duration: 120ms;
+  --duration-step: 260ms;
+  --duration-reveal: 280ms;
+  --duration-loop: 1400ms;
+  --stagger-step: 60ms;
   --touch-target: 2.75rem;
   --nav-height: 4.25rem;
   --app-bar-height: 4rem;
@@ -303,6 +307,12 @@
   --tracking-wide: calc(var(--tracking-normal) + 0.025em);
   --tracking-wider: calc(var(--tracking-normal) + 0.05em);
   --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+
+  --animate-step-forward: step-forward var(--duration-step) var(--ease-out-soft) both;
+  --animate-step-back: step-back var(--duration-step) var(--ease-out-soft) both;
+  --animate-rise-in: rise-in var(--duration-reveal) var(--ease-out-soft) both;
+  --animate-pop-in: pop-in var(--duration-reveal) var(--ease-emphasized) both;
+  --animate-progress-sweep: progress-sweep var(--duration-loop) linear infinite;
 }
 
 @layer base {
@@ -521,6 +531,55 @@ html.theme-switching *::after {
   --success-text: hsl(140, 100%, 22%); /* 5.96:1 */
   --info-text: hsl(210, 92%, 40%); /* 5.27:1 */
   --warning-text: hsl(31, 92%, 30%); /* 6.10:1 */
+}
+
+@keyframes step-forward {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+@keyframes step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+[data-slot="reveal-list"] > :nth-child(2) {
+  animation-delay: var(--stagger-step);
+}
+
+[data-slot="reveal-list"] > :nth-child(3) {
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+
+[data-slot="reveal-list"] > :nth-child(n + 4) {
+  animation-delay: calc(var(--stagger-step) * 3);
 }
 
 @media (prefers-reduced-motion: reduce) {

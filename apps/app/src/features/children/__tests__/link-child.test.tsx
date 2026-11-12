@@ -34,6 +34,7 @@ const LEA = {
 };
 
 const copy = frCatalog.children;
+const onboarding = frCatalog.onboarding;
 
 function posts(calls: ReturnType<typeof fakeApi>, path: string) {
   return calls.filter((call) => call.method === "POST" && call.path === path);
@@ -42,7 +43,7 @@ function posts(calls: ReturnType<typeof fakeApi>, path: string) {
 describe("adding a child after the Google round trip", () => {
   afterEach(resetApp);
 
-  it("given one linkable account, then it registers that account once, starts its sync and shows the first sync", async () => {
+  it("given one linkable account, then it registers that account once, starts its sync and asks for the name", async () => {
     const calls = fakeApi({
       "GET /children/linkable": {
         body: [{ linkedAccountId: "acc-1", googleEmail: LEA.googleEmail }],
@@ -55,7 +56,9 @@ describe("adding a child after the Google round trip", () => {
 
     await renderApp("/children/new?linked=1");
 
-    expect(await screen.findByText(copy.firstSync.running)).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: onboarding.name.title }),
+    ).toBeTruthy();
     await waitFor(() => expect(posts(calls, `/sync/${CHILD_ID}`)).toHaveLength(1));
     expect(posts(calls, "/children").map((call) => call.body)).toEqual([
       { linkedAccountId: "acc-1" },
@@ -79,7 +82,7 @@ describe("adding a child after the Google round trip", () => {
     await renderApp("/children/new?linked=1");
 
     const tom = await screen.findByRole("button", { name: "tom@ecole.example" });
-    expect(screen.getByText(copy.new.pickTitle)).toBeTruthy();
+    expect(screen.getByText(onboarding.connect.pickTitle)).toBeTruthy();
     expect(posts(calls, "/children")).toHaveLength(0);
 
     await userEvent.click(tom);
@@ -97,12 +100,13 @@ describe("adding a child after the Google round trip", () => {
         body: [{ linkedAccountId: "acc-1", googleEmail: LEA.googleEmail }],
       },
       "POST /children": errorReply(409, "CHILD_ALREADY_CONNECTED"),
+      "GET /children": { body: [] },
     });
 
     await renderApp("/children/new?linked=1");
 
     expect(await screen.findByText(frCatalog.errors.byCode.CHILD_ALREADY_CONNECTED)).toBeTruthy();
-    expect(screen.getByRole("button", { name: copy.new.retry })).toBeTruthy();
+    expect(screen.getByRole("button", { name: onboarding.connect.retry })).toBeTruthy();
   });
 
   it("given Classroom scopes were not granted, then it explains them and discards the unusable link before starting again", async () => {
@@ -119,6 +123,7 @@ describe("adding a child after the Google round trip", () => {
       },
       "POST /children/linkable/acc-9/discard": { status: 204 },
       "GET /children/link-config": { body: LINK_CONFIG },
+      "GET /children": { body: [] },
     });
 
     await renderApp("/children/new?linked=1");
@@ -126,7 +131,7 @@ describe("adding a child after the Google round trip", () => {
     expect(await screen.findByText(frCatalog.errors.byCode.CHILD_SCOPES_MISSING)).toBeTruthy();
     expect(posts(calls, "/children")).toHaveLength(0);
 
-    await userEvent.click(screen.getByRole("button", { name: copy.new.discard }));
+    await userEvent.click(screen.getByRole("button", { name: onboarding.connect.discard }));
 
     await waitFor(() => expect(authClient.linkSocial).toHaveBeenCalledOnce());
     expect(posts(calls, "/children/linkable/acc-9/discard")).toHaveLength(1);
@@ -144,21 +149,17 @@ describe("first sync after adding a child", () => {
       syncing: false,
     };
     fakeApi({
-      "GET /children/linkable": {
-        body: [{ linkedAccountId: "acc-1", googleEmail: LEA.googleEmail }],
-      },
-      "POST /children": { status: 201, body: LEA },
-      [`POST /sync/${CHILD_ID}`]: { status: 202, body: { status: "started" } },
       "GET /children": { body: [blocked] },
       "GET /children/link-config": { body: LINK_CONFIG },
-      "GET /events": { body: { items: [] } },
     });
 
-    await renderApp("/children/new?linked=1");
+    await renderApp(`/children/new?child=${CHILD_ID}&step=analysis`);
 
     expect(await screen.findByText(copy.school.kinds.admin_blocked)).toBeTruthy();
-    expect(screen.queryByText(copy.firstSync.done)).toBeNull();
-    expect(screen.queryByText(copy.firstSync.noEvent)).toBeNull();
+    expect(
+      screen.queryByText(onboarding.analysis.found.replace("{{label}}", LEA.label)),
+    ).toBeNull();
+    expect(screen.queryByText(onboarding.analysis.noEvent)).toBeNull();
   });
 });
 
@@ -195,6 +196,18 @@ describe("refused Google link", () => {
     );
   });
 
+  it("given Google refuses an addition, then the add flow explains it in place and offers to try again", async () => {
+    fakeApi({
+      "GET /children": { body: [LEA] },
+      "GET /children/link-config": { body: LINK_CONFIG },
+    });
+
+    await renderApp("/children/new?error=access_denied");
+
+    expect(await screen.findByText(copy.school.kinds.access_denied)).toBeTruthy();
+    expect(screen.getByRole("button", { name: onboarding.connect.tryAgain })).toBeTruthy();
+  });
+
   it("given a refused addition, then Réessayer starts adding a child again", async () => {
     fakeApi({ "GET /children/link-config": { body: LINK_CONFIG } });
 
@@ -205,7 +218,7 @@ describe("refused Google link", () => {
       expect(authClient.linkSocial).toHaveBeenCalledWith(
         expect.objectContaining({
           callbackURL: `${window.location.origin}/children/new?linked=1`,
-          errorCallbackURL: `${window.location.origin}/children/link-error`,
+          errorCallbackURL: `${window.location.origin}/children/new`,
         }),
       ),
     );

@@ -26,9 +26,9 @@ test("traps focus in the disconnect dialog and gives it back on Escape", async (
   await stubChildrenApi(page);
   await page.goto("/children");
 
-  const card = page.getByRole("listitem").filter({ hasText: FIXTURE_CHILD_LABEL });
-  const trigger = card.getByRole("button", { name: "Déconnecter" });
+  const trigger = page.getByRole("button", { name: `Actions pour ${FIXTURE_CHILD_LABEL}` });
   await trigger.click();
+  await page.getByRole("menuitem", { name: "Déconnecter" }).click();
 
   const dialog = page.getByRole("alertdialog", { name: `Déconnecter ${FIXTURE_CHILD_LABEL} ?` });
   await expect(dialog).toBeVisible();

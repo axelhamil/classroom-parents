@@ -1,17 +1,14 @@
-import { throwApiError } from "@packages/web-kit/api/errors/api-error";
 import { mutationOptions } from "@tanstack/react-query";
-import { api } from "../../../shared/api/api-client";
-import { savePushSubscription } from "../../../shared/api/mutations/save-push-subscription";
-import { pushConfigQueryOptions } from "../../../shared/api/queries/push-config";
-import { queryClient } from "../../../shared/api/query-client";
 import {
   currentPushSubscription,
   rememberPushOwner,
   subscribeToPush,
   toSubscriptionBody,
   unsubscribeFromPush,
-} from "../../../shared/pwa/push-support";
-import type { Reminder } from "../../../shared/reminders/reminders.schema";
+} from "../../pwa/push-support";
+import { pushConfigQueryOptions } from "../queries/push-config";
+import { queryClient } from "../query-client";
+import { savePushSubscription } from "./save-push-subscription";
 
 export const enablePushMutationOptions = mutationOptions({
   mutationKey: ["push", "subscriptions", "enable"] as const,
@@ -35,16 +32,5 @@ export const disablePushMutationOptions = mutationOptions({
     if (!subscription) return;
 
     await unsubscribeFromPush(subscription);
-  },
-});
-
-const $setDefaultReminders = api.reminders.defaults.$put;
-
-export const setDefaultRemindersMutationOptions = mutationOptions({
-  mutationKey: ["reminders", "defaults", "set"] as const,
-  mutationFn: async (reminders: Reminder[]) => {
-    const res = await $setDefaultReminders({ json: { reminders } });
-    if (!res.ok) await throwApiError(res, "setDefaultReminders");
-    return (await res.json()).reminders;
   },
 });

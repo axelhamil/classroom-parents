@@ -5,6 +5,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { UsersRoundIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
+import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
 import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
 import { EventFilterBar } from "../../shared/events/event-filter-bar";
 import {
@@ -23,6 +24,7 @@ import { ReviewCard } from "./components/review-card";
 
 export const Route = createFileRoute("/_protected/_shell/")({
   validateSearch: eventFiltersSearchSchema,
+  beforeLoad: redirectToOnboardingWithoutChild,
   component: EventsPage,
 });
 

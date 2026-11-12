@@ -16,12 +16,15 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        overlay:
+          "text-child-foreground hover:bg-child-foreground/15 focus-visible:ring-child-foreground",
       },
       size: {
         default: "h-10 px-5 py-2 has-[>svg]:px-4",
         xs: "h-7 gap-1 px-2.5 text-xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-8 gap-1.5 px-3.5 has-[>svg]:px-3",
         lg: "h-12 px-7 text-base has-[>svg]:px-5",
+        wrap: "min-h-12 px-5 py-3 text-base whitespace-normal wrap-anywhere",
         icon: "size-10",
         "icon-xs": "size-7 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",

@@ -8,8 +8,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { childrenQueryOptions } from "../../../shared/api/queries/children";
-import { renameChildMutationOptions } from "../api/children.mutations";
-import { type RenameChildFormInput, renameChildSchema } from "../children.schema";
+import {
+  type ChildLabelInput,
+  childLabelSchema,
+} from "../../../shared/children/child-label.schema";
+import { renameChildMutationOptions } from "../../../shared/children/child-link.mutations";
 
 export interface RenameChildFormProps {
   childId: string;
@@ -20,8 +23,8 @@ export interface RenameChildFormProps {
 export function RenameChildForm({ childId, label, onDone }: RenameChildFormProps) {
   const { t } = useTranslation("children");
   const queryClient = useQueryClient();
-  const form = useForm<RenameChildFormInput>({
-    resolver: zodResolver(renameChildSchema),
+  const form = useForm<ChildLabelInput>({
+    resolver: zodResolver(childLabelSchema),
     defaultValues: { label },
   });
   const rename = useMutation({

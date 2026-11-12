@@ -1,7 +1,7 @@
 import { throwApiError } from "@packages/web-kit/api/errors/api-error";
 import { queryOptions } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
-import { api } from "../../../shared/api/api-client";
+import { api } from "../api/api-client";
 
 const $linkable = api.children.linkable.$get;
 const $linkConfig = api.children["link-config"].$get;
@@ -31,18 +31,19 @@ export const linkConfigQueryOptions = queryOptions({
   staleTime: Number.POSITIVE_INFINITY,
 });
 
-export function firstEventQueryOptions(childId: string, synced: boolean) {
+export const FIRST_EVENTS_SHOWN = 3;
+
+export function firstEventsQueryOptions(childId: string, synced: boolean) {
   return queryOptions({
     queryKey: ["events", "first-of-child", childId] as const,
     enabled: synced,
     queryFn: async ({ signal }) => {
       const res = await $events(
-        { query: { scope: "upcoming", childId, limit: "1" } },
+        { query: { scope: "upcoming", childId, limit: String(FIRST_EVENTS_SHOWN) } },
         { init: { signal } },
       );
       if (!res.ok) await throwApiError(res, "loadFirstEvent");
-      const page = await res.json();
-      return page.items[0] ?? null;
+      return (await res.json()).items;
     },
   });
 }

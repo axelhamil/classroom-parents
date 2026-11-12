@@ -7,6 +7,7 @@ import errors from "./errors";
 import eventEdit from "./event-edit";
 import events from "./events";
 import history from "./history";
+import onboarding from "./onboarding";
 import settings from "./settings";
 
 const catalog = {
@@ -20,6 +21,7 @@ const catalog = {
   events,
   eventEdit,
   history,
+  onboarding,
 } as const;
 
 export type Namespace = keyof typeof catalog;

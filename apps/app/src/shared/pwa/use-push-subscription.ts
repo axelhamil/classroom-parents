@@ -2,15 +2,18 @@ import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { captureError } from "../../../shared/observability/sentry";
+import {
+  disablePushMutationOptions,
+  enablePushMutationOptions,
+} from "../api/mutations/toggle-push";
+import { PUSH_STATUS_KEY } from "../api/queries/push-status";
+import { captureError } from "../observability/sentry";
 import {
   currentPushSubscription,
   isOwnedBy,
   type PushPermission,
   pushPermission,
-} from "../../../shared/pwa/push-support";
-import { disablePushMutationOptions, enablePushMutationOptions } from "../api/settings.mutations";
-import { PUSH_STATUS_KEY } from "../api/settings.queries";
+} from "./push-support";
 
 export interface PushSubscriptionState {
   permission: PushPermission;
