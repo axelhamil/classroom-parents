@@ -18,6 +18,8 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         overlay:
           "text-child-foreground hover:bg-child-foreground/15 focus-visible:ring-child-foreground",
+        google:
+          "border border-google-border bg-google font-medium text-google-foreground shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform,translate] duration-(--press-duration) ease-(--ease-out) hover:-translate-y-0.5 hover:bg-google-hover hover:shadow-xl [&>img]:shrink-0",
       },
       size: {
         default: "h-10 px-5 py-2 has-[>svg]:px-4",
@@ -25,6 +27,7 @@ const buttonVariants = cva(
         sm: "h-8 gap-1.5 px-3.5 has-[>svg]:px-3",
         lg: "h-12 px-7 text-base has-[>svg]:px-5",
         wrap: "min-h-12 px-5 py-3 text-base whitespace-normal wrap-anywhere",
+        cta: "h-14 gap-3.5 px-6 text-lg [&>img]:size-6",
         icon: "size-10",
         "icon-xs": "size-7 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",

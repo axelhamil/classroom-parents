@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { expect, test as setup } from "@playwright/test";
+import { stubChildrenApi } from "./children-fixture";
 import { STORAGE_STATE } from "./playwright.config";
 
 setup("authenticate with the seeded session", async ({ browser }) => {
@@ -9,6 +10,7 @@ setup("authenticate with the seeded session", async ({ browser }) => {
 
   const context = await browser.newContext({ storageState: STORAGE_STATE });
   const page = await context.newPage();
+  await stubChildrenApi(page);
 
   await page.goto("/");
   await expect(page).toHaveURL((url) => url.pathname === "/");

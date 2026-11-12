@@ -1,12 +1,13 @@
 # Deployment
 
-Two images, built from the repo root (the Dockerfiles prune the workspace themselves): `apps/api/Dockerfile` (Bun, runs the migrations then the server, workers in process) and `apps/app/Dockerfile` (static Vite build served by Caddy). CI builds both on every PR (`Build deploy images` job) and pushes nothing. Nothing in this repo deploys by itself.
+Three images, built from the repo root (the Dockerfiles prune the workspace themselves): `apps/api/Dockerfile` (Bun, runs the migrations then the server, workers in process), `apps/app/Dockerfile` (static Vite build served by Caddy) and `apps/site/Dockerfile` (static Astro landing served by Caddy). CI builds all three on every PR (`Build deploy images` job) and pushes nothing. Nothing in this repo deploys by itself.
 
 ## Local proof
 
 ```sh
 docker build -f apps/api/Dockerfile -t classroom-api .
-docker build -f apps/app/Dockerfile --build-arg VITE_API_URL=http://localhost:3000 -t classroom-app .
+docker build -f apps/app/Dockerfile --build-arg VITE_API_URL=http://localhost:3000 --build-arg VITE_SITE_URL=http://localhost:8081 -t classroom-app .
+docker build -f apps/site/Dockerfile --build-arg PUBLIC_SITE_URL=http://localhost:8081 --build-arg PUBLIC_APP_URL=http://localhost:8080 -t classroom-site .
 docker run --rm --network host --env-file <untracked file outside the repo> classroom-api
 docker run --rm -p 8080:80 classroom-app && curl -sI localhost:8080/sw.js
 ```
@@ -15,11 +16,12 @@ The env file holds production-shaped dummy values; never commit it.
 
 ## Railway
 
-One project, three services: Postgres (or Neon), `api`, `app`.
+One project, four services: Postgres (or Neon), `api`, `app`, `site`.
 
 - **api**: source = this repo, root directory = repo root, config file path `apps/api/railway.json` (Dockerfile builder, readiness probe `/readyz`, restart on failure, 1 replica, 40 s drain covering `SHUTDOWN_DEADLINE_MS`). One replica only: the SSE stream hub is per instance in V1.
-- **app**: source = this repo, root directory = repo root, builder Dockerfile, path `apps/app/Dockerfile`, healthcheck `/health`. Railway passes service variables as build arguments: set `VITE_API_URL` (and `VITE_CONTACT_EMAIL`) there. `API_ORIGIN` defaults to `VITE_API_URL` and feeds the CSP `connect-src`.
-- **Domains**: both services on sub-domains of one domain you own (`app.<domain>`, `api.<domain>`). Two `*.up.railway.app` hosts are two sites: the boot refuses them because the SameSite=Lax session cookie would be dropped.
+- **app**: source = this repo, root directory = repo root, builder Dockerfile, path `apps/app/Dockerfile`, healthcheck `/health`. Railway passes service variables as build arguments: set `VITE_API_URL`, `VITE_SITE_URL` (and `VITE_CONTACT_EMAIL`) there. `API_ORIGIN` defaults to `VITE_API_URL` and feeds the CSP `connect-src`.
+- **site**: same source, builder Dockerfile, path `apps/site/Dockerfile`, healthcheck `/health`, build arguments `PUBLIC_SITE_URL` (`https://<domain>`) and `PUBLIC_APP_URL` (`https://app.<domain>`), both origins without a trailing slash.
+- **Domains**: the landing on the root domain, the app and the api on sub-domains of it (`app.<domain>`, `api.<domain>`). Two `*.up.railway.app` hosts are two sites: the boot refuses them because the SameSite=Lax session cookie would be dropped.
 
 ## Environment contract (api)
 
@@ -29,7 +31,7 @@ Validated by Zod at boot (`apps/api/src/shared/env-schema.ts`); a missing variab
 |---|---|---|
 | `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `APP_ORIGIN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `CORS_ORIGIN`, `COOKIE_DOMAIN`, `ANTHROPIC_API_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `RESEND_API_KEY`, `RESEND_FROM` | `BETTER_AUTH_SECRETS`, `SENTRY_DSN`, `TRUSTED_PROXIES` (set `private` on Railway), `FAKE_PROVIDERS` (refused in production) |
 
-Linked Google tokens are sealed by BetterAuth with `BETTER_AUTH_SECRET`: rotating it needs `BETTER_AUTH_SECRETS`, never a plain replacement. Front build variables: `VITE_API_URL`, `VITE_CONTACT_EMAIL`, optional `VITE_SENTRY_*` (front Sentry then needs its ingest origin added to the CSP `connect-src` in `apps/app/Caddyfile`).
+Linked Google tokens are sealed by BetterAuth with `BETTER_AUTH_SECRET`: rotating it needs `BETTER_AUTH_SECRETS`, never a plain replacement. Front build variables: `VITE_API_URL`, `VITE_SITE_URL`, `VITE_CONTACT_EMAIL`, optional `VITE_SENTRY_*` (front Sentry then needs its ingest origin added to the CSP `connect-src` in `apps/app/Caddyfile`).
 
 Generate secrets on your machine, store them only in Railway: `openssl rand -base64 32` (`BETTER_AUTH_SECRET`), `bunx web-push generate-vapid-keys` (VAPID pair, generated once: changing it invalidates every push subscription).
 

@@ -1,0 +1,87 @@
+---
+import { frCatalog } from "@packages/i18n";
+import "@packages/ui/globals.css";
+import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
+import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
+import { cn } from "@packages/ui/libs/utils.js";
+import { THEME_COLORS } from "@packages/web-kit/theme/theme-colors";
+import { SiteFooter } from "../components/site-footer";
+import { ThemeToggle } from "../components/theme-toggle";
+import { env } from "../env";
+
+interface Props {
+  title: string;
+  description: string;
+  indexed: boolean;
+}
+
+const { title, description, indexed } = Astro.props;
+const { common, site } = frCatalog;
+const canonical = new URL(Astro.url.pathname, env.PUBLIC_SITE_URL).href;
+const ogImage = new URL("/icons/icon-512.png", env.PUBLIC_SITE_URL).href;
+const legal = common.legal.routes;
+const legalLinks = [
+  { path: "/legal/data-rights", label: legal.dataRights },
+  { path: "/legal/privacy-policy", label: legal.privacyPolicy },
+  { path: "/legal/terms", label: legal.terms },
+  { path: "/legal/sub-processors", label: legal.subProcessors },
+  { path: "/legal/accessibility", label: legal.accessibility },
+  { path: "/legal/cookies", label: legal.cookies },
+].map(({ path, label }) => ({ href: new URL(path, env.PUBLIC_APP_URL).href, label }));
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content={THEME_COLORS.light} />
+    <meta name="color-scheme" content="light dark" />
+    <script is:inline src="/theme-init.js"></script>
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {indexed ? <link rel="canonical" href={canonical} /> : <meta name="robots" content="noindex" />}
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content={common.brand} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={site.meta.ogTitle} />
+    <meta property="og:description" content={site.meta.ogDescription} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link
+      rel="preload"
+      href="/fonts/google-sans-flex.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <slot name="head" />
+  </head>
+  <body>
+    <header
+      class={cn(
+        pageContainerVariants({ width: "landing" }),
+        "flex h-app-bar items-center justify-between",
+      )}
+    >
+      <BrandLink href="/">
+        <BrandMark className="size-11" />
+        {common.brand}
+      </BrandLink>
+      <ThemeToggle
+        client:only="react"
+        label={common.theme.label}
+        current={common.theme.current}
+        modes={common.theme}
+      />
+    </header>
+    <slot />
+    <SiteFooter label={common.legalFooter.ariaLabel} links={legalLinks} />
+  </body>
+</html>

@@ -172,7 +172,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   await test.step("signs in with Google", async () => {
     await page.goto("/login");
     await googleAnswersAs(page, PARENT);
-    await page.getByRole("button", { name: "Se connecter avec Google" }).click();
+    await page.getByRole("button", { name: "Continuer avec Google" }).first().click();
 
     await expect(
       page.getByRole("heading", { level: 1, name: "Ne ratez plus aucune échéance scolaire" }),

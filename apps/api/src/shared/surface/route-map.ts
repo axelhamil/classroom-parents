@@ -19,9 +19,9 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /me/delete": { consumer: "apps/app/src/shared/api/mutations/cancel-account-deletion.ts" },
   "GET /children": { consumer: "apps/app/src/shared/api/queries/children.ts" },
   "GET /children/link-config": {
-    consumer: "apps/app/src/features/children/api/children.queries.ts",
+    consumer: "apps/app/src/shared/children/child-link.queries.ts",
   },
-  "GET /children/linkable": { consumer: "apps/app/src/features/children/api/children.queries.ts" },
+  "GET /children/linkable": { consumer: "apps/app/src/shared/children/child-link.queries.ts" },
   "GET /events": { consumer: "apps/app/src/features/events/api/events.queries.ts" },
   "GET /events/:id": { consumer: "apps/app/src/features/events/api/events.queries.ts" },
   "GET /livez": { uiLess: "infra-probe" },
@@ -37,29 +37,29 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /events/:eventId/reminders": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
   },
-  "GET /reminders/defaults": { consumer: "apps/app/src/features/settings/api/settings.queries.ts" },
+  "GET /reminders/defaults": { consumer: "apps/app/src/shared/api/queries/default-reminders.ts" },
   "PUT /reminders/defaults": {
-    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
+    consumer: "apps/app/src/shared/api/mutations/set-default-reminders.ts",
   },
-  "PATCH /children/:id": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
+  "PATCH /children/:id": { consumer: "apps/app/src/shared/children/child-link.mutations.ts" },
   "POST /push/subscriptions": {
     consumer: "apps/app/src/shared/api/mutations/save-push-subscription.ts",
   },
-  "GET /push/status": { consumer: "apps/app/src/features/settings/api/settings.queries.ts" },
+  "GET /push/status": { consumer: "apps/app/src/shared/api/queries/push-status.ts" },
   "GET /push/config": { consumer: "apps/app/src/shared/api/queries/push-config.ts" },
   "DELETE /push/subscriptions": {
     consumer: "apps/app/src/shared/api/mutations/delete-push-subscription.ts",
   },
   "PATCH /events/:id": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
-  "POST /children": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
+  "POST /children": { consumer: "apps/app/src/shared/children/child-link.mutations.ts" },
   "POST /children/:id/reconnect": {
     consumer: "apps/app/src/features/children/api/children.mutations.ts",
   },
   "POST /children/linkable/:linkedAccountId/discard": {
-    consumer: "apps/app/src/features/children/api/children.mutations.ts",
+    consumer: "apps/app/src/shared/children/child-link.mutations.ts",
   },
   "POST /events/:id/confirm": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "POST /me/delete": { consumer: "apps/app/src/shared/api/mutations/request-account-deletion.ts" },
   "POST /sync": { consumer: "apps/app/src/shared/api/mutations/request-sync.ts" },
-  "POST /sync/:childId": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
+  "POST /sync/:childId": { consumer: "apps/app/src/shared/children/child-link.mutations.ts" },
 };

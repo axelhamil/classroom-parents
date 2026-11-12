@@ -26,6 +26,10 @@
       ],
       "project": ["**/*.ts", "**/*.tsx"]
     },
+    "apps/site": {
+      "entry": ["src/pages/**/*.{astro,ts}", "a11y/*.spec.ts"],
+      "project": ["**/*.{ts,tsx,astro}"]
+    },
     "packages/ddd-kit": {
       "project": ["src/**/*.ts"]
     },
