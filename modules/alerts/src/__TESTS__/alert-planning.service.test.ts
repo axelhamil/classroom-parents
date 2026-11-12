@@ -11,6 +11,7 @@ import type { EventDeadline, IEventDeadlines } from "../application/ports/event-
 import type { IReminderSettingsRepository } from "../application/ports/reminder-settings.port";
 import { AlertPlanningService } from "../application/services/alert-planning.service";
 import type { Alert } from "../domain/alert.aggregate";
+import { QuietHours, type QuietHoursValue } from "../domain/value-objects/quiet-hours.vo";
 import type { ReminderValue } from "../domain/value-objects/reminder.vo";
 import { ReminderList } from "../domain/value-objects/reminder-list.vo";
 import { ALERT_EVENT, ALERT_ID, existingAlert, PARENT, paris } from "../testing/alert.fixture";
@@ -73,6 +74,14 @@ function dueTimes(): string[] {
   return savedAlerts().map((alert) => alert.get("time").value.at.toISOString());
 }
 
+function givenQuietHours(value: QuietHoursValue): void {
+  settings.quietHoursFor.mockResolvedValue(
+    Result.ok(Option.some(QuietHours.from(value).getValue())),
+  );
+}
+
+const QUIET_HOURS_OFF: QuietHoursValue = { enabled: false, start: "21:00", end: "07:00" };
+
 const planned = { eventId: ALERT_EVENT, userId: PARENT, actorUserId: null };
 
 const days = (count: number, time: string): ReminderValue => ({
@@ -93,6 +102,7 @@ beforeEach(() => {
   alerts.saveMany.mockResolvedValue(Result.ok());
   settings.defaultsFor.mockResolvedValue(Result.ok(Option.none()));
   settings.eventPlanFor.mockResolvedValue(Result.ok(Option.none()));
+  settings.quietHoursFor.mockResolvedValue(Result.ok(Option.none()));
   givenEvent(deadlineOn("2026-11-15"));
 
   service = new AlertPlanningService(
@@ -176,6 +186,7 @@ describe("planDefault with the parent's default reminders", () => {
   it("given an hours-before reminder and a timed deadline, then it rings that many hours before", async () => {
     givenEvent(deadlineOn("2026-11-15", "08:30"));
     givenDefaults(hours(10));
+    givenQuietHours(QUIET_HOURS_OFF);
 
     await service.planDefault(planned);
 
@@ -414,6 +425,7 @@ describe("replan when the deadline moves", () => {
 
   it("given a parent's reminder sent 1 day before at 02:30, when the deadline moves to the day after the spring change, then the new occurrence falls at 03:30 Paris", async () => {
     givenEventReminders(days(1, "02:30"));
+    givenQuietHours(QUIET_HOURS_OFF);
     givenAlerts(
       existingAlert({
         status: "sent",
@@ -439,6 +451,7 @@ describe("the hour repeated when Paris goes back to winter time", () => {
   it("given reminders 6 and 7 hours before a deadline at 08:00 on 2027-10-31, then both resolve to 00:00 UTC and merge into one alert", async () => {
     givenEvent(deadlineOn("2027-10-31", "08:00"));
     givenDefaults(hours(6), hours(7));
+    givenQuietHours(QUIET_HOURS_OFF);
 
     await service.replan(planned);
 
@@ -514,5 +527,152 @@ describe("cancel", () => {
         payload: { userId: PARENT, alertId: ALERT_ID, eventId: ALERT_EVENT, actorUserId: PARENT },
       },
     ]);
+  });
+});
+
+describe("quiet hours", () => {
+  it("given a reminder due at midnight and the default quiet hours, then it rings at 07:00 when they end", async () => {
+    givenDefaults(hours(8));
+    givenEvent(deadlineOn("2026-11-15", "08:00"));
+
+    await service.planDefault(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-15", "07:00").toISOString()]);
+    expect(saved()?.get("status").value).toBe("pending");
+  });
+
+  it("given the end of the quiet hours comes after the deadline, then the reminder rings the evening before, when they start", async () => {
+    givenDefaults(hours(2));
+    givenEvent(deadlineOn("2026-11-15", "06:30"));
+
+    await service.planDefault(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-14", "21:00").toISOString()]);
+  });
+
+  it("given the parent turned quiet hours off, then the reminder rings at midnight", async () => {
+    givenQuietHours({ enabled: false, start: "21:00", end: "07:00" });
+    givenDefaults(hours(8));
+    givenEvent(deadlineOn("2026-11-15", "08:00"));
+
+    await service.planDefault(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-15", "00:00").toISOString()]);
+  });
+
+  it("given the parent's own quiet hours, then the reminder waits for their end", async () => {
+    givenQuietHours({ enabled: true, start: "22:30", end: "06:30" });
+    givenDefaults(hours(8));
+    givenEvent(deadlineOn("2026-11-15", "08:00"));
+
+    await service.planDefault(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-15", "06:30").toISOString()]);
+  });
+
+  it("given two night reminders moved to the same morning, then the parent gets one alert", async () => {
+    givenDefaults(hours(8), hours(10));
+    givenEvent(deadlineOn("2026-11-15", "08:00"));
+
+    await service.planDefault(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-15", "07:00").toISOString()]);
+  });
+});
+
+describe("late deadlines", () => {
+  const MINUTE_AFTER_NOW = new Date(NOW.getTime() + 60_000).toISOString();
+
+  it("given a deadline added after every reminder has passed, then one alert rings in the next minute", async () => {
+    givenEvent(deadlineOn("2026-11-10", "18:00"));
+
+    await service.planDefault(planned);
+
+    expect(dueTimes()).toEqual([MINUTE_AFTER_NOW]);
+    expect(saved()?.get("status").value).toBe("pending");
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
+      EventTypes.ALERT_SCHEDULED,
+    ]);
+  });
+
+  it("given a deadline less than 30 minutes away, then no alert is planned", async () => {
+    givenEvent(deadlineOn("2026-11-10", "10:20"));
+
+    await service.planDefault(planned);
+
+    expect(savedAlerts().filter((alert) => alert.isPending())).toEqual([]);
+  });
+
+  it("given the parent was already alerted for this deadline, then no late alert is added", async () => {
+    givenEvent(deadlineOn("2026-11-10", "18:00"));
+    givenAlerts(
+      existingAlert({ date: "2026-11-09", time: "18:00", status: "sent", reminder: "d1@18:00" }),
+    );
+    givenDefaults(days(1, "18:00"));
+
+    await service.planDefault(planned);
+
+    expect(savedAlerts().filter((alert) => alert.isPending())).toEqual([]);
+  });
+
+  it("given an alert of this deadline is due and being sent, then a replan keeps it as is", async () => {
+    givenEvent(deadlineOn("2026-11-10", "23:59"));
+    givenEventReminders(days(0, "09:59"), days(1, "18:00"));
+    givenAlerts(
+      existingAlert({
+        origin: "user",
+        reminder: "d0@09:59",
+        date: "2026-11-10",
+        time: "09:59",
+      }),
+    );
+
+    await service.replan(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-10", "09:59").toISOString()]);
+  });
+
+  it("given the late alert is already planned, then a replan keeps it as is", async () => {
+    givenEvent(deadlineOn("2026-11-10", "18:00"));
+    givenAlerts(
+      existingAlert({
+        date: "2026-11-10",
+        time: "10:00",
+        deadlineAt: paris("2026-11-10", "18:00"),
+      }),
+    );
+
+    await service.replan(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-10", "10:00").toISOString()]);
+    expect(saved()?.get("status").value).toBe("pending");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given the parent asked for no reminder at all, then no late alert is added", async () => {
+    givenDefaults();
+    givenEvent(deadlineOn("2026-11-10", "18:00"));
+
+    await service.planDefault(planned);
+
+    expect(savedAlerts()).toEqual([]);
+  });
+
+  it("given a deadline added late at night for the morning, then its alert waits for the end of the quiet hours", async () => {
+    const lateNight = paris("2026-11-10", "22:30");
+    const nightService = new AlertPlanningService(
+      alerts,
+      settings,
+      deadlines,
+      mockUnitOfWork().unitOfWork,
+      outbox,
+      mockInstrumentation(),
+      () => lateNight,
+    );
+    givenEvent(deadlineOn("2026-11-11", "08:00"));
+
+    await nightService.planDefault(planned);
+
+    expect(dueTimes()).toEqual([paris("2026-11-11", "07:00").toISOString()]);
   });
 });

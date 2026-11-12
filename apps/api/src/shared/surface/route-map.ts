@@ -50,6 +50,10 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "PUT /reminders/defaults": {
     consumer: "apps/app/src/shared/api/mutations/set-default-reminders.ts",
   },
+  "GET /reminders/quiet-hours": { consumer: "apps/app/src/shared/api/queries/quiet-hours.ts" },
+  "PUT /reminders/quiet-hours": {
+    consumer: "apps/app/src/shared/api/mutations/set-quiet-hours.ts",
+  },
   "PATCH /children/:id": { consumer: "apps/app/src/shared/children/child-link.mutations.ts" },
   "POST /push/subscriptions": {
     consumer: "apps/app/src/shared/api/mutations/save-push-subscription.ts",

@@ -1,6 +1,6 @@
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { authSchema } from "@packages/drizzle";
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { ReminderValue } from "../src/domain/value-objects/reminder.vo";
 
 export const alertDefaultReminders = pgTable("alert_default_reminders", {
@@ -25,3 +25,13 @@ export const alertEventReminders = pgTable(
   },
   (table) => [index("alert_event_reminders_user_idx").on(table.userId)],
 );
+
+export const alertQuietHours = pgTable("alert_quiet_hours", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => authSchema.user.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull(),
+  start: text("start").notNull(),
+  end: text("end").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});

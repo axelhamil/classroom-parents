@@ -86,6 +86,17 @@ export default {
     loadError: "Impossible de charger les rappels par défaut.",
     saved: "Rappels par défaut enregistrés",
   },
+  quietHours: {
+    title: "Heures calmes",
+    description:
+      "Aucune alerte ne sonne pendant ces heures : elle arrive à leur fin, ou juste avant si l'échéance tombe pendant la nuit.",
+    enabled: "Respecter les heures calmes",
+    start: "Début",
+    end: "Fin",
+    loading: "Chargement des heures calmes",
+    loadError: "Impossible de charger les heures calmes.",
+    saved: "Heures calmes enregistrées",
+  },
   install: {
     title: "Installer sur l'iPhone",
     description:

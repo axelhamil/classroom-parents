@@ -23,6 +23,8 @@ export default {
       "Un rappel sonne de 0 à 14 jours avant l'échéance à une heure précise, ou de 1 à 48 heures avant. Corrigez le délai.",
     ALERT_REMINDER_HOURS_INVALID:
       "Cette échéance n'a pas d'heure : choisissez un rappel en jours avant, à une heure précise.",
+    ALERT_QUIET_HOURS_INVALID:
+      "Les heures calmes vont d'une heure à une autre, différente. Choisissez deux heures distinctes.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",
     ACCOUNT_REAUTH_REQUIRED:
       "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
@@ -283,6 +285,7 @@ export default {
     invalidEventSelection: "Contient un événement inconnu ou non abonnable.",
     reminderDays: "Choisissez de 0 à 14 jours.",
     reminderHours: "Choisissez de 1 à 48 heures.",
+    quietHoursSame: "Choisissez une fin différente du début.",
   },
   fallback: {
     signInWithGoogle: "La connexion avec Google n'a pas pu démarrer",
@@ -306,6 +309,8 @@ export default {
     resetEventReminders: "Échec du retour aux rappels par défaut",
     loadDefaultReminders: "Échec du chargement des rappels par défaut",
     setDefaultReminders: "Échec de l'enregistrement des rappels par défaut",
+    loadQuietHours: "Échec du chargement des heures calmes",
+    setQuietHours: "Échec de l'enregistrement des heures calmes",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",
     cancelAccountDeletion: "Échec de l'annulation",

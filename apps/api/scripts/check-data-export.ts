@@ -17,6 +17,7 @@ import { pushSubscription } from "@modules/alerts/schemas/push-subscription.sche
 import {
   alertDefaultReminders,
   alertEventReminders,
+  alertQuietHours,
 } from "@modules/alerts/schemas/reminder-settings.schema";
 import {
   alertDigestPreference,
@@ -150,6 +151,9 @@ async function family(name: string): Promise<{ userId: string; childId: string }
     lastFetchedAt: NOW,
   });
   await db.insert(alertDigestPreference).values({ userId, enabled: false, updatedAt: NOW });
+  await db
+    .insert(alertQuietHours)
+    .values({ userId, enabled: true, start: "22:00", end: "06:30", updatedAt: NOW });
   await db.insert(alertWeeklyDigest).values({
     userId,
     weekStart: "2030-03-04",
@@ -241,6 +245,13 @@ run(async () => {
       document.weeklyDigest.weeks[0]?.weekStart === "2030-03-04" &&
       document.weeklyDigest.weeks[0]?.status === "sent",
     document.weeklyDigest,
+  );
+  await step(
+    "the quiet hours the parent chose come along",
+    document.quietHours?.start === "22:00" &&
+      document.quietHours.end === "06:30" &&
+      document.quietHours.chosenAt === NOW.toISOString(),
+    document.quietHours,
   );
   await step(
     "reminders, defaults and alerts come along",

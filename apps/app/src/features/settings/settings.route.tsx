@@ -9,6 +9,7 @@ import { DeleteAccountCard } from "./components/delete-account-card";
 import { DevicesCard } from "./components/devices-card";
 import { PrivacyLinksCard } from "./components/privacy-links-card";
 import { PushCard } from "./components/push-card";
+import { QuietHoursCard } from "./components/quiet-hours-card";
 import { TourCard } from "./components/tour-card";
 import { settingsSearchSchema } from "./settings.schema";
 
@@ -28,6 +29,7 @@ function SettingsPage() {
         <div className="flex min-w-0 flex-col gap-6">
           <PushCard userId={user.id} />
           <DefaultRemindersCard userId={user.id} />
+          <QuietHoursCard userId={user.id} />
           <AppearanceCard />
           <TourCard userId={user.id} />
         </div>

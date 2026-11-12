@@ -88,10 +88,18 @@ export interface ExportedWeeklyDigest {
   weeks: ExportedDigestWeek[];
 }
 
+export interface ExportedQuietHours {
+  enabled: boolean;
+  start: string;
+  end: string;
+  chosenAt: string;
+}
+
 export interface UserDataSnapshot {
   children: ExportedChild[];
   events: ExportedEvent[];
   defaultReminders: ExportedReminder[] | null;
+  quietHours: ExportedQuietHours | null;
   alerts: ExportedAlert[];
   pushSubscriptions: ExportedPushSubscription[];
   calendarFeed: ExportedCalendarFeed | null;

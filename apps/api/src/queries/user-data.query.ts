@@ -5,6 +5,7 @@ import { pushSubscription } from "@modules/alerts/schemas/push-subscription.sche
 import {
   alertDefaultReminders,
   alertEventReminders,
+  alertQuietHours,
 } from "@modules/alerts/schemas/reminder-settings.schema";
 import {
   alertDigestPreference,
@@ -58,6 +59,16 @@ export class UserDataQuery implements IUserDataReader {
           .select({ reminders: alertDefaultReminders.reminders })
           .from(alertDefaultReminders)
           .where(eq(alertDefaultReminders.userId, userId));
+
+        const [quiet] = await exec
+          .select({
+            enabled: alertQuietHours.enabled,
+            start: alertQuietHours.start,
+            end: alertQuietHours.end,
+            updatedAt: alertQuietHours.updatedAt,
+          })
+          .from(alertQuietHours)
+          .where(eq(alertQuietHours.userId, userId));
 
         const alerts = await exec
           .select({
@@ -149,6 +160,14 @@ export class UserDataQuery implements IUserDataReader {
             reminders,
           })),
           defaultReminders: defaults?.reminders ?? null,
+          quietHours: quiet
+            ? {
+                enabled: quiet.enabled,
+                start: quiet.start,
+                end: quiet.end,
+                chosenAt: quiet.updatedAt.toISOString(),
+              }
+            : null,
           alerts: alerts.map((row) => ({
             ...row,
             dueAt: row.dueAt.toISOString(),

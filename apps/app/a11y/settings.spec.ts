@@ -17,6 +17,8 @@ test.describe("settings on a phone", () => {
         page.getByRole("heading", { name: "Notifications sur ce téléphone" }),
       ).toBeVisible();
       await expect(page.getByRole("button", { name: "Supprimer mon compte" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Heures calmes" })).toBeVisible();
+      await expect(page.getByLabel("Début")).toHaveValue("21:00");
       await expect(page.locator("main")).toHaveCount(1);
       await expect(page.locator("h1")).toHaveCount(1);
       const overflow = await page.evaluate(

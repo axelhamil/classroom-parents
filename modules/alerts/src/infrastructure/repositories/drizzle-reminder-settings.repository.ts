@@ -3,9 +3,11 @@ import { and, dbOperationFailure, eq, inArray, resolveExecutor } from "@packages
 import {
   alertDefaultReminders,
   alertEventReminders,
+  alertQuietHours,
 } from "../../../schemas/reminder-settings.schema";
 import { type AlertsError, alertNotFound } from "../../application/ports/alert-repository.port";
 import type { IReminderSettingsRepository } from "../../application/ports/reminder-settings.port";
+import { QuietHours } from "../../domain/value-objects/quiet-hours.vo";
 import type { ReminderValue } from "../../domain/value-objects/reminder.vo";
 import { ReminderList } from "../../domain/value-objects/reminder-list.vo";
 
@@ -140,6 +142,55 @@ export class DrizzleReminderSettingsRepository implements IReminderSettingsRepos
         () => query.execute(),
       );
       return Result.ok(deleted.length > 0);
+    });
+  }
+
+  async quietHoursFor(userId: string): Promise<Result<Option<QuietHours>, AlertsError>> {
+    const exec = resolveExecutor();
+    return this.write("quietHoursFor", async () => {
+      const query = exec
+        .select({
+          enabled: alertQuietHours.enabled,
+          start: alertQuietHours.start,
+          end: alertQuietHours.end,
+        })
+        .from(alertQuietHours)
+        .where(eq(alertQuietHours.userId, userId))
+        .limit(1);
+      const rows = await this.instrumentation.startSpan(
+        { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+        () => query.execute(),
+      );
+      const row = rows[0];
+      if (!row) return Result.ok(Option.none());
+
+      const quiet = QuietHours.from(row);
+      if (quiet.isFailure) {
+        const corrupt = new Error(`quiet hours of ${userId}: ${quiet.getError()}`);
+        this.instrumentation.capture(corrupt);
+        return Result.fail(repositoryFailure("quietHoursFor", corrupt));
+      }
+      return Result.ok(Option.some(quiet.getValue()));
+    });
+  }
+
+  async saveQuietHours(
+    userId: string,
+    quiet: QuietHours,
+    at: Date,
+  ): Promise<Result<void, AlertsError>> {
+    const exec = resolveExecutor();
+    return this.write("saveQuietHours", async () => {
+      const values = { ...quiet.value, updatedAt: at };
+      const query = exec
+        .insert(alertQuietHours)
+        .values({ userId, ...values })
+        .onConflictDoUpdate({ target: alertQuietHours.userId, set: values });
+      await this.instrumentation.startSpan(
+        { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+        () => query.execute(),
+      );
+      return Result.ok();
     });
   }
 

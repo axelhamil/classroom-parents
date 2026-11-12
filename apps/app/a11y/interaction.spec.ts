@@ -220,7 +220,7 @@ test.describe("signed in", () => {
     await page.goto("/settings");
 
     const light = page.getByRole("radio", { name: "Clair" });
-    await tabTo(page, light);
+    await tabTo(page, light, 30);
     await page.keyboard.press("ArrowRight", { delay: 50 });
 
     await expect(page.getByRole("radio", { name: "Sombre" })).toBeFocused();

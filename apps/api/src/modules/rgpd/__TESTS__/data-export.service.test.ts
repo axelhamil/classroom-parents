@@ -35,6 +35,7 @@ const snapshot: UserDataSnapshot = {
     { endpointHost: "fcm.googleapis.com", createdAt: "2026-09-02T08:00:00.000Z" },
   ],
   calendarFeed: null,
+  quietHours: null,
   weeklyDigest: { enabled: true, chosenAt: null, weeks: [] },
   sync: [],
 };

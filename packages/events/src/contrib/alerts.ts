@@ -23,6 +23,7 @@ export const alertsEvents = defineEventContribution({
     WEEKLY_DIGEST_SKIPPED: "alert.weekly_digest.skipped",
     WEEKLY_DIGEST_MISSED: "alert.weekly_digest.missed",
     WEEKLY_DIGEST_PREFERENCE_CHANGED: "alert.weekly_digest_preference.changed",
+    ALERT_QUIET_HOURS_CHANGED: "alert.quiet_hours.changed",
   },
   payloads: {
     "alert.alert.scheduled": AlertRef.extend({
@@ -79,6 +80,12 @@ export const alertsEvents = defineEventContribution({
       userId: z.string(),
       enabled: z.boolean(),
     }),
+    "alert.quiet_hours.changed": z.object({
+      userId: z.string(),
+      enabled: z.boolean(),
+      start: z.string(),
+      end: z.string(),
+    }),
   },
   retention: {
     "alert.alert.scheduled": "operational",
@@ -97,6 +104,7 @@ export const alertsEvents = defineEventContribution({
     "alert.weekly_digest.skipped": "operational",
     "alert.weekly_digest.missed": "operational",
     "alert.weekly_digest_preference.changed": "operational",
+    "alert.quiet_hours.changed": "operational",
   },
   visibility: {
     "alert.alert.scheduled": "public",
@@ -115,6 +123,7 @@ export const alertsEvents = defineEventContribution({
     "alert.weekly_digest.skipped": "internal",
     "alert.weekly_digest.missed": "public",
     "alert.weekly_digest_preference.changed": "public",
+    "alert.quiet_hours.changed": "public",
   },
   descriptions: {
     "alert.alert.scheduled":
@@ -146,5 +155,7 @@ export const alertsEvents = defineEventContribution({
       "A planned Sunday summary could not reach the parent before the week began, by push or by email, and was given up.",
     "alert.weekly_digest_preference.changed":
       "A parent turned the Sunday summary of the coming week on or off.",
+    "alert.quiet_hours.changed":
+      "A parent changed the hours during which no alert rings; upcoming alerts were replanned around them.",
   },
 });

@@ -520,6 +520,27 @@ run(async () => {
     { queriesOnFew, queriesOnMany, alerts: plannedOfD.length },
   );
 
+  const quiet = { enabled: true, start: "17:00", end: "19:00" };
+  const quietSet = await settings.setQuietHours(d.userId, quiet);
+  const quietRead = await settings.quietHours(d.userId);
+  const eveningOfD = await db
+    .select({ dueAt: alert.dueAt })
+    .from(alert)
+    .where(
+      and(eq(alert.userId, d.userId), eq(alert.reminder, "d2@18:00"), eq(alert.status, "pending")),
+    );
+  const ringsAt = eveningOfD.map(
+    ({ dueAt }) => utcToZonedWall(dueAt, PARIS_TIME_ZONE).unwrapOr({ date: "", time: "" }).time,
+  );
+  await step(
+    "quiet hours are stored and every upcoming reminder inside them rings when they end",
+    quietSet.isSuccess &&
+      isDeepStrictEqual(quietRead.isSuccess && quietRead.getValue(), quiet) &&
+      ringsAt.length === fewEvents.length + manyEvents.length &&
+      ringsAt.every((time) => time === "19:00"),
+    { quiet: quietRead.isSuccess && quietRead.getValue(), ringsAt: [...new Set(ringsAt)] },
+  );
+
   const eventOfB = dueEvents[0] ?? "";
   const before = await alertsOn(eventOfB);
   const read = await settings.eventReminders(a.userId, eventOfB);
