@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { Result } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { symmetricEncrypt } from "better-auth/crypto";
 import { authSecretKey } from "../shared/auth/auth-secrets";
@@ -7,10 +8,18 @@ import { env } from "../shared/env";
 import { runWithRequestContext } from "../shared/request-context";
 
 const enqueue = mock(async (_events: { eventType: string; payload: unknown }[]) => undefined);
+const forgetSession = mock(
+  async (
+    _userId: string,
+    _sessionId: string,
+  ): Promise<Result<void, { code: string; message: string }>> => Result.ok(),
+);
 
 mock.module("../container", () => ({
   di: {
     IOutboxRepository: { enqueue },
+    ITransactionService: { run: <T>(work: () => Promise<T>) => work() },
+    PushSubscriptionService: { forgetSession },
   },
 }));
 
@@ -244,6 +253,8 @@ describe("account events", () => {
 describe("session revocation", () => {
   beforeEach(() => {
     enqueue.mockClear();
+    forgetSession.mockClear();
+    forgetSession.mockResolvedValue(Result.ok());
   });
 
   const sessionDelete = auth.options.databaseHooks.session.delete.after;
@@ -261,13 +272,26 @@ describe("session revocation", () => {
       await sessionDelete(revoked as never, { path } as never);
 
       expect(revocations()).toEqual([{ userId: "user-1", sessionId: "session-2" }]);
+      expect(forgetSession.mock.calls).toEqual([["user-1", "session-2"]]);
     });
   }
 
-  it("stays silent when a session ends by signing out or outside a request", async () => {
+  it("stays silent and keeps the device's push alerts when a session ends by signing out or expiring", async () => {
     await sessionDelete(revoked as never, { path: "/sign-out" } as never);
     await sessionDelete(revoked as never, null);
 
+    expect(revocations()).toEqual([]);
+    expect(forgetSession).not.toHaveBeenCalled();
+  });
+
+  it("fails the revocation without announcing it when the device's push alerts could not be removed", async () => {
+    forgetSession.mockResolvedValue(
+      Result.fail({ code: "PUSH_PROVIDER_FAILURE", message: "push store down" }),
+    );
+
+    const attempt = sessionDelete(revoked as never, { path: "/revoke-session" } as never);
+
+    await expect(attempt).rejects.toMatchObject({ code: "PUSH_PROVIDER_FAILURE" });
     expect(revocations()).toEqual([]);
   });
 });

@@ -17,8 +17,9 @@ import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Globe, Laptop, LogOut, type LucideIcon, Smartphone } from "lucide-react";
-import { useId } from "react";
+import { type ComponentProps, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   revokeOtherSessionsMutationOptions,
@@ -32,7 +33,10 @@ import {
   summarizeUserAgent,
 } from "../device-labels";
 
-const SHOWN_DEVICES = 20;
+const VIRTUALIZE_ABOVE = 20;
+const ESTIMATED_ROW_HEIGHT = 72;
+const ROW_GAP = 8;
+const OVERSCAN_ROWS = 4;
 
 const DEVICE_ICONS: Record<DeviceKind, LucideIcon> = {
   ios: Smartphone,
@@ -77,8 +81,7 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
   const sessions = [...(query.data ?? [])].sort(byLatestActivity);
   const thisDevice = sessions.filter((session) => session.token === currentSessionToken);
   const others = sessions.filter((session) => session.token !== currentSessionToken);
-  const shown = [...thisDevice, ...others].slice(0, SHOWN_DEVICES);
-  const hidden = sessions.length - shown.length;
+  const ordered = [...thisDevice, ...others];
 
   return (
     <SectionCard
@@ -118,34 +121,93 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
           }
         />
       ) : (
-        <ItemGroup className="gap-2">
-          {shown.map((session) => (
-            <DeviceRow
-              key={session.id}
-              session={session}
-              isCurrent={session.token === currentSessionToken}
-              onRevoked={refresh}
-            />
-          ))}
-        </ItemGroup>
+        <DeviceList
+          sessions={ordered}
+          currentSessionToken={currentSessionToken}
+          locked={revokeOthers.isPending}
+          onRevoked={refresh}
+        />
       )}
       {query.isSuccess && others.length === 0 ? (
         <TypographyMuted>{t("devices.alone")}</TypographyMuted>
-      ) : null}
-      {hidden > 0 ? (
-        <TypographyMuted>{t("devices.hidden", { count: hidden })}</TypographyMuted>
       ) : null}
     </SectionCard>
   );
 }
 
-interface DeviceRowProps {
-  session: DeviceSession;
-  isCurrent: boolean;
+interface DeviceListProps {
+  sessions: readonly DeviceSession[];
+  currentSessionToken: string;
+  locked: boolean;
   onRevoked: () => Promise<void>;
 }
 
-function DeviceRow({ session, isCurrent, onRevoked }: DeviceRowProps) {
+function DeviceList(props: DeviceListProps) {
+  if (props.sessions.length > VIRTUALIZE_ABOVE) return <VirtualDeviceList {...props} />;
+
+  return (
+    <ItemGroup className="gap-2">
+      {props.sessions.map((session) => (
+        <DeviceRow
+          key={session.id}
+          className="animate-enter"
+          session={session}
+          isCurrent={session.token === props.currentSessionToken}
+          locked={props.locked}
+          onRevoked={props.onRevoked}
+        />
+      ))}
+    </ItemGroup>
+  );
+}
+
+function VirtualDeviceList({ sessions, currentSessionToken, locked, onRevoked }: DeviceListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useWindowVirtualizer({
+    count: sessions.length,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    gap: ROW_GAP,
+    overscan: OVERSCAN_ROWS,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+    getItemKey: (index) => sessions[index]?.id ?? index,
+  });
+
+  return (
+    <ItemGroup
+      ref={listRef}
+      className="relative w-full"
+      style={{ height: virtualizer.getTotalSize() }}
+    >
+      {virtualizer.getVirtualItems().map((row) => {
+        const session = sessions[row.index];
+        if (!session) return null;
+
+        return (
+          <DeviceRow
+            key={row.key}
+            ref={virtualizer.measureElement}
+            data-index={row.index}
+            className="absolute inset-x-0 top-0"
+            style={{ transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)` }}
+            session={session}
+            isCurrent={session.token === currentSessionToken}
+            locked={locked}
+            onRevoked={onRevoked}
+          />
+        );
+      })}
+    </ItemGroup>
+  );
+}
+
+interface DeviceRowProps extends ComponentProps<typeof Item> {
+  session: DeviceSession;
+  isCurrent: boolean;
+  locked: boolean;
+  onRevoked: () => Promise<void>;
+}
+
+function DeviceRow({ session, isCurrent, locked, onRevoked, ...props }: DeviceRowProps) {
   const { t } = useTranslation("settings");
   const formatDateTime = useFormatDateTime();
   const labelId = useId();
@@ -168,7 +230,7 @@ function DeviceRow({ session, isCurrent, onRevoked }: DeviceRowProps) {
     : t("devices.unknown");
 
   return (
-    <Item role="listitem" variant="outline" size="sm">
+    <Item role="listitem" variant="outline" size="sm" {...props}>
       <ItemMedia variant="icon">
         <Icon aria-hidden />
       </ItemMedia>
@@ -189,7 +251,7 @@ function DeviceRow({ session, isCurrent, onRevoked }: DeviceRowProps) {
             type="button"
             variant="ghost"
             aria-describedby={labelId}
-            disabled={revoke.isPending}
+            disabled={locked || revoke.isPending}
             onClick={() => revoke.mutate(session.token)}
           >
             {t("devices.revoke")}

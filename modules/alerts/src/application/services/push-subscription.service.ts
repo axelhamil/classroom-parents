@@ -33,7 +33,7 @@ export class PushSubscriptionService {
       const parsed = pushSubscriptionSchema.safeParse(input);
       if (!parsed.success) return Result.fail(subscriptionInvalid);
 
-      const { endpoint, keys, userAgent } = parsed.data;
+      const { endpoint, keys, userAgent, sessionId } = parsed.data;
       return this.transactions.run(async (): Promise<Result<void, AlertsError>> => {
         const stored = await this.subscriptions.upsert({
           userId,
@@ -41,6 +41,7 @@ export class PushSubscriptionService {
           p256dh: keys.p256dh,
           auth: keys.auth,
           userAgent: Option.fromNullable(userAgent),
+          sessionId: Option.fromNullable(sessionId),
           now: this.clock(),
         });
         if (stored.isFailure) return Result.fail(stored.getError());
@@ -87,6 +88,26 @@ export class PushSubscriptionService {
           subscriptionId,
           { userId, subscriptionId, actorUserId: userId },
         );
+        return Result.ok();
+      }),
+    );
+  }
+
+  async forgetSession(userId: string, sessionId: string): Promise<Result<void, AlertsError>> {
+    return this.span("forgetSession", () =>
+      this.transactions.run(async (): Promise<Result<void, AlertsError>> => {
+        const deleted = await this.subscriptions.deleteForSession(userId, sessionId);
+        if (deleted.isFailure) return Result.fail(deleted.getError());
+
+        for (const subscriptionId of deleted.getValue()) {
+          await emitEvent(
+            this.outbox,
+            EventTypes.PUSH_UNSUBSCRIBED,
+            "push_subscription",
+            subscriptionId,
+            { userId, subscriptionId, actorUserId: userId },
+          );
+        }
         return Result.ok();
       }),
     );

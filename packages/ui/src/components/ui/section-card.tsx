@@ -14,7 +14,7 @@ function SectionCard({ title, description, tone = "default", footer, children }:
   const titleId = useId();
 
   return (
-    <Card role="region" aria-labelledby={titleId} variant={tone}>
+    <Card role="region" aria-labelledby={titleId} variant={tone} className="animate-enter">
       <CardHeader>
         <CardTitle asChild variant={tone}>
           <h2 id={titleId}>{title}</h2>

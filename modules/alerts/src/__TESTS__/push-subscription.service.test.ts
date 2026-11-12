@@ -66,6 +66,14 @@ describe("subscribe", () => {
     ]);
   });
 
+  it("given a subscription posted from a signed in device, then it is tied to that device's session", async () => {
+    await service.subscribe(PARENT, { ...browserSubscription, sessionId: "session-phone" });
+
+    expect(subscriptions.upsert.mock.calls[0]?.[0]?.sessionId).toEqual(
+      Option.some("session-phone"),
+    );
+  });
+
   it("given a phone another parent subscribed, then the endpoint moves to this parent and the other parent's audit trail records it left them", async () => {
     subscriptions.upsert.mockResolvedValue(
       Result.ok({ id: SUBSCRIPTION_ID, previousUserId: Option.some("other-parent") }),
@@ -166,5 +174,32 @@ describe("unsubscribe and status", () => {
     const result = await service.status(PARENT);
 
     expect(result.getValue()).toEqual({ live: 2 });
+  });
+});
+
+describe("forget a revoked session", () => {
+  it("given the parent signed a device out, then only that device's subscriptions go and each removal names the parent", async () => {
+    subscriptions.deleteForSession.mockResolvedValue(Result.ok([SUBSCRIPTION_ID]));
+
+    const result = await service.forgetSession(PARENT, "session-phone");
+
+    expect(result.isSuccess).toBe(true);
+    expect(subscriptions.deleteForSession).toHaveBeenCalledWith(PARENT, "session-phone");
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.PUSH_UNSUBSCRIBED,
+        aggregateId: SUBSCRIPTION_ID,
+        payload: { userId: PARENT, subscriptionId: SUBSCRIPTION_ID, actorUserId: PARENT },
+      },
+    ]);
+  });
+
+  it("given the device never allowed alerts, then nothing is removed and nothing is announced", async () => {
+    subscriptions.deleteForSession.mockResolvedValue(Result.ok([]));
+
+    const result = await service.forgetSession(PARENT, "session-laptop");
+
+    expect(result.isSuccess).toBe(true);
+    expect(enqueuedEvents(outbox)).toEqual([]);
   });
 });

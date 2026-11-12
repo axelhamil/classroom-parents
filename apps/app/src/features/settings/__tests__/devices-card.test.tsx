@@ -67,16 +67,15 @@ describe("devices card", () => {
     await renderAppAt("/settings");
 
     const card = await screen.findByRole("region", { name: "Appareils connectés" });
-    const rows = await within(card).findAllByRole("listitem");
-    expect(rows).toHaveLength(2);
-    expect(within(rows[0] as HTMLElement).getByText("Safari sur iPhone ou iPad")).toBeTruthy();
-    expect(within(rows[0] as HTMLElement).getByText("Cet appareil")).toBeTruthy();
-    expect(within(rows[0] as HTMLElement).queryByRole("button")).toBeNull();
-    expect(within(rows[1] as HTMLElement).getByText("Chrome sur Windows")).toBeTruthy();
+    const [current, other, ...rest] = await within(card).findAllByRole("listitem");
+    if (!current || !other) throw new Error("the card lists fewer than two devices");
+    expect(rest).toHaveLength(0);
+    expect(within(current).getByText("Safari sur iPhone ou iPad")).toBeTruthy();
+    expect(within(current).getByText("Cet appareil")).toBeTruthy();
+    expect(within(current).queryByRole("button")).toBeNull();
+    expect(within(other).getByText("Chrome sur Windows")).toBeTruthy();
 
-    await userEvent
-      .setup()
-      .click(within(rows[1] as HTMLElement).getByRole("button", { name: "Déconnecter" }));
+    await userEvent.setup().click(within(other).getByRole("button", { name: "Déconnecter" }));
 
     await waitFor(() => expect(within(card).getAllByRole("listitem")).toHaveLength(1));
     expect(writesTo(calls)).toEqual([
@@ -102,6 +101,7 @@ describe("devices card", () => {
     const dialog = await screen.findByRole("alertdialog", {
       name: "Déconnecter les autres appareils ?",
     });
+    expect(within(dialog).getByText(/ne recevront plus vos alertes/)).toBeTruthy();
     expect(writesTo(calls)).toEqual([]);
 
     await user.click(within(dialog).getByRole("button", { name: "Oui, les déconnecter" }));

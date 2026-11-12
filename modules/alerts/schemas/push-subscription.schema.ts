@@ -13,8 +13,12 @@ export const pushSubscription = pgTable(
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
     userAgent: text("user_agent"),
+    sessionId: text("session_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("push_subscription_user_idx").on(table.userId)],
+  (table) => [
+    index("push_subscription_user_idx").on(table.userId),
+    index("push_subscription_session_idx").on(table.sessionId),
+  ],
 );

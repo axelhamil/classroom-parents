@@ -34,6 +34,7 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
             p256dh: subscription.p256dh,
             auth: subscription.auth,
             userAgent: subscription.userAgent.toNull(),
+            sessionId: subscription.sessionId.toNull(),
             lastSeenAt: subscription.now,
           };
           const [row] = await exec
@@ -59,6 +60,35 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
     return this.remove(
       "deleteOwned",
       and(eq(pushSubscription.userId, userId), eq(pushSubscription.endpoint, endpoint)),
+    );
+  }
+
+  async deleteForSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<Result<string[], AlertsError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzlePushSubscriptionRepository > deleteForSession" },
+      async () => {
+        try {
+          const query = exec
+            .delete(pushSubscription)
+            .where(
+              and(eq(pushSubscription.userId, userId), eq(pushSubscription.sessionId, sessionId)),
+            )
+            .returning({ id: pushSubscription.id });
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return Result.ok(rows.map(({ id }) => id));
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("deleteForSession", err));
+        }
+      },
     );
   }
 

@@ -8,7 +8,8 @@
  * an unregistered linked account is discarded; a disconnection erases the child and its
  * events; the first sync plans a default alert for each live upcoming deadline but none
  * for one a coursework shadows or the parent deleted, and a due alert reaches the
- * parent's push subscription once, the reminders of a child being disconnected answer not
+ * parent's push subscription once, signing a phone out from another device removes only the
+ * phone's push subscription, the reminders of a child being disconnected answer not
  * found; the account wipe revokes Google and leaves no row of
  * the family behind, alerts and push subscriptions included.
  */
@@ -42,6 +43,7 @@ import {
   type SQL,
   sql,
 } from "@packages/drizzle";
+import { EventTypes } from "@packages/events";
 import type { UserStreamMessage } from "@packages/events/user-stream-message";
 import { makeSignature } from "better-auth/crypto";
 import { z } from "zod";
@@ -49,7 +51,7 @@ import { app } from "../src/app";
 import { auth } from "../src/auth";
 import { di } from "../src/container";
 import { GOOGLE_IDENTITY_SCOPES } from "../src/shared/auth/google-scopes";
-import { FRONT_ORIGINS } from "../src/shared/env";
+import { env, FRONT_ORIGINS } from "../src/shared/env";
 import { PgUserStreamPublisher } from "../src/shared/services/user-stream-relay";
 import { requireFakeProviders, seedDemoFamily } from "./demo-family";
 import { removeProbeUsers } from "./google-oauth-fixture";
@@ -75,12 +77,19 @@ const EventRow = z.object({
 
 const EventPage = z.object({ items: z.array(EventRow) });
 
-async function sessionCookie(userId: string): Promise<string> {
+async function signedSession(
+  userId: string,
+): Promise<{ id: string; token: string; cookie: string }> {
   const context = await auth.$context;
   const session = await context.internalAdapter.createSession(userId);
   const signature = await makeSignature(session.token, context.secret);
+  const cookie = `${context.authCookies.sessionToken.name}=${encodeURIComponent(`${session.token}.${signature}`)}`;
 
-  return `${context.authCookies.sessionToken.name}=${encodeURIComponent(`${session.token}.${signature}`)}`;
+  return { id: session.id, token: session.token, cookie };
+}
+
+async function sessionCookie(userId: string): Promise<string> {
+  return (await signedSession(userId)).cookie;
 }
 
 function client(cookie: string) {
@@ -381,6 +390,46 @@ run(async () => {
     discarded.status === 204 &&
       (await rowsIn(authSchema.account, eq(authSchema.account.id, `${probe}-spare`))) === 0,
     discarded.status,
+  );
+
+  const phone = await signedSession(family.userId);
+  const phoneEndpoint = `https://fcm.googleapis.com/fcm/send/${probe}-phone`;
+  const phoneSubscribed = await client(phone.cookie)("/push/subscriptions", "POST", {
+    endpoint: phoneEndpoint,
+    keys: { p256dh: "demo-p256dh", auth: "demo-auth" },
+  });
+  const revoked = await auth.handler(
+    new Request(new URL("/api/auth/revoke-session", env.BETTER_AUTH_URL).href, {
+      method: "POST",
+      headers: {
+        cookie: await sessionCookie(family.userId),
+        origin,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ token: phone.token }),
+    }),
+  );
+  const endpointsLeft = (
+    await db
+      .select({ endpoint: pushSubscription.endpoint })
+      .from(pushSubscription)
+      .where(eq(pushSubscription.userId, family.userId))
+  ).map(({ endpoint }) => endpoint);
+  const announced = await rowsIn(
+    outboxSchema.outboxEvent,
+    and(
+      eq(outboxSchema.outboxEvent.aggregateId, phone.id),
+      eq(outboxSchema.outboxEvent.eventType, EventTypes.USER_SESSION_REVOKED),
+    ),
+  );
+  await step(
+    "signing the phone out from another device removes the phone's push alerts, keeps the other device's and announces it",
+    phoneSubscribed.status === 204 &&
+      revoked.status === 200 &&
+      endpointsLeft.length === 1 &&
+      endpointsLeft[0] === `https://fcm.googleapis.com/fcm/send/${probe}` &&
+      announced === 1,
+    { phone: phoneSubscribed.status, revoked: revoked.status, endpointsLeft, announced },
   );
 
   const leaEventsBefore = await rowsIn(agendaEvent, eq(agendaEvent.childId, lea.id));

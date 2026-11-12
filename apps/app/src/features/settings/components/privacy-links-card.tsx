@@ -29,7 +29,7 @@ export function PrivacyLinksCard() {
     <SectionCard title={t("links.title")} description={t("links.description")}>
       <ul className="flex flex-col gap-2">
         {LINKS.map(({ to, key, icon: Icon }) => (
-          <li key={to}>
+          <li key={to} className="animate-enter">
             <Item variant="outline" size="sm" asChild>
               <Link to={to}>
                 <ItemMedia>
@@ -39,7 +39,10 @@ export function PrivacyLinksCard() {
                   <ItemTitle>{t(key)}</ItemTitle>
                 </ItemContent>
                 <ItemActions>
-                  <ChevronRight aria-hidden />
+                  <ChevronRight
+                    aria-hidden
+                    className="transition-transform group-hover/item:translate-x-0.5"
+                  />
                 </ItemActions>
               </Link>
             </Item>

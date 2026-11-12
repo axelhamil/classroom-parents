@@ -1,4 +1,5 @@
 import "zod/v4/core";
+import { AppErrorException } from "@packages/ddd-kit";
 import { db } from "@packages/drizzle";
 import { type EventType, EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
@@ -142,10 +143,20 @@ const authOptions = {
       delete: {
         after: async (session, context) => {
           if (!context || !REVOKE_PATHS.has(context.path)) return;
-          await emit(EventTypes.USER_SESSION_REVOKED, "session", session.id, {
-            userId: session.userId,
-            sessionId: session.id,
+          const revoked = await di.ITransactionService.run(async () => {
+            const forgotten = await di.PushSubscriptionService.forgetSession(
+              session.userId,
+              session.id,
+            );
+            if (forgotten.isFailure) return forgotten;
+
+            await emit(EventTypes.USER_SESSION_REVOKED, "session", session.id, {
+              userId: session.userId,
+              sessionId: session.id,
+            });
+            return forgotten;
           });
+          if (revoked.isFailure) throw new AppErrorException(revoked.getError());
         },
       },
     },
