@@ -42,6 +42,7 @@ const routes = createRgpdRoutes({
   routeGuards: openRouteGuards({ userId: "user-1", sessionId: "session-1" }),
   accountDeleteRateLimit,
   RgpdService: { ...mockPort<RgpdRoutesDeps["RgpdService"]>(), requestAccountDeletion },
+  DataExportService: mockPort<RgpdRoutesDeps["DataExportService"]>(),
 });
 
 function postDelete() {

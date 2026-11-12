@@ -169,6 +169,11 @@ jobs:
         # removes the feed. Removes its probe rows.
         run: pnpm --filter api check:calendar-feed
 
+      - name: Check that the data export reads only the parent's family
+        # The owner filter lives in the host query and the 24 h limit in the stored request
+        # date; only Postgres proves both. Removes its probe families.
+        run: pnpm --filter api check:data-export
+
       - name: Check the alert dispatch claim against a real database
         # Skip locked and the lease live in the claim query; only concurrent dispatchers
         # on Postgres prove each alert is sent once and the partial index is read.

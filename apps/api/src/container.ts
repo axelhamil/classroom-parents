@@ -49,10 +49,12 @@ import {
 import { fakeProviderBindings } from "./composition/fake-bindings";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
+import type { IUserDataReader } from "./modules/rgpd/application/ports/user-data-reader.port";
 import { rgpdModule } from "./modules/rgpd/module";
 import { AlertContextQuery } from "./queries/alert-context.query";
 import { DigestAudienceQuery } from "./queries/digest-audience.query";
 import { FeedAlarmsQuery } from "./queries/feed-alarms.query";
+import { UserDataQuery } from "./queries/user-data.query";
 import { authSecretKey } from "./shared/auth/auth-secrets";
 import { googleTokenSealing } from "./shared/auth/token-sealing";
 import type { OutermostUnitOfWork } from "./shared/auth/unit-of-work-adapter";
@@ -197,6 +199,7 @@ export const di = container()
   .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService, c.ChildSyncService))
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
+  .add("IUserDataReader", (c): IUserDataReader => new UserDataQuery(c.IInstrumentation))
   .addModule(rgpdModule)
   .addModule(await fakeProviderBindings(env))
   .add(

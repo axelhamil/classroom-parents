@@ -6,8 +6,18 @@ export type RgpdError = AppError<
   | "ACCOUNT_REAUTH_REQUIRED"
   | "ACCOUNT_WIPE_NOTIFY_PROVIDER_FAILURE"
   | "ACCOUNT_WIPE_PROVIDER_FAILURE"
+  | "ACCOUNT_NOT_FOUND"
+  | "DATA_EXPORT_RATE_LIMITED"
+  | "DATA_EXPORT_PROVIDER_FAILURE"
   | "RGPD_REPOSITORY_PROVIDER_FAILURE"
 >;
+
+export interface DataExportAccount {
+  name: string;
+  email: string;
+  createdAt: Date;
+  lastDataExportAt: Option<Date>;
+}
 
 export interface ExecuteWipeOutput {
   alreadyWiped: boolean;
@@ -40,4 +50,8 @@ export interface IRgpdRepository {
   findSessionStart(userId: string, sessionId: string): Promise<Result<Option<Date>, RgpdError>>;
 
   getUserDeletionState(userId: string): Promise<Result<Option<UserDeletionState>, RgpdError>>;
+
+  lockDataExportAccount(userId: string): Promise<Result<Option<DataExportAccount>, RgpdError>>;
+
+  markDataExported(userId: string, at: Date): Promise<Result<void, RgpdError>>;
 }
