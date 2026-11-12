@@ -64,3 +64,31 @@ describe("GET /events done filter", () => {
     expect(query.listUpcoming.mock.calls[0]?.[1].done).toBe(done);
   });
 });
+
+describe("GET /events/calendar", () => {
+  it("given a range and two children, then the calendar is read rather than an event by id", async () => {
+    const query = mockPort<EventQueryService>();
+    query.listCalendar.mockResolvedValue(Result.ok({ items: [] }));
+    const app = new Hono().route(
+      "/events",
+      createEventsRoutes({
+        routeGuards: openRouteGuards({ userId: "parent-1" }),
+        EventQueryService: query,
+        EventEditService: mockPort<EventEditService>(),
+      }),
+    );
+    const child = "0196a000-0000-7000-8000-000000000001";
+
+    const response = await app.request(
+      `/events/calendar?from=2026-11-01&to=2026-11-30&childId=${child}&childId=${child}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(query.get).not.toHaveBeenCalled();
+    expect(query.listCalendar.mock.calls[0]?.[1]).toMatchObject({
+      from: "2026-11-01",
+      to: "2026-11-30",
+      childIds: [child, child],
+    });
+  });
+});

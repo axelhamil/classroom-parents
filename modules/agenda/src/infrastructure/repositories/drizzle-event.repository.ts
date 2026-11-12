@@ -21,6 +21,7 @@ import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/h
 import { agendaEvent } from "../../../schemas/event.schema";
 import {
   type AgendaError,
+  type CalendarFilter,
   type CourseDay,
   type CourseworkCourses,
   type EventFilter,
@@ -44,6 +45,8 @@ const repositoryFailure = dbOperationFailure("EVENT_PROVIDER_FAILURE");
 type EventRow = typeof agendaEvent.$inferSelect;
 
 type Order = "asc" | "desc";
+
+type Read = "plain" | "locked" | "chronological";
 
 function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const id = EventId.parse(row.id);
@@ -146,7 +149,10 @@ function doneIs(done: boolean | undefined): SQL | undefined {
   return done ? sql`${agendaEvent.done}` : not(agendaEvent.done);
 }
 
-function filtered(filter: EventFilter, order: Order): (SQL | undefined)[] {
+function filtered(
+  filter: Pick<EventFilter, "childIds" | "categories" | "statuses" | "done" | "cursor">,
+  order: Order,
+): (SQL | undefined)[] {
   return [
     filter.childIds?.length ? inArray(agendaEvent.childId, filter.childIds) : undefined,
     filter.categories?.length ? inArray(agendaEvent.category, filter.categories) : undefined,
@@ -288,7 +294,7 @@ export class DrizzleEventRepository implements IEventRepository {
         isNull(agendaEvent.deletedAt),
         isNull(agendaEvent.withdrawnAt),
       ),
-      true,
+      "locked",
     );
   }
 
@@ -307,14 +313,14 @@ export class DrizzleEventRepository implements IEventRepository {
         isNull(agendaEvent.deletedAt),
         isNull(agendaEvent.withdrawnAt),
       ),
-      false,
+      "plain",
     );
   }
 
   private async selectMany(
     method: string,
     where: SQL | undefined,
-    forUpdate: boolean,
+    read: Read,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -322,7 +328,12 @@ export class DrizzleEventRepository implements IEventRepository {
       async () => {
         try {
           const select = exec.select().from(agendaEvent).where(where);
-          const query = forUpdate ? select.for("update") : select;
+          const query =
+            read === "locked"
+              ? select.for("update")
+              : read === "chronological"
+                ? select.orderBy(asc(agendaEvent.deadlineAt), asc(agendaEvent.id))
+                : select;
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
@@ -334,6 +345,24 @@ export class DrizzleEventRepository implements IEventRepository {
           return Result.fail(repositoryFailure(method, err));
         }
       },
+    );
+  }
+
+  async listCalendar(
+    userId: string,
+    filter: CalendarFilter,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    const { startsAt, endsBefore } = filter.range.value;
+    return this.selectMany(
+      "listCalendar",
+      and(
+        ownedAlive(userId),
+        gte(agendaEvent.deadlineAt, startsAt),
+        lt(agendaEvent.deadlineAt, endsBefore),
+        notShadowedByCoursework(resolveExecutor()),
+        ...filtered(filter, "asc"),
+      ),
+      "chronological",
     );
   }
 

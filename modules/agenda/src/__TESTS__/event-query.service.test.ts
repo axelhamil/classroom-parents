@@ -153,6 +153,47 @@ describe("list while a child is being disconnected", () => {
   });
 });
 
+describe("calendar", () => {
+  beforeEach(() => {
+    repo.listCalendar.mockResolvedValue(Result.ok<AgendaEvent[], AgendaError>([agendaEvent()]));
+  });
+
+  it("given a month, then every event of its days is read for the visible children only", async () => {
+    const result = await service.listCalendar(PARENT, {
+      from: "2026-11-01",
+      to: "2026-11-30",
+      childIds: [CHILD, LEAVING],
+      categories: ["homework"],
+    });
+
+    const [userId, filter] = repo.listCalendar.mock.calls[0] ?? [];
+    expect(userId).toBe(PARENT);
+    expect(filter?.childIds).toEqual([CHILD]);
+    expect(filter?.categories).toEqual(["homework"]);
+    expect(filter?.range.value.from).toBe("2026-11-01");
+    expect(filter?.range.value.to).toBe("2026-11-30");
+    expect(result.getValue().items).toHaveLength(1);
+  });
+
+  it("given more than 62 days, then EVENT_RANGE_INVALID and nothing is read", async () => {
+    const result = await service.listCalendar(PARENT, { from: "2026-11-01", to: "2027-01-02" });
+
+    expect(result.getError().code).toBe("EVENT_RANGE_INVALID");
+    expect(repo.listCalendar).not.toHaveBeenCalled();
+  });
+
+  it("given only a child being disconnected, then the calendar is empty without reading events", async () => {
+    const result = await service.listCalendar(PARENT, {
+      from: "2026-11-01",
+      to: "2026-11-30",
+      childIds: [LEAVING],
+    });
+
+    expect(result.getValue()).toEqual({ items: [] });
+    expect(repo.listCalendar).not.toHaveBeenCalled();
+  });
+});
+
 describe("get", () => {
   it("given an event of a child being disconnected, then nothing is found", async () => {
     repo.findOwned.mockResolvedValue(

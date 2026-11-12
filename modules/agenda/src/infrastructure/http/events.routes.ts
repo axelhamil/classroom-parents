@@ -34,9 +34,19 @@ const listEventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });
 
+const calendarQuerySchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  category: oneOrMany(eventCategorySchema),
+  childId: oneOrMany(z.uuid()),
+});
+
 export interface EventsRoutesDeps {
   routeGuards: RouteGuards;
-  EventQueryService: Pick<EventQueryService, "listUpcoming" | "listHistory" | "get">;
+  EventQueryService: Pick<
+    EventQueryService,
+    "listUpcoming" | "listHistory" | "listCalendar" | "get"
+  >;
   EventEditService: Pick<EventEditService, "edit" | "confirm" | "markDone" | "remove">;
 }
 
@@ -60,6 +70,17 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
         scope === "history"
           ? await query.listHistory(userId, filter, now)
           : await query.listUpcoming(userId, filter, now);
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .get("/calendar", g.requireAuth, zV("query", calendarQuerySchema), async (c) => {
+      const { from, to, category, childId } = c.req.valid("query");
+      const result = await query.listCalendar(g.currentUserId(c), {
+        from,
+        to,
+        categories: category,
+        childIds: childId,
+      });
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })

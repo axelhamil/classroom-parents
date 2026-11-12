@@ -11,7 +11,8 @@
  * an archived course keeps its past coursework in the history, the user cascade on event reads
  * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx and
  * event_coursework_day_idx. A child being disconnected hides its events from lists, detail,
- * edit, confirm and delete.
+ * edit, confirm and delete. The calendar lists every event between the Paris midnights of its
+ * range, done ones included, through event_user_deadline_idx.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -692,5 +693,41 @@ run(async () => {
       !listSql.includes("$5") &&
       planText.includes("event_user_deadline_idx") &&
       planText.includes("event_coursework_day_idx"),
+  );
+
+  await db
+    .update(agendaEvent)
+    .set({ done: true })
+    .where(and(eq(agendaEvent.userId, c), eq(agendaEvent.announcementId, "seed-30")));
+  spans.length = 0;
+  const calendar = await query.listCalendar(c, { from: "2029-01-02", to: "2029-01-03" });
+  const calendarSql = spans.at(-1) ?? "";
+  const calendarItems = calendar.isSuccess ? calendar.getValue().items : [];
+  await step(
+    "the calendar of two days lists every event between their Paris midnights, done ones included, in deadline order",
+    calendarItems.length === 48 &&
+      calendarItems[0]?.title === "Seed 23" &&
+      calendarItems.at(-1)?.title === "Seed 70" &&
+      calendarItems.some((item) => item.title === "Seed 30" && item.done),
+    { items: calendarItems.length, first: calendarItems[0]?.title },
+  );
+  const calendarPlan = await db.$client.query(`EXPLAIN (ANALYZE, BUFFERS) ${calendarSql}`, [
+    c,
+    "2029-01-01T23:00:00.000Z",
+    "2029-01-03T23:00:00.000Z",
+    cChild,
+  ]);
+  const calendarPlanText = calendarPlan.rows
+    .map((row: Record<string, string>) => Object.values(row).join(""))
+    .join("\n");
+  console.log(
+    `\nEXPLAIN ANALYZE listCalendar on ${SEEDED} rows:\n${calendarSql}\n${calendarPlanText}\n`,
+  );
+  await step(
+    `the calendar on ${SEEDED} rows reads event_user_deadline_idx on the range`,
+    calendarSql.includes("$4") &&
+      !calendarSql.includes("$5") &&
+      calendarPlanText.includes("event_user_deadline_idx") &&
+      !calendarPlanText.includes("Seq Scan"),
   );
 }, "agenda events stay inside their family and survive re-ingest on a real database");

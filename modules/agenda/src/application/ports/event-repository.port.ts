@@ -1,5 +1,6 @@
 import type { AppError, Option, Result } from "@packages/ddd-kit";
 import type { AgendaEvent } from "../../domain/event.aggregate";
+import type { CalendarRange } from "../../domain/value-objects/calendar-range.vo";
 import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
 import type { EventStatusValue } from "../../domain/value-objects/event-status.vo";
 
@@ -10,6 +11,7 @@ export type AgendaError = AppError<
   | "EVENT_TITLE_INVALID"
   | "EVENT_DESCRIPTION_INVALID"
   | "EVENT_CATEGORY_INVALID"
+  | "EVENT_RANGE_INVALID"
   | "EVENT_PROVIDER_FAILURE"
 >;
 
@@ -30,6 +32,12 @@ export interface EventFilter {
   done?: boolean;
   cursor?: EventCursor;
   limit: number;
+}
+
+export interface CalendarFilter {
+  childIds?: string[];
+  categories?: EventCategoryValue[];
+  range: CalendarRange;
 }
 
 export interface EventPage {
@@ -65,6 +73,8 @@ export interface IEventRepository {
   ): Promise<Result<AgendaEvent[], AgendaError>>;
 
   listAnnouncementsOn(userId: string, day: CourseDay): Promise<Result<AgendaEvent[], AgendaError>>;
+
+  listCalendar(userId: string, filter: CalendarFilter): Promise<Result<AgendaEvent[], AgendaError>>;
 
   findOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 

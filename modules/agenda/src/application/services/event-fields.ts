@@ -1,5 +1,9 @@
 import { Result } from "@packages/ddd-kit";
 import { EVENT_DESCRIPTION_MAX, EVENT_TITLE_MAX } from "@packages/events/agenda-contract";
+import {
+  CALENDAR_RANGE_MAX_DAYS,
+  CalendarRange,
+} from "../../domain/value-objects/calendar-range.vo";
 import { EventCategory, eventCategorySchema } from "../../domain/value-objects/event-category.vo";
 import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
@@ -27,6 +31,15 @@ const invalidDeadline: AgendaError = {
   message:
     "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59, hors de 02:00 à 02:59 le jour du passage à l'heure d'été.",
 };
+
+const invalidRange: AgendaError = {
+  code: "EVENT_RANGE_INVALID",
+  message: `Choisissez une période de ${CALENDAR_RANGE_MAX_DAYS} jours au plus, dont la date de début précède la date de fin.`,
+};
+
+export function parseRange(from: string, to: string): Result<CalendarRange, AgendaError> {
+  return CalendarRange.between(from, to).mapError(() => invalidRange);
+}
 
 export function parseTitle(raw: string): Result<EventTitle, AgendaError> {
   return EventTitle.create(raw).mapError(() => invalidTitle);

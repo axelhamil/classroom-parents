@@ -40,6 +40,10 @@ export interface EventPageDto {
   nextCursor?: string;
 }
 
+export interface EventListDto {
+  items: EventDto[];
+}
+
 export const CLEAR_TIME = "clear";
 
 export const eventIdParamSchema = z.object({ id: z.uuid() });

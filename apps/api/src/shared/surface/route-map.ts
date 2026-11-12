@@ -23,6 +23,7 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   },
   "GET /children/linkable": { consumer: "apps/app/src/features/children/api/children.queries.ts" },
   "GET /events": { consumer: "apps/app/src/features/events/api/events.queries.ts" },
+  "GET /events/calendar": { uiLess: "dormant-by-design" },
   "GET /events/:id": { consumer: "apps/app/src/features/events/api/events.queries.ts" },
   "GET /livez": { uiLess: "infra-probe" },
   "GET /readyz": { uiLess: "infra-probe" },
