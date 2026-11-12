@@ -51,6 +51,11 @@
   --success: oklch(0.5 0.12 150);
   --success-foreground: oklch(1 0 0);
   --overlay: oklch(0.22 0.025 50 / 0.45);
+  /* Google sign-in button colors, fixed by Google's branding guidelines: ink 16.48 on fill (14.72 on hover), border 4.53 on fill. */
+  --google: #ffffff;
+  --google-hover: #f2f2f2;
+  --google-border: #747775;
+  --google-foreground: #1f1f1f;
   --border: oklch(0.89 0.018 78);
   --input: oklch(0.6 0.02 60);
   --ring: oklch(0.48 0.1 170);
@@ -116,6 +121,9 @@
   --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
   --press-scale: 0.97;
   --press-duration: 120ms;
+  --duration-reveal: 640ms;
+  --duration-entrance: 720ms;
+  --stagger: 90ms;
   --touch-target: 2.75rem;
   --nav-height: 4.25rem;
   --app-bar-height: 4rem;
@@ -149,6 +157,11 @@
   --success: oklch(0.79 0.13 150);
   --success-foreground: oklch(0.22 0.04 150);
   --overlay: oklch(0.1 0.01 60 / 0.6);
+  /* Google dark button: ink 14.47 on fill, border 5.83 on fill. */
+  --google: #131314;
+  --google-hover: #202022;
+  --google-border: #8e918f;
+  --google-foreground: #e3e3e3;
   --border: oklch(0.35 0.014 62);
   --input: oklch(0.58 0.018 65);
   --ring: oklch(0.8 0.1 165);
@@ -222,6 +235,10 @@
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-overlay: var(--overlay);
+  --color-google: var(--google);
+  --color-google-hover: var(--google-hover);
+  --color-google-border: var(--google-border);
+  --color-google-foreground: var(--google-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -468,6 +485,53 @@
 
   ::-webkit-scrollbar-thumb:hover {
     background: var(--ring);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal],
+  [data-reveal] [data-slot="step-list-item"] {
+    transition-property: opacity, translate;
+    transition-duration: var(--duration-reveal);
+    transition-timing-function: var(--ease-out-soft);
+  }
+
+  [data-reveal="hidden"] {
+    opacity: 0;
+    translate: 0 1.25rem;
+  }
+
+  [data-reveal="hidden"] [data-slot="step-list-item"] {
+    opacity: 0;
+    translate: 0 0.75rem;
+  }
+
+  [data-reveal] [data-slot="step-list-item"]:nth-child(2) {
+    transition-delay: var(--stagger);
+  }
+
+  [data-reveal] [data-slot="step-list-item"]:nth-child(3) {
+    transition-delay: calc(var(--stagger) * 2);
+  }
+
+  [data-slot="sample-stack"] > * {
+    animation: sample-rise var(--duration-entrance) var(--ease-out-soft) both;
+  }
+
+  [data-slot="sample-stack"] > :nth-child(2) {
+    animation-delay: calc(var(--stagger) * 2);
+  }
+
+  [data-slot="sample-stack"] > :nth-child(3) {
+    animation-delay: calc(var(--stagger) * 4);
+  }
+}
+
+@keyframes sample-rise {
+  from {
+    opacity: 0;
+    translate: 0 1.5rem;
+    scale: 0.97;
   }
 }
 

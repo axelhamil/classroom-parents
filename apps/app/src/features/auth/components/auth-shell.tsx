@@ -1,48 +1,45 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-} from "@packages/ui/components/ui/card";
+import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
-import { TypographyH1 } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { LegalFooter } from "../../../shared/components/legal-footer";
 import { ThemeToggle } from "../../../shared/components/theme-toggle";
 
 interface AuthShellProps {
-  title: string;
-  description?: string;
+  hero: ReactNode;
   children: ReactNode;
-  footer?: ReactNode;
 }
 
-export function AuthShell({ title, description, children, footer }: AuthShellProps) {
+export function AuthShell({ hero, children }: AuthShellProps) {
+  const { t } = useTranslation("common");
+
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex justify-end p-4">
+      <header
+        className={cn(
+          pageContainerVariants({ width: "landing" }),
+          "flex items-center justify-between py-3",
+        )}
+      >
+        <BrandLink asChild>
+          <Link to="/login">
+            <BrandMark />
+            {t("brand")}
+          </Link>
+        </BrandLink>
         <ThemeToggle />
       </header>
 
       <main
         className={cn(
-          pageContainerVariants({ width: "form" }),
-          "flex flex-1 flex-col justify-center pb-8",
+          pageContainerVariants({ width: "landing" }),
+          "grid flex-1 gap-10 pt-4 pb-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14 lg:pt-10",
         )}
       >
-        <Card>
-          <CardHeader>
-            <TypographyH1 variant="page">{title}</TypographyH1>
-
-            {description && <CardDescription>{description}</CardDescription>}
-          </CardHeader>
-
-          <CardContent className="flex flex-col gap-6">{children}</CardContent>
-
-          {footer && <CardFooter>{footer}</CardFooter>}
-        </Card>
+        <div className="flex flex-col gap-6 lg:sticky lg:top-10 lg:self-start">{hero}</div>
+        <div className="flex min-w-0 flex-col gap-14">{children}</div>
       </main>
 
       <LegalFooter />

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { frCatalog } from "@packages/i18n";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeApi, renderApp, resetApp } from "../../../__tests__/render-app";
@@ -14,6 +14,7 @@ vi.mock("../../../shared/auth/auth-client", () => ({
 }));
 
 const copy = frCatalog.auth.login;
+const landing = frCatalog.auth.landing;
 
 describe("signing in with Google", () => {
   beforeEach(() => {
@@ -38,6 +39,38 @@ describe("signing in with Google", () => {
           provider: "google",
           errorCallbackURL: `${window.location.origin}/login`,
         }),
+      ),
+    );
+  });
+
+  it("login explains the 3 steps and what is never done", async () => {
+    fakeApi({});
+    await renderApp("/login", { signedIn: false });
+
+    const steps = landing.steps;
+    const howItWorks = await screen.findByRole("heading", { level: 2, name: steps.title });
+    const list = within(howItWorks.closest("section") ?? document.body).getByRole("list");
+    const items = within(list).getAllByRole("listitem");
+
+    expect(items.map((item) => within(item).getByRole("heading").textContent)).toEqual([
+      steps.signIn.title,
+      steps.addChild.title,
+      steps.alerts.title,
+    ]);
+    expect(screen.getAllByText(/n'écrit jamais dans Classroom/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { level: 2, name: landing.never.title })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 })).toBeTruthy();
+  });
+
+  it("given the parent reached the end of the landing, then its last button also starts the Google flow", async () => {
+    fakeApi({});
+    await renderApp("/login", { signedIn: false });
+
+    await userEvent.click(await screen.findByRole("button", { name: landing.closing.action }));
+
+    await waitFor(() =>
+      expect(authClient.signIn.social).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: "google" }),
       ),
     );
   });

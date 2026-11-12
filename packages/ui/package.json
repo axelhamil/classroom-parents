@@ -16,7 +16,8 @@
     "./globals.css": "./src/styles/globals.css",
     "./styles/globals.css": "./src/styles/globals.css",
     "./libs/*.js": "./src/libs/*.ts",
-    "./components/ui/*": "./src/components/ui/*.tsx"
+    "./components/ui/*": "./src/components/ui/*.tsx",
+    "./assets/*": "./src/assets/*"
   },
   "peerDependencies": {
     "@hookform/resolvers": "^6.0.1",

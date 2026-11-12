@@ -6,7 +6,6 @@ import {
 } from "@packages/ui/components/ui/app-navigation";
 import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
 import { Link } from "@tanstack/react-router";
-import { CalendarHeart } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { DeletionPendingBanner } from "../components/deletion-pending-banner";
@@ -33,9 +32,7 @@ export function AppShell({ user, children }: AppShellProps) {
       <AppBar className="justify-between lg:grid lg:grid-cols-[1fr_auto_1fr]">
         <BrandLink asChild className="lg:justify-self-start">
           <Link to="/">
-            <BrandMark>
-              <CalendarHeart />
-            </BrandMark>
+            <BrandMark />
             {t("brand")}
           </Link>
         </BrandLink>

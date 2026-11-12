@@ -8,14 +8,27 @@
     />
     <meta name="theme-color" content="#fbf5eb" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="description" content="Les échéances scolaires de vos enfants, lues dans Google Classroom." />
+    <meta
+      name="description"
+      content="Contrôles, devoirs, sorties et papiers à signer de vos enfants, lus dans Google Classroom en lecture seule, rangés par semaine, avec une alerte avant chaque échéance."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content="Échéances Classroom" />
+    <meta property="og:title" content="Échéances Classroom : toutes les échéances scolaires de vos enfants" />
+    <meta
+      property="og:description"
+      content="L'application lit Google Classroom pour vous, en lecture seule, et vous prévient avant chaque contrôle, devoir ou sortie."
+    />
+    <meta property="og:image" content="/icons/icon-512.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Échéances" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link
       rel="preload"
@@ -25,7 +38,19 @@
       crossorigin
     />
     <script src="/theme-init.js"></script>
-    <title>Échéances Classroom</title>
+    <title>Échéances Classroom : les échéances scolaires de vos enfants</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Échéances Classroom",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web, Android, iOS",
+        "inLanguage": "fr",
+        "description": "Application pour parents : lit en lecture seule les annonces et devoirs Google Classroom de chaque enfant, range les échéances par semaine et envoie une alerte avant chacune.",
+        "audience": { "@type": "Audience", "audienceType": "Parents d'élèves" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
