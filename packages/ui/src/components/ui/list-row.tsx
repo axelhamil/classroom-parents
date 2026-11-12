@@ -60,7 +60,7 @@ function ListRowButton({ className, type, asChild = false, ...props }: ListRowBu
       data-slot="list-row-button"
       type={asChild ? type : (type ?? "button")}
       className={cn(
-        "flex flex-col items-start gap-1 rounded-sm px-2 py-2 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring active:bg-accent disabled:cursor-default",
+        "flex flex-col items-start gap-1 rounded-sm px-2 py-2 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring focus-visible:ring-ring active:bg-accent disabled:cursor-default",
         className,
       )}
       {...props}

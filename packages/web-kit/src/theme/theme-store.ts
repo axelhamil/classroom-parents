@@ -16,7 +16,7 @@ export interface ThemeHost {
 }
 
 function parsePreference(stored: string | null): ThemePreference {
-  return stored === "light" || stored === "dark" ? stored : "system";
+  return stored === "dark" || stored === "system" ? stored : "light";
 }
 
 export function createThemeStore(host: ThemeHost) {

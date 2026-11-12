@@ -7,14 +7,14 @@
     stored = null;
   }
 
-  const followsSystem = stored !== "light" && stored !== "dark";
-  const dark = followsSystem
-    ? window.matchMedia("(prefers-color-scheme: dark)").matches
-    : stored === "dark";
+  const dark =
+    stored === "system"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : stored === "dark";
 
   document.documentElement.classList.toggle("dark", dark);
 
   for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
-    meta.setAttribute("content", dark ? "#152620" : "#f9f7ef");
+    meta.setAttribute("content", dark ? "#111513" : "#f8fbf9");
   }
 })();

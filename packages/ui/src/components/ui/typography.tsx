@@ -186,7 +186,7 @@ function TypographyInlineCode({ className, ...props }: React.ComponentProps<"cod
     <code
       data-slot="typography-inline-code"
       className={cn(
-        "relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono font-medium text-sm",
+        "relative rounded bg-muted px-1 py-0.5 font-mono font-medium text-sm",
         className,
       )}
       {...props}

@@ -38,8 +38,19 @@ describe("theme store", () => {
     expect(host.applyResolved).not.toHaveBeenCalled();
   });
 
-  it("follows the system preference when nothing is stored", () => {
-    const { host, changeSystem } = givenHost(null, false);
+  it("starts light when nothing is stored even if the system prefers dark", () => {
+    const { host, changeSystem } = givenHost(null, true);
+    const store = createThemeStore(host);
+    store.subscribe(vi.fn());
+
+    changeSystem(true);
+
+    expect(store.getState()).toEqual({ theme: "light", resolvedTheme: "light" });
+    expect(host.applyResolved).not.toHaveBeenCalled();
+  });
+
+  it("follows the system preference when the stored choice is system", () => {
+    const { host, changeSystem } = givenHost("system", false);
     const store = createThemeStore(host);
     store.subscribe(vi.fn());
 

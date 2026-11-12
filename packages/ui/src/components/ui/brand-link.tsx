@@ -13,7 +13,7 @@ function BrandLink({ className, asChild = false, ...props }: BrandLinkProps) {
     <Comp
       data-slot="brand-link"
       className={cn(
-        "inline-flex shrink-0 items-center gap-2 rounded-md text-sm font-semibold tracking-tight outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
+        "inline-flex shrink-0 items-center gap-2 rounded-md text-sm font-semibold tracking-tight outline-none focus-visible:ring focus-visible:ring-ring",
         className,
       )}
       {...props}
