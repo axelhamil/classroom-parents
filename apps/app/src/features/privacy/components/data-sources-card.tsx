@@ -1,7 +1,7 @@
-import { ListRow, ListRowContent } from "@packages/ui/components/ui/list-row";
-import { NavLink } from "@packages/ui/components/ui/nav-link";
-import { SettingsSection } from "@packages/ui/components/ui/settings-section";
-import { TypographyMuted, TypographySmall } from "@packages/ui/components/ui/typography";
+import { Button } from "@packages/ui/components/ui/button";
+import { Item, ItemContent, ItemGroup, ItemTitle } from "@packages/ui/components/ui/item";
+import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { SUB_PROCESSOR_KEYS } from "../../../shared/sub-processor-labels";
@@ -12,24 +12,26 @@ export function DataSourcesCard() {
   const { t: tCommon } = useTranslation("common");
 
   return (
-    <SettingsSection
+    <SectionCard
       title={t("privacy.dataSources.title")}
       description={t("privacy.dataSources.description")}
+      footer={
+        <Button asChild variant="outline">
+          <Link to="/legal/sub-processors">{t("privacy.dataSources.viewAll")}</Link>
+        </Button>
+      }
     >
-      <ul className="flex flex-col gap-2">
+      <ItemGroup className="gap-2">
         {SUB_PROCESSORS.map((sp) => (
-          <ListRow variant="plain" key={sp.id}>
-            <ListRowContent>
-              <TypographySmall>{sp.name}</TypographySmall>
+          <Item key={sp.id} role="listitem" variant="outline" size="sm">
+            <ItemContent>
+              <ItemTitle>{sp.name}</ItemTitle>
               <TypographyMuted>{tCommon(SUB_PROCESSOR_KEYS[sp.id].purpose)}</TypographyMuted>
               <TypographyMuted>{tCommon(SUB_PROCESSOR_KEYS[sp.id].region)}</TypographyMuted>
-            </ListRowContent>
-          </ListRow>
+            </ItemContent>
+          </Item>
         ))}
-      </ul>
-      <NavLink asChild variant="underline" className="self-start">
-        <Link to="/legal/sub-processors">{t("privacy.dataSources.viewAll")}</Link>
-      </NavLink>
-    </SettingsSection>
+      </ItemGroup>
+    </SectionCard>
   );
 }

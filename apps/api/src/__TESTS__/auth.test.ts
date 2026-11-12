@@ -240,3 +240,34 @@ describe("account events", () => {
     ]);
   });
 });
+
+describe("session revocation", () => {
+  beforeEach(() => {
+    enqueue.mockClear();
+  });
+
+  const sessionDelete = auth.options.databaseHooks.session.delete.after;
+  const revoked = { id: "session-2", userId: "user-1", token: "token-2" };
+
+  function revocations() {
+    return enqueue.mock.calls
+      .flatMap(([events]) => events)
+      .filter((event) => event.eventType === EventTypes.USER_SESSION_REVOKED)
+      .map((event) => event.payload);
+  }
+
+  for (const path of ["/revoke-session", "/revoke-sessions", "/revoke-other-sessions"]) {
+    it(`announces the session the parent ended from another device through ${path}`, async () => {
+      await sessionDelete(revoked as never, { path } as never);
+
+      expect(revocations()).toEqual([{ userId: "user-1", sessionId: "session-2" }]);
+    });
+  }
+
+  it("stays silent when a session ends by signing out or outside a request", async () => {
+    await sessionDelete(revoked as never, { path: "/sign-out" } as never);
+    await sessionDelete(revoked as never, null);
+
+    expect(revocations()).toEqual([]);
+  });
+});

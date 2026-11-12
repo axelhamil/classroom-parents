@@ -10,6 +10,7 @@ export const EventTypes = {
   USER_DELETION_CANCELLED: "user.deletion.cancelled",
   USER_DELETED: "user.deleted",
   USER_PROFILE_UPDATED: "user.profile.updated",
+  USER_SESSION_REVOKED: "user.session.revoked",
   EMAIL_DELIVERY_EXHAUSTED: "email.delivery.exhausted",
   OUTBOX_EVENT_DEAD: "outbox.event_dead",
   SECURITY_RATE_LIMIT_EXCEEDED: "security.rate_limit.exceeded",

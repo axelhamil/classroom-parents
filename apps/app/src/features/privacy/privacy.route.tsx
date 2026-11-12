@@ -1,5 +1,5 @@
-import { ListRow, ListRowMedia } from "@packages/ui/components/ui/list-row";
-import { SettingsSection } from "@packages/ui/components/ui/settings-section";
+import { Item, ItemContent, ItemGroup, ItemMedia } from "@packages/ui/components/ui/item";
+import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { TypographyP } from "@packages/ui/components/ui/typography";
 import { createFileRoute } from "@tanstack/react-router";
@@ -24,32 +24,28 @@ function PrivacyPage() {
 
   return (
     <Screen title={t("privacy.pageTitle")} description={t("privacy.pageDescription")}>
-      <SettingsSection
-        title={t("privacy.reads.title")}
-        description={t("privacy.reads.description")}
-      >
-        <ul className="flex flex-col">
+      <SectionCard title={t("privacy.reads.title")} description={t("privacy.reads.description")}>
+        <ItemGroup className="gap-2">
           {READS.map(({ key, icon: Icon }) => (
-            <ListRow variant="plain" key={key} className="justify-start">
-              <ListRowMedia>
+            <Item key={key} role="listitem" variant="muted" size="sm">
+              <ItemMedia variant="icon">
                 <Icon aria-hidden />
-              </ListRowMedia>
-              <TypographyP>{t(key)}</TypographyP>
-            </ListRow>
+              </ItemMedia>
+              <ItemContent>
+                <TypographyP>{t(key)}</TypographyP>
+              </ItemContent>
+            </Item>
           ))}
-        </ul>
-      </SettingsSection>
-      <SettingsSection title={t("privacy.limitedUse.title")}>
+        </ItemGroup>
+      </SectionCard>
+      <SectionCard title={t("privacy.limitedUse.title")}>
         <TypographyP>{t("privacy.limitedUse.body")}</TypographyP>
-      </SettingsSection>
-      <SettingsSection title={t("privacy.ai.title")}>
+      </SectionCard>
+      <SectionCard title={t("privacy.ai.title")}>
         <TypographyP>{t("privacy.ai.body")}</TypographyP>
-      </SettingsSection>
+      </SectionCard>
       <DataSourcesCard />
-      <SettingsSection
-        title={t("privacy.rights.title")}
-        description={t("privacy.rights.description")}
-      >
+      <SectionCard title={t("privacy.rights.title")} description={t("privacy.rights.description")}>
         <TypographyP>
           <Trans
             t={t}
@@ -58,7 +54,7 @@ function PrivacyPage() {
             components={{ mail: <TextLink href={`mailto:${env.VITE_CONTACT_EMAIL}`} /> }}
           />
         </TypographyP>
-      </SettingsSection>
+      </SectionCard>
     </Screen>
   );
 }

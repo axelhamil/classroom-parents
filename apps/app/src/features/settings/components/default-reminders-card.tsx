@@ -1,6 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
-import { SettingsSection } from "@packages/ui/components/ui/settings-section";
+import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
@@ -31,7 +31,7 @@ export function DefaultRemindersCard({ userId }: DefaultRemindersCardProps) {
   });
 
   return (
-    <SettingsSection title={t("reminders.title")} description={t("reminders.description")}>
+    <SectionCard title={t("reminders.title")} description={t("reminders.description")}>
       {query.isPending ? (
         <SkeletonGroup label={t("reminders.loading")}>
           <Skeleton className="h-24 w-full" />
@@ -54,6 +54,6 @@ export function DefaultRemindersCard({ userId }: DefaultRemindersCardProps) {
           onSubmit={(reminders) => save.mutate(reminders)}
         />
       )}
-    </SettingsSection>
+    </SectionCard>
   );
 }

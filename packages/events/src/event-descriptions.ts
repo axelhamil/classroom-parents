@@ -11,6 +11,7 @@ export const EVENT_DESCRIPTIONS: Record<EventType, string> = {
   [EventTypes.USER_DELETION_CANCELLED]: "A user cancelled a pending account deletion.",
   [EventTypes.USER_DELETED]: "A user account was permanently deleted.",
   [EventTypes.USER_PROFILE_UPDATED]: "A user updated their profile details.",
+  [EventTypes.USER_SESSION_REVOKED]: "A user signed one of their other devices out.",
   [EventTypes.SECURITY_RATE_LIMIT_EXCEEDED]: "A rate limit was exceeded.",
   [EventTypes.SECURITY_CSRF_REJECTED]: "A request was rejected by CSRF origin checks.",
   [EventTypes.EMAIL_DELIVERY_EXHAUSTED]:
