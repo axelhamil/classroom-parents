@@ -8,6 +8,7 @@ import eventEdit from "./event-edit";
 import events from "./events";
 import history from "./history";
 import settings from "./settings";
+import site from "./site";
 
 const catalog = {
   common,
@@ -20,6 +21,7 @@ const catalog = {
   events,
   eventEdit,
   history,
+  site,
 } as const;
 
 export type Namespace = keyof typeof catalog;

@@ -15,15 +15,18 @@ COPY --from=pruner /repo/out/full/ ./
 
 ARG VITE_API_URL
 ARG VITE_CONTACT_EMAIL
+ARG VITE_SITE_URL
 ARG VITE_SENTRY_DSN
 ARG VITE_SENTRY_ENVIRONMENT
 ARG VITE_GIT_SHA
 ENV VITE_API_URL=${VITE_API_URL} \
   VITE_CONTACT_EMAIL=${VITE_CONTACT_EMAIL} \
+  VITE_SITE_URL=${VITE_SITE_URL} \
   VITE_SENTRY_DSN=${VITE_SENTRY_DSN} \
   VITE_SENTRY_ENVIRONMENT=${VITE_SENTRY_ENVIRONMENT} \
   VITE_GIT_SHA=${VITE_GIT_SHA}
 RUN test -n "$VITE_API_URL" || (echo "ERROR: --build-arg VITE_API_URL is required (e.g. https://api.example.com)" && exit 1)
+RUN test -n "$VITE_SITE_URL" || (echo "ERROR: --build-arg VITE_SITE_URL is required (e.g. https://example.com)" && exit 1)
 RUN test -n "$VITE_CONTACT_EMAIL" || (echo "ERROR: --build-arg VITE_CONTACT_EMAIL is required (e.g. contact@example.com)" && exit 1)
 
 RUN pnpm --filter app exec vite build

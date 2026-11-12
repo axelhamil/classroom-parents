@@ -5,11 +5,12 @@ import { pageContainerVariants } from "@packages/ui/components/ui/page-container
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { TypographyH1 } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PencilOffIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LegalFooter } from "../../shared/components/legal-footer";
 import { ThemeToggle } from "../../shared/components/theme-toggle";
+import { env } from "../../shared/env";
 import { loginSearchSchema } from "./auth.schema";
 import { GoogleSignInButton } from "./components/google-sign-in-button";
 import { useGoogleSignIn } from "./use-google-sign-in";
@@ -51,12 +52,10 @@ function LoginPage() {
             <GoogleSignInButton signIn={signIn} />
             <LandingReassurance>
               <PencilOffIcon aria-hidden />
-              {t("landing.readOnly")}
+              {t("login.readOnly")}
             </LandingReassurance>
           </LandingAction>
-          <TextLink asChild>
-            <Link to="/">{t("login.discover")}</Link>
-          </TextLink>
+          <TextLink href={env.VITE_SITE_URL}>{t("login.discover")}</TextLink>
         </SignInPanel>
       </main>
 

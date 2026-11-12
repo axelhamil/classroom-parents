@@ -24,7 +24,8 @@
     "ANTHROPIC_*",
     "VAPID_*",
     "FAKE_PROVIDERS",
-    "VITE_*"
+    "VITE_*",
+    "PUBLIC_*"
   ],
   "tasks": {
     "build": {
@@ -37,6 +38,8 @@
         "tsconfig*.json",
         "tsup.config.ts",
         "vite.config.ts",
+        "astro.config.ts",
+        "public/**",
         "drizzle.config.ts"
       ],
       "outputs": ["dist/**", "build/**", "!dist/**/*.map"],
@@ -89,6 +92,7 @@
         "eval/**",
         "common/**",
         "a11y/**",
+        "astro.config.ts",
         "package.json",
         "tsconfig*.json"
       ],

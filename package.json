@@ -11,7 +11,7 @@
     "check": "biome check .",
     "fix": "biome check --write .",
     "ci:check": "biome ci .",
-    "check:duplication": "jscpd ./packages ./modules ./apps/api/src ./apps/app/src",
+    "check:duplication": "jscpd ./packages ./modules ./apps/api/src ./apps/app/src ./apps/site/src",
     "check:unused": "knip",
     "check:boundaries": "depcruise apps packages modules --config .dependency-cruiser.cjs",
     "db:push": "turbo db:push",
@@ -21,7 +21,7 @@
     "db:studio": "turbo db:studio",
     "ui:add": "turbo ui:add",
     "bootstrap": "bash scripts/bootstrap.sh",
-    "clean": "rm -rf node_modules .turbo apps/*/.turbo packages/*/.turbo modules/*/.turbo apps/api/dist apps/app/dist",
+    "clean": "rm -rf node_modules .turbo apps/*/.turbo packages/*/.turbo modules/*/.turbo apps/api/dist apps/app/dist apps/site/dist apps/site/.astro",
     "prepare": "husky"
   },
   "devDependencies": {

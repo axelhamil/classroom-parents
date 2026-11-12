@@ -80,8 +80,21 @@ jobs:
           build-args: |
             VITE_API_URL=https://api.example.com
             VITE_CONTACT_EMAIL=contact@example.com
+            VITE_SITE_URL=https://example.com
           cache-from: type=gha,scope=app
           cache-to: type=gha,mode=max,scope=app
+
+      - name: Build the site image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/site/Dockerfile
+          push: false
+          build-args: |
+            PUBLIC_SITE_URL=https://example.com
+            PUBLIC_APP_URL=https://app.example.com
+          cache-from: type=gha,scope=site
+          cache-to: type=gha,mode=max,scope=site
 
   a11y:
     name: Accessibility gate
@@ -217,6 +230,10 @@ jobs:
       - name: Audit
         run: pnpm turbo run check:a11y --filter=app
 
+      - name: Audit the landing site
+        # Static build, no api: one main, one h1 and no serious WCAG AA violation, light and dark.
+        run: pnpm turbo run check:a11y --filter=site
+
       - name: Create the journey database
         # The audit's api still runs on classroom_parents with real providers: on a shared
         # database its outbox relay would take the journey's first sync and mark the freshly
@@ -246,5 +263,7 @@ jobs:
         if: failure()
         with:
           name: a11y-traces
-          path: apps/app/test-results/
+          path: |
+            apps/app/test-results/
+            apps/site/test-results/
           retention-days: 7

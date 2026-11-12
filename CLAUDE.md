@@ -15,6 +15,7 @@ One guide per app and per package that carries rules of its own. Read the one yo
 | Area | Guide | Owns |
 |---|---|---|
 | API | `apps/api/CLAUDE.md` | server architecture, module layers, DI, RPC contract, auth, ownership, logging, observability, tests, real-database checks |
+| Site | `apps/site/CLAUDE.md` | static landing on the root domain: islands, SEO from the validated env, imports packages only |
 | App | `apps/app/CLAUDE.md` | client layout, routing, features, queries and mutations, forms, i18n, gates, theme, accessibility gate |
 | Modules | `modules/CLAUDE.md` | business module contract: anatomy, prerequisites, ports between modules, host queries, routes as factories, boundaries |
 | `packages/ddd-kit` | `packages/ddd-kit/CLAUDE.md` | `Result`, `Option`, aggregates, value objects, repository and unit-of-work contracts |
@@ -58,7 +59,7 @@ pnpm workspaces + Turborepo + Biome + Husky + lint-staged + commitlint + release
 
 ## Scripts & local infrastructure
 
-`pnpm bootstrap` (copies `.env.example` → `.env` in `apps/api`, `apps/app` and `packages/drizzle`, idempotent) · `pnpm dev` (Turbo TUI, `--filter=<app>` to scope) · `build` · `test` · `type-check` · `check` (Biome) · `fix` · `ci:check` · `check:boundaries` · `check:duplication` · `check:unused` · `ui:add` · `db:push` / `db:generate` / `db:migrate` / `db:seed` / `db:studio` · `clean`.
+`pnpm bootstrap` (copies `.env.example` → `.env` in `apps/api`, `apps/app`, `apps/site` and `packages/drizzle`, idempotent) · `pnpm dev` (Turbo TUI, `--filter=<app>` to scope) · `build` · `test` · `type-check` · `check` (Biome) · `fix` · `ci:check` · `check:boundaries` · `check:duplication` · `check:unused` · `ui:add` · `db:push` / `db:generate` / `db:migrate` / `db:seed` / `db:studio` · `clean`.
 
 - Postgres runs on `localhost:54329` (never 5432 or 5433, other projects hold them): `docker compose up postgres -d`. Compose holds only Postgres; the api and the app run natively with `pnpm dev`.
 - **One database per worktree**: `scripts/worktree-db.sh` creates `classroom_parents_<branch slug>` in that container (idempotent) and writes its `DATABASE_URL` into `apps/api/.env` and `packages/drizzle/.env`. Run it after `pnpm bootstrap` in every new worktree, then `pnpm db:migrate`. **Why**: parallel worktrees sharing one database wipe each other's data in the real-database checks, which refuse any other database (`requireLocalDatabase`).

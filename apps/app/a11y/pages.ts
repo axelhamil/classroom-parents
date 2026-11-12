@@ -1,17 +1,7 @@
 import type { AuditedPage } from "@packages/test/a11y";
-import type { Page } from "@playwright/test";
 import { stubChildrenApi } from "./children-fixture";
 
-/**
- * The landing fades its first screen in: axe reads a half faded text as a contrast
- * failure, so the audit runs on the settled page, the one reduced motion renders.
- */
-async function settleEntrance(page: Page): Promise<void> {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-}
-
 export const PUBLIC_PAGES: readonly AuditedPage[] = [
-  { name: "landing", path: "/", prepare: settleEntrance },
   { name: "login", path: "/login" },
   { name: "data rights", path: "/legal/data-rights" },
   { name: "accessibility statement", path: "/legal/accessibility" },

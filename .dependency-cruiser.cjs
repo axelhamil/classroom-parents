@@ -158,6 +158,14 @@ module.exports = {
       },
     },
     {
+      name: "site-imports-only-packages",
+      comment:
+        "The landing is a static build of the kit: it reaches packages only, never business code or another app, so it deploys without the api.",
+      severity: "error",
+      from: { path: "^apps/site/" },
+      to: { path: [`${MODULES}/`, "^apps/(?!site/)"] },
+    },
+    {
       name: "front-never-imports-api",
       comment:
         "A front reaches the api only through the typed Hono RPC client factory (api/client), never its internals.",
@@ -168,7 +176,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "^(apps|packages|modules)/[^/]+/dist/|routeTree\\.gen\\.ts" },
+    exclude: { path: "^(apps|packages|modules)/[^/]+/(dist|\\.astro)/|routeTree\\.gen\\.ts" },
     tsPreCompilationDeps: true,
     combinedDependencies: true,
     enhancedResolveOptions: {

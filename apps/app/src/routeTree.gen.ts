@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './router/__root'
 import { Route as routerGuestRouteImport } from './router/_guest'
 import { Route as routerProtectedRouteImport } from './router/_protected'
 import { Route as featuresAuthLoginDotrouteRouteImport } from './features/auth/login.route'
-import { Route as featuresAuthLandingDotrouteRouteImport } from './features/auth/landing.route'
 import { Route as routerShellRouteImport } from './router/_shell'
 import { Route as featuresLegalAccessibilityDotrouteRouteImport } from './features/legal/accessibility.route'
 import { Route as featuresLegalCookiesDotrouteRouteImport } from './features/legal/cookies.route'
@@ -42,12 +41,6 @@ const featuresAuthLoginDotrouteRoute =
   featuresAuthLoginDotrouteRouteImport.update({
     id: '/login',
     path: '/login',
-    getParentRoute: () => routerGuestRoute,
-  } as any)
-const featuresAuthLandingDotrouteRoute =
-  featuresAuthLandingDotrouteRouteImport.update({
-    id: '/welcome',
-    path: '/welcome',
     getParentRoute: () => routerGuestRoute,
   } as any)
 const routerShellRoute = routerShellRouteImport.update({
@@ -148,7 +141,6 @@ const featuresEventsEventEditDotrouteRoute =
 export interface FileRoutesByFullPath {
   '/': typeof featuresEventsEventsDotrouteRoute
   '/login': typeof featuresAuthLoginDotrouteRoute
-  '/welcome': typeof featuresAuthLandingDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -167,7 +159,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof featuresEventsEventsDotrouteRoute
   '/login': typeof featuresAuthLoginDotrouteRoute
-  '/welcome': typeof featuresAuthLandingDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -188,7 +179,6 @@ export interface FileRoutesById {
   '/_guest': typeof routerGuestRouteWithChildren
   '/_protected': typeof routerProtectedRouteWithChildren
   '/_guest/login': typeof featuresAuthLoginDotrouteRoute
-  '/_guest/welcome': typeof featuresAuthLandingDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -211,7 +201,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/welcome'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -230,7 +219,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/welcome'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -250,7 +238,6 @@ export interface FileRouteTypes {
     | '/_guest'
     | '/_protected'
     | '/_guest/login'
-    | '/_guest/welcome'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -301,13 +288,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof featuresAuthLoginDotrouteRouteImport
-      parentRoute: typeof routerGuestRoute
-    }
-    '/_guest/welcome': {
-      id: '/_guest/welcome'
-      path: '/welcome'
-      fullPath: '/welcome'
-      preLoaderRoute: typeof featuresAuthLandingDotrouteRouteImport
       parentRoute: typeof routerGuestRoute
     }
     '/_protected/_shell': {
@@ -427,12 +407,10 @@ declare module '@tanstack/react-router' {
 
 interface routerGuestRouteChildren {
   featuresAuthLoginDotrouteRoute: typeof featuresAuthLoginDotrouteRoute
-  featuresAuthLandingDotrouteRoute: typeof featuresAuthLandingDotrouteRoute
 }
 
 const routerGuestRouteChildren: routerGuestRouteChildren = {
   featuresAuthLoginDotrouteRoute: featuresAuthLoginDotrouteRoute,
-  featuresAuthLandingDotrouteRoute: featuresAuthLandingDotrouteRoute,
 }
 
 const routerGuestRouteWithChildren = routerGuestRoute._addFileChildren(
