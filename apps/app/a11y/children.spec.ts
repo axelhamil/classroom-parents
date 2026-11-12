@@ -18,7 +18,7 @@ test("lists every child state on a phone with one main, one h1 and no overflow",
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
-  expect(overflow).toBe(0);
+  expect(overflow).toBeLessThanOrEqual(0);
   expect(await blockingViolations(page)).toEqual([]);
 });
 

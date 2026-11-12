@@ -118,7 +118,38 @@ test.describe("signed in", () => {
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
-      expect(overflow).toBe(0);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
+
+  for (const width of [390, 768, 1440]) {
+    test(`keeps the navigation still across pages at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/");
+
+      const nav = page.getByRole("navigation", { name: "Navigation principale" });
+      const boxes = async () => {
+        await expect(nav.getByRole("link")).toHaveCount(3);
+        await page.waitForFunction(
+          () =>
+            document.fonts.status === "loaded" &&
+            document.getAnimations().every((animation) => animation.playState !== "running"),
+        );
+        return Promise.all(
+          [nav, ...(await nav.getByRole("link").all())].map((element) => element.boundingBox()),
+        );
+      };
+
+      const onHome = await boxes();
+      for (const [name, path] of [
+        ["Enfants", /\/children$/],
+        ["Réglages", /\/settings$/],
+      ] as const) {
+        await nav.getByRole("link", { name }).click();
+        await expect(page).toHaveURL(path);
+        await expect(page.locator("main")).toBeVisible();
+        expect(await boxes()).toEqual(onHome);
+      }
     });
   }
 

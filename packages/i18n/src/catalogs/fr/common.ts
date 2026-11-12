@@ -81,6 +81,7 @@ export default {
   },
   userMenu: {
     openMenu: "Ouvrir le menu utilisateur",
+    openMenuWithInitials: "Ouvrir le menu utilisateur, {{initials}}",
     account: "Compte",
     signOut: "Se déconnecter",
     signingOut: "Déconnexion…",

@@ -324,6 +324,7 @@
     text-rendering: optimizeLegibility;
     interpolate-size: allow-keywords;
     overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
   }
 
   body {

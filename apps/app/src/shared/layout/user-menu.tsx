@@ -35,6 +35,7 @@ export function UserMenu({ user, className }: UserMenuProps) {
   const signOut = useSignOut();
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const initials = initialsOf(user.name || user.email);
 
   return (
     <>
@@ -45,11 +46,12 @@ export function UserMenu({ user, className }: UserMenuProps) {
             variant="ghost"
             size="icon-lg"
             label={t("userMenu.openMenu")}
+            accessibleName={t("userMenu.openMenuWithInitials", { initials })}
             className={className}
           >
             <Avatar>
               {user.image && <AvatarImage src={user.image} alt="" referrerPolicy="no-referrer" />}
-              <AvatarFallback>{initialsOf(user.name || user.email)}</AvatarFallback>
+              <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
           </IconButton>
         </DropdownMenuTrigger>

@@ -56,7 +56,9 @@ describe("app shell", () => {
     await renderApp("/children");
 
     await userEvent.click(
-      await screen.findByRole("button", { name: frCatalog.common.userMenu.openMenu }),
+      await screen.findByRole("button", {
+        name: new RegExp(`^${frCatalog.common.userMenu.openMenu}`),
+      }),
     );
     await userEvent.click(
       await screen.findByRole("menuitem", { name: frCatalog.common.userMenu.signOut }),
