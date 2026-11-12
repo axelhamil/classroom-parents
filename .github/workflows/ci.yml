@@ -217,11 +217,23 @@ jobs:
       - name: Audit
         run: pnpm turbo run check:a11y --filter=app
 
+      - name: Create the journey database
+        # The audit's api still runs on classroom_parents with real providers: on a shared
+        # database its outbox relay would take the journey's first sync and mark the freshly
+        # linked child as needing a reconnection. serve-journey refuses a shared database.
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:54329/classroom_parents_journey
+        run: |
+          psql postgresql://postgres:postgres@localhost:54329/classroom_parents -c 'CREATE DATABASE classroom_parents_journey'
+          pnpm db:migrate
+
       - name: Walk the parent journey in a browser
         # Fake providers, real api and Postgres: sign-in, linking, a reminder pushed at its
         # due instant, an edit and a delete that survive a resync, a school block, a
         # disconnection, then no row naming the parent once the account wipe ran. Starts its
         # own api, control server and preview on 3183, 3189 and 4183, apart from the audit's.
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:54329/classroom_parents_journey
         run: pnpm --filter app check:journey
 
       - name: API log

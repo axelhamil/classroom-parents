@@ -13,6 +13,9 @@
  * - GET /leftovers?userId=<id>&email=<address>: the rows still naming that parent
  * - POST /reset: deletes the parents a journey signed in (`journey-*@example.com`) and,
  *   by cascade, everything they own, so an interrupted run never leaks into the next one
+ *
+ * The database must have no other client: another api on it relays the same outbox with
+ * real providers and marks a freshly linked child as needing a reconnection.
  */
 
 import { exitUnlessLocalDatabase } from "@packages/test/db-check";
@@ -49,6 +52,22 @@ import { requireFakeProviders } from "./demo-family";
 import { type GoogleIdentity, stubGoogleTokenEndpoint } from "./google-oauth-fixture";
 
 requireFakeProviders("serve-journey");
+
+async function otherClients(): Promise<number> {
+  const { rows } = await db.execute<{ total: number }>(
+    sql`select count(*)::int as total from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid()`,
+  );
+
+  return rows[0]?.total ?? 0;
+}
+
+const others = await otherClients();
+if (others > 0) {
+  console.error(
+    `serve-journey refused to run: ${others} other client(s) hold its database, stop the api or tool using it or give the journey its own database`,
+  );
+  process.exit(1);
+}
 
 const controlPort = Number(process.env.JOURNEY_CONTROL_PORT);
 if (!Number.isInteger(controlPort) || controlPort <= 0) {

@@ -105,6 +105,8 @@ pnpm --filter app check:journey
 ```
 
 Playwright starts that api and a preview build of its own (`dist/journey`, pointed at
-it), so it needs only Postgres and this worktree's database. The ports default to
+it), so it needs only Postgres and this worktree's database, with no other client on
+it: another api there relays the same outbox with real providers and turns a freshly
+linked child into one to reconnect, so `serve:journey` refuses to start. The ports default to
 4183 (app), 3183 (api) and 3189 (control) and move with `JOURNEY_APP_URL`,
 `JOURNEY_API_URL` and `JOURNEY_CONTROL_PORT`.
