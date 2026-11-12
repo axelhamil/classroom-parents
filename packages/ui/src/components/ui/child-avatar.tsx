@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 
 export type ChildTone = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
-const childAvatarVariants = cva("ring-2 ring-offset-2 ring-offset-background", {
+const childAvatarVariants = cva("ring-offset-background", {
   variants: {
     tone: {
       1: "ring-child-1",
@@ -19,9 +19,10 @@ const childAvatarVariants = cva("ring-2 ring-offset-2 ring-offset-background", {
       8: "ring-child-8",
     },
     size: {
-      sm: "size-8",
-      md: "size-11",
-      lg: "size-16",
+      xs: "size-5",
+      sm: "size-8 ring-2 ring-offset-2",
+      md: "size-11 ring-2 ring-offset-2",
+      lg: "size-16 ring-2 ring-offset-2",
     },
   },
   defaultVariants: { size: "md" },
@@ -40,6 +41,7 @@ const childInitialsVariants = cva("font-semibold text-child-foreground", {
       8: "bg-child-8",
     },
     size: {
+      xs: "text-2xs",
       sm: "text-xs",
       md: "text-sm",
       lg: "text-xl",
@@ -52,7 +54,7 @@ export interface ChildAvatarProps {
   name: string;
   tone: ChildTone;
   src?: string | null;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
   label?: string;
 }

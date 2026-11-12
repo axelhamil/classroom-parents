@@ -27,6 +27,7 @@ export default {
     nothing: {
       title: "Rien à préparer",
       description: "Aucune échéance à venir. Les nouvelles annonces de Classroom arriveront ici.",
+      action: "Voir mes enfants",
     },
     filtered: {
       title: "Rien pour ce filtre",
@@ -35,10 +36,21 @@ export default {
     },
   },
   blocked: {
-    needs_reconnect: "La lecture de Classroom est arrêtée pour {{child}} : reconnectez son compte.",
-    blocked_by_school:
-      "L'établissement de {{child}} bloque la lecture de Classroom : ses échéances ne sont plus mises à jour.",
+    titles: {
+      needs_reconnect: "Classroom n'est plus lu pour {{child}}",
+      blocked_by_school: "L'école de {{child}} bloque la lecture de Classroom",
+    },
+    descriptions: {
+      needs_reconnect: "Reconnectez son compte Google pour recevoir à nouveau ses échéances.",
+      blocked_by_school:
+        "Ses échéances ne sont plus mises à jour tant que l'établissement n'autorise pas l'application.",
+    },
     action: "Voir les enfants",
+  },
+  countdown: {
+    tonight: "Ce soir",
+    inDays_one: "Dans {{count}} jour",
+    inDays_other: "Dans {{count}} jours",
   },
   review: {
     title: "À vérifier",

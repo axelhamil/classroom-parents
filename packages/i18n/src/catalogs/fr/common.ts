@@ -28,6 +28,12 @@ export default {
     empty: "Aucun rappel : rien ne sera envoyé.",
     hoursNeedTime: "Cette échéance n'a pas d'heure : choisissez des rappels en jours.",
   },
+  deletionBanner: {
+    title: "Votre compte va être supprimé",
+  },
+  queryState: {
+    loadError: "Le chargement n'a pas abouti. Vérifiez la connexion, puis réessayez.",
+  },
   actions: {
     save: "Enregistrer",
     cancel: "Annuler",

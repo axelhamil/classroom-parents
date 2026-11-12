@@ -6,23 +6,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@packages/ui/components/ui/card";
-import { ListRow, ListRowAction, ListRowContent } from "@packages/ui/components/ui/list-row";
-import { TypographyInline } from "@packages/ui/components/ui/typography";
+import { ListRow, ListRowAction } from "@packages/ui/components/ui/list-row";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { deadlineLabel } from "../../../shared/format/deadline-label";
+import { EventCard } from "../../../shared/events/event-card";
+import type { ChildHue } from "../../../shared/format/child-hue";
 import { confirmEventMutationOptions } from "../api/events.mutations";
 
 export interface ReviewCardProps {
   events: readonly EventItem[];
-  now: Date;
+  childLabel: (childId: string) => string;
+  childColor: (childId: string) => ChildHue;
 }
 
-export function ReviewCard({ events, now }: ReviewCardProps) {
+export function ReviewCard({ events, childLabel, childColor }: ReviewCardProps) {
   const { t } = useTranslation("events");
   const queryClient = useQueryClient();
   const confirm = useMutation({
@@ -43,17 +44,14 @@ export function ReviewCard({ events, now }: ReviewCardProps) {
         <CardDescription>{t("review.description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="flex flex-col">
+        <ul className="flex flex-col gap-2">
           {events.map((event) => (
-            <ListRow key={event.id} variant="ruled" className="flex-col items-start py-2">
-              <ListRowContent className="w-full min-w-0">
-                <TypographyInline weight="semibold" className="line-clamp-2 wrap-anywhere">
-                  {event.title}
-                </TypographyInline>
-                <TypographyInline tone="muted" size="sm">
-                  {deadlineLabel(event.deadlineDate, event.deadlineTime, now)}
-                </TypographyInline>
-              </ListRowContent>
+            <ListRow key={event.id} variant="plain" className="flex-col items-stretch">
+              <EventCard
+                event={event}
+                childLabel={childLabel(event.childId)}
+                hue={childColor(event.childId)}
+              />
               <ListRowAction>
                 <Button
                   type="button"

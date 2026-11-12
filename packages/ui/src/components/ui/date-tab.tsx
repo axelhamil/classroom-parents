@@ -14,6 +14,16 @@ const dateTabVariants = cva(
         muted:
           "text-muted-foreground shadow-none [&>[data-part=month]]:bg-muted [&>[data-part=month]]:text-muted-foreground",
       },
+      hue: {
+        1: "[&>[data-part=month]]:bg-child-1 [&>[data-part=month]]:text-child-foreground",
+        2: "[&>[data-part=month]]:bg-child-2 [&>[data-part=month]]:text-child-foreground",
+        3: "[&>[data-part=month]]:bg-child-3 [&>[data-part=month]]:text-child-foreground",
+        4: "[&>[data-part=month]]:bg-child-4 [&>[data-part=month]]:text-child-foreground",
+        5: "[&>[data-part=month]]:bg-child-5 [&>[data-part=month]]:text-child-foreground",
+        6: "[&>[data-part=month]]:bg-child-6 [&>[data-part=month]]:text-child-foreground",
+        7: "[&>[data-part=month]]:bg-child-7 [&>[data-part=month]]:text-child-foreground",
+        8: "[&>[data-part=month]]:bg-child-8 [&>[data-part=month]]:text-child-foreground",
+      },
     },
     defaultVariants: { tone: "default" },
   },
@@ -28,12 +38,12 @@ interface DateTabProps
   weekday?: string;
 }
 
-function DateTab({ className, tone, dateTime, day, month, weekday, ...props }: DateTabProps) {
+function DateTab({ className, tone, hue, dateTime, day, month, weekday, ...props }: DateTabProps) {
   return (
     <time
       data-slot="date-tab"
       dateTime={dateTime}
-      className={cn(dateTabVariants({ tone }), className)}
+      className={cn(dateTabVariants({ tone, hue }), className)}
       {...props}
     >
       <span data-part="month" className="py-1 text-xs font-bold">

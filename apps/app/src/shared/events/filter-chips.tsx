@@ -1,4 +1,6 @@
-import { Button } from "@packages/ui/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-group";
+
+const ALL = "all";
 
 export interface FilterChipOption {
   value: string | null;
@@ -13,20 +15,30 @@ export interface FilterChipsProps {
 }
 
 export function FilterChips({ label, options, value, onChange }: FilterChipsProps) {
+  const current = value ?? ALL;
+
+  const pick = (next: string[]) => {
+    const picked = next.find((option) => option !== current);
+    if (picked === undefined) return;
+
+    onChange(picked === ALL ? null : picked);
+  };
+
   return (
-    <fieldset aria-label={label} className="scrollbar-none flex min-w-0 gap-2 overflow-x-auto">
+    <ToggleGroup
+      type="multiple"
+      variant="chip"
+      spacing={2}
+      aria-label={label}
+      value={[current]}
+      onValueChange={pick}
+      className="scrollbar-none max-w-full overflow-x-auto"
+    >
       {options.map((option) => (
-        <Button
-          key={option.value ?? "all"}
-          type="button"
-          size="sm"
-          variant={option.value === value ? "default" : "outline"}
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
-        >
+        <ToggleGroupItem key={option.value ?? ALL} value={option.value ?? ALL}>
           {option.label}
-        </Button>
+        </ToggleGroupItem>
       ))}
-    </fieldset>
+    </ToggleGroup>
   );
 }

@@ -1,4 +1,12 @@
 import type { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
+import {
+  BookOpenIcon,
+  BusIcon,
+  ClipboardCheckIcon,
+  type LucideIcon,
+  PenLineIcon,
+  WavesIcon,
+} from "lucide-react";
 import type { EventItem } from "../api/queries/events";
 
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
@@ -18,6 +26,14 @@ export const CATEGORY_BADGE_VARIANTS = {
   swimming: "swimming",
   document_due: "documentDue",
 } as const satisfies Record<EventCategory, string>;
+
+export const CATEGORY_ICONS = {
+  assessment: ClipboardCheckIcon,
+  homework: BookOpenIcon,
+  school_trip: BusIcon,
+  swimming: WavesIcon,
+  document_due: PenLineIcon,
+} as const satisfies Record<EventCategory, LucideIcon>;
 
 export const SOURCE_LABEL_KEYS = {
   announcement: "sources.announcement",

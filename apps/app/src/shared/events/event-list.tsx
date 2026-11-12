@@ -1,39 +1,35 @@
 import { ListRow } from "@packages/ui/components/ui/list-row";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
-import type { ChildDto } from "../api/queries/children";
 import type { EventItem } from "../api/queries/events";
-import { EventRow } from "./event-row";
+import type { ChildHue } from "../format/child-hue";
+import { EventCard } from "./event-card";
 
 const VIRTUALIZE_ABOVE = 50;
-const ESTIMATED_ROW_HEIGHT = 112;
+const ESTIMATED_ROW_HEIGHT = 128;
 const OVERSCAN_ROWS = 6;
-
-export function childLabelsOf(children: readonly ChildDto[]): ReadonlyMap<string, string> | null {
-  return children.length > 1
-    ? new Map(children.map((child) => [child.id, child.label] as const))
-    : null;
-}
 
 export interface EventListProps {
   events: readonly EventItem[];
-  childLabels: ReadonlyMap<string, string> | null;
-  now: Date;
+  childLabel: (childId: string) => string;
+  childColor: (childId: string) => ChildHue;
   muted: boolean;
 }
 
 export function EventList(props: EventListProps) {
-  return props.events.length > VIRTUALIZE_ABOVE ? (
+  const { events, childLabel, childColor, muted } = props;
+
+  return events.length > VIRTUALIZE_ABOVE ? (
     <VirtualEventList {...props} />
   ) : (
     <ol className="flex flex-col">
-      {props.events.map((event) => (
-        <ListRow key={event.id} variant="ruled">
-          <EventRow
+      {events.map((event) => (
+        <ListRow key={event.id} variant="plain">
+          <EventCard
             event={event}
-            childLabel={props.childLabels?.get(event.childId) ?? null}
-            now={props.now}
-            muted={props.muted}
+            childLabel={childLabel(event.childId)}
+            hue={childColor(event.childId)}
+            muted={muted}
           />
         </ListRow>
       ))}
@@ -41,7 +37,7 @@ export function EventList(props: EventListProps) {
   );
 }
 
-function VirtualEventList({ events, childLabels, now, muted }: EventListProps) {
+function VirtualEventList({ events, childLabel, childColor, muted }: EventListProps) {
   const listRef = useRef<HTMLOListElement>(null);
   const virtualizer = useWindowVirtualizer({
     count: events.length,
@@ -62,14 +58,14 @@ function VirtualEventList({ events, childLabels, now, muted }: EventListProps) {
             key={row.key}
             ref={virtualizer.measureElement}
             data-index={row.index}
-            variant="ruled"
+            variant="plain"
             className="absolute inset-x-0 top-0"
             style={{ transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)` }}
           >
-            <EventRow
+            <EventCard
               event={event}
-              childLabel={childLabels?.get(event.childId) ?? null}
-              now={now}
+              childLabel={childLabel(event.childId)}
+              hue={childColor(event.childId)}
               muted={muted}
             />
           </ListRow>

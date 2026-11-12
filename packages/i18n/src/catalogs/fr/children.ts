@@ -25,6 +25,8 @@ export default {
     disconnect: "Déconnecter",
   },
   reconnect: {
+    needsReconnectTitle: "Accès Google perdu",
+    afterSchoolTitle: "Après l'accord de l'école",
     needsReconnect:
       "Google ne donne plus accès à ce compte. Reconnectez-le pour continuer à recevoir ses échéances.",
     afterSchool: "Une fois l'application autorisée par l'école, reconnectez le compte.",

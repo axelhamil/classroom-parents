@@ -22,6 +22,18 @@ const badgeVariants = cva(
         schoolTrip: "bg-category-school-trip-tint text-category-school-trip",
         swimming: "bg-category-swimming-tint text-category-swimming",
         documentDue: "bg-category-document-due-tint text-category-document-due",
+        urgent: "bg-warning text-warning-foreground",
+        soon: "border-border bg-card text-foreground",
+      },
+      hue: {
+        1: "bg-child-1-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
+        2: "bg-child-2-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
+        3: "bg-child-3-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
+        4: "bg-child-4-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
+        5: "bg-child-5-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
+        6: "bg-child-6-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
+        7: "bg-child-7-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
+        8: "bg-child-8-container text-foreground has-data-[slot=child-avatar]:pl-0.5",
       },
     },
     defaultVariants: {
@@ -33,6 +45,7 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = "default",
+  hue,
   asChild = false,
   ...props
 }: React.ComponentProps<"span"> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
@@ -42,7 +55,7 @@ function Badge({
     <Comp
       data-slot="badge"
       data-variant={variant}
-      className={cn(badgeVariants({ variant }), className)}
+      className={cn(badgeVariants({ variant, hue }), className)}
       {...props}
     />
   );

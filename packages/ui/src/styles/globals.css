@@ -197,6 +197,8 @@
 }
 
 @theme inline {
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 1;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -396,7 +398,8 @@
 
   [data-slot="button"],
   [data-slot="brand-link"],
-  [data-slot="app-navigation-item"] {
+  [data-slot="app-navigation-item"],
+  [data-slot="planner-card"] {
     transition-property: color, background-color, border-color, box-shadow, opacity, transform;
     transition-duration: var(--press-duration);
     transition-timing-function: var(--ease-out);
@@ -410,7 +413,8 @@
 
   @media (pointer: coarse) {
     [data-slot="button"],
-    [data-slot="nav-link"] {
+    [data-slot="nav-link"],
+    [data-slot="toggle-group-item"] {
       min-height: var(--touch-target);
       min-width: var(--touch-target);
     }

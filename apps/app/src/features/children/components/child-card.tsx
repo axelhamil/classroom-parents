@@ -82,13 +82,21 @@ export function ChildCard({ child }: ChildCardProps) {
         <SyncLine child={child} />
 
         {child.status === "needs_reconnect" && (
-          <ReconnectBanner childId={child.id} message={t("reconnect.needsReconnect")} />
+          <ReconnectBanner
+            childId={child.id}
+            title={t("reconnect.needsReconnectTitle")}
+            message={t("reconnect.needsReconnect")}
+          />
         )}
 
         {child.status === "blocked_by_school" && (
           <>
             <SchoolProcedure kind={classifySchoolError(child)} />
-            <ReconnectBanner childId={child.id} message={t("reconnect.afterSchool")} />
+            <ReconnectBanner
+              childId={child.id}
+              title={t("reconnect.afterSchoolTitle")}
+              message={t("reconnect.afterSchool")}
+            />
           </>
         )}
       </CardContent>

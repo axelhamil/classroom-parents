@@ -31,6 +31,25 @@ export function wallDateParts(date: string): WallDateParts {
   };
 }
 
+const EVENING_FROM = "16:00";
+const COUNTDOWN_HORIZON_DAYS = 6;
+
+export type Countdown = { kind: "tonight" | "imminent" | "soon"; days: number } | null;
+
+export function countdownOf(
+  deadlineDate: string,
+  deadlineTime: string | undefined,
+  now: Date,
+): Countdown {
+  const days = daysUntil(deadlineDate, now);
+  if (days < 0 || days > COUNTDOWN_HORIZON_DAYS) return null;
+  if (days === 0 && deadlineTime !== undefined && deadlineTime >= EVENING_FROM)
+    return { kind: "tonight", days };
+  if (days <= 1) return { kind: "imminent", days };
+
+  return { kind: "soon", days };
+}
+
 function dayLabel(date: string, now: Date): string {
   const daysAhead = daysUntil(date, now);
   if (daysAhead === 0) return copy.today;
