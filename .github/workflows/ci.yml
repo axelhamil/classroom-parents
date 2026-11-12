@@ -192,6 +192,11 @@ jobs:
         # The batched delete, its lease and its heartbeat are SQL. Removes its probes.
         run: pnpm --filter api check:email-retention
 
+      - name: Check the event history retention sweep against a real database
+        # The 12 month and 30 day windows, the sync window guard (purge then sync), the
+        # purge events and the cascade to reminders and alerts are SQL. Removes its probe family.
+        run: pnpm --filter api check:event-retention
+
       - name: Check the composed api end to end against a real database
         # Fake Google and model, real modules, real Postgres: a family's agenda filled by
         # the first sync, served over HTTP, the live stream, a school block, a

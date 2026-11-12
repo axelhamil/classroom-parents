@@ -46,7 +46,8 @@ export function PrivacyPolicyBody(): ReactElement {
           </li>
           <li>
             Vos alertes : l'heure choisie pour chaque échéance, l'adresse technique d'abonnement aux
-            notifications de chacun de vos appareils et le type de navigateur.
+            notifications de chacun de vos appareils et le type de navigateur ; votre choix de
+            recevoir le résumé du dimanche et les semaines où il vous a été envoyé.
           </li>
           <li>
             Votre lien d'agenda, si vous en créez un : une empreinte de son secret (jamais le lien
@@ -141,14 +142,19 @@ export function PrivacyPolicyBody(): ReactElement {
         <TypographyH2>Durées de conservation</TypographyH2>
         <TypographyList>
           <li>Texte des annonces : aucune conservation après l'extraction.</li>
+          <li>Compte et enfants liés : tant que votre compte existe.</li>
+          <li>Échéances : 12 mois après leur date, puis effacées avec leurs rappels et alertes.</li>
           <li>
-            Compte, enfants liés et échéances, passées comprises : tant que votre compte existe.
+            Échéance que vous supprimez ou que l'enseignant retire : effacée 30 jours plus tard ; un
+            devoir Classroom reste au moins 61 jours après sa date, pour qu'une synchronisation ne
+            le recrée pas.
           </li>
           <li>Enfant retiré : ses accès Google sont révoqués et ses données effacées aussitôt.</li>
           <li>
             Compte supprimé : effacement complet 7 jours après la demande, délai pendant lequel vous
             pouvez annuler.
           </li>
+          <li>Choix et envois du résumé du dimanche : tant que votre compte existe.</li>
           <li>E-mails envoyés : 7 jours au plus.</li>
           <li>
             Abonnement aux notifications d'un appareil : jusqu'à sa désactivation, votre déconnexion

@@ -1,0 +1,1 @@
+CREATE INDEX "event_dismissed_deadline_idx" ON "event" USING btree ("deadline_at") WHERE "event"."deleted_at" is not null or "event"."withdrawn_at" is not null;

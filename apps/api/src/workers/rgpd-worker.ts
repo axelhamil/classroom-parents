@@ -1,9 +1,10 @@
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
+import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import type { RgpdService } from "../modules/rgpd/application/services/rgpd.service";
 import type { Logger } from "../shared/logger";
 import type { ISweepRunStore } from "../shared/ports/sweep-run.port";
 import { startPeriodic } from "./periodic";
-import { sweepDeliveredOutbox, sweepOldEmails } from "./retention";
+import { sweepDeliveredOutbox, sweepEventHistory, sweepOldEmails } from "./retention";
 
 export const RGPD_TICK_MS = 60 * 60_000;
 
@@ -12,6 +13,7 @@ export interface RgpdWorkerDeps {
   ITransactionService: IUnitOfWork;
   IInstrumentation: IInstrumentation;
   ISweepRunStore: ISweepRunStore;
+  IOutboxRepository: IOutboxRepository;
 }
 
 export interface RgpdWorkerSettings {
@@ -58,10 +60,13 @@ export function startRgpdWorkers(
       deadReplayWindowHours: settings.emailDeadReplayWindowHours,
     });
   const purgeDeliveredEvents = () => sweepDeliveredOutbox(retention);
+  const purgeEventHistory = () =>
+    sweepEventHistory({ ...retention, outbox: deps.IOutboxRepository });
 
   return Promise.all([
     startPeriodic(wipeDueAccounts, RGPD_TICK_MS, signal, options),
     startPeriodic(purgeOldEmails, RGPD_TICK_MS, signal, options),
     startPeriodic(purgeDeliveredEvents, RGPD_TICK_MS, signal, options),
+    startPeriodic(purgeEventHistory, RGPD_TICK_MS, signal, options),
   ]).then(() => undefined);
 }
