@@ -44,11 +44,10 @@ export function defaultPrintWeek(now: Date): PrintWeek {
 }
 
 export function printWeekDates(now: Date, week: PrintWeek): string[] {
-  const today = utcDay(schoolToday(now));
-  const daysToSunday = (WEEK_LENGTH - weekdayOf(now)) % WEEK_LENGTH;
-  if (week === "current") return datesFrom(today, daysToSunday + 1);
+  const daysSinceMonday = (weekdayOf(now) + WEEK_LENGTH - 1) % WEEK_LENGTH;
+  const monday = utcDay(schoolToday(now)) - daysSinceMonday * DAY_MS;
 
-  return datesFrom(today + (daysToSunday + 1) * DAY_MS, WEEK_LENGTH);
+  return datesFrom(week === "current" ? monday : monday + WEEK_LENGTH * DAY_MS, WEEK_LENGTH);
 }
 
 export function isInWeek(date: string, now: Date): boolean {

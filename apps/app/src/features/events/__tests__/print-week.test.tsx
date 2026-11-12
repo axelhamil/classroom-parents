@@ -1,17 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderAppAt, resetApp } from "../../../__tests__/app-harness";
+import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
 import { at, deadline, givenFamily, HUGO } from "../../../__tests__/week-fixtures";
-
-vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({
-    theme: "system",
-    resolvedTheme: "light",
-    changeTheme: () => Promise.resolve(),
-  }),
-}));
 
 function columnOf(child: string): HTMLElement {
   return screen.getByRole("region", { name: child });
@@ -39,7 +31,7 @@ describe("Planning du frigo, the printable week", () => {
     await renderAppAt("/week/print");
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Semaine du 12 au 15 novembre" }),
+      await screen.findByRole("heading", { level: 1, name: "Semaine du 9 au 15 novembre" }),
     ).toBeDefined();
     await screen.findByRole("region", { name: "Hugo" });
     const lea = within(columnOf("Léa")).getAllByRole("listitem");
@@ -56,6 +48,36 @@ describe("Planning du frigo, the printable week", () => {
       expect(item.querySelectorAll('[data-slot="print-planner-box"]')).toHaveLength(1);
     }
     expect(screen.queryByText("Contrôle de grammaire")).toBeNull();
+  });
+
+  it("the week runs Monday to Sunday and its past days print muted", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const past = deadline(1, "2026-11-10", "Dictée de mardi", {
+      deadlineAt: "2026-11-10T16:00:00.000Z",
+    });
+    const coming = deadline(2, "2026-11-13", "Piscine du vendredi", { category: "swimming" });
+    stubApi(({ method, url }) => {
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname !== "/events" || method !== "GET") return undefined;
+      if (url.searchParams.get("status") === "needs_review") return json({ items: [] });
+      return json({ items: url.searchParams.get("scope") === "history" ? [past] : [coming] });
+    });
+    await renderAppAt("/week/print");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Semaine du 9 au 15 novembre" }),
+    ).toBeDefined();
+    const items = within(await screen.findByRole("region", { name: "Léa" })).getAllByRole(
+      "listitem",
+    );
+
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringContaining("Dictée de mardi"),
+      expect.stringContaining("Piscine du vendredi"),
+    ]);
+    expect(items[0]?.dataset.past).toBe("true");
+    expect(items[0]?.textContent).toContain("Passée");
+    expect(items[1]?.dataset.past).toBeUndefined();
   });
 
   it("empty child shows the friendly line", async () => {
@@ -88,7 +110,11 @@ describe("Planning du frigo, the printable week", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Semaine du 16 au 22 novembre" }),
     ).toBeDefined();
-    expect(await screen.findByText("Contrôle de grammaire")).toBeDefined();
+    expect(
+      await within(await screen.findByRole("region", { name: "Léa" })).findByText(
+        "Contrôle de grammaire",
+      ),
+    ).toBeDefined();
     expect(screen.queryByText("Exposé sur les volcans")).toBeNull();
 
     cleanup();
@@ -98,7 +124,7 @@ describe("Planning du frigo, the printable week", () => {
     await renderAppAt("/week/print");
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Semaine du 13 au 15 novembre" }),
+      await screen.findByRole("heading", { level: 1, name: "Semaine du 9 au 15 novembre" }),
     ).toBeDefined();
   });
 });

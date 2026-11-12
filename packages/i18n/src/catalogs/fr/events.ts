@@ -44,6 +44,7 @@ export default {
     empty: "Rien de prévu cette semaine, profitez-en.",
     date: "{{weekday}} {{day}} {{month}}",
     printedOn: "Imprimé le {{date}}",
+    past: "Passée",
     loading: "Préparation du planning",
   },
   focus: {

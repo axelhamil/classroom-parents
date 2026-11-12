@@ -159,7 +159,10 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   const review = useQuery(
     reviewEventsQueryOptions(tab === "week" ? { category: null, childId } : filters),
   );
-  const week = useWeekEvents(weekDates(now).at(-1) ?? schoolToday(now));
+  const week = useWeekEvents("upcoming", {
+    from: schoolToday(now),
+    to: weekDates(now).at(-1) ?? schoolToday(now),
+  });
   const weekEvents = (week.data?.pages.flatMap((page) => page.items) ?? []).filter((event) =>
     isInWeek(event.deadlineDate, now),
   );

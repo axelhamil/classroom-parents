@@ -137,6 +137,9 @@
   --print-ink-muted: oklch(0.4 0.01 60);
   --print-rule: oklch(0.72 0.01 60);
   --print-root-size: 10pt;
+  --print-root-size-compact: 8.5pt;
+  --print-item-space: 0.5rem;
+  --print-item-space-compact: 0.2rem;
 }
 
 .dark {
@@ -290,6 +293,7 @@
   --spacing-nav: var(--nav-height);
   --spacing-app-bar: var(--app-bar-height);
   --spacing-scroll-region: var(--scroll-region-height);
+  --spacing-print-item: var(--print-item-space);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -787,7 +791,17 @@ html.theme-switching *::after {
 
 @page {
   size: A4 portrait;
-  margin: 12mm;
+  margin: 12mm 12mm 14mm;
+
+  @bottom-right {
+    content: counter(page) "/" counter(pages);
+    font:
+      8pt "Google Sans Flex",
+      ui-sans-serif,
+      system-ui,
+      sans-serif;
+    color: oklch(0.4 0.01 60);
+  }
 }
 
 /*
@@ -824,6 +838,14 @@ html.theme-switching *::after {
   [data-slot="print-sheet"] {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  html:has([data-slot="print-table"][data-density="compact"]) {
+    font-size: var(--print-root-size-compact);
+  }
+
+  [data-slot="print-table"][data-density="compact"] {
+    --print-item-space: var(--print-item-space-compact);
   }
 
   *,
