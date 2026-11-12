@@ -76,7 +76,7 @@ function CalendarDayTitle({ className, ...props }: React.ComponentProps<"h3">) {
   return (
     <h3
       data-slot="calendar-day-title"
-      className={cn("min-w-0 flex-1 truncate text-base font-semibold", className)}
+      className={cn("min-w-0 flex-1 text-base font-semibold text-balance", className)}
       {...props}
     />
   );

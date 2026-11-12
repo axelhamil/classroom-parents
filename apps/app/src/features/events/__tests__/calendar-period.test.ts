@@ -41,9 +41,16 @@ describe("crunch and overdue", () => {
   const open = { done: false, deadlineDate: "2026-11-13" };
 
   it("a day is a crunch from three open deadlines, done ones do not count", () => {
-    expect(isCrunchDay([open, open])).toBe(false);
-    expect(isCrunchDay([open, open, { ...open, done: true }])).toBe(false);
-    expect(isCrunchDay([open, open, open])).toBe(true);
+    expect(isCrunchDay("2026-11-13", [open, open], "2026-11-12")).toBe(false);
+    expect(isCrunchDay("2026-11-13", [open, open, { ...open, done: true }], "2026-11-12")).toBe(
+      false,
+    );
+    expect(isCrunchDay("2026-11-13", [open, open, open], "2026-11-12")).toBe(true);
+  });
+
+  it("only today and the days ahead warn, a past day is no longer a crunch", () => {
+    expect(isCrunchDay("2026-11-13", [open, open, open], "2026-11-13")).toBe(true);
+    expect(isCrunchDay("2026-11-13", [open, open, open], "2026-11-14")).toBe(false);
   });
 
   it("an open deadline before today is overdue, a done one never is", () => {

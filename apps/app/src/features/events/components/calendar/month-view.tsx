@@ -7,7 +7,7 @@ import {
   MonthPlannerDots,
   MonthPlannerMore,
 } from "@packages/ui/components/ui/month-planner";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { childHue } from "../../../../shared/format/child-hue";
@@ -27,9 +27,19 @@ export interface MonthViewProps {
   today: string;
   onSelect: (date: string) => void;
   onAdd: (date: string) => void;
+  emptyPeriod: ReactNode;
 }
 
-export function MonthView({ days, anchor, family, now, today, onSelect, onAdd }: MonthViewProps) {
+export function MonthView({
+  days,
+  anchor,
+  family,
+  now,
+  today,
+  onSelect,
+  onAdd,
+  emptyPeriod,
+}: MonthViewProps) {
   const { t } = useTranslation("events");
   const wide = useMediaQuery(WIDE_QUERY);
   const anchorMonth = anchor.slice(0, 7);
@@ -37,7 +47,9 @@ export function MonthView({ days, anchor, family, now, today, onSelect, onAdd }:
   if (shown.anchorMonth !== anchorMonth) setShown({ anchorMonth, month: anchorMonth });
   const byDate = new Map(days.map((day) => [day.date, day]));
   const selected = byDate.get(anchor) ?? { date: anchor, events: [] };
-  const crunch = days.filter((day) => isCrunchDay(day.events)).map((day) => localDay(day.date));
+  const crunch = days
+    .filter((day) => isCrunchDay(day.date, day.events, today))
+    .map((day) => localDay(day.date));
 
   const dayContent = (date: Date) => {
     const events = byDate.get(isoDay(date))?.events ?? [];
@@ -80,7 +92,7 @@ export function MonthView({ days, anchor, family, now, today, onSelect, onAdd }:
       count: day?.events.length ?? 0,
     };
 
-    return day && isCrunchDay(day.events)
+    return day && isCrunchDay(day.date, day.events, today)
       ? t("calendar.dayCrunch", label)
       : t("calendar.day", label);
   };
@@ -100,7 +112,9 @@ export function MonthView({ days, anchor, family, now, today, onSelect, onAdd }:
         labels={{ labelDayButton: labelOf }}
         dayContent={dayContent}
       />
-      <CalendarDaySection day={selected} family={family} now={now} today={today} onAdd={onAdd} />
+      {emptyPeriod ?? (
+        <CalendarDaySection day={selected} family={family} now={now} today={today} onAdd={onAdd} />
+      )}
     </div>
   );
 }

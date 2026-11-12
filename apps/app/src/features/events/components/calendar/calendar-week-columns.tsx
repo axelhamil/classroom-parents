@@ -1,3 +1,4 @@
+import { Button } from "@packages/ui/components/ui/button";
 import { CalendarDay, CalendarDayCrunch } from "@packages/ui/components/ui/calendar-day";
 import { DateTab } from "@packages/ui/components/ui/date-tab";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
@@ -8,6 +9,8 @@ import { dayLabel, wallDateParts } from "../../../../shared/format/deadline-labe
 import { useIntlLocale } from "../../../../shared/i18n/use-intl-locale";
 import { type CalendarDay as Day, type DayTone, dayTone, isCrunchDay } from "../../calendar";
 import { CalendarEventRow } from "./calendar-event-row";
+
+const STICKERS_MAX = 4;
 
 const DATE_TAB_TONES = {
   today: "today",
@@ -21,9 +24,17 @@ export interface CalendarWeekColumnsProps {
   now: Date;
   today: string;
   onAdd: (date: string) => void;
+  onOpenDay: (date: string) => void;
 }
 
-export function CalendarWeekColumns({ days, family, now, today, onAdd }: CalendarWeekColumnsProps) {
+export function CalendarWeekColumns({
+  days,
+  family,
+  now,
+  today,
+  onAdd,
+  onOpenDay,
+}: CalendarWeekColumnsProps) {
   const { t } = useTranslation("events");
   const locale = useIntlLocale();
 
@@ -32,9 +43,11 @@ export function CalendarWeekColumns({ days, family, now, today, onAdd }: Calenda
       {days.map((day) => {
         const parts = wallDateParts(day.date);
         const label = dayLabel(day.date, now);
-        const crunch = isCrunchDay(day.events);
+        const crunch = isCrunchDay(day.date, day.events, today);
         const count = { day: label, count: day.events.length };
         const tone = dayTone(day.date, today);
+        const hidden = day.events.length - STICKERS_MAX;
+        const named = label.toLocaleLowerCase(locale);
 
         return (
           <CalendarDay
@@ -58,7 +71,7 @@ export function CalendarWeekColumns({ days, family, now, today, onAdd }: Calenda
               {t("calendar.crunch")}
             </CalendarDayCrunch>
             <ul className="flex flex-col gap-2">
-              {day.events.map((event) => (
+              {day.events.slice(0, STICKERS_MAX).map((event) => (
                 <li key={event.id}>
                   <CalendarEventRow
                     event={event}
@@ -70,10 +83,20 @@ export function CalendarWeekColumns({ days, family, now, today, onAdd }: Calenda
                 </li>
               ))}
             </ul>
+            {hidden > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={t("calendar.openDay", { count: hidden, day: named })}
+                onClick={() => onOpenDay(day.date)}
+              >
+                {t("calendar.hidden", { count: hidden })}
+              </Button>
+            )}
             <IconButton
               variant="ghost"
               className="self-center"
-              label={t("calendar.addOn", { day: label.toLocaleLowerCase(locale) })}
+              label={t("calendar.addOn", { day: named })}
               onClick={() => onAdd(day.date)}
             >
               <PlusIcon aria-hidden />

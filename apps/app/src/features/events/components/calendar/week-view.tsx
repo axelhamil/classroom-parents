@@ -17,6 +17,7 @@ export interface WeekViewProps {
   today: string;
   onSelect: (date: string) => void;
   onAdd: (date: string) => void;
+  onOpenDay: (date: string) => void;
 }
 
 export function WeekView(props: WeekViewProps) {
@@ -47,7 +48,7 @@ function WeekRibbon({ days, anchor, family, now, today, onSelect, onAdd }: WeekV
       >
         {days.map((day) => {
           const parts = wallDateParts(day.date);
-          const crunch = isCrunchDay(day.events);
+          const crunch = isCrunchDay(day.date, day.events, today);
           const label = { day: dayLabel(day.date, now), count: day.events.length };
 
           return (

@@ -2,6 +2,7 @@ import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { expect, type Page, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
 import { EVENTS, inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./events-fixtures";
+import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
 
 async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
@@ -129,6 +130,50 @@ test.describe("the week on a tablet", () => {
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
     await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeVisible();
+    await expectOnePageWithoutOverflow(page);
+  });
+});
+
+test.describe("the child dots of the month", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
+
+  const crunch = [LEA, MAXIMILIEN, LEA].map((child, index) => ({
+    ...REVIEW_EVENT,
+    id: `3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6${index}`,
+    childId: child.id,
+    title: `Devoir ${index + 1}`,
+    status: "confirmed",
+    deadlineDate: "2026-11-17",
+    deadlineAt: "2026-11-17T07:00:00.000Z",
+  }));
+  const single = {
+    ...crunch[0],
+    id: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e70",
+    deadlineDate: "2026-11-19",
+  };
+
+  for (const colorScheme of COLOR_SCHEMES) {
+    test(`stand out at 3:1 on a plain and a crunch day (${colorScheme})`, async ({ page }) => {
+      await page.clock.setFixedTime(new Date("2026-11-12T09:00:00"));
+      await showColorScheme(page, colorScheme);
+      await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [...crunch, single] });
+      await page.goto("/?view=month&date=2026-11-25");
+      await expect(page.locator('[data-day="2026-11-17"] [data-slot=hue-dot]')).toHaveCount(3);
+
+      expect(await lowestGraphicContrast(page, "[data-slot=hue-dot]")).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  test("a crunch day keeps its whole date next to the badge", async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-11-12T09:00:00"));
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: crunch });
+    await page.goto("/?view=agenda&date=2026-11-17");
+
+    const title = page.getByRole("heading", { level: 3, name: "Mardi 17 novembre" });
+    await expect(title).toBeVisible();
+    expect(await title.evaluate((heading) => heading.scrollWidth <= heading.clientWidth)).toBe(
+      true,
+    );
     await expectOnePageWithoutOverflow(page);
   });
 });

@@ -11,6 +11,7 @@ export interface CalendarStub {
 
 export interface CalendarStubOptions {
   failDone?: Promise<Response>;
+  refuseFirstDone?: boolean;
   detail?: Fixture;
 }
 
@@ -26,15 +27,24 @@ function created(body: unknown, index: number): Fixture | undefined {
 export function givenCalendar(
   children: unknown[],
   events: Fixture[],
-  { failDone, detail }: CalendarStubOptions = {},
+  { failDone, detail, refuseFirstDone = false }: CalendarStubOptions = {},
 ): CalendarStub {
   const stub: CalendarStub = { calls: [], events: [...events] };
+  let refusals = refuseFirstDone ? 1 : 0;
 
   stub.calls = stubApi(({ method, url, body }) => {
     if (url.pathname === "/children") return json(children);
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     if (url.pathname === "/calendar-feed" && method === "GET") return json({ exists: false });
-    if (url.pathname === "/events" && method === "GET") return json({ items: [] });
+    if (url.pathname === "/events" && method === "GET") {
+      if (url.searchParams.get("status") !== "confirmed") return json({ items: [] });
+      const today = new Date().toISOString().slice(0, 10);
+      const next = stub.events
+        .filter((event) => event.deadlineDate >= today)
+        .sort((left, right) => left.deadlineDate.localeCompare(right.deadlineDate));
+
+      return json({ items: next.slice(0, Number(url.searchParams.get("limit") ?? next.length)) });
+    }
     if (url.pathname === "/events/calendar") {
       const from = url.searchParams.get("from") ?? "";
       const to = url.searchParams.get("to") ?? "";
@@ -58,6 +68,12 @@ export function givenCalendar(
     const done = url.pathname.match(/^\/events\/([^/]+)\/done$/);
     if (done) {
       if (failDone) return failDone;
+      if (refusals > 0) {
+        refusals -= 1;
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(json({ code: "INTERNAL" }, 500)), 50),
+        );
+      }
       const event = stub.events.find((candidate) => candidate.id === done[1]);
       if (!event) return json({ code: "EVENT_NOT_FOUND" }, 404);
       Object.assign(event, { done: method === "POST" });

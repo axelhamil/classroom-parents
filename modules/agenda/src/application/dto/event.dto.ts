@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { AgendaEvent, EditableField } from "../../domain/event.aggregate";
 import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
-import type { EventChecklistValue } from "../../domain/value-objects/event-checklist.vo";
+import type { ChecklistItems } from "../../domain/value-objects/event-checklist.vo";
 import type { EventSourceValue } from "../../domain/value-objects/event-source.vo";
 import type { EventStatusValue } from "../../domain/value-objects/event-status.vo";
 
@@ -21,7 +21,7 @@ export interface EventDto {
   receivedAt: string;
   edited: boolean;
   editedFields: EditableField[];
-  checklist: EventChecklistValue;
+  checklist: ChecklistItems;
 }
 
 export interface EventDeadlineDto {
@@ -108,7 +108,7 @@ export function toEventDto(event: AgendaEvent): EventDto {
     receivedAt: event.get("receivedAt").toISOString(),
     edited: event.get("editedAt").isSome(),
     editedFields: event.get("editedFields"),
-    checklist: event.get("checklist").value,
+    checklist: event.get("checklist").items(),
   };
 }
 

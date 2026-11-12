@@ -16,7 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { EDITABLE_FIELDS } from "../src/domain/event.aggregate";
-import type { EventChecklistValue } from "../src/domain/value-objects/event-checklist.vo";
+import type { StoredChecklist } from "../src/domain/value-objects/event-checklist.vo";
 import { EVENT_SOURCES } from "../src/domain/value-objects/event-source.vo";
 import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
 
@@ -45,7 +45,7 @@ export const agendaEvent = pgTable(
     status: text("status", { enum: EVENT_STATUSES }).notNull(),
     done: boolean("done").notNull().default(false),
     checklist: jsonb("checklist")
-      .$type<EventChecklistValue>()
+      .$type<StoredChecklist>()
       .notNull()
       .default({ done: [], removed: [], extra: [] }),
     editedAt: timestamp("edited_at", { withTimezone: true }),

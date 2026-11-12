@@ -84,7 +84,9 @@ export function daysOf(period: CalendarPeriod, events: readonly EventItem[]): Ca
   }));
 }
 
-export function isCrunchDay(events: readonly Deadline[]): boolean {
+export function isCrunchDay(date: string, events: readonly Deadline[], today: string): boolean {
+  if (date < today) return false;
+
   return events.filter((event) => !event.done).length >= CRUNCH_FROM;
 }
 

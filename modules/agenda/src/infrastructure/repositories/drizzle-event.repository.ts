@@ -60,7 +60,11 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   );
   const status = EventStatus.create(row.status);
   const source = EventSource.create(row.source);
-  const checklist = EventChecklist.create(row.checklist);
+  const stored = row.checklist;
+  const checklist = EventChecklist.create({
+    ...stored,
+    written: stored.written ?? stored.done.length + stored.removed.length + stored.extra.length > 0,
+  });
   if (checklist.isFailure) return Result.fail(checklist.getError());
   if (source.isFailure) return Result.fail(source.getError());
   if (id.isFailure) return Result.fail(id.getError());

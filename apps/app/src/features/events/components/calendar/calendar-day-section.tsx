@@ -36,7 +36,7 @@ export function CalendarDaySection({ day, family, now, today, onAdd }: CalendarD
     <CalendarDay
       aria-labelledby={titleId}
       tone={dayTone(day.date, today)}
-      crunch={isCrunchDay(day.events)}
+      crunch={isCrunchDay(day.date, day.events, today)}
     >
       <CalendarDayHeader>
         <CalendarDayTitle id={titleId}>{title}</CalendarDayTitle>

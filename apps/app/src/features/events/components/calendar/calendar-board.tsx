@@ -31,6 +31,7 @@ import { AgendaView } from "./agenda-view";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { MonthView } from "./month-view";
+import { PeriodEmpty } from "./period-empty";
 import { WeekView } from "./week-view";
 
 export interface CalendarPlace {
@@ -121,6 +122,16 @@ export function CalendarBoard({
   };
 
   const viewProps = { days, anchor, family, now, today, onSelect: select, onAdd: setAdding };
+  const periodEmpty =
+    shown.length === 0 ? (
+      <PeriodEmpty
+        family={family}
+        childId={childId}
+        now={now}
+        onAdd={() => setAdding(anchor)}
+        onGoTo={turnTo}
+      />
+    ) : null;
 
   return (
     <Tabs value={view} onValueChange={changeView} className="gap-4">
@@ -160,9 +171,15 @@ export function CalendarBoard({
                   data-tour="home-week"
                   {...swipe}
                 >
-                  {candidate === "agenda" && <AgendaView {...viewProps} />}
-                  {candidate === "week" && <WeekView {...viewProps} />}
-                  {candidate === "month" && <MonthView {...viewProps} />}
+                  {candidate === "agenda" && (periodEmpty ?? <AgendaView {...viewProps} />)}
+                  {candidate === "week" &&
+                    (periodEmpty ?? (
+                      <WeekView
+                        {...viewProps}
+                        onOpenDay={(date) => onPlaceChange({ view: "agenda", date })}
+                      />
+                    ))}
+                  {candidate === "month" && <MonthView {...viewProps} emptyPeriod={periodEmpty} />}
                 </CalendarPeriod>
               )
             }

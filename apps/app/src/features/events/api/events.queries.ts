@@ -35,6 +35,27 @@ export function reviewEventsQueryOptions(filters: EventFilters) {
   });
 }
 
+export function nextEventQueryOptions(childId: string | null) {
+  return queryOptions({
+    queryKey: ["events", "next", childId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await $list(
+        {
+          query: {
+            scope: "upcoming",
+            status: "confirmed",
+            limit: "1",
+            ...eventFilterQuery({ category: null, childId }),
+          },
+        },
+        { init: { signal } },
+      );
+      if (!res.ok) await throwApiError(res, "loadEvents");
+      return (await res.json()).items[0] ?? null;
+    },
+  });
+}
+
 export interface CalendarRange {
   from: string;
   to: string;

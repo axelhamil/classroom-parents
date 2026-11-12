@@ -128,7 +128,7 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
 
   const selectChild = (next: string | null) => {
     setStored(next);
-    setSearch({ childId: undefined });
+    setSearch({ childId: next ?? undefined });
   };
 
   const place: CalendarPlace = { view: search.view, date: search.date };

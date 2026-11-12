@@ -78,6 +78,15 @@
   --child-7-container: oklch(0.94 0.04 145);
   --child-8: oklch(0.48 0.06 230);
   --child-8-container: oklch(0.94 0.02 230);
+  /* A child mark (dot) is a meaningful graphic: on the page 5.15 to 5.96, on a card 5.48 to 6.33, on a crunch day 4.58 to 5.53. */
+  --child-1-mark: var(--child-1);
+  --child-2-mark: var(--child-2);
+  --child-3-mark: var(--child-3);
+  --child-4-mark: var(--child-4);
+  --child-5-mark: var(--child-5);
+  --child-6-mark: var(--child-6);
+  --child-7-mark: var(--child-7);
+  --child-8-mark: var(--child-8);
   --category-assessment: oklch(0.5 0.17 350);
   --category-assessment-tint: oklch(0.945 0.03 350);
   --category-homework: oklch(0.48 0.15 255);
@@ -200,6 +209,15 @@
   --child-7-container: oklch(0.3 0.04 145);
   --child-8: oklch(0.44 0.05 230);
   --child-8-container: oklch(0.3 0.025 230);
+  /* The dark avatar fill is too dim for a dot: marks lighten to 7.87 to 8.73 on the page, 7.23 to 8.02 on a card, 3.48 to 4.22 on a crunch day. */
+  --child-1-mark: oklch(0.76 0.1 185);
+  --child-2-mark: oklch(0.76 0.12 255);
+  --child-3-mark: oklch(0.76 0.13 300);
+  --child-4-mark: oklch(0.76 0.13 355);
+  --child-5-mark: oklch(0.76 0.12 35);
+  --child-6-mark: oklch(0.76 0.1 75);
+  --child-7-mark: oklch(0.76 0.11 145);
+  --child-8-mark: oklch(0.76 0.06 230);
   --category-assessment: oklch(0.83 0.1 350);
   --category-assessment-tint: oklch(0.32 0.05 350);
   --category-homework: oklch(0.83 0.09 255);
@@ -283,6 +301,14 @@
   --color-child-7-container: var(--child-7-container);
   --color-child-8: var(--child-8);
   --color-child-8-container: var(--child-8-container);
+  --color-child-1-mark: var(--child-1-mark);
+  --color-child-2-mark: var(--child-2-mark);
+  --color-child-3-mark: var(--child-3-mark);
+  --color-child-4-mark: var(--child-4-mark);
+  --color-child-5-mark: var(--child-5-mark);
+  --color-child-6-mark: var(--child-6-mark);
+  --color-child-7-mark: var(--child-7-mark);
+  --color-child-8-mark: var(--child-8-mark);
   --color-category-assessment: var(--category-assessment);
   --color-category-assessment-tint: var(--category-assessment-tint);
   --color-category-homework: var(--category-homework);

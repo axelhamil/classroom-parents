@@ -5,7 +5,7 @@ import {
   userStorageKey,
   writeStoredValue,
 } from "@packages/web-kit/storage/use-stored-value";
-import { useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { CheckCheckIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,6 +16,7 @@ import type { EventItem } from "../../../shared/api/queries/events";
 import { dayLabel } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
 import { useIntlLocale } from "../../../shared/i18n/use-intl-locale";
+import { markEventDoneMutationOptions } from "../api/events.mutations";
 import { calendarEventsQueryOptions } from "../api/events.queries";
 import { mondayOf, WEEK_LENGTH } from "../week";
 
@@ -44,25 +45,29 @@ export function useCelebrateProgress(now: Date): void {
   const query = useQuery(
     calendarEventsQueryOptions({ from, to: shiftDate(from, WEEK_LENGTH - 1) }),
   );
+  const toggling = useIsMutating({ mutationKey: markEventDoneMutationOptions.mutationKey }) > 0;
   const loaded = query.data ?? [];
   const week = mondayOf(now);
-  const progress: Progress | null = query.isSuccess
-    ? {
-        scope: [week, ...loaded.map((event) => event.id)].join("\n"),
-        completed: [
-          ...completedDays(loaded),
-          ...(loaded.length > 0 && loaded.every((event) => event.done) ? [`week:${week}`] : []),
-        ].join("\n"),
-      }
-    : null;
+  const progress: Progress | null =
+    query.isSuccess && !toggling
+      ? {
+          scope: [week, ...loaded.map((event) => event.id)].join("\n"),
+          completed: [
+            ...completedDays(loaded),
+            ...(loaded.length > 0 && loaded.every((event) => event.done) ? [`week:${week}`] : []),
+          ].join("\n"),
+        }
+      : null;
   const previous = useRef<Progress | null>(null);
   const key = userStorageKey(user.id, "celebrations");
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a celebration answers a deadline the parent marked done, so only a change of what is complete within the same events counts
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a celebration answers a deadline the parent marked done and the server confirmed, so only a settled change of what is complete within the same events counts
   useEffect(() => {
+    if (!progress) return;
+
     const before = previous.current;
     previous.current = progress;
-    if (!before || !progress || before.scope !== progress.scope) return;
+    if (!before || before.scope !== progress.scope) return;
 
     const known = new Set(before.completed.split("\n"));
     const fresh = progress.completed

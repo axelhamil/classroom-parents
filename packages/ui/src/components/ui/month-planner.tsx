@@ -26,7 +26,7 @@ function MonthPlannerDayButton({ className, day, modifiers, children, ...props }
       data-crunch={modifiers.crunch || undefined}
       className={cn(
         "flex size-full min-h-14 flex-col items-center gap-1 rounded-lg border border-transparent p-1 text-sm text-foreground outline-none transition-[color,background-color,border-color,box-shadow] hover:bg-accent focus-visible:ring focus-visible:ring-ring has-data-[slot=month-planner-chips]:min-h-28 has-data-[slot=month-planner-chips]:items-stretch has-data-[slot=month-planner-chips]:p-1.5 has-data-[slot=month-planner-chips]:[&>[data-slot=month-planner-number]]:self-start",
-        "data-[outside]:text-muted-foreground data-[today]:border-warning data-[crunch]:not-data-[selected]:bg-warning/30 data-[selected]:bg-primary data-[selected]:text-primary-foreground data-[selected]:[&_[data-slot=month-planner-more]]:text-primary-foreground",
+        "data-[outside]:text-muted-foreground data-[today]:border-warning data-[crunch]:not-data-[selected]:bg-warning/30 data-[selected]:bg-primary data-[selected]:text-primary-foreground data-[selected]:[&_[data-slot=month-planner-more]]:text-primary-foreground data-[selected]:[&_[data-slot=hue-dot]]:ring-1 data-[selected]:[&_[data-slot=hue-dot]]:ring-primary-foreground",
         className,
       )}
       {...props}

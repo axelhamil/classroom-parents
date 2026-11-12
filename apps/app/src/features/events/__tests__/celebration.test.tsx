@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import { userStorageKey } from "@packages/web-kit/storage/use-stored-value";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderAppAt, resetApp } from "../../../__tests__/app-harness";
@@ -63,6 +65,28 @@ describe("celebrating a day made ready", () => {
     fireEvent.click(done);
 
     await waitFor(() => expect(done.getAttribute("aria-pressed")).toBe("true"));
+    expect(await screen.findByText(DAY_DONE)).toBeDefined();
+  });
+
+  it("waits for the server: a refused tick celebrates nothing and the next real one still does", async () => {
+    at("2026-11-12T17:30:00.000Z");
+    givenCalendar(
+      [CHILD],
+      [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-16", "Exposé")],
+      { refuseFirstDone: true },
+    );
+    await renderAppAt("/");
+    const check = await screen.findByRole("checkbox", {
+      name: "Marquer comme fait : Lire le chapitre 2",
+    });
+
+    fireEvent.click(check);
+    await waitFor(() => expect(check.getAttribute("aria-checked")).toBe("false"));
+    expect(await screen.findByText("Échec de la mise à jour de l'échéance")).toBeDefined();
+    expect(screen.queryByText(DAY_DONE)).toBeNull();
+    expect(localStorage.getItem(userStorageKey("user-1", "celebrations"))).toBeNull();
+
+    fireEvent.click(check);
     expect(await screen.findByText(DAY_DONE)).toBeDefined();
   });
 

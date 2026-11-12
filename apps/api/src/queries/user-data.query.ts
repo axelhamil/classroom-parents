@@ -141,7 +141,11 @@ export class UserDataQuery implements IUserDataReader {
             receivedAt: event.receivedAt.toISOString(),
             status: event.status,
             done: event.done,
-            checklist: event.checklist,
+            checklist: {
+              done: event.checklist.done,
+              removed: event.checklist.removed,
+              extra: event.checklist.extra,
+            },
             editedAt: iso(event.editedAt),
             editedFields: event.editedFields,
             deletedAt: iso(event.deletedAt),

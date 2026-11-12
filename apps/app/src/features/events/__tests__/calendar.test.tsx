@@ -179,13 +179,14 @@ describe("Accueil, the family calendar", () => {
         deadline(2, "2026-11-13", "Dictée de Hugo", { childId: HUGO.id }),
       ],
     );
-    await renderAppAt("/");
+    const router = await renderAppAt("/");
 
     const family = await screen.findByRole("toolbar", { name: "Filtrer par enfant" });
     fireEvent.click(within(family).getByRole("button", { name: /Hugo/ }));
 
     await waitFor(() => expect(screen.queryByText("Piscine de Léa")).toBeNull());
     expect(screen.getByText("Dictée de Hugo")).toBeDefined();
+    expect(search(router)).toMatchObject({ childId: HUGO.id });
 
     cleanup();
     resetApp();
@@ -211,6 +212,28 @@ describe("Accueil, the family calendar", () => {
     expect(await screen.findByText(STRESS.title120)).toBeDefined();
   });
 
+  it("a crowded week column shows four stickers and its +N opens the whole day", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    givenCalendar(FIVE_CHILDREN, crunchDay("2026-11-13", 15));
+    const router = await renderAppAt("/?view=week");
+
+    const friday = await screen.findByLabelText(/^Demain, 15 échéances/);
+    expect(within(friday).getAllByRole("link")).toHaveLength(4);
+
+    fireEvent.click(
+      within(friday).getByRole("button", { name: "+11 : voir toute la journée, demain" }),
+    );
+    await waitFor(() =>
+      expect(search(router)).toMatchObject({ view: "agenda", date: "2026-11-13" }),
+    );
+  });
+
   it("Mois marks a crunch day and lists the picked day under the grid", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenCalendar(FIVE_CHILDREN, [...crunchDay("2026-11-13", 15), STRESS.pastDue("2026-11-10")]);
@@ -226,13 +249,27 @@ describe("Accueil, the family calendar", () => {
     expect(screen.getByText("En retard")).toBeDefined();
   });
 
-  it("an empty period says so and offers to add a deadline", async () => {
+  it("an empty period says so, jumps to the next deadline, offers to add and shows the last read", async () => {
     at("2026-11-12T09:00:00.000Z");
-    givenCalendar([CHILD], []);
-    await renderAppAt("/?view=week&date=2026-12-03");
+    givenCalendar([CHILD], [deadline(1, "2027-01-15", "Sortie au musée")]);
+    const router = await renderAppAt("/?view=week&date=2026-12-03");
 
-    expect(await screen.findByText("Rien de prévu ce jour-là.")).toBeDefined();
-    expect(screen.getByRole("button", { name: "Ajouter" })).toBeDefined();
+    expect(await screen.findByText("Rien de prévu sur cette période.")).toBeDefined();
+    expect(screen.queryByText("Rien de prévu ce jour-là.")).toBeNull();
+    expect(screen.getByText(/^Dernière lecture de Classroom : /)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter une échéance" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nouvelle échéance" });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Prochaine échéance : Sortie au musée, vendredi 15 janvier 2027",
+      }),
+    );
+    await waitFor(() => expect(search(router)).toMatchObject({ date: "2027-01-15" }));
+    expect(await screen.findByText("Sortie au musée")).toBeDefined();
   });
 
   it("closing a deadline opened from the calendar gives focus back to its row", async () => {
