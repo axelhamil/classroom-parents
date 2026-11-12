@@ -3,7 +3,12 @@ import { type ApiCall, json, stubApi } from "./app-harness";
 import { EVENT_BASE } from "./event-fixtures";
 import { CHILD } from "./family-fixtures";
 
-export const HUGO = { ...CHILD, id: "2b9e4c1a-7d3f-4b6e-9a8c-1f0e2d3c4b5a", label: "Hugo" };
+export const HUGO = {
+  ...CHILD,
+  id: "2b9e4c1a-7d3f-4b6e-9a8c-1f0e2d3c4b5a",
+  label: "Hugo",
+  color: 2,
+};
 
 export function deadline(index: number, date: string, title: string, extra: object = {}) {
   return {

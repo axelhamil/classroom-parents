@@ -5,6 +5,7 @@ import {
 } from "@packages/events/agenda-contract";
 import { z } from "zod";
 import { eventFiltersSearchSchema } from "../../shared/events/event-filters.schema";
+import { CALENDAR_VIEWS } from "./calendar";
 import { CHECKLIST_ITEM_MAX } from "./hooks/use-checklist";
 import { PRINT_WEEKS } from "./week";
 
@@ -18,12 +19,10 @@ export const eventEditSchema = z.object({
 
 export type EventEditInput = z.infer<typeof eventEditSchema>;
 
-export const HOME_TABS = ["week", "upcoming", "history"] as const;
-
-export type HomeTab = (typeof HOME_TABS)[number];
-
 export const homeSearchSchema = eventFiltersSearchSchema.extend({
-  tab: z.enum(HOME_TABS).optional().catch(undefined),
+  view: z.enum(CALENDAR_VIEWS).optional().catch(undefined),
+  date: z.iso.date().optional().catch(undefined),
+  tab: z.literal("history").optional().catch(undefined),
   event: z.uuid().optional().catch(undefined),
 });
 

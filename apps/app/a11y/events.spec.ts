@@ -1,7 +1,7 @@
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { expect, type Page, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
-import { EVENTS, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./events-fixtures";
+import { EVENTS, inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
 async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
@@ -11,9 +11,13 @@ async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+  const views = page.getByRole("tablist", { name: "Vue des échéances" });
+  if ((await views.count()) === 0) return;
+
+  expect(await views.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
 }
 
-test.describe("upcoming events on a phone", () => {
+test.describe("the calendar on a phone", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
 
   for (const colorScheme of COLOR_SCHEMES) {
@@ -29,9 +33,7 @@ test.describe("upcoming events on a phone", () => {
 
       await expect(page.getByRole("heading", { level: 2, name: "À vérifier" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
-      await expect(
-        page.getByRole("link", { name: new RegExp(REVIEW_EVENT.title.slice(0, 30)) }),
-      ).toBeVisible();
+      await expect(page.getByRole("link", { name: REVIEW_EVENT.title, exact: true })).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
     });
@@ -50,9 +52,11 @@ test.describe("upcoming events on a phone", () => {
     });
   }
 
-  test("a category chip filters through the url and the request", async ({ page }) => {
+  test("a category chip of the history filters through the url and the request", async ({
+    page,
+  }) => {
     const requests = await serveFamily(page, { children: [LEA], events: EVENTS });
-    await page.goto("/?tab=upcoming");
+    await page.goto("/?tab=history");
 
     const swimming = page.getByRole("button", { name: "Piscine" });
     await swimming.click();
@@ -63,29 +67,21 @@ test.describe("upcoming events on a phone", () => {
       .poll(() => requests.map((request) => new URL(request.url()).searchParams.get("category")))
       .toContain("swimming");
   });
-});
 
-test.describe("Préparer la semaine on a phone", () => {
-  test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
-
-  test("its actions sit under the description instead of squeezing it", async ({ page }) => {
-    const sunday = new Date();
-    sunday.setDate(sunday.getDate() + ((7 - sunday.getDay()) % 7));
-    sunday.setHours(18, 0, 0, 0);
-    await page.clock.setFixedTime(sunday);
+  test("the week ribbon opens the picked day under it", async ({ page }) => {
+    const morning = new Date();
+    morning.setHours(9, 0, 0, 0);
+    await page.clock.setFixedTime(morning);
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
-    await page.goto("/");
+    await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    const panel = page.getByRole("region", { name: "Préparer la semaine" });
-    const description = panel.locator("[data-slot=card-header] > [data-slot=card-description]");
-    const share = panel.getByRole("button", { name: "Partager la semaine" });
-    await expect(share).toBeVisible();
-
-    const text = await description.boundingBox();
-    const action = await share.boundingBox();
-    expect(text && action && action.y >= text.y + text.height).toBe(true);
-    expect(text && text.width >= 280).toBe(true);
+    const ribbon = page.getByRole("radiogroup", { name: "Jours de la semaine" });
+    await expect(ribbon.getByRole("radio")).toHaveCount(7);
+    await expect(
+      page.getByRole("link", { name: "Exercices 4 à 9 page 112", exact: true }),
+    ).toBeVisible();
     await expectOnePageWithoutOverflow(page);
+    expect(await blockingViolations(page)).toEqual([]);
   });
 });
 
@@ -98,7 +94,7 @@ test.describe("event overlay focus", () => {
     await page.goto("/");
 
     const sticker = page
-      .locator("[data-slot=week-day]")
+      .locator("[data-slot=calendar-day]")
       .getByRole("link", { name: new RegExp(REVIEW_EVENT.title.slice(0, 30)) });
     await sticker.focus();
     await page.keyboard.press("Enter");
@@ -122,5 +118,17 @@ test.describe("event overlay focus", () => {
     await expect
       .poll(() => drawer.evaluate((el) => el.contains(document.activeElement)))
       .toBe(true);
+  });
+});
+
+test.describe("the week on a tablet", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 768, height: 1024 } });
+
+  test("keeps the day ribbon until seven columns can hold a title", async ({ page }) => {
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+    await page.goto(`/?view=week&date=${inDays(3)}`);
+
+    await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeVisible();
+    await expectOnePageWithoutOverflow(page);
   });
 });

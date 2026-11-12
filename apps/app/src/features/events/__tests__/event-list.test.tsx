@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
@@ -37,6 +37,7 @@ function givenFamily(children: unknown[], events: { status: string }[]): ApiCall
       const status = url.searchParams.get("status");
       return json({ items: events.filter((event) => !status || event.status === status) });
     }
+    if (url.pathname === "/events/calendar") return json({ items: [] });
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     return undefined;
   });
@@ -48,26 +49,10 @@ function eventListRequests(calls: ApiCall[]): URLSearchParams[] {
     .map((call) => call.url.searchParams);
 }
 
-describe("upcoming events list", () => {
+describe("Accueil around the calendar", () => {
   afterEach(() => {
     cleanup();
     resetApp();
-  });
-
-  it("given the list, when the parent picks the swimming chip, then the url and the request both carry category=swimming", async () => {
-    const calls = givenFamily([CHILD], [EVENT]);
-    const router = await renderAppAt("/?tab=upcoming");
-    await screen.findByText(EVENT.title);
-
-    fireEvent.click(screen.getByRole("button", { name: "Piscine" }));
-
-    await waitFor(() =>
-      expect(router.state.location.search).toEqual({ tab: "upcoming", category: "swimming" }),
-    );
-    await waitFor(() =>
-      expect(eventListRequests(calls).map((query) => query.get("category"))).toContain("swimming"),
-    );
-    expect(screen.getByRole("button", { name: "Piscine" })).toHaveProperty("ariaPressed", "true");
   });
 
   it("given an event to review, then the review card offers to confirm it or to edit it", async () => {

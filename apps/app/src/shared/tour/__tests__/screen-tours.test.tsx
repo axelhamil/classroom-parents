@@ -21,6 +21,7 @@ function givenFamily() {
     byRoute({
       "GET /children": () => json([CHILD]),
       "GET /events": () => json({ items: [] }),
+      "GET /events/calendar": () => json({ items: [] }),
       "GET /push/status": () => json({ live: 0 }),
       "GET /api/auth/list-sessions": () => json([]),
     }),

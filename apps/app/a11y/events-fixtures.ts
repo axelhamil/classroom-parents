@@ -89,6 +89,10 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
       eventRequests.push(request);
       return route.fulfill({ json: { items: fixtures.events } });
     }
+    if (path === "/events/calendar") {
+      eventRequests.push(request);
+      return route.fulfill({ json: { items: fixtures.events } });
+    }
     if (path === `/events/${REVIEW_EVENT.id}`)
       return route.fulfill({ json: fixtures.detail ?? REVIEW_EVENT });
     if (path === `/events/${REVIEW_EVENT.id}/reminders`)
