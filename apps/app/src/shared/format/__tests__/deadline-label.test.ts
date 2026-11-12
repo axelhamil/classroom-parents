@@ -38,9 +38,20 @@ describe("countdownOf", () => {
     expect(countdownOf("2026-11-09", "18:00", NOW)).toEqual({ kind: "tonight", days: 0 });
   });
 
-  it("given a deadline today in the morning or tomorrow, then it is imminent", () => {
-    expect(countdownOf("2026-11-09", "08:30", NOW)).toEqual({ kind: "imminent", days: 0 });
+  it("given a deadline later today before 16 h or tomorrow afternoon, then it is imminent", () => {
+    expect(countdownOf("2026-11-09", "11:30", NOW)).toEqual({ kind: "imminent", days: 0 });
+    expect(countdownOf("2026-11-09", undefined, NOW)).toEqual({ kind: "imminent", days: 0 });
+    expect(countdownOf("2026-11-10", "14:00", NOW)).toEqual({ kind: "imminent", days: 1 });
     expect(countdownOf("2026-11-10", undefined, NOW)).toEqual({ kind: "imminent", days: 1 });
+  });
+
+  it("given a deadline tomorrow before noon, then it is tomorrow morning", () => {
+    expect(countdownOf("2026-11-10", "08:30", NOW)).toEqual({ kind: "tomorrowMorning", days: 1 });
+  });
+
+  it("given a deadline today whose time has passed, then no countdown is shown", () => {
+    expect(countdownOf("2026-11-09", "08:30", NOW)).toBeNull();
+    expect(countdownOf("2026-11-09", "18:00", new Date("2026-11-09T17:30:00Z"))).toBeNull();
   });
 
   it("given a deadline within the coming week, then it counts the days", () => {

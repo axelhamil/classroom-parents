@@ -186,7 +186,7 @@ test.describe("signed in", () => {
   test("names today's date tab for assistive technology", async ({ page }) => {
     await page.goto("/");
 
-    const today = page.locator("[data-slot=date-tab]");
+    const today = page.locator("[data-slot=date-tab][aria-label]");
 
     await expect(today).toHaveAttribute("aria-label", "Aujourd'hui");
     await expect(today).not.toHaveAttribute("title");

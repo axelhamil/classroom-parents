@@ -32,6 +32,7 @@ import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { CATEGORY_LABEL_KEYS } from "../../../shared/events/event-labels";
 import { type EventPatch, editEventMutationOptions } from "../api/events.mutations";
+import { DeadlineDatePicker } from "../components/deadline-date-picker";
 import { DeleteEventDialog } from "../components/delete-event-dialog";
 import { type EventEditInput, eventEditSchema } from "../events.schema";
 
@@ -177,12 +178,19 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
           )}
         />
         <div className="flex flex-wrap gap-4">
-          <FormTextField
+          <FormField
             control={form.control}
             name="deadlineDate"
-            type="date"
-            label={t("fields.deadlineDate")}
-            description={frozenNote("deadline")}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("fields.deadlineDate")}</FormLabel>
+                <DeadlineDatePicker value={field.value} onChange={field.onChange} />
+                {frozenNote("deadline") && (
+                  <FormDescription>{frozenNote("deadline")}</FormDescription>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
           />
           <FormTextField
             control={form.control}

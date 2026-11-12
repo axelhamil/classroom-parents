@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { EVENT_BASE } from "../../../__tests__/event-fixtures";
@@ -56,5 +56,59 @@ describe("event detail reminders", () => {
       timeout: 3000,
     });
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("event detail, family helpers", () => {
+  afterEach(() => {
+    cleanup();
+    resetApp();
+    localStorage.clear();
+  });
+
+  it("checklist items for Piscine are prefilled and persist", async () => {
+    const swimming = { ...EVENT, title: "Piscine", category: "swimming" };
+    givenEvent(swimming, () => json({ customized: false, reminders: [] }));
+    await renderAppAt(DETAIL_PATH);
+
+    await screen.findByRole("heading", { level: 2, name: "À préparer" });
+    for (const item of ["Maillot de bain", "Bonnet de bain", "Serviette", "Gel douche"])
+      expect(screen.getByRole("checkbox", { name: item })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bonnet de bain" }));
+    expect(
+      screen.getByRole("checkbox", { name: "Bonnet de bain" }).getAttribute("aria-checked"),
+    ).toBe("true");
+
+    cleanup();
+    resetApp();
+    givenEvent(swimming, () => json({ customized: false, reminders: [] }));
+    await renderAppAt(DETAIL_PATH);
+
+    const kept = await screen.findByRole("checkbox", { name: "Bonnet de bain" });
+    expect(kept.getAttribute("aria-checked")).toBe("true");
+    expect(
+      screen.getByRole("checkbox", { name: "Maillot de bain" }).getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+
+  it("share falls back to clipboard", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    givenEvent(EVENT, () => json({ customized: false, reminders: [] }));
+    await renderAppAt(DETAIL_PATH);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Partager" }));
+
+    expect(await screen.findByText("Copié, prêt à coller dans un message")).toBeDefined();
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining(EVENT.title));
+  });
+
+  it("an event without a Classroom link offers no Classroom button", async () => {
+    givenEvent({ ...EVENT, announcementUrl: "" }, () => json({ customized: false, reminders: [] }));
+    await renderAppAt(DETAIL_PATH);
+
+    await screen.findByRole("heading", { level: 1, name: EVENT.title });
+    expect(screen.queryByRole("link", { name: "Ouvrir dans Classroom" })).toBeNull();
   });
 });

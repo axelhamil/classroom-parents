@@ -51,6 +51,30 @@ function parisDate(at: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(at);
 }
 
+function monthIndex(date: string): number {
+  return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7));
+}
+
+async function pickDate(page: Page, date: string, shown: string): Promise<void> {
+  const name = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(Date.parse(`${date}T00:00:00Z`));
+  const steps = monthIndex(date) - monthIndex(shown);
+
+  await page.getByLabel("Pour le").click();
+  for (let step = 0; step < Math.abs(steps); step += 1)
+    await page
+      .getByRole("button", {
+        name: steps < 0 ? "Aller au mois précédent" : "Aller au mois suivant",
+      })
+      .click();
+  await page.getByRole("button", { name: new RegExp(`(^|, )${name}`) }).click();
+}
+
 async function googleAnswersAs(page: Page, identity: Identity): Promise<void> {
   await page.unroute(GOOGLE);
   await page.route(GOOGLE, (route) => {
@@ -130,9 +154,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     await googleAnswersAs(page, PARENT);
     await page.getByRole("button", { name: "Se connecter avec Google" }).click();
 
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Échéances", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
     userId = (await body(page, "/api/auth/get-session", Session)).user.id;
   });
 
@@ -160,9 +182,9 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     throw new Error("the fake Classroom dataset no longer offers the deadlines this journey needs");
 
   await test.step("filters by category, then opens a deadline", async () => {
-    await page.goto("/");
+    await page.goto("/?tab=upcoming");
     await page
-      .getByRole("group", { name: "Filtrer par type" })
+      .getByRole("toolbar", { name: "Filtrer par type" })
       .getByRole("button", { name: "Évaluation" })
       .click();
 
@@ -216,7 +238,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   await test.step("edits a deadline into the past and deletes another", async () => {
     await page.goto(`/events/${edited.id}/edit`);
     await page.getByLabel("Titre").fill(editedTitle);
-    await page.getByLabel("Pour le").fill(parisDate(startedAt - DAY_MS));
+    await pickDate(page, parisDate(startedAt - DAY_MS), edited.deadlineDate);
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page.getByRole("heading", { level: 1, name: editedTitle })).toBeVisible();
 
@@ -238,13 +260,11 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   });
 
   await test.step("history holds the deadline whose date has passed", async () => {
-    await page.goto("/history");
+    await page.goto("/?tab=history");
     await expect(page.getByText(editedTitle)).toBeVisible();
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Échéances", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
     await expect(page.getByText(editedTitle)).toHaveCount(0);
   });
 

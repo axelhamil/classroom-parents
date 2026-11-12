@@ -1,4 +1,46 @@
 export default {
+  home: {
+    greeting: {
+      morning: "Bonjour, {{name}}",
+      evening: "Bonsoir, {{name}}",
+    },
+    weekRange: "Du {{from}} au {{to}}",
+    tabs: {
+      label: "Vue des échéances",
+      week: "Semaine",
+      upcoming: "À venir",
+      history: "Passées",
+    },
+  },
+  family: {
+    all: "Toute la famille",
+    count_zero: "Rien cette semaine",
+    count_one: "{{count}} cette semaine",
+    count_other: "{{count}} cette semaine",
+  },
+  week: {
+    days: "Jours de la semaine",
+    day_zero: "{{day}}, aucune échéance",
+    day_one: "{{day}}, {{count}} échéance",
+    day_other: "{{day}}, {{count}} échéances",
+    empty: "Rien de prévu ce jour-là.",
+    share: "Partager la semaine",
+    shareTitle: "Notre semaine d'école",
+    shareDay: "{{day}} :",
+    shareItem: "{{child}} : {{title}}",
+    shareNothing: "Rien de prévu cette semaine.",
+  },
+  focus: {
+    tonight: "Ce soir",
+    tonightHint: "Un coup d'œil au cartable pour demain.",
+  },
+  sunday: {
+    title: "Préparer la semaine",
+    description: "Dimanche soir : ce qui arrive cette semaine, enfant par enfant.",
+    count_zero: "Rien de prévu",
+    count_one: "{{count}} échéance",
+    count_other: "{{count}} échéances",
+  },
   list: {
     title: "Échéances",
     today: "Aujourd'hui",
@@ -11,7 +53,6 @@ export default {
     category: "Filtrer par type",
     child: "Filtrer par enfant",
     allCategories: "Tout",
-    allChildren: "Tous les enfants",
   },
   empty: {
     noChild: {
@@ -49,6 +90,7 @@ export default {
   },
   countdown: {
     tonight: "Ce soir",
+    tomorrowMorning: "Demain matin",
     inDays_one: "Dans {{count}} jour",
     inDays_other: "Dans {{count}} jours",
   },
@@ -80,11 +122,56 @@ export default {
     description: "Ce qu'en dit l'annonce",
     openInClassroom: "Ouvrir dans Classroom",
     edit: "Modifier",
-    back: "Retour aux échéances",
+    close: "Fermer",
+    back: "Retour à l'accueil",
     notFound: {
       title: "Échéance introuvable",
       description: "Elle a peut-être été supprimée ou la date est déjà passée.",
     },
+  },
+  prepare: {
+    title: "À préparer",
+    description: "Cochez au fur et à mesure. La liste reste sur ce téléphone.",
+    progress: "{{done}} sur {{total}}",
+    allSet: "Tout est prêt",
+    add: "Ajouter",
+    newItem: "Autre chose à prévoir",
+    remove: "Retirer « {{item}} »",
+    empty: "Rien à préparer. Ajoutez ce qui vous passe par la tête.",
+    items: {
+      swimming: {
+        swimsuit: "Maillot de bain",
+        cap: "Bonnet de bain",
+        towel: "Serviette",
+        showerGel: "Gel douche",
+      },
+      school_trip: {
+        lunch: "Pique-nique",
+        outfit: "Tenue adaptée",
+        permission: "Autorisation signée",
+      },
+      document_due: {
+        sign: "Signer le document",
+        pack: "Le remettre dans le cartable",
+      },
+      assessment: {
+        revise: "Réviser la veille",
+      },
+      homework: {
+        check: "Vérifier qu'il est fait",
+      },
+    },
+  },
+  share: {
+    action: "Partager",
+    copied: "Copié, prêt à coller dans un message",
+    failed: "Le partage n'a pas abouti. Réessayez ou copiez le texte à la main.",
+    deadline: "{{child}} : {{title}}",
+    when: "Pour {{when}}",
+  },
+  agenda: {
+    add: "Ajouter à mon agenda",
+    downloaded: "Fichier agenda téléchargé : ouvrez-le pour l'ajouter.",
   },
   reminders: {
     title: "Rappels",

@@ -8,6 +8,7 @@ import {
   DayPicker,
   getDefaultClassNames,
 } from "react-day-picker";
+import { fr } from "react-day-picker/locale";
 import { cn } from "../../libs/utils";
 
 import { Button, buttonVariants } from "./button";
@@ -57,6 +58,8 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  locale = fr,
+  weekStartsOn = 1,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"];
@@ -65,6 +68,8 @@ function Calendar({
 
   return (
     <DayPicker
+      locale={locale}
+      weekStartsOn={weekStartsOn}
       showOutsideDays={showOutsideDays}
       className={cn(
         "group/calendar bg-background p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
@@ -74,7 +79,7 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       formatters={{
-        formatMonthDropdown: (date) => date.toLocaleString("default", { month: "short" }),
+        formatMonthDropdown: (date) => date.toLocaleString(locale.code, { month: "short" }),
         ...formatters,
       }}
       classNames={{

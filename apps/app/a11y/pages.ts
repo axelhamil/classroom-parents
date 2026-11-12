@@ -19,7 +19,8 @@ export const PUBLIC_PAGES: readonly AuditedPage[] = [
 export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
   { name: "events", path: "/" },
   { name: "settings", path: "/settings" },
-  { name: "history", path: "/history" },
+  { name: "history", path: "/?tab=history" },
+  { name: "upcoming", path: "/?tab=upcoming" },
   { name: "privacy settings", path: "/settings/privacy" },
   { name: "children, every state", path: "/children", prepare: stubChildrenApi },
   { name: "add a child", path: "/children/new" },

@@ -9,13 +9,58 @@ import {
   PlannerCardStickers,
   PlannerCardTitle,
 } from "@packages/ui/components/ui/planner-card";
-import { Link } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import { AlarmClockIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../api/queries/events";
 import type { ChildHue } from "../format/child-hue";
-import { countdownOf, deadlineLabel, wallDateParts } from "../format/deadline-label";
+import {
+  type Countdown,
+  type CountdownKind,
+  countdownOf,
+  deadlineLabel,
+  wallDateParts,
+} from "../format/deadline-label";
 import { CATEGORY_BADGE_VARIANTS, CATEGORY_ICONS, CATEGORY_LABEL_KEYS } from "./event-labels";
+import { EventLink } from "./event-link";
+
+function countdownLabel(
+  kind: Exclude<CountdownKind, "soon">,
+  label: string,
+  deadlineTime: string | undefined,
+  t: TFunction<"events">,
+): string {
+  if (kind === "tonight") return withWallTime(t("countdown.tonight"), deadlineTime);
+  if (kind === "tomorrowMorning") return withWallTime(t("countdown.tomorrowMorning"), deadlineTime);
+
+  return label;
+}
+
+export interface DeadlineWhenProps {
+  countdown: Countdown;
+  label: string;
+  deadlineTime: string | undefined;
+}
+
+export function DeadlineWhen({ countdown, label, deadlineTime }: DeadlineWhenProps) {
+  const { t } = useTranslation("events");
+  if (countdown === null) return label;
+
+  if (countdown.kind === "soon")
+    return (
+      <>
+        {label}
+        <Badge variant="soon">{t("countdown.inDays", { count: countdown.days })}</Badge>
+      </>
+    );
+
+  return (
+    <Badge key={countdown.kind} variant="urgent">
+      <AlarmClockIcon aria-hidden />
+      {countdownLabel(countdown.kind, label, deadlineTime, t)}
+    </Badge>
+  );
+}
 
 export interface EventCardProps {
   event: EventItem;
@@ -34,7 +79,7 @@ export function EventCard({ event, childLabel, hue, muted = false }: EventCardPr
 
   return (
     <PlannerCard asChild muted={muted}>
-      <Link to="/events/$eventId" params={{ eventId: event.id }}>
+      <EventLink eventId={event.id}>
         <DateTab
           dateTime={event.deadlineDate}
           tone={muted ? "muted" : "default"}
@@ -47,19 +92,7 @@ export function EventCard({ event, childLabel, hue, muted = false }: EventCardPr
         <PlannerCardBody>
           <PlannerCardTitle>{event.title}</PlannerCardTitle>
           <PlannerCardMeta>
-            {countdown?.kind === "tonight" || countdown?.kind === "imminent" ? (
-              <Badge variant="urgent">
-                <AlarmClockIcon aria-hidden />
-                {countdown.kind === "tonight"
-                  ? withWallTime(t("countdown.tonight"), event.deadlineTime)
-                  : label}
-              </Badge>
-            ) : (
-              label
-            )}
-            {countdown?.kind === "soon" && (
-              <Badge variant="soon">{t("countdown.inDays", { count: countdown.days })}</Badge>
-            )}
+            <DeadlineWhen countdown={countdown} label={label} deadlineTime={event.deadlineTime} />
           </PlannerCardMeta>
           <PlannerCardStickers>
             {event.status === "needs_review" && <Badge variant="review">{t("review.title")}</Badge>}
@@ -75,7 +108,7 @@ export function EventCard({ event, childLabel, hue, muted = false }: EventCardPr
             )}
           </PlannerCardStickers>
         </PlannerCardBody>
-      </Link>
+      </EventLink>
     </PlannerCard>
   );
 }

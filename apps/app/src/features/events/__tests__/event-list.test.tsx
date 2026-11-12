@@ -52,12 +52,14 @@ describe("upcoming events list", () => {
 
   it("given the list, when the parent picks the swimming chip, then the url and the request both carry category=swimming", async () => {
     const calls = givenFamily([CHILD], [EVENT]);
-    const router = await renderAppAt("/");
+    const router = await renderAppAt("/?tab=upcoming");
     await screen.findByText(EVENT.title);
 
     fireEvent.click(screen.getByRole("button", { name: "Piscine" }));
 
-    await waitFor(() => expect(router.state.location.search).toEqual({ category: "swimming" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ tab: "upcoming", category: "swimming" }),
+    );
     await waitFor(() =>
       expect(eventListRequests(calls).map((query) => query.get("category"))).toContain("swimming"),
     );

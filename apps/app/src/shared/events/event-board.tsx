@@ -8,7 +8,7 @@ import {
   EmptyTitle,
 } from "@packages/ui/components/ui/empty";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   ArchiveIcon,
@@ -19,16 +19,11 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { type ChildDto, childrenQueryOptions } from "../api/queries/children";
+import type { ChildDto } from "../api/queries/children";
 import { type EventFilters, type EventScope, eventPagesQueryOptions } from "../api/queries/events";
-import { type ChildHue, childLabelOf } from "../format/child-hue";
+import { childHue, childLabelOf } from "../format/child-hue";
 import { QueryState } from "../query/query-state";
 import { EventList } from "./event-list";
-
-const SCOPE_ROUTES = { upcoming: "/", history: "/history" } as const satisfies Record<
-  EventScope,
-  string
->;
 
 export interface EventBoardSkeletonProps {
   label: string;
@@ -66,7 +61,7 @@ export function BoardEmpty({ icon: Icon, title, description, action }: BoardEmpt
   );
 }
 
-function isFirstSyncRunning(children: readonly ChildDto[]): boolean {
+export function isFirstSyncRunning(children: readonly ChildDto[]): boolean {
   return children.some(
     (child) => child.syncing || (child.status === "connected" && !child.lastSyncedAt),
   );
@@ -76,9 +71,10 @@ interface ScopeEmptyProps {
   scope: EventScope;
   filtered: boolean;
   family: readonly ChildDto[];
+  onResetFilters: () => void;
 }
 
-function ScopeEmpty({ scope, filtered, family }: ScopeEmptyProps) {
+function ScopeEmpty({ scope, filtered, family, onResetFilters }: ScopeEmptyProps) {
   const { t } = useTranslation("events");
   const { t: tHistory } = useTranslation("history");
 
@@ -93,10 +89,8 @@ function ScopeEmpty({ scope, filtered, family }: ScopeEmptyProps) {
         icon={ListFilterIcon}
         {...copy}
         action={
-          <Button asChild size="sm" variant="outline">
-            <Link to={SCOPE_ROUTES[scope]} search={{}}>
-              {t("empty.filtered.action")}
-            </Link>
+          <Button type="button" size="sm" variant="outline" onClick={onResetFilters}>
+            {t("empty.filtered.action")}
           </Button>
         }
       />
@@ -111,7 +105,9 @@ function ScopeEmpty({ scope, filtered, family }: ScopeEmptyProps) {
         description={tHistory("empty.description")}
         action={
           <Button asChild size="sm" variant="outline">
-            <Link to="/">{tHistory("empty.action")}</Link>
+            <Link to="/" search={{ tab: "upcoming" }}>
+              {tHistory("empty.action")}
+            </Link>
           </Button>
         }
       />
@@ -145,16 +141,14 @@ function ScopeEmpty({ scope, filtered, family }: ScopeEmptyProps) {
 export interface EventBoardProps {
   scope: EventScope;
   filters: EventFilters;
-  childColor: (childId: string) => ChildHue;
+  family: readonly ChildDto[];
+  onResetFilters: () => void;
 }
 
-export function EventBoard({ scope, filters, childColor }: EventBoardProps) {
+export function EventBoard({ scope, filters, family, onResetFilters }: EventBoardProps) {
   const { t } = useTranslation("events");
   const { t: tHistory } = useTranslation("history");
-  const children = useQuery(childrenQueryOptions);
   const events = useInfiniteQuery(eventPagesQueryOptions(scope, filters));
-  const family = children.data ?? [];
-  const childLabel = (childId: string) => childLabelOf(family, childId);
   const filtered = filters.category !== null || filters.childId !== null;
 
   return (
@@ -165,15 +159,22 @@ export function EventBoard({ scope, filters, childColor }: EventBoardProps) {
           label={scope === "upcoming" ? t("list.loading") : tHistory("loading")}
         />
       }
-      empty={<ScopeEmpty scope={scope} filtered={filtered} family={family} />}
+      empty={
+        <ScopeEmpty
+          scope={scope}
+          filtered={filtered}
+          family={family}
+          onResetFilters={onResetFilters}
+        />
+      }
       isEmpty={(data) => data.pages.every((page) => page.items.length === 0)}
     >
       {(data) => (
         <div className="flex flex-col gap-4">
           <EventList
             events={data.pages.flatMap((page) => page.items)}
-            childLabel={childLabel}
-            childColor={childColor}
+            childLabel={(childId) => childLabelOf(family, childId)}
+            childColor={(childId) => childHue(family, childId)}
             muted={scope === "history"}
           />
           {events.hasNextPage && (

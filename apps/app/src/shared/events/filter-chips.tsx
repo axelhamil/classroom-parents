@@ -1,10 +1,11 @@
 import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-group";
+import type { ReactNode } from "react";
 
 const ALL = "all";
 
 export interface FilterChipOption {
   value: string | null;
-  label: string;
+  label: ReactNode;
 }
 
 export interface FilterChipsProps {
@@ -28,6 +29,7 @@ export function FilterChips({ label, options, value, onChange }: FilterChipsProp
     <ToggleGroup
       type="multiple"
       variant="chip"
+      size="touch"
       spacing={2}
       aria-label={label}
       value={[current]}

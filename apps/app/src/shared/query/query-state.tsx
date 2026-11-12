@@ -9,28 +9,42 @@ export interface QueryStateProps<T> {
   skeleton: ReactNode;
   empty?: ReactNode;
   isEmpty?: (data: T) => boolean;
+  staleMessage?: string;
   children: (data: T) => ReactNode;
 }
 
-export function QueryState<T>({ query, skeleton, empty, isEmpty, children }: QueryStateProps<T>) {
+export function QueryState<T>({
+  query,
+  skeleton,
+  empty,
+  isEmpty,
+  staleMessage,
+  children,
+}: QueryStateProps<T>) {
   const { t } = useTranslation("common");
+  const failure = query.isError && (
+    <LoadErrorAlert
+      message={
+        query.data === undefined
+          ? t("queryState.loadError")
+          : (staleMessage ?? t("queryState.loadError"))
+      }
+      retry={
+        <Button type="button" size="sm" variant="outline" onClick={() => void query.refetch()}>
+          {t("actions.retry")}
+        </Button>
+      }
+    />
+  );
 
-  if (query.isError) {
-    return (
-      <LoadErrorAlert
-        message={t("queryState.loadError")}
-        retry={
-          <Button type="button" size="sm" variant="outline" onClick={() => void query.refetch()}>
-            {t("actions.retry")}
-          </Button>
-        }
-      />
-    );
-  }
+  if (query.data === undefined) return failure || skeleton;
 
-  if (query.isPending) return skeleton;
+  const content = empty !== undefined && isEmpty?.(query.data) ? empty : children(query.data);
 
-  if (empty !== undefined && isEmpty?.(query.data)) return empty;
-
-  return children(query.data);
+  return (
+    <>
+      {failure}
+      {content}
+    </>
+  );
 }

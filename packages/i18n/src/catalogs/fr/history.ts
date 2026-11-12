@@ -1,5 +1,4 @@
 export default {
-  title: "Historique",
   loading: "Chargement de l'historique",
   empty: {
     title: "Rien dans l'historique",
@@ -9,6 +8,5 @@ export default {
   filtered: {
     title: "Rien pour ce filtre",
     description: "Aucune échéance passée ne correspond à ce choix.",
-    action: "Tout afficher",
   },
 } as const;

@@ -11,6 +11,8 @@ const dateTabVariants = cva(
         default: "[&>[data-part=month]]:bg-primary [&>[data-part=month]]:text-primary-foreground",
         urgent:
           "border-destructive/50 [&>[data-part=month]]:bg-destructive [&>[data-part=month]]:text-destructive-foreground",
+        today:
+          "border-warning [&>[data-part=month]]:bg-warning [&>[data-part=month]]:text-warning-foreground",
         muted:
           "text-muted-foreground shadow-none [&>[data-part=month]]:bg-muted [&>[data-part=month]]:text-muted-foreground",
       },

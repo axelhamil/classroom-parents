@@ -1,64 +1,106 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { DateTab } from "@packages/ui/components/ui/date-tab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@packages/ui/components/ui/tabs";
+import { useStoredValue } from "@packages/web-kit/storage/use-stored-value";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { UsersRoundIcon } from "lucide-react";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { HourglassIcon, UsersRoundIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { childrenQueryOptions } from "../../shared/api/queries/children";
-import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
-import { EventFilterBar } from "../../shared/events/event-filter-bar";
+import { z } from "zod";
+import { type ChildDto, childrenQueryOptions } from "../../shared/api/queries/children";
+import type { EventItem, EventScope } from "../../shared/api/queries/events";
+import { CategoryFilter } from "../../shared/events/category-filter";
 import {
-  type EventFiltersSearch,
-  eventFiltersSearchSchema,
-  filtersFromSearch,
-} from "../../shared/events/event-filters.schema";
+  BoardEmpty,
+  EventBoard,
+  EventBoardSkeleton,
+  isFirstSyncRunning,
+} from "../../shared/events/event-board";
 import { childHue, childLabelOf } from "../../shared/format/child-hue";
-import { wallDateParts } from "../../shared/format/deadline-label";
+import { countdownOf, wallDateParts } from "../../shared/format/deadline-label";
 import { schoolToday } from "../../shared/format/school-today";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
 import { reviewEventsQueryOptions } from "./api/events.queries";
 import { BlockedChildrenNotice } from "./components/blocked-children-notice";
+import { EventOverlay } from "./components/event-overlay";
+import { FamilyRow } from "./components/family-row";
 import { ReviewCard } from "./components/review-card";
+import { SundayPanel } from "./components/sunday-panel";
+import { TonightCard } from "./components/tonight-card";
+import { WeekView } from "./components/week-view";
+import { HOME_TABS, type HomeSearch, type HomeTab, homeSearchSchema } from "./events.schema";
+import { useWeekEvents } from "./hooks/use-week-events";
+import {
+  firstNameOf,
+  greetingKind,
+  isEvening,
+  isInWeek,
+  isSundayEvening,
+  weekDates,
+  weekOf,
+} from "./week";
 
 export const Route = createFileRoute("/_protected/_shell/")({
-  validateSearch: eventFiltersSearchSchema,
-  component: EventsPage,
+  validateSearch: homeSearchSchema,
+  component: HomePage,
 });
 
-function EventsPage() {
+const SELECTED_CHILD_SCHEMA = z.string().nullable();
+
+const BOARD_SCOPES = ["upcoming", "history"] as const satisfies readonly EventScope[];
+
+function HomePage() {
   const { t } = useTranslation("events");
+  const { user } = Route.useRouteContext();
+  const search = Route.useSearch();
+  const router = useRouter();
   const now = new Date();
-  const today = wallDateParts(schoolToday(now));
+  const today = schoolToday(now);
+  const todayParts = wallDateParts(today);
+  const dates = weekDates(now);
+  const from = wallDateParts(dates[0] ?? today);
+  const to = wallDateParts(dates.at(-1) ?? today);
+  const name = firstNameOf(user.name);
+  const greeting =
+    greetingKind(now) === "evening"
+      ? t("home.greeting.evening", { name })
+      : t("home.greeting.morning", { name });
 
   return (
     <Screen
-      title={t("list.title")}
+      width="wide"
+      title={name ? greeting : t("list.title")}
+      description={t("home.weekRange", {
+        from: `${from.day} ${from.month}`,
+        to: `${to.day} ${to.month}`,
+      })}
       actions={
         <DateTab
-          dateTime={schoolToday(now)}
-          day={today.day}
-          month={today.month}
-          weekday={today.weekday}
+          dateTime={today}
+          tone="today"
+          day={todayParts.day}
+          month={todayParts.month}
+          weekday={todayParts.weekday}
           aria-label={t("list.today")}
         />
       }
     >
-      <EventsBoard />
+      <HomeBoard now={now} />
+      {search.event && (
+        <EventOverlay eventId={search.event} onClose={() => router.history.back()} />
+      )}
     </Screen>
   );
 }
 
-function EventsBoard() {
-  const { t } = useTranslation("events");
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const filters = filtersFromSearch(search);
-  const children = useQuery(childrenQueryOptions);
-  const review = useQuery(reviewEventsQueryOptions(filters));
+interface HomeBoardProps {
+  now: Date;
+}
 
-  const setSearch = (next: Partial<EventFiltersSearch>) =>
-    void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
+function HomeBoard({ now }: HomeBoardProps) {
+  const { t } = useTranslation("events");
+  const children = useQuery(childrenQueryOptions);
 
   return (
     <QueryState
@@ -78,25 +120,135 @@ function EventsBoard() {
       }
       isEmpty={(family) => family.length === 0}
     >
-      {(family) => {
-        const childColor = (childId: string) => childHue(family, childId);
-        const toReview = review.data ?? [];
-
-        return (
-          <div className="flex flex-col gap-4">
-            <BlockedChildrenNotice childrenList={family} />
-            <EventFilterBar childrenList={family} filters={filters} onChange={setSearch} />
-            {toReview.length > 0 && (
-              <ReviewCard
-                events={toReview}
-                childLabel={(childId) => childLabelOf(family, childId)}
-                childColor={childColor}
-              />
-            )}
-            <EventBoard scope="upcoming" filters={filters} childColor={childColor} />
-          </div>
-        );
-      }}
+      {(family) => <FamilyHome family={family} now={now} />}
     </QueryState>
+  );
+}
+
+interface FamilyHomeProps {
+  family: readonly ChildDto[];
+  now: Date;
+}
+
+function countByChild(events: readonly EventItem[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const event of events) counts.set(event.childId, (counts.get(event.childId) ?? 0) + 1);
+
+  return counts;
+}
+
+function FamilyHome({ family, now }: FamilyHomeProps) {
+  const { t } = useTranslation("events");
+  const { user } = Route.useRouteContext();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [stored, setStored] = useStoredValue(
+    `family:child:${user.id}`,
+    SELECTED_CHILD_SCHEMA,
+    null,
+  );
+  const requested = search.childId ?? stored;
+  const childId = family.some((child) => child.id === requested) ? requested : null;
+  const filters = { category: search.category ?? null, childId };
+  const tab = search.tab ?? "week";
+  const review = useQuery(reviewEventsQueryOptions(filters));
+  const week = useWeekEvents(now);
+  const weekEvents = (week.data?.pages.flatMap((page) => page.items) ?? []).filter((event) =>
+    isInWeek(event.deadlineDate, now),
+  );
+  const shown = childId ? weekEvents.filter((event) => event.childId === childId) : weekEvents;
+  const days = weekOf(shown, now);
+  const toReview = review.data ?? [];
+
+  const setSearch = (next: Partial<HomeSearch>) =>
+    void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
+
+  const selectChild = (next: string | null) => {
+    setStored(next);
+    setSearch({ childId: undefined });
+  };
+
+  const selectTab = (value: string) => {
+    const next = HOME_TABS.find((candidate): candidate is HomeTab => candidate === value);
+    setSearch({ tab: next === "week" ? undefined : next });
+  };
+
+  const tonight = isEvening(now)
+    ? [
+        ...(days[0]?.events.filter(
+          (event) => countdownOf(event.deadlineDate, event.deadlineTime, now) !== null,
+        ) ?? []),
+        ...(days[1]?.events ?? []),
+      ]
+    : [];
+
+  const reviewCard = toReview.length > 0 && (
+    <ReviewCard
+      events={toReview}
+      childLabel={(id) => childLabelOf(family, id)}
+      childColor={(id) => childHue(family, id)}
+    />
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      <BlockedChildrenNotice childrenList={family} />
+      {family.length > 1 && (
+        <FamilyRow
+          family={family}
+          weekCounts={countByChild(weekEvents)}
+          value={childId}
+          onChange={selectChild}
+        />
+      )}
+      <Tabs value={tab} onValueChange={selectTab} className="gap-6">
+        <TabsList size="touch" aria-label={t("home.tabs.label")} className="w-full @md:w-fit">
+          <TabsTrigger value="week">{t("home.tabs.week")}</TabsTrigger>
+          <TabsTrigger value="upcoming">{t("home.tabs.upcoming")}</TabsTrigger>
+          <TabsTrigger value="history">{t("home.tabs.history")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="week" className="flex flex-col gap-6">
+          <QueryState query={week} skeleton={<EventBoardSkeleton label={t("list.loading")} />}>
+            {() => (
+              <>
+                {isSundayEvening(now) ? (
+                  <SundayPanel days={days} family={family} now={now} />
+                ) : (
+                  tonight.length > 0 && <TonightCard events={tonight} family={family} />
+                )}
+                {weekEvents.length === 0 && isFirstSyncRunning(family) ? (
+                  <BoardEmpty
+                    icon={HourglassIcon}
+                    title={t("empty.syncing.title")}
+                    description={t("empty.syncing.description")}
+                  />
+                ) : (
+                  <WeekView days={days} family={family} now={now} />
+                )}
+                {reviewCard}
+              </>
+            )}
+          </QueryState>
+        </TabsContent>
+        {BOARD_SCOPES.map((scope) => (
+          <TabsContent key={scope} value={scope} className="flex flex-col gap-4">
+            {scope === "upcoming" && reviewCard}
+            <CategoryFilter
+              value={filters.category}
+              onChange={(category) => setSearch({ category })}
+            />
+            <EventBoard
+              scope={scope}
+              filters={filters}
+              family={family}
+              onResetFilters={() => {
+                setStored(null);
+                setSearch({ category: undefined, childId: undefined });
+              }}
+            />
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 }

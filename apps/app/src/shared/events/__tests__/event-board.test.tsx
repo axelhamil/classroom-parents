@@ -42,7 +42,7 @@ describe("event board", () => {
 
   it("event-board shows explicit empty state with its action when 0 events", async () => {
     givenEvents([]);
-    await renderAppAt("/");
+    await renderAppAt("/?tab=upcoming");
 
     const action = await screen.findByRole("link", { name: "Voir mes enfants" });
 
@@ -54,7 +54,7 @@ describe("event board", () => {
   it("event-board keeps virtualization above 50 events (1 000 events render < 60 rows)", async () => {
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(ROW_HEIGHT);
     givenEvents(Array.from({ length: 1000 }, (_, index) => upcomingEvent(index)));
-    await renderAppAt("/");
+    await renderAppAt("/?tab=upcoming");
 
     await screen.findAllByText(/Échéance \d+/);
     await waitFor(() => {
@@ -66,11 +66,11 @@ describe("event board", () => {
 
   it("given no past deadline, the history board points back to upcoming deadlines", async () => {
     givenEvents([]);
-    await renderAppAt("/history");
+    await renderAppAt("/?tab=history");
 
     const action = await screen.findByRole("link", { name: "Voir les échéances à venir" });
 
     expect(action.closest("[data-slot=empty]")).not.toBeNull();
-    expect(action.getAttribute("href")).toBe("/");
+    expect(action.getAttribute("href")).toBe("/?tab=upcoming");
   });
 });

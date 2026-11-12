@@ -23,7 +23,7 @@ test.describe("history on a phone", () => {
         children: [LEA, MAXIMILIEN],
         events: PAST_EVENTS,
       });
-      await page.goto("/history");
+      await page.goto("/?tab=history");
 
       await expect(
         page.getByRole("link", { name: new RegExp(REVIEW_EVENT.title.slice(0, 30)) }),
@@ -43,7 +43,7 @@ test.describe("history on a phone", () => {
     test(`empty history (${colorScheme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme });
       await serveFamily(page, { children: [LEA], events: [] });
-      await page.goto("/history");
+      await page.goto("/?tab=history");
 
       await expect(page.getByText("Les échéances passées seront rangées ici.")).toBeVisible();
       expect(await blockingViolations(page)).toEqual([]);

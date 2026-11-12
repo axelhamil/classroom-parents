@@ -48,7 +48,7 @@ test.describe("upcoming events on a phone", () => {
 
   test("a category chip filters through the url and the request", async ({ page }) => {
     const requests = await serveFamily(page, { children: [LEA], events: EVENTS });
-    await page.goto("/");
+    await page.goto("/?tab=upcoming");
 
     const swimming = page.getByRole("button", { name: "Piscine" });
     await swimming.click();

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
@@ -42,34 +42,49 @@ function historyRequests(calls: ApiCall[]): URLSearchParams[] {
     .map((call) => call.url.searchParams);
 }
 
-describe("history list", () => {
+describe("Accueil, tab Passées", () => {
   afterEach(() => {
     cleanup();
     resetApp();
   });
 
-  it("given past events, then they are requested from the history scope and shown newest first", async () => {
+  it("Accueil switches to Passées and shows past deadlines", async () => {
     const calls = givenHistory([
       pastEvent(1, "2026-11-06", "Exposé sur les volcans"),
       pastEvent(2, "2026-10-14", "Sortie au musée"),
     ]);
-    await renderAppAt("/history");
+    await renderAppAt("/");
 
-    const list = await within(screen.getByRole("main")).findByRole("list");
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Passées" }));
+
+    const panel = await screen.findByRole("tabpanel", { name: "Passées" });
+    await within(panel).findByText("Exposé sur les volcans");
+    const list = within(panel).getByRole("list");
     const titles = within(list)
       .getAllByRole("link")
       .map((link) => link.textContent ?? "");
 
-    expect(historyRequests(calls).map((query) => query.get("scope"))).toEqual(["history"]);
+    expect(historyRequests(calls).map((query) => query.get("scope"))).toContain("history");
     expect(titles[0]).toContain("Exposé sur les volcans");
     expect(titles[1]).toContain("Sortie au musée");
   });
 
   it("given no past event, then the empty history explains what lands here", async () => {
     givenHistory([]);
-    await renderAppAt("/history");
+    await renderAppAt("/?tab=history");
 
     expect(await screen.findByText("Les échéances passées seront rangées ici.")).toBeDefined();
+  });
+
+  it("/history redirects to Accueil tab Passées", async () => {
+    givenHistory([pastEvent(1, "2026-11-06", "Exposé sur les volcans")]);
+    const router = await renderAppAt("/history");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    expect(router.state.location.search).toEqual({ tab: "history" });
+    expect(
+      (await screen.findByRole("tab", { name: "Passées" })).getAttribute("aria-selected"),
+    ).toBe("true");
   });
 
   it("given 100 past events, then only a window of rows is rendered", async () => {
@@ -78,7 +93,7 @@ describe("history list", () => {
         pastEvent(index, "2026-10-01", `Échéance passée ${index}`),
       ),
     );
-    await renderAppAt("/history");
+    await renderAppAt("/?tab=history");
 
     expect((await screen.findAllByText(/Échéance passée/)).length).toBeGreaterThan(0);
     await waitFor(() => {

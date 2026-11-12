@@ -67,6 +67,11 @@ async function openForm(): Promise<void> {
   await screen.findByDisplayValue(EVENT.title);
 }
 
+async function pickDate(day: string): Promise<void> {
+  fireEvent.click(screen.getByLabelText("Pour le"));
+  fireEvent.click(await screen.findByRole("button", { name: new RegExp(`^${day}`) }));
+}
+
 function save(): void {
   fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
 }
@@ -109,12 +114,12 @@ describe("event edit form", () => {
     expect(patches(calls)).toEqual([]);
   });
 
-  it("given only the deadline changed, when saving, then the request carries only the date and the detail opens", async () => {
+  it("edit form picks a date from the calendar", async () => {
     const calls = givenEvent();
     const router = await renderAppAt(EDIT_PATH);
     await openForm();
 
-    fireEvent.change(screen.getByLabelText("Pour le"), { target: { value: "2027-03-29" } });
+    await pickDate("lundi 29 mars 2027");
     save();
 
     await waitFor(() =>
@@ -142,7 +147,7 @@ describe("event edit form", () => {
     await openForm();
 
     fireEvent.change(screen.getByLabelText("Heure (facultative)"), { target: { value: "02:30" } });
-    fireEvent.change(screen.getByLabelText("Pour le"), { target: { value: "2027-03-28" } });
+    await pickDate("dimanche 28 mars 2027");
     save();
 
     expect(await screen.findByText(DEADLINE_REFUSED)).toBeDefined();
