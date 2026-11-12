@@ -92,7 +92,7 @@ describe("claimManualSync", () => {
     ]);
   });
 
-  it("given a sync holding an active lease, then running and no second sync starts", async () => {
+  it("given a sync holding an active lease, then running, no second sync starts and the next refresh opens at the lease end", async () => {
     const owned = child({
       syncStartedAt: new Date(NOW.getTime() - 5_000),
       nextSyncAt: new Date(NOW.getTime() + 595_000),
@@ -101,7 +101,7 @@ describe("claimManualSync", () => {
 
     const result = await sync.claimManualSync(PARENT, owned.id.value, NOW);
 
-    expect(result.getValue()).toEqual({ outcome: "running", retryAt: NOW });
+    expect(result.getValue()).toEqual({ outcome: "running", retryAt: at(595_000) });
     expect(repo.save).not.toHaveBeenCalled();
   });
 

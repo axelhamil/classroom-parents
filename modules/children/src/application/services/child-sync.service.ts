@@ -75,7 +75,7 @@ export class ChildSyncService {
           outcome: "started",
           lease: { childId, lease: child.get("syncLease") },
           label: child.get("label").value,
-          retryAt: child.manualSyncAvailableAt(now),
+          retryAt: child.manualSyncCooldownEndsAt(now),
         });
       }),
     );

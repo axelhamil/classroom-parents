@@ -14,6 +14,8 @@ function wall(at: Date): string {
   return `${date} ${time}`;
 }
 
+const JITTERS_MS = [1_000, 45_000, 90_000, 135_000, 179_000];
+
 const noAlert = { jitterMs: 0, nextAlertAt: Option.none<Date>() };
 
 function after(now: Date, plan: Partial<typeof noAlert> = {}): string {
@@ -81,9 +83,28 @@ describe("night and weekend", () => {
     ]);
   });
 
-  it("given a jitter at night, then it never pushes past the 07:00 opening", () => {
+  it("given a jitter at night, then it is spent before the 07:00 opening", () => {
     expect(after(paris("2026-11-16", "01:00"), { jitterMs: 3 * MINUTE_MS })).toBe(
-      "2026-11-16 07:00",
+      "2026-11-16 06:57",
+    );
+  });
+
+  it("given children capped at the opening with different jitters, then they spread before 07:00", () => {
+    const opening = paris("2026-11-16", "07:00");
+
+    const syncs = JITTERS_MS.map((jitterMs) =>
+      nextSyncAt(paris("2026-11-16", "03:00"), { ...noAlert, jitterMs }).getTime(),
+    );
+
+    expect(new Set(syncs).size).toBe(JITTERS_MS.length);
+    expect(syncs.every((at) => at <= opening.getTime())).toBe(true);
+  });
+
+  it("given a sync just before the opening, then the jitter never schedules it in the past", () => {
+    const now = paris("2026-11-16", "06:59");
+
+    expect(nextSyncAt(now, { ...noAlert, jitterMs: 3 * MINUTE_MS })).toEqual(
+      paris("2026-11-16", "07:00"),
     );
   });
 });
@@ -109,13 +130,27 @@ describe("before an alert", () => {
     );
   });
 
-  it("given a jitter that would cross the alert lead, then the lead bounds it", () => {
+  it("given a jitter that would cross the alert lead, then it is spent before the lead", () => {
     const next = nextSyncAt(now, {
       jitterMs: 3 * MINUTE_MS,
       nextAlertAt: Option.some(paris("2026-11-09", "12:31")),
     });
 
-    expect(wall(next)).toBe("2026-11-09 12:01");
+    expect(wall(next)).toBe("2026-11-09 11:58");
+  });
+
+  it("given children pulled by the same alert with different jitters, then they spread before the lead", () => {
+    const lead = paris("2026-11-09", "11:30");
+
+    const syncs = JITTERS_MS.map((jitterMs) =>
+      nextSyncAt(now, {
+        jitterMs,
+        nextAlertAt: Option.some(paris("2026-11-09", "12:00")),
+      }).getTime(),
+    );
+
+    expect(new Set(syncs).size).toBe(JITTERS_MS.length);
+    expect(syncs.every((at) => at <= lead.getTime())).toBe(true);
   });
 
   it("given a night alert, then it pulls the sync before the opening", () => {

@@ -33,7 +33,9 @@ export function nextSyncAt(now: Date, plan: SyncPlan): Date {
     .map((alertAt) => new Date(alertAt.getTime() - ALERT_LEAD_MS))
     .filter((leadAt) => leadAt > now);
 
-  return lead.map((leadAt) => earliest(slot, leadAt)).unwrapOr(slot);
+  return lead
+    .map((leadAt) => earliest(slot, spreadBefore(leadAt, plan.jitterMs, now)))
+    .unwrapOr(slot);
 }
 
 export function retryAt(now: Date): Date {
@@ -54,8 +56,13 @@ function cadenceSlot(now: Date, jitterMs: number): Date {
     return new Date(now.getTime() + SCHOOL_DAY_INTERVAL_MS + jitterMs);
 
   return nextOpening(date, time)
-    .map((opening) => earliest(offHours, opening))
+    .map((opening) => earliest(offHours, spreadBefore(opening, jitterMs, now)))
     .unwrapOr(offHours);
+}
+
+function spreadBefore(deadline: Date, jitterMs: number, now: Date): Date {
+  const spread = new Date(deadline.getTime() - jitterMs);
+  return spread > now ? spread : deadline;
 }
 
 function nextOpening(date: string, time: string): Option<Date> {

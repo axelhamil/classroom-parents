@@ -467,7 +467,7 @@ describe("syncChild", () => {
     expect(delayMs).toBeLessThanOrEqual(63 * MINUTE_MS);
   });
 
-  it("given a parent alert on this child in 40 min, then the next sync is 30 min before it", async () => {
+  it("given a parent alert on this child in 40 min, then the next sync lands in the jitter window before its 30 min lead", async () => {
     h.alerts.nextAlertAt.mockResolvedValue(
       Result.ok<Option<Date>, AppError>(Option.some(new Date(NOW.getTime() + 40 * MINUTE_MS))),
     );
@@ -475,7 +475,9 @@ describe("syncChild", () => {
     await h.service.syncChild(CHILD, NOW);
 
     const [, , next] = h.state.markSynced.mock.calls[0] ?? [];
-    expect(next).toEqual(new Date(NOW.getTime() + 10 * MINUTE_MS));
+    const delayMs = (next?.getTime() ?? 0) - NOW.getTime();
+    expect(delayMs).toBeGreaterThanOrEqual(7 * MINUTE_MS);
+    expect(delayMs).toBeLessThan(10 * MINUTE_MS);
   });
 
   it("given the next alert cannot be read, then the sync still lands on the cadence and the failure is surfaced", async () => {

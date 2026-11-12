@@ -105,7 +105,7 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
 
     if (this.isSyncLeased(now)) return Result.fail("running");
 
-    if (this.manualSyncAvailableAt(now) > now) return Result.fail("throttled");
+    if (this.manualSyncCooldownEndsAt(now) > now) return Result.fail("throttled");
 
     this._props.lastSyncRequestedAt = Option.some(now);
     this._props.syncStartedAt = Option.some(now);
@@ -114,11 +114,19 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     return Result.ok();
   }
 
-  manualSyncAvailableAt(now: Date): Date {
+  manualSyncCooldownEndsAt(now: Date): Date {
     return this._props.lastSyncRequestedAt
       .map((last) => new Date(last.getTime() + MANUAL_SYNC_COOLDOWN_MS))
-      .filter((availableAt) => availableAt > now)
+      .filter((endsAt) => endsAt > now)
       .unwrapOr(now);
+  }
+
+  manualSyncAvailableAt(now: Date): Date {
+    const cooldownEnd = this.manualSyncCooldownEndsAt(now);
+    if (!this.isSyncLeased(now)) return cooldownEnd;
+
+    const leaseEnd = this._props.nextSyncAt;
+    return leaseEnd > cooldownEnd ? leaseEnd : cooldownEnd;
   }
 
   private isSyncLeased(now: Date): boolean {

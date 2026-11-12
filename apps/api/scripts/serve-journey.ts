@@ -34,11 +34,13 @@ import { childAccount } from "@modules/children/schemas/child.schema";
 import { DATASET_CHILDREN, type DatasetChildKey } from "@modules/extraction/eval/classroom-dataset";
 import {
   type AnyPgTable,
+  and,
   authSchema,
   count,
   db,
   emailSchema,
   eq,
+  inArray,
   like,
   outboxSchema,
   type SQL,
@@ -137,6 +139,17 @@ function answer(result: { isFailure: boolean; getError: () => unknown; getValue:
   return Response.json(result.getValue() ?? null);
 }
 
+async function makeJourneyChildrenDue(at: Date): Promise<void> {
+  const journeyParents = db
+    .select({ id: authSchema.user.id })
+    .from(authSchema.user)
+    .where(like(authSchema.user.email, JOURNEY_PARENTS));
+  await db
+    .update(childAccount)
+    .set({ nextSyncAt: at })
+    .where(and(inArray(childAccount.userId, journeyParents), eq(childAccount.status, "connected")));
+}
+
 async function control(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const [, action = "", key = "", toggle = ""] = url.pathname.split("/");
@@ -164,7 +177,11 @@ async function control(request: Request): Promise<Response> {
       .returning({ id: authSchema.user.id });
     return Response.json({ parents: removed.length });
   }
-  if (action === "sync") return answer(await di.SyncDueChildrenService.runOnce(instantOf(url)));
+  if (action === "sync") {
+    const at = instantOf(url);
+    await makeJourneyChildrenDue(at);
+    return answer(await di.SyncDueChildrenService.runOnce(at));
+  }
   if (action === "alerts") return answer(await di.AlertDispatchService.runOnce(instantOf(url)));
   if (action === "wipe")
     return answer(
