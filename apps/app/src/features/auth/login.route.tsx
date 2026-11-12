@@ -1,32 +1,18 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
-import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
-import {
-  LandingAction,
-  LandingHeadline,
-  LandingHero,
-  LandingLead,
-  LandingReassurance,
-  LandingSection,
-  LandingSectionTitle,
-  LandingSheet,
-} from "@packages/ui/components/ui/landing";
+import { BrandMark } from "@packages/ui/components/ui/brand-link";
+import { LandingAction, LandingReassurance, SignInPanel } from "@packages/ui/components/ui/landing";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
+import { TextLink } from "@packages/ui/components/ui/text-link";
+import { TypographyH1 } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
-import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PencilOffIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 import { LegalFooter } from "../../shared/components/legal-footer";
 import { ThemeToggle } from "../../shared/components/theme-toggle";
-import { signInWithGoogleMutationOptions } from "./api/auth.mutations";
 import { loginSearchSchema } from "./auth.schema";
-import { resolveAuthError } from "./auth-error";
 import { GoogleSignInButton } from "./components/google-sign-in-button";
-import { HowItWorks } from "./components/how-it-works";
-import { LandingFaq } from "./components/landing-faq";
-import { NeverList } from "./components/never-list";
-import { ProductSample } from "./components/product-sample";
+import { useGoogleSignIn } from "./use-google-sign-in";
 
 export const Route = createFileRoute("/_guest/login")({
   validateSearch: loginSearchSchema,
@@ -35,40 +21,25 @@ export const Route = createFileRoute("/_guest/login")({
 
 function LoginPage() {
   const { t } = useTranslation("auth");
-  const { t: tCommon } = useTranslation("common");
-  const { t: tErrors } = useTranslation("errors");
   const { redirect, error } = Route.useSearch();
-  const signIn = useMutation({
-    ...signInWithGoogleMutationOptions,
-    onError: (error) => toast.error(resolveAuthError(error, "login.failed", t, tErrors)),
-  });
-  const googleButton = (
-    <GoogleSignInButton
-      label={t("login.google")}
-      pendingLabel={t("login.pending")}
-      pending={signIn.isPending}
-      onSignIn={() => signIn.mutate(redirect)}
-    />
-  );
+  const signIn = useGoogleSignIn(redirect);
 
   return (
     <>
-      <header
-        className={cn(pageContainerVariants(), "flex h-app-bar items-center justify-between")}
-      >
-        <BrandLink asChild>
-          <Link to="/login">
-            <BrandMark />
-            {tCommon("brand")}
-          </Link>
-        </BrandLink>
+      <meta name="robots" content="noindex" />
+      <header className={cn(pageContainerVariants(), "flex h-app-bar items-center justify-end")}>
         <ThemeToggle />
       </header>
 
-      <main className={cn(pageContainerVariants(), "flex flex-col pb-12")}>
-        <LandingHero>
-          <LandingHeadline>{t("landing.headline")}</LandingHeadline>
-          <LandingLead>{t("landing.lead")}</LandingLead>
+      <main
+        className={cn(
+          pageContainerVariants({ width: "form" }),
+          "flex min-h-[calc(100svh-var(--app-bar-height)*3)] flex-col justify-center pb-12",
+        )}
+      >
+        <SignInPanel>
+          <BrandMark className="size-16" />
+          <TypographyH1 variant="page">{t("login.title")}</TypographyH1>
           <LandingAction>
             {error && (
               <Alert variant="destructive">
@@ -77,26 +48,16 @@ function LoginPage() {
                 </AlertDescription>
               </Alert>
             )}
-            {googleButton}
+            <GoogleSignInButton signIn={signIn} />
             <LandingReassurance>
               <PencilOffIcon aria-hidden />
               {t("landing.readOnly")}
             </LandingReassurance>
           </LandingAction>
-        </LandingHero>
-
-        <LandingSheet>
-          <ProductSample />
-          <HowItWorks />
-          <NeverList />
-          <LandingFaq />
-          <LandingSection span="closing" aria-labelledby="closing-title">
-            <LandingSectionTitle id="closing-title">
-              {t("landing.closing.title")}
-            </LandingSectionTitle>
-            <LandingAction>{googleButton}</LandingAction>
-          </LandingSection>
-        </LandingSheet>
+          <TextLink asChild>
+            <Link to="/">{t("login.discover")}</Link>
+          </TextLink>
+        </SignInPanel>
       </main>
 
       <LegalFooter />

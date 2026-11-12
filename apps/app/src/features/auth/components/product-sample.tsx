@@ -1,9 +1,13 @@
 import { DAY_MS } from "@packages/ddd-kit/days";
 import { utcDay } from "@packages/i18n";
+import { BrandMark } from "@packages/ui/components/ui/brand-link";
+import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import {
-  LandingSection,
-  LandingSectionTitle,
+  LandingVisual,
+  NotificationPreview,
+  NotificationPreviewContent,
   SampleFrame,
+  SampleFrameHeader,
   SampleStack,
 } from "@packages/ui/components/ui/landing";
 import { useTranslation } from "react-i18next";
@@ -50,6 +54,7 @@ function sampleEvent(
 
 export function ProductSample() {
   const { t } = useTranslation("auth");
+  const { t: tCommon } = useTranslation("common");
   const today = schoolToday(new Date());
   const deadlines: SampleDeadline[] = [
     {
@@ -88,9 +93,26 @@ export function ProductSample() {
   ];
 
   return (
-    <LandingSection aria-labelledby="sample-title">
-      <LandingSectionTitle id="sample-title">{t("landing.sample.title")}</LandingSectionTitle>
+    <LandingVisual>
+      <NotificationPreview>
+        <BrandMark />
+        <NotificationPreviewContent>
+          <p>
+            {tCommon("brand")}
+            <span>{t("landing.sample.notification.time")}</span>
+          </p>
+          <p>{t("landing.sample.notification.title")}</p>
+          <p>{t("landing.sample.notification.body")}</p>
+        </NotificationPreviewContent>
+      </NotificationPreview>
       <SampleFrame>
+        <SampleFrameHeader>
+          {t("landing.sample.week")}
+          <span className="flex gap-3">
+            <ChildAvatar name={t("landing.sample.lea")} tone={5} size="sm" />
+            <ChildAvatar name={t("landing.sample.malo")} tone={2} size="sm" />
+          </span>
+        </SampleFrameHeader>
         <SampleStack inert>
           {deadlines.map(({ event, childLabel, hue }) => (
             <li key={event.id}>
@@ -98,8 +120,8 @@ export function ProductSample() {
             </li>
           ))}
         </SampleStack>
-        <figcaption>{t("landing.sample.caption")}</figcaption>
       </SampleFrame>
-    </LandingSection>
+      <figcaption>{t("landing.sample.caption")}</figcaption>
+    </LandingVisual>
   );
 }

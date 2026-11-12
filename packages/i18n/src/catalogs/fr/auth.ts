@@ -1,5 +1,7 @@
 export default {
   login: {
+    title: "Connexion",
+    discover: "Découvrir l'application",
     google: "Continuer avec Google",
     pending: "Ouverture de Google…",
     failed: "La connexion avec Google n'a pas pu démarrer. Réessayez.",
@@ -11,34 +13,25 @@ export default {
     lead: "Contrôles, devoirs, sorties et papiers à signer, lus dans Google Classroom, avec une alerte avant chacun.",
     readOnly: "Lecture seule : l'application n'écrit jamais dans Classroom.",
     sample: {
-      title: "Votre semaine, déjà rangée",
+      week: "Cette semaine",
       caption: "Exemple pour deux enfants, Léa et Malo.",
       lea: "Léa",
       malo: "Malo",
       fractions: "Contrôle sur les fractions",
       swimming: "Piscine : maillot, bonnet et serviette",
       museum: "Autorisation de sortie au muséum à signer",
-    },
-    steps: {
-      title: "Trois étapes, deux minutes",
-      signIn: {
-        title: "Connectez votre compte Google",
-        body: "Le vôtre, celui de parent. Aucun mot de passe à créer.",
-      },
-      addChild: {
-        title: "Ajoutez le compte Classroom de chaque enfant",
-        body: "Son compte d'école, en lecture seule.",
-      },
-      alerts: {
-        title: "Recevez une alerte avant chaque échéance",
-        body: "Sur votre téléphone, au moment que vous choisissez.",
+      notification: {
+        time: "maintenant",
+        title: "Demain 8 h 30 : contrôle sur les fractions",
+        body: "Léa a encore ce soir pour réviser.",
       },
     },
-    never: {
-      title: "Ce que l'application ne fait jamais",
-      write: "Écrire dans Classroom : aucun devoir rendu, aucun commentaire.",
-      private: "Lire la messagerie de votre enfant ou garder ses notes.",
-      ads: "Afficher de la publicité, revendre des données ou entraîner une IA.",
+    proofs: {
+      title: "En bref",
+      family: "Tous vos enfants et toutes leurs classes dans une seule semaine.",
+      alerts:
+        "Une alerte sur votre téléphone avant chaque échéance, à l'heure que vous choisissez.",
+      readOnly: "Rien n'est écrit dans Classroom, aucune note gardée, aucune publicité.",
     },
     faq: {
       title: "Questions fréquentes",
@@ -56,7 +49,7 @@ export default {
       deletion: {
         question: "Comment tout supprimer ?",
         answer:
-          "Dans Réglages, «\u00a0Supprimer mon compte\u00a0» efface votre compte, les comptes reliés et toutes les échéances au bout de 7 jours, et révoque les accès Google.",
+          "Dans Réglages, « Supprimer mon compte » efface votre compte, les comptes reliés et toutes les échéances au bout de 7 jours, et révoque les accès Google.",
       },
     },
     closing: {

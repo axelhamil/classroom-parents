@@ -4,7 +4,12 @@ import { sessionQueryOptions } from "../shared/api/queries/session";
 export const Route = createFileRoute("/_protected")({
   beforeLoad: async ({ context, location }) => {
     const session = await context.queryClient.ensureQueryData(sessionQueryOptions);
+    if (!session && location.pathname === "/") {
+      throw redirect({ to: "/welcome", mask: { to: "/" } });
+    }
+
     if (!session) throw redirect({ to: "/login", search: { redirect: location.href } });
+
     return { user: session.user, sessionToken: session.session.token };
   },
   component: Outlet,
