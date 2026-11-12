@@ -112,7 +112,7 @@ test.describe("signed in", () => {
       await page.goto("/");
 
       const nav = page.getByRole("navigation", { name: "Navigation principale" });
-      for (const name of ["Échéances", "Historique", "Enfants", "Réglages"]) {
+      for (const name of ["Accueil", "Enfants", "Réglages"]) {
         await expect(nav.getByRole("link", { name })).toBeInViewport({ ratio: 1 });
       }
       const overflow = await page.evaluate(
@@ -159,6 +159,24 @@ test.describe("signed in", () => {
 
     await expect(today).toHaveAttribute("aria-label", "Aujourd'hui");
     await expect(today).not.toHaveAttribute("title");
+  });
+
+  test("opens the user menu from the keyboard and gives focus back on Escape", async ({ page }) => {
+    await page.goto("/");
+
+    const trigger = page.getByRole("button", { name: "Ouvrir le menu utilisateur" });
+    await tabTo(page, trigger);
+    await page.keyboard.press("Enter");
+
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: "Se déconnecter" })).toBeVisible();
+    await expect(
+      menu.getByRole("menuitem", { name: /Passer au thème (sombre|clair)/ }),
+    ).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
   });
 
   test("reaches every section from the bottom navigation on a phone", async ({ page }) => {

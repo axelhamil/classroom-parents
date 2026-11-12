@@ -24,5 +24,5 @@ export function NotFoundPage() {
 
   if (!session) return page;
 
-  return <AppShell userId={session.user.id}>{page}</AppShell>;
+  return <AppShell user={session.user}>{page}</AppShell>;
 }

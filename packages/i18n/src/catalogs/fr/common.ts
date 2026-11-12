@@ -44,8 +44,7 @@ export default {
   },
   nav: {
     label: "Navigation principale",
-    events: "Échéances",
-    history: "Historique",
+    home: "Accueil",
     children: "Enfants",
     settings: "Réglages",
   },

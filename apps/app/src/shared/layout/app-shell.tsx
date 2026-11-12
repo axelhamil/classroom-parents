@@ -1,27 +1,62 @@
+import { AppBar } from "@packages/ui/components/ui/app-bar";
+import {
+  AppNavigation,
+  AppNavigationIcon,
+  AppNavigationItem,
+} from "@packages/ui/components/ui/app-navigation";
+import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
+import { Link } from "@tanstack/react-router";
+import { CalendarHeart } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { DeletionPendingBanner } from "../components/deletion-pending-banner";
 import { usePushEndpointSync } from "../pwa/use-push-endpoint-sync";
 import { useAppUserStream } from "../stream/use-app-user-stream";
 import { useSyncOnOpen } from "../sync/use-sync-on-open";
-import { BottomNav } from "./bottom-nav";
+import { NAV_ITEMS, useActiveNavItem } from "./nav-items";
+import { type ShellUser, UserMenu } from "./user-menu";
 
 interface AppShellProps {
-  userId: string;
+  user: ShellUser & { id: string };
   children: ReactNode;
 }
 
-export function AppShell({ userId, children }: AppShellProps) {
+export function AppShell({ user, children }: AppShellProps) {
+  const { t } = useTranslation("common");
+  const active = useActiveNavItem();
   useAppUserStream();
   useSyncOnOpen();
-  usePushEndpointSync(userId);
+  usePushEndpointSync(user.id);
 
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      <div className="flex min-w-0 flex-1 flex-col pb-nav md:pb-0">
-        <DeletionPendingBanner />
-        {children}
-      </div>
-      <BottomNav />
+    <div className="flex min-h-dvh flex-col pb-nav md:pb-0">
+      <AppBar className="justify-between lg:grid lg:grid-cols-[1fr_auto_1fr]">
+        <BrandLink asChild className="lg:justify-self-start">
+          <Link to="/">
+            <BrandMark>
+              <CalendarHeart />
+            </BrandMark>
+            {t("brand")}
+          </Link>
+        </BrandLink>
+        <AppNavigation aria-label={t("nav.label")}>
+          {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => (
+            <li key={to}>
+              <AppNavigationItem asChild>
+                <Link to={to} aria-current={active === to ? "page" : undefined}>
+                  <AppNavigationIcon>
+                    <Icon />
+                  </AppNavigationIcon>
+                  {t(labelKey)}
+                </Link>
+              </AppNavigationItem>
+            </li>
+          ))}
+        </AppNavigation>
+        <UserMenu user={user} className="lg:justify-self-end" />
+      </AppBar>
+      <DeletionPendingBanner />
+      {children}
     </div>
   );
 }

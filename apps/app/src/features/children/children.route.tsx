@@ -59,7 +59,7 @@ function ChildrenPage() {
     <Screen
       title={t("list.title")}
       description={t("list.description")}
-      aside={
+      actions={
         children.data?.length ? (
           <Button asChild variant="outline">
             <Link to="/children/new">

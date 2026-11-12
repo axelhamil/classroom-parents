@@ -1,17 +1,17 @@
 import { Button } from "@packages/ui/components/ui/button";
-import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
 import { SettingsSection } from "@packages/ui/components/ui/settings-section";
 import { LogOut } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SignOutDialog } from "../../../shared/auth/sign-out-dialog";
 import { useSignOut } from "../../../shared/auth/use-sign-out";
 
 export function SignOutCard() {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t } = useTranslation("settings");
   const signOut = useSignOut();
 
   return (
     <SettingsSection title={t("signOut.title")} description={t("signOut.description")}>
-      <DestructiveActionDialog
+      <SignOutDialog
         trigger={
           <Button
             type="button"
@@ -23,11 +23,6 @@ export function SignOutCard() {
             {signOut.isPending ? t("signOut.pending") : t("signOut.action")}
           </Button>
         }
-        title={t("signOut.dialogTitle")}
-        description={t("signOut.dialogDescription")}
-        actionLabel={t("signOut.confirm")}
-        actionVariant="default"
-        cancelLabel={t("common:actions.cancel")}
         onConfirm={() => signOut.mutate()}
       />
     </SettingsSection>

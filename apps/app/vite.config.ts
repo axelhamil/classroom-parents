@@ -47,7 +47,7 @@ export default defineConfig(({ command, mode }) => {
       headers: {
         // HMR injects scripts/styles inline, so enforcing is impractical in dev; report-only surfaces violations in the console
         "Content-Security-Policy-Report-Only":
-          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' ws: wss: http://localhost:3000",
+          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self' ws: wss: http://localhost:3000",
       },
     },
     build: { chunkSizeWarningLimit: 700, sourcemap: "hidden" },

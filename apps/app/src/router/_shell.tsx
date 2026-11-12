@@ -9,7 +9,7 @@ function ShellLayout() {
   const { user } = Route.useRouteContext();
 
   return (
-    <AppShell userId={user.id}>
+    <AppShell user={user}>
       <Outlet />
     </AppShell>
   );

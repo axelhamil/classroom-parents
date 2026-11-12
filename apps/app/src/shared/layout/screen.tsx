@@ -6,16 +6,22 @@ import type { ReactNode } from "react";
 export interface ScreenProps {
   title: string;
   description?: string;
-  aside?: ReactNode;
-  children?: ReactNode;
+  actions?: ReactNode;
+  width?: "prose" | "wide";
+  children: ReactNode;
 }
 
-export function Screen({ title, description, aside, children }: ScreenProps) {
+const CONTAINER_WIDTH = { prose: "prose", wide: "app" } as const;
+
+export function Screen({ title, description, actions, width = "prose", children }: ScreenProps) {
   return (
     <main
-      className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-6 py-6 md:py-10")}
+      className={cn(
+        pageContainerVariants({ width: CONTAINER_WIDTH[width] }),
+        "@container flex flex-1 flex-col gap-6 pt-2 pb-10 md:gap-8 md:pt-4 md:pb-12",
+      )}
     >
-      <PageHeader title={title} description={description} actions={aside} />
+      <PageHeader title={title} description={description} actions={actions} />
       {children}
     </main>
   );

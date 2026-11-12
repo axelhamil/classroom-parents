@@ -12,6 +12,7 @@ import { vi } from "vitest";
 import { router } from "../router";
 import { sessionQueryOptions } from "../shared/api/queries/session";
 import { queryClient } from "../shared/api/query-client";
+import { ensureMatchMedia } from "./match-media";
 
 export { queryClient };
 
@@ -77,6 +78,7 @@ export async function renderWithProviders(ui: ReactNode): Promise<RenderResult> 
 }
 
 export async function renderAppAt(path: string): Promise<typeof router> {
+  ensureMatchMedia();
   queryClient.setQueryData(sessionQueryOptions.queryKey, {
     user: { id: "user-1", name: "Parent", email: "parent@example.com" },
     session: { token: "token-1" },

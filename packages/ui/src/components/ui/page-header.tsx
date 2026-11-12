@@ -10,7 +10,10 @@ export interface PageHeaderProps {
 
 function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <header data-slot="page-header" className="flex flex-wrap items-start justify-between gap-4">
+    <header
+      data-slot="page-header"
+      className="flex flex-col items-start gap-4 @lg:flex-row @lg:justify-between"
+    >
       <div className="flex min-w-0 flex-col gap-2">
         <TypographyH1 variant="page" className="break-words">
           {title}

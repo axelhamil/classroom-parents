@@ -41,7 +41,7 @@ function EventsPage() {
   return (
     <Screen
       title={t("list.title")}
-      aside={
+      actions={
         <DateTab
           dateTime={schoolToday(now)}
           day={today.day}
