@@ -15,6 +15,7 @@ import { Link } from "@tanstack/react-router";
 import { CalendarPlusIcon, ExternalLink, Pencil } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { Route as ProtectedRoute } from "../../../router/_protected";
 import { childrenQueryOptions } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { deadlineIcs, downloadIcs, icsFileName } from "../../../shared/calendar/ics";
@@ -23,6 +24,7 @@ import { DeadlineWhen } from "../../../shared/events/event-card";
 import { childHue } from "../../../shared/format/child-hue";
 import { countdownOf, deadlineLabel } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
+import { ScreenTour } from "../../../shared/tour/screen-tour";
 import { DeleteEventDialog } from "./delete-event-dialog";
 import { EventReminders } from "./event-reminders";
 import { PrepareChecklist } from "./prepare-checklist";
@@ -49,6 +51,7 @@ export interface EventDetailBodyProps {
 export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
   const { t } = useTranslation("events");
   const descriptionId = useId();
+  const { user } = ProtectedRoute.useRouteContext();
   const children = useQuery(childrenQueryOptions);
   const now = new Date();
   const family = children.data ?? [];
@@ -76,7 +79,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
   return (
     <>
       <EventBadges event={event} />
-      <DescriptionList layout="inline">
+      <DescriptionList layout="inline" data-tour="event-detail-when">
         <DescriptionItem>
           <DescriptionTerm>{t("detail.deadline")}</DescriptionTerm>
           <DescriptionDetails className="flex flex-wrap items-center gap-2">
@@ -100,7 +103,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
         )}
       </DescriptionList>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" onClick={addToAgenda}>
+        <Button type="button" data-tour="event-detail-agenda" onClick={addToAgenda}>
           <CalendarPlusIcon aria-hidden />
           {t("agenda.add")}
         </Button>
@@ -145,6 +148,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
         </Button>
         <DeleteEventDialog eventId={event.id} eventTitle={event.title} onDeleted={onDeleted} />
       </div>
+      <ScreenTour screen="event-detail" userId={user.id} />
     </>
   );
 }

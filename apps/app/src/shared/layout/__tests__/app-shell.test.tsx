@@ -43,6 +43,34 @@ describe("app shell", () => {
     },
   );
 
+  it("every icon-only Button in the shell has a tooltip", async () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    fakeApi({ "GET /children": { body: [CHILD] }, "GET /events": { body: [] } });
+
+    await renderApp("/children");
+
+    const navigation = await screen.findByRole("navigation", { name: nav.label });
+    const shell = navigation.closest("header");
+    if (!shell) throw new Error("the shell app bar is missing");
+    const iconOnly = within(shell)
+      .getAllByRole("button")
+      .filter((button) => button.hasAttribute("aria-label"));
+    expect(iconOnly.length).toBeGreaterThan(0);
+
+    for (const button of iconOnly) {
+      await userEvent.hover(button);
+      expect((await screen.findByRole("tooltip")).textContent).not.toBe("");
+      await userEvent.unhover(button);
+    }
+  });
+
   it("user menu offers Se déconnecter", async () => {
     vi.stubGlobal(
       "ResizeObserver",

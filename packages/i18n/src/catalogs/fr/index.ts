@@ -10,6 +10,7 @@ import history from "./history";
 import onboarding from "./onboarding";
 import settings from "./settings";
 import site from "./site";
+import tour from "./tour";
 
 const catalog = {
   common,
@@ -24,6 +25,7 @@ const catalog = {
   history,
   onboarding,
   site,
+  tour,
 } as const;
 
 export type Namespace = keyof typeof catalog;

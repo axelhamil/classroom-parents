@@ -30,7 +30,11 @@ export function PushCard({ userId }: PushCardProps) {
   const emailFallback = !push.subscribed && status.data?.live === 0;
 
   return (
-    <SectionCard title={t("push.title")} description={t("push.description")}>
+    <SectionCard
+      title={t("push.title")}
+      description={t("push.description")}
+      data-tour="settings-push"
+    >
       <DefaultRemindersSummary userId={userId} />
       {needsInstall ? <InstallGuide /> : null}
       <PushControl push={push} needsInstall={needsInstall} />

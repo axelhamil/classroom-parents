@@ -27,8 +27,24 @@ function datesFrom(start: number, length: number): string[] {
   );
 }
 
+function mondayOfWeek(now: Date): number {
+  const daysSinceMonday = (weekdayOf(now) + WEEK_LENGTH - 1) % WEEK_LENGTH;
+
+  return utcDay(schoolToday(now)) - daysSinceMonday * DAY_MS;
+}
+
+export function mondayOf(now: Date): string {
+  return new Date(mondayOfWeek(now)).toISOString().slice(0, 10);
+}
+
 export function weekDates(now: Date): string[] {
   return datesFrom(utcDay(schoolToday(now)), WEEK_LENGTH);
+}
+
+export function upcomingWeekRange(now: Date): { from: string; to: string } {
+  const from = schoolToday(now);
+
+  return { from, to: weekDates(now).at(-1) ?? from };
 }
 
 function weekdayOf(now: Date): number {
@@ -44,8 +60,7 @@ export function defaultPrintWeek(now: Date): PrintWeek {
 }
 
 export function printWeekDates(now: Date, week: PrintWeek): string[] {
-  const daysSinceMonday = (weekdayOf(now) + WEEK_LENGTH - 1) % WEEK_LENGTH;
-  const monday = utcDay(schoolToday(now)) - daysSinceMonday * DAY_MS;
+  const monday = mondayOfWeek(now);
 
   return datesFrom(week === "current" ? monday : monday + WEEK_LENGTH * DAY_MS, WEEK_LENGTH);
 }

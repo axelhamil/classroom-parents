@@ -8,6 +8,11 @@ export default {
     description:
       "Le thème de l'application sur cet appareil. Automatique suit le réglage clair ou sombre de l'appareil.",
   },
+  tour: {
+    title: "Visite guidée",
+    description: "Les repères de chaque écran, montrés une fois. Relancez-les à tout moment.",
+    action: "Revoir la visite guidée",
+  },
   devices: {
     title: "Appareils connectés",
     description: "Les téléphones et ordinateurs où votre compte est ouvert.",

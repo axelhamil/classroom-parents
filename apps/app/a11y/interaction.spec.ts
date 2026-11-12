@@ -10,7 +10,9 @@ async function openDeletionDialog(page: Page): Promise<{ trigger: Locator; dialo
   await page.goto("/settings");
 
   const trigger = page.getByRole("button", { name: "Supprimer mon compte" });
-  await tabTo(page, trigger);
+  await page.getByText(/^Votre compte, les comptes Google de vos enfants/).click();
+  await page.keyboard.press("Tab");
+  await expect(trigger).toBeFocused();
   await page.keyboard.press("Enter");
 
   const dialog = page.getByRole("alertdialog", { name: "Supprimer votre compte ?" });

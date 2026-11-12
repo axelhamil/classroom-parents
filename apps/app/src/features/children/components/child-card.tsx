@@ -120,6 +120,7 @@ export function ChildCard({ child, hue, avatarUrl }: ChildCardProps) {
             <IconButton
               ref={menuTrigger}
               variant="overlay"
+              data-tour="children-menu"
               label={t("card.actions", { label: child.label })}
             >
               <EllipsisVertical aria-hidden />

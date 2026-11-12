@@ -85,6 +85,7 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
 
   return (
     <SectionCard
+      data-tour="settings-devices"
       title={t("devices.title")}
       description={t("devices.description")}
       footer={

@@ -8,13 +8,27 @@ export interface SectionCardProps {
   tone?: "default" | "destructive";
   footer?: ReactNode;
   children?: ReactNode;
+  "data-tour"?: string;
 }
 
-function SectionCard({ title, description, tone = "default", footer, children }: SectionCardProps) {
+function SectionCard({
+  title,
+  description,
+  tone = "default",
+  footer,
+  children,
+  "data-tour": tourTarget,
+}: SectionCardProps) {
   const titleId = useId();
 
   return (
-    <Card role="region" aria-labelledby={titleId} variant={tone} className="animate-enter">
+    <Card
+      role="region"
+      aria-labelledby={titleId}
+      variant={tone}
+      data-tour={tourTarget}
+      className="animate-enter"
+    >
       <CardHeader>
         <CardTitle asChild variant={tone}>
           <h2 id={titleId}>{title}</h2>

@@ -18,12 +18,17 @@ export function FamilyRow({ family, weekCounts, value, onChange }: FamilyRowProp
   return (
     <FilterChips
       label={t("filters.child")}
+      data-tour="home-family"
       value={value}
       onChange={onChange}
       options={[
         { value: null, label: t("family.all") },
         ...family.map((child) => ({
           value: child.id,
+          hint: t("family.hint", {
+            child: child.label,
+            count: weekCounts.get(child.id) ?? 0,
+          }),
           label: (
             <>
               <ChildAvatar name={child.label} tone={childHue(family, child.id)} size="xs" />

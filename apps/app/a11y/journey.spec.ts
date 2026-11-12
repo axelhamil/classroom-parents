@@ -2,6 +2,7 @@ import { createECDH, randomBytes, randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { z } from "zod";
 import { JOURNEY_API_URL, JOURNEY_CONTROL_URL } from "./journey.config";
+import { TOUR_SELECTOR } from "./tour";
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
@@ -162,6 +163,9 @@ test("a parent links two children, follows their deadlines and alerts, then eras
 }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
+  await page.addLocatorHandler(page.locator(TOUR_SELECTOR), (tour) =>
+    tour.getByRole("button", { name: "Passer" }).click(),
+  );
   const startedAt = Date.now();
   let userId = "";
 
