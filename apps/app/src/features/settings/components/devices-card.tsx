@@ -252,7 +252,7 @@ function DeviceRow({ session, isCurrent, locked, onRevoked, ...props }: DeviceRo
       <ItemMedia variant="icon">
         <Icon aria-hidden />
       </ItemMedia>
-      <ItemContent>
+      <ItemContent className="basis-40">
         <ItemTitle id={labelId}>
           {label}
           {isCurrent ? <Badge variant="secondary">{t("devices.current")}</Badge> : null}
@@ -264,7 +264,7 @@ function DeviceRow({ session, isCurrent, locked, onRevoked, ...props }: DeviceRo
         </ItemDescription>
       </ItemContent>
       {isCurrent ? null : (
-        <ItemActions>
+        <ItemActions className="ml-auto">
           <Button
             type="button"
             variant="ghost"
