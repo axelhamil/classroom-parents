@@ -61,10 +61,17 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
     toastSuccess(t("agenda.downloaded"));
   };
 
-  const sharePayload = () => ({
-    title: child ? t("share.deadline", { child: child.label, title: event.title }) : event.title,
-    text: t("share.when", { when: label.toLocaleLowerCase(LOCALE) }),
-  });
+  const sharePayload = () => {
+    const title = child
+      ? t("share.deadline", { child: child.label, title: event.title })
+      : event.title;
+
+    return {
+      title,
+      text: `${title}\n${t("share.when", { when: label.toLocaleLowerCase(LOCALE) })}`,
+      url: `${window.location.origin}/events/${event.id}`,
+    };
+  };
 
   return (
     <>

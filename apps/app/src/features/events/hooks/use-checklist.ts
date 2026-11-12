@@ -1,6 +1,12 @@
-import { useStoredValue } from "@packages/web-kit/storage/use-stored-value";
+import {
+  userStorageKey,
+  useStoredValue,
+  useStoredValues,
+} from "@packages/web-kit/storage/use-stored-value";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
+import { Route as ProtectedRoute } from "../../../router/_protected";
 import type { EventItem } from "../../../shared/api/queries/events";
 import type { EventCategory } from "../../../shared/events/event-labels";
 
@@ -20,6 +26,11 @@ const CHECKLIST_DEFAULTS = {
   assessment: ["prepare.items.assessment.revise"],
   homework: ["prepare.items.homework.check"],
 } as const satisfies Record<EventCategory, readonly string[]>;
+
+export const SIGN_ITEMS: readonly string[] = [
+  "prepare.items.document_due.sign",
+  "prepare.items.school_trip.permission",
+];
 
 export const CHECKLIST_ITEM_MAX = 80;
 
@@ -47,16 +58,36 @@ export interface Checklist {
   remove: (id: string) => void;
 }
 
-export function useChecklist(event: Pick<EventItem, "id" | "category">): Checklist {
-  const { t } = useTranslation("events");
-  const [state, setState] = useStoredValue(`checklist:${event.id}`, checklistStateSchema, EMPTY);
-  const defaults = CHECKLIST_DEFAULTS[event.category]
+type ChecklistEvent = Pick<EventItem, "id" | "category">;
+
+function checklistKey(userId: string, eventId: string): string {
+  return userStorageKey(userId, `checklist:${eventId}`);
+}
+
+function entriesOf(
+  state: ChecklistState,
+  category: EventCategory,
+  t: TFunction<"events">,
+): ChecklistEntry[] {
+  const defaults = CHECKLIST_DEFAULTS[category]
     .filter((key) => !state.removed.includes(key))
     .map((key) => ({ id: key, label: t(key) }));
-  const items = [...defaults, ...state.extra].map((item) => ({
+
+  return [...defaults, ...state.extra].map((item) => ({
     ...item,
     done: state.done.includes(item.id),
   }));
+}
+
+export function useChecklist(event: ChecklistEvent): Checklist {
+  const { t } = useTranslation("events");
+  const { user } = ProtectedRoute.useRouteContext();
+  const [state, setState] = useStoredValue(
+    checklistKey(user.id, event.id),
+    checklistStateSchema,
+    EMPTY,
+  );
+  const items = entriesOf(state, event.category, t);
 
   return {
     items,
@@ -75,4 +106,16 @@ export function useChecklist(event: Pick<EventItem, "id" | "category">): Checkli
         extra: state.extra.filter((item) => item.id !== id),
       }),
   };
+}
+
+export function useChecklists(events: readonly ChecklistEvent[]): ChecklistEntry[][] {
+  const { t } = useTranslation("events");
+  const { user } = ProtectedRoute.useRouteContext();
+  const states = useStoredValues(
+    events.map((event) => checklistKey(user.id, event.id)),
+    checklistStateSchema,
+    EMPTY,
+  );
+
+  return events.map((event, index) => entriesOf(states[index] ?? EMPTY, event.category, t));
 }

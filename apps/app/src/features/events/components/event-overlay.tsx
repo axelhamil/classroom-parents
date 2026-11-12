@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from "@packages/ui/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TABLET_QUERY, useMediaQuery } from "../../../shared/layout/use-media-query";
 import { QueryState } from "../../../shared/query/query-state";
@@ -38,13 +39,22 @@ export function EventOverlay({ eventId, onClose }: EventOverlayProps) {
       {(event) => <EventDetailBody event={event} onDeleted={onClose} />}
     </QueryState>
   );
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
   const onOpenChange = (open: boolean) => {
     if (!open) onClose();
+  };
+  const returnFocus = (event: Event) => {
+    if (!opener?.isConnected) return;
+
+    event.preventDefault();
+    opener.focus();
   };
 
   return tablet ? (
     <Sheet open onOpenChange={onOpenChange}>
-      <SheetContent size="lg" closeLabel={t("detail.close")}>
+      <SheetContent size="lg" closeLabel={t("detail.close")} onCloseAutoFocus={returnFocus}>
         <SheetHeader>
           <SheetTitle className="pr-8 wrap-anywhere">{title}</SheetTitle>
           <SheetDescription className="sr-only">{t("detail.title")}</SheetDescription>
@@ -53,8 +63,8 @@ export function EventOverlay({ eventId, onClose }: EventOverlayProps) {
       </SheetContent>
     </Sheet>
   ) : (
-    <Drawer open onOpenChange={onOpenChange}>
-      <DrawerContent>
+    <Drawer open autoFocus onOpenChange={onOpenChange}>
+      <DrawerContent onCloseAutoFocus={returnFocus}>
         <DrawerHeader>
           <DrawerTitle className="wrap-anywhere">{title}</DrawerTitle>
           <DrawerDescription className="sr-only">{t("detail.title")}</DrawerDescription>

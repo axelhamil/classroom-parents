@@ -9,7 +9,47 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { ChecklistItemForm } from "../forms/checklist-item-form";
-import { useChecklist } from "../hooks/use-checklist";
+import { type Checklist as ChecklistState, useChecklist } from "../hooks/use-checklist";
+
+export interface ChecklistRowsProps {
+  checklist: ChecklistState;
+  removable?: boolean;
+}
+
+export function ChecklistRows({ checklist, removable = false }: ChecklistRowsProps) {
+  const { t } = useTranslation("events");
+  const prefix = useId();
+
+  return (
+    <Checklist>
+      {checklist.items.map((item) => {
+        const id = `${prefix}-${item.id}`;
+
+        return (
+          <ChecklistItem key={item.id}>
+            <Checkbox
+              id={id}
+              checked={item.done}
+              onCheckedChange={(checked) => checklist.toggle(item.id, checked === true)}
+            />
+            <Label htmlFor={id}>{item.label}</Label>
+            {removable && (
+              <IconButton
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                label={t("prepare.remove", { item: item.label })}
+                onClick={() => checklist.remove(item.id)}
+              >
+                <XIcon aria-hidden />
+              </IconButton>
+            )}
+          </ChecklistItem>
+        );
+      })}
+    </Checklist>
+  );
+}
 
 export interface PrepareChecklistProps {
   event: Pick<EventItem, "id" | "category">;
@@ -38,33 +78,7 @@ export function PrepareChecklist({ event }: PrepareChecklistProps) {
         )}
       </div>
       <TypographyMuted>{total > 0 ? t("prepare.description") : t("prepare.empty")}</TypographyMuted>
-      {total > 0 && (
-        <Checklist>
-          {checklist.items.map((item) => {
-            const id = `${titleId}-${item.id}`;
-
-            return (
-              <ChecklistItem key={item.id}>
-                <Checkbox
-                  id={id}
-                  checked={item.done}
-                  onCheckedChange={(checked) => checklist.toggle(item.id, checked === true)}
-                />
-                <Label htmlFor={id}>{item.label}</Label>
-                <IconButton
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  label={t("prepare.remove", { item: item.label })}
-                  onClick={() => checklist.remove(item.id)}
-                >
-                  <XIcon aria-hidden />
-                </IconButton>
-              </ChecklistItem>
-            );
-          })}
-        </Checklist>
-      )}
+      {total > 0 && <ChecklistRows checklist={checklist} removable />}
       <ChecklistItemForm onAdd={checklist.add} />
     </section>
   );

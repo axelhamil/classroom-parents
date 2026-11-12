@@ -11,6 +11,7 @@ export function useWeekEvents(now: Date) {
   const weekGoesOn =
     query.hasNextPage &&
     !query.isFetchingNextPage &&
+    !query.isFetchNextPageError &&
     last !== undefined &&
     isInWeek(last.deadlineDate, now);
   const { fetchNextPage } = query;

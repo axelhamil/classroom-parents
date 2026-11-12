@@ -1,4 +1,5 @@
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
+import { clearUserStorage } from "@packages/web-kit/storage/use-stored-value";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -21,6 +22,8 @@ export function useSignOut() {
     },
     onSuccess: () => {
       toastSuccess(t("userMenu.signedOutToast"));
+      const signedOut = queryClient.getQueryData(sessionQueryOptions.queryKey);
+      if (signedOut) clearUserStorage(signedOut.user.id);
       queryClient.setQueryData(sessionQueryOptions.queryKey, null);
 
       broadcastAuthChange({ identityChanged: true });

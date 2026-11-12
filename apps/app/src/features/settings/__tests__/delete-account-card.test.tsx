@@ -77,6 +77,7 @@ describe("DeleteAccountCard", () => {
 
     it("when the parent confirms, then the page shows the scheduled deletion at once, even while the session cookie still says otherwise", async () => {
       const calls = givenServer(null);
+      localStorage.setItem("user:user-1:family:child", "null");
       await renderSettingsDeletion();
 
       await confirmDeletion();
@@ -86,6 +87,7 @@ describe("DeleteAccountCard", () => {
       expect(
         calls.filter((call) => call.method === "POST").map((call) => call.url.pathname),
       ).toEqual(["/me/delete"]);
+      expect(localStorage.getItem("user:user-1:family:child")).toBeNull();
     });
 
     it("given a session older than 24 hours, when the parent confirms, then it asks to sign in again with Google and sends them back to the settings", async () => {

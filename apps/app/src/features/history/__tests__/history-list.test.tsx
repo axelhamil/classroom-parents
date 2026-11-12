@@ -87,6 +87,14 @@ describe("Accueil, tab Passées", () => {
     ).toBe("true");
   });
 
+  it("an old /history link keeps its filters", async () => {
+    givenHistory([]);
+    const router = await renderAppAt("/history?category=swimming");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    expect(router.state.location.search).toEqual({ tab: "history", category: "swimming" });
+  });
+
   it("given 100 past events, then only a window of rows is rendered", async () => {
     givenHistory(
       Array.from({ length: 100 }, (_, index) =>

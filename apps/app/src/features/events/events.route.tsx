@@ -1,7 +1,7 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { DateTab } from "@packages/ui/components/ui/date-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@packages/ui/components/ui/tabs";
-import { useStoredValue } from "@packages/web-kit/storage/use-stored-value";
+import { userStorageKey, useStoredValue } from "@packages/web-kit/storage/use-stored-value";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { HourglassIcon, UsersRoundIcon } from "lucide-react";
@@ -28,8 +28,10 @@ import { FamilyRow } from "./components/family-row";
 import { ReviewCard } from "./components/review-card";
 import { SundayPanel } from "./components/sunday-panel";
 import { TonightCard } from "./components/tonight-card";
+import { WeekShareButton } from "./components/week-share-button";
 import { WeekView } from "./components/week-view";
 import { HOME_TABS, type HomeSearch, type HomeTab, homeSearchSchema } from "./events.schema";
+import { useNow } from "./hooks/use-now";
 import { useWeekEvents } from "./hooks/use-week-events";
 import {
   firstNameOf,
@@ -55,7 +57,7 @@ function HomePage() {
   const { user } = Route.useRouteContext();
   const search = Route.useSearch();
   const router = useRouter();
-  const now = new Date();
+  const now = useNow();
   const today = schoolToday(now);
   const todayParts = wallDateParts(today);
   const dates = weekDates(now);
@@ -143,7 +145,7 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const [stored, setStored] = useStoredValue(
-    `family:child:${user.id}`,
+    userStorageKey(user.id, "family:child"),
     SELECTED_CHILD_SCHEMA,
     null,
   );
@@ -151,7 +153,9 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   const childId = family.some((child) => child.id === requested) ? requested : null;
   const filters = { category: search.category ?? null, childId };
   const tab = search.tab ?? "week";
-  const review = useQuery(reviewEventsQueryOptions(filters));
+  const review = useQuery(
+    reviewEventsQueryOptions(tab === "week" ? { category: null, childId } : filters),
+  );
   const week = useWeekEvents(now);
   const weekEvents = (week.data?.pages.flatMap((page) => page.items) ?? []).filter((event) =>
     isInWeek(event.deadlineDate, now),
@@ -214,7 +218,12 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
                 {isSundayEvening(now) ? (
                   <SundayPanel days={days} family={family} now={now} />
                 ) : (
-                  tonight.length > 0 && <TonightCard events={tonight} family={family} />
+                  <>
+                    {tonight.length > 0 && <TonightCard events={tonight} family={family} />}
+                    <div className="flex justify-end">
+                      <WeekShareButton days={days} family={family} now={now} />
+                    </div>
+                  </>
                 )}
                 {weekEvents.length === 0 && isFirstSyncRunning(family) ? (
                   <BoardEmpty

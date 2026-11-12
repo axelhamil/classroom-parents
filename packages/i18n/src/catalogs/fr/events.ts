@@ -40,6 +40,8 @@ export default {
     count_zero: "Rien de prévu",
     count_one: "{{count}} échéance",
     count_other: "{{count}} échéances",
+    toSign: "À signer",
+    toPrepare: "À acheter ou préparer",
   },
   list: {
     title: "Échéances",

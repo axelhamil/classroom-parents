@@ -31,6 +31,8 @@ describe("SignOutCard", () => {
     const subscription = fakeSubscription(HERE);
     givenPushBrowser({ permission: "granted", existing: subscription });
     rememberPushOwner({ userId: "user-1", endpoint: HERE });
+    localStorage.setItem("user:user-1:checklist:event-1", "{}");
+    localStorage.setItem("user:user-2:checklist:event-1", "{}");
     const calls = stubApi(
       byRoute({
         "GET /push/status": () => json({ live: 1 }),
@@ -58,5 +60,7 @@ describe("SignOutCard", () => {
     expect(writes[0]?.body).toEqual({ endpoint: HERE });
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
     expect(storedPushOwner()).toBeUndefined();
+    expect(localStorage.getItem("user:user-1:checklist:event-1")).toBeNull();
+    expect(localStorage.getItem("user:user-2:checklist:event-1")).toBe("{}");
   });
 });

@@ -1,5 +1,5 @@
-import { useMemo, useSyncExternalStore } from "react";
-import type { z } from "zod";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { z } from "zod";
 
 const listeners = new Map<string, Set<() => void>>();
 const unsavable = new Map<string, string>();
@@ -37,6 +37,44 @@ function parseStored<T>(raw: string | null, schema: z.ZodType<T>, fallback: T): 
   }
 }
 
+function notify(key: string): void {
+  for (const listener of listeners.get(key) ?? []) listener();
+}
+
+function storedKeys(): string[] {
+  try {
+    return Object.keys(window.localStorage);
+  } catch {
+    return [];
+  }
+}
+
+function removeRaw(key: string): boolean {
+  unsavable.delete(key);
+  try {
+    window.localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function userStorageKey(userId: string, name: string): string {
+  return `user:${userId}:${name}`;
+}
+
+export function clearUserStorage(userId: string): void {
+  const prefix = userStorageKey(userId, "");
+  const keys = [...new Set([...storedKeys(), ...unsavable.keys()])].filter((key) =>
+    key.startsWith(prefix),
+  );
+
+  for (const key of keys) {
+    removeRaw(key);
+    notify(key);
+  }
+}
+
 function writeStoredValue(key: string, value: unknown): void {
   const raw = JSON.stringify(value);
   try {
@@ -44,7 +82,7 @@ function writeStoredValue(key: string, value: unknown): void {
   } catch {
     unsavable.set(key, raw);
   }
-  for (const listener of listeners.get(key) ?? []) listener();
+  notify(key);
 }
 
 export function useStoredValue<T>(
@@ -60,4 +98,39 @@ export function useStoredValue<T>(
   const value = useMemo(() => parseStored(raw, schema, fallback), [raw, schema, fallback]);
 
   return [value, (next: T) => writeStoredValue(key, next)];
+}
+
+const RAW_VALUES = z.array(z.string().nullable());
+
+function splitKeys(joined: string): string[] {
+  return joined === "" ? [] : joined.split("\n");
+}
+
+export function useStoredValues<T>(
+  keys: readonly string[],
+  schema: z.ZodType<T>,
+  fallback: T,
+): T[] {
+  const joined = keys.join("\n");
+  const subscribeAll = useCallback(
+    (listener: () => void) => {
+      const unsubscribes = splitKeys(joined).map((key) => subscribe(key, listener));
+      return () => {
+        for (const unsubscribe of unsubscribes) unsubscribe();
+      };
+    },
+    [joined],
+  );
+  const raw = useSyncExternalStore(
+    subscribeAll,
+    () => JSON.stringify(splitKeys(joined).map(readRaw)),
+    () => null,
+  );
+
+  return useMemo(() => {
+    const values = raw === null ? [] : RAW_VALUES.parse(JSON.parse(raw));
+    return splitKeys(joined).map((_, index) =>
+      parseStored(values[index] ?? null, schema, fallback),
+    );
+  }, [raw, joined, schema, fallback]);
 }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { EVENT_BASE } from "../../../__tests__/event-fixtures";
@@ -102,6 +102,33 @@ describe("event detail, family helpers", () => {
 
     expect(await screen.findByText("Copié, prêt à coller dans un message")).toBeDefined();
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining(EVENT.title));
+  });
+
+  it("the shared text names the deadline, its date and a link", async () => {
+    const share = vi.fn(async (_payload: ShareData) => undefined);
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    givenEvent(EVENT, () => json({ customized: false, reminders: [] }));
+    await renderAppAt(DETAIL_PATH);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Partager" }));
+
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    const payload = share.mock.calls[0]?.[0];
+    expect(payload?.text).toContain(EVENT.title);
+    expect(payload?.text).toContain("Pour jeudi 19 novembre");
+    expect(payload?.url).toBe(`${window.location.origin}${DETAIL_PATH}`);
+    Reflect.deleteProperty(navigator, "share");
+  });
+
+  it("the checklist is stored under the signed-in parent", async () => {
+    givenEvent({ ...EVENT, category: "homework" }, () =>
+      json({ customized: false, reminders: [] }),
+    );
+    await renderAppAt(DETAIL_PATH);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Vérifier qu'il est fait" }));
+
+    expect(Object.keys(localStorage)).toEqual([`user:user-1:checklist:${EVENT.id}`]);
   });
 
   it("an event without a Classroom link offers no Classroom button", async () => {

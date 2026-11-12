@@ -3,6 +3,7 @@ export type ShareOutcome = "shared" | "copied" | "cancelled" | "failed";
 export interface SharedText {
   title: string;
   text: string;
+  url?: string;
 }
 
 function isAbort(error: unknown): boolean {
@@ -20,7 +21,9 @@ export async function shareOrCopy(payload: SharedText): Promise<ShareOutcome> {
   }
 
   try {
-    await navigator.clipboard.writeText(`${payload.title}\n${payload.text}`);
+    await navigator.clipboard.writeText(
+      payload.url ? `${payload.text}\n${payload.url}` : payload.text,
+    );
     return "copied";
   } catch {
     return "failed";

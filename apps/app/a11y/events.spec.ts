@@ -60,3 +60,39 @@ test.describe("upcoming events on a phone", () => {
       .toContain("swimming");
   });
 });
+
+test.describe("event overlay focus", () => {
+  test.use({ storageState: STORAGE_STATE });
+
+  test("the sheet gives focus back to the sticker that opened it on Escape", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+    await page.goto("/");
+
+    const sticker = page
+      .locator("[data-slot=week-day]")
+      .getByRole("link", { name: new RegExp(REVIEW_EVENT.title.slice(0, 30)) });
+    await sticker.focus();
+    await page.keyboard.press("Enter");
+
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+    expect(await sheet.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    await expect(sticker).toBeFocused();
+  });
+
+  test("the drawer takes focus on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+    await page.goto(`/?event=${REVIEW_EVENT.id}`);
+
+    const drawer = page.getByRole("dialog");
+    await expect(drawer).toBeVisible();
+    await expect
+      .poll(() => drawer.evaluate((el) => el.contains(document.activeElement)))
+      .toBe(true);
+  });
+});

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { EVENT_BASE } from "../../../__tests__/event-fixtures";
@@ -112,7 +112,7 @@ describe("Accueil, the family week", () => {
     await waitFor(() =>
       expect(eventRequests(again).some((query) => query.get("childId") === HUGO.id)).toBe(true),
     );
-    expect(calls.length).toBeGreaterThan(0);
+    expect(eventRequests(calls).some((query) => query.get("childId") === HUGO.id)).toBe(true);
   });
 
   it("Sunday after 16:00 shows Préparer la semaine", async () => {
@@ -140,5 +140,100 @@ describe("Accueil, the family week", () => {
 
     await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
     expect(screen.queryByRole("heading", { name: "Préparer la semaine" })).toBeNull();
+  });
+
+  it("a failing week page is not fetched again until the parent retries", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const calls = stubApi(({ method, url }) => {
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname !== "/events" || method !== "GET") return undefined;
+      if (url.searchParams.get("status") === "needs_review") return json({ items: [] });
+      if (url.searchParams.get("cursor") === "page-2") return json({ code: "RATE_LIMITED" }, 429);
+      return json({ items: [deadline(1, "2026-11-13", "Piscine")], nextCursor: "page-2" });
+    });
+    const secondPage = () =>
+      eventRequests(calls).filter((query) => query.get("cursor") === "page-2").length;
+    await renderAppAt("/");
+
+    await screen.findByRole("button", { name: "Réessayer" }, { timeout: 4000 });
+    const afterFailure = secondPage();
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
+    expect(afterFailure).toBeGreaterThan(0);
+    expect(secondPage()).toBe(afterFailure);
+  }, 10_000);
+
+  it("À vérifier on Semaine ignores a category picked on À venir", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const calls = givenFamily([CHILD], []);
+    await renderAppAt("/?category=swimming");
+
+    await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
+    await waitFor(() =>
+      expect(
+        eventRequests(calls).filter((query) => query.get("status") === "needs_review"),
+      ).not.toHaveLength(0),
+    );
+    const reviews = eventRequests(calls).filter((query) => query.get("status") === "needs_review");
+    expect(reviews.every((query) => query.get("category") === null)).toBe(true);
+  });
+
+  it("Ce soir lists what to prepare for tomorrow", async () => {
+    at("2026-11-12T17:00:00.000Z");
+    givenFamily([CHILD], [deadline(1, "2026-11-13", "Piscine", { category: "swimming" })]);
+    await renderAppAt("/");
+
+    const tonight = await screen.findByRole("region", { name: "Ce soir" });
+
+    expect(within(tonight).getByRole("checkbox", { name: "Maillot de bain" })).toBeDefined();
+    fireEvent.click(within(tonight).getByRole("checkbox", { name: "Serviette" }));
+    expect(
+      within(tonight).getByRole("checkbox", { name: "Serviette" }).getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("the week can be shared on any day", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenFamily([CHILD], [deadline(1, "2026-11-13", "Piscine", { category: "swimming" })]);
+    await renderAppAt("/");
+
+    expect(await screen.findByRole("button", { name: "Partager la semaine" })).toBeDefined();
+  });
+
+  it("Sunday lists what to sign and what to buy or prepare", async () => {
+    at("2026-11-15T16:30:00.000Z");
+    givenFamily(
+      [CHILD],
+      [
+        deadline(1, "2026-11-16", "Autorisation de sortie", { category: "document_due" }),
+        deadline(2, "2026-11-19", "Piscine", { category: "swimming" }),
+      ],
+    );
+    await renderAppAt("/");
+
+    const sign = await screen.findByRole("region", { name: "À signer" });
+    const prepare = screen.getByRole("region", { name: "À acheter ou préparer" });
+
+    expect(sign.textContent).toContain("Autorisation de sortie");
+    expect(sign.textContent).not.toContain("Piscine");
+    expect(prepare.textContent).toContain("Maillot de bain");
+    expect(prepare.textContent).not.toContain("Signer le document");
+  });
+
+  it("Accueil switches to Préparer la semaine at 16:00 on Sunday without a reload", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(new Date("2026-11-15T14:59:30.000Z"));
+    givenFamily([CHILD], [deadline(1, "2026-11-16", "Piscine", { category: "swimming" })]);
+    await renderAppAt("/");
+
+    await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
+    expect(screen.queryByRole("heading", { name: "Préparer la semaine" })).toBeNull();
+
+    act(() => {
+      vi.setSystemTime(new Date("2026-11-15T15:00:30.000Z"));
+      vi.advanceTimersByTime(60_000);
+    });
+
+    expect(await screen.findByRole("heading", { name: "Préparer la semaine" })).toBeDefined();
   });
 });
