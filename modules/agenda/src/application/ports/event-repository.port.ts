@@ -30,6 +30,11 @@ export interface EventCursor {
   id: string;
 }
 
+export interface ConfirmedWindow {
+  since: Date;
+  now: Date;
+}
+
 export interface EventFilter {
   childIds?: string[];
   categories?: EventCategoryValue[];
@@ -100,4 +105,11 @@ export interface IEventRepository {
     filter: EventFilter,
     now: Date,
   ): Promise<Result<EventPage, AgendaError>>;
+
+  listConfirmedSince(
+    userId: string,
+    childIds: string[],
+    window: ConfirmedWindow,
+    limit: number,
+  ): Promise<Result<AgendaEvent[], AgendaError>>;
 }

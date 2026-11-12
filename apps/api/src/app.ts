@@ -2,6 +2,8 @@ import { createEventsRoutes } from "@modules/agenda/infrastructure/http/events.r
 import { createAlertsRoutes } from "@modules/alerts/infrastructure/http/alerts.routes";
 import { createPushRoutes } from "@modules/alerts/infrastructure/http/push.routes";
 import { createRemindersRoutes } from "@modules/alerts/infrastructure/http/reminders.routes";
+import { createCalendarRoutes } from "@modules/calendar-feed/infrastructure/http/calendar.routes";
+import { createCalendarFeedRoutes } from "@modules/calendar-feed/infrastructure/http/calendar-feed.routes";
 import { createChildrenRoutes } from "@modules/children/infrastructure/http/children.routes";
 import { createClassroomSyncRoutes } from "@modules/classroom-sync/infrastructure/http/sync.routes";
 import type { RouteGuard } from "@packages/http/route-guards";
@@ -16,6 +18,7 @@ import { healthRoutes } from "./modules/health/routes";
 import { createRgpdRoutes } from "./modules/rgpd/routes";
 import { FRONT_ORIGINS } from "./shared/env";
 import { type AuthVariables, sessionMiddleware } from "./shared/middleware/auth.middleware";
+import { calendarFeedRateLimit, globalRateLimit } from "./shared/middleware/calendar-rate-limit";
 import { requireCsrf } from "./shared/middleware/csrf.middleware";
 import { createErrorHandler } from "./shared/middleware/error.middleware";
 import { httpLogger } from "./shared/middleware/logger.middleware";
@@ -27,7 +30,6 @@ import {
   AUTH_SIGN_IN_POLICY,
   AUTH_SIGN_UP_POLICY,
   AUTH_VERIFY_EMAIL_POLICY,
-  GLOBAL_POLICY,
   type PolicyConfig,
 } from "./shared/middleware/rate-limit.policies";
 import { runWithRequestContext } from "./shared/request-context";
@@ -49,6 +51,8 @@ const routeDeps = di.scope(
         { limiter: c.IRateLimiter, outbox: c.IOutboxRepository },
         ACCOUNT_DELETE_POLICY,
       ),
+    calendarFeedRateLimit: (c): RouteGuard =>
+      calendarFeedRateLimit({ limiter: c.IRateLimiter, outbox: c.IOutboxRepository }),
   },
   { name: "routes" },
 );
@@ -79,6 +83,8 @@ const CSRF_GUARDED_PATHS = [
   "/push/*",
   "/reminders",
   "/reminders/*",
+  "/calendar-feed",
+  "/calendar-feed/*",
 ] as const;
 
 // BetterAuth's credential and token-consuming endpoints, each on its own tight,
@@ -123,7 +129,7 @@ app.use(
 
 app.use("*", sessionMiddleware);
 
-app.use("*", requireRateLimit({ limiter: di.IRateLimiter }, GLOBAL_POLICY));
+app.use("*", globalRateLimit({ limiter: di.IRateLimiter }));
 
 const csrf = requireCsrf({ outbox: di.IOutboxRepository, allowedOrigins });
 for (const path of CSRF_GUARDED_PATHS) app.use(path, csrf);
@@ -142,6 +148,8 @@ const routes = app
   .route("/events", createAlertsRoutes(routeDeps))
   .route("/push", createPushRoutes(routeDeps))
   .route("/reminders", createRemindersRoutes(routeDeps))
+  .route("/calendar-feed", createCalendarFeedRoutes(routeDeps))
+  .route("/calendar", createCalendarRoutes(routeDeps))
   .route("/stream", createUserStreamRoutes(routeDeps));
 
 app.onError(createErrorHandler(di.IInstrumentation));

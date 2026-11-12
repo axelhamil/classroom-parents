@@ -183,6 +183,9 @@ importers:
       '@modules/alerts':
         specifier: workspace:*
         version: link:modules/alerts
+      '@modules/calendar-feed':
+        specifier: workspace:*
+        version: link:modules/calendar-feed
       '@modules/children':
         specifier: workspace:*
         version: link:modules/children
@@ -225,6 +228,9 @@ importers:
       '@modules/alerts':
         specifier: workspace:*
         version: link:../../modules/alerts
+      '@modules/calendar-feed':
+        specifier: workspace:*
+        version: link:../../modules/calendar-feed
       '@modules/children':
         specifier: workspace:*
         version: link:../../modules/children
@@ -547,6 +553,52 @@ importers:
       '@types/web-push':
         specifier: ^3.6.4
         version: 3.6.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  modules/calendar-feed:
+    dependencies:
+      '@packages/ddd-kit':
+        specifier: workspace:*
+        version: link:../../packages/ddd-kit
+      '@packages/drizzle':
+        specifier: workspace:*
+        version: link:../../packages/drizzle
+      '@packages/events':
+        specifier: workspace:*
+        version: link:../../packages/events
+      '@packages/http':
+        specifier: workspace:*
+        version: link:../../packages/http
+      '@packages/outbox':
+        specifier: workspace:*
+        version: link:../../packages/outbox
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.4)(kysely@0.29.6)(pg@8.23.1)
+      hono:
+        specifier: ^4.13.14
+        version: 4.13.14
+      inwire:
+        specifier: ^4.0.1
+        version: 4.0.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@packages/test':
+        specifier: workspace:*
+        version: link:../../packages/test
+      '@packages/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/bun':
+        specifier: ^1.4.4
+        version: 1.4.4
+      ical.js:
+        specifier: 2.2.1
+        version: 2.2.1
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -4678,6 +4730,9 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  ical.js@2.2.1:
+    resolution: {integrity: sha512-yK/UlPbEs316igb/tjRgbFA8ZV75rCsBJp/hWOatpyaPNlgw0dGDmU+FoicOcwX4xXkeXOkYiOmCqNPFpNPkQg==}
 
   ignore@7.0.12:
     resolution: {integrity: sha512-/8UvqAPU9DGTI9k4mxtf49U37Isfwr8Uts96+SBHIkFxPJnHS0Ew4f00sM4Scd8V8EjM0jUNtVDdv1kPdt35lg==}
@@ -9009,6 +9064,8 @@ snapshots:
   i18next@26.5.11(typescript@7.0.2):
     optionalDependencies:
       typescript: 7.0.2
+
+  ical.js@2.2.1: {}
 
   ignore@7.0.12: {}
 

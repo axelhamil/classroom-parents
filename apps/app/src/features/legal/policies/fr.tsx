@@ -49,6 +49,12 @@ export function PrivacyPolicyBody(): ReactElement {
             notifications de chacun de vos appareils et le type de navigateur.
           </li>
           <li>
+            Votre lien d'agenda, si vous en créez un : une empreinte de son secret (jamais le lien
+            lui-même), les enfants qu'il inclut et l'heure de sa dernière lecture. L'agenda que vous
+            y abonnez (Google, Apple, Outlook) lit vos échéances par ce lien et en garde une copie
+            selon ses propres règles.
+          </li>
+          <li>
             Les sessions de connexion (adresse IP, navigateur) et les e-mails que nous vous
             envoyons.
           </li>
@@ -147,6 +153,10 @@ export function PrivacyPolicyBody(): ReactElement {
           <li>
             Abonnement aux notifications d'un appareil : jusqu'à sa désactivation, votre déconnexion
             de cet appareil ou son expiration.
+          </li>
+          <li>
+            Lien d'agenda : jusqu'à sa révocation, son remplacement ou la suppression de votre
+            compte ; il cesse alors aussitôt de fonctionner.
           </li>
         </TypographyList>
       </section>

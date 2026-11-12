@@ -20,6 +20,13 @@ import { parseRange } from "./event-fields";
 import { visibleEvent } from "./visible-event";
 
 type ListError = AgendaError | AppError;
+export interface ConfirmedSinceRequest {
+  childIds?: string[];
+  since: Date;
+  now: Date;
+  limit: number;
+}
+
 type PageReader = (filter: EventFilter) => Promise<Result<EventPage, AgendaError>>;
 
 export interface CalendarQuery {
@@ -114,6 +121,30 @@ export class EventQueryService {
         found.map(toEventDeadlineDto),
       ),
     );
+  }
+
+  async confirmedSince(
+    userId: string,
+    request: ConfirmedSinceRequest,
+  ): Promise<Result<EventDto[], ListError>> {
+    return traced(this.instrumentation, "EventQueryService > confirmedSince", async () => {
+      const visible = await this.visibleFilter(userId, {
+        childIds: request.childIds,
+        limit: request.limit,
+      });
+      if (visible.isFailure) return Result.fail(visible.getError());
+      if (visible.getValue().isNone()) return Result.ok([]);
+
+      const childIds = visible.getValue().unwrap().childIds ?? [];
+      return (
+        await this.events.listConfirmedSince(
+          userId,
+          childIds,
+          { since: request.since, now: request.now },
+          request.limit,
+        )
+      ).map((events) => events.map(toEventDto));
+    });
   }
 
   private async listVisible(

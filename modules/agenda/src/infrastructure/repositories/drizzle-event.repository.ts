@@ -22,6 +22,7 @@ import { agendaEvent } from "../../../schemas/event.schema";
 import {
   type AgendaError,
   type CalendarFilter,
+  type ConfirmedWindow,
   type CourseDay,
   type CourseworkCourses,
   type EventFilter,
@@ -46,7 +47,7 @@ type EventRow = typeof agendaEvent.$inferSelect;
 
 type Order = "asc" | "desc";
 
-type Read = "plain" | "locked" | "chronological";
+type Read = "plain" | "locked" | "chronological" | "latest";
 
 function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const id = EventId.parse(row.id);
@@ -321,19 +322,23 @@ export class DrizzleEventRepository implements IEventRepository {
     method: string,
     where: SQL | undefined,
     read: Read,
+    limit?: number,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: `DrizzleEventRepository > ${method}` },
       async () => {
         try {
-          const select = exec.select().from(agendaEvent).where(where);
-          const query =
+          const select = exec.select().from(agendaEvent).where(where).$dynamic();
+          const ordered =
             read === "locked"
               ? select.for("update")
               : read === "chronological"
                 ? select.orderBy(asc(agendaEvent.deadlineAt), asc(agendaEvent.id))
-                : select;
+                : read === "latest"
+                  ? select.orderBy(desc(agendaEvent.deadlineAt), desc(agendaEvent.id))
+                  : select;
+          const query = limit === undefined ? ordered : ordered.limit(limit);
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
@@ -437,6 +442,43 @@ export class DrizzleEventRepository implements IEventRepository {
     now: Date,
   ): Promise<Result<EventPage, AgendaError>> {
     return this.page("listHistory", [lt(agendaEvent.deadlineAt, now)], userId, filter, "desc");
+  }
+
+  async listConfirmedSince(
+    userId: string,
+    childIds: string[],
+    window: ConfirmedWindow,
+    limit: number,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    const confirmed = () =>
+      and(
+        ownedAlive(userId),
+        inArray(agendaEvent.childId, childIds),
+        eq(agendaEvent.status, "confirmed"),
+        notShadowedByCoursework(resolveExecutor()),
+      );
+    const upcoming = await this.selectMany(
+      "listConfirmedSince",
+      and(confirmed(), gte(agendaEvent.deadlineAt, window.now)),
+      "chronological",
+      limit,
+    );
+    if (upcoming.isFailure) return upcoming;
+
+    const room = limit - upcoming.getValue().length;
+    if (room <= 0) return upcoming;
+
+    const history = await this.selectMany(
+      "listConfirmedSince",
+      and(
+        confirmed(),
+        gte(agendaEvent.deadlineAt, window.since),
+        lt(agendaEvent.deadlineAt, window.now),
+      ),
+      "latest",
+      room,
+    );
+    return history.map((past) => [...past.reverse(), ...upcoming.getValue()]);
   }
 
   private async page(

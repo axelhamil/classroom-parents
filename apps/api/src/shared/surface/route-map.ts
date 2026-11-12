@@ -8,7 +8,8 @@ import type { RouteKey } from "./back-routes";
 export type UiLessReason =
   | "infra-probe" // health/readiness, called by the platform
   | "library-owned" // opaque surface, route table owned by a dependency
-  | "dormant-by-design"; // shipped ready for a consumer that does not exist yet
+  | "dormant-by-design" // shipped ready for a consumer that does not exist yet
+  | "external-client"; // fetched by a third-party client holding its own secret, never by the front
 
 export type SurfaceEntry = { consumer: string } | { uiLess: UiLessReason };
 
@@ -17,6 +18,10 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /children/:id": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
   "DELETE /events/:id": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "DELETE /me/delete": { consumer: "apps/app/src/shared/api/mutations/cancel-account-deletion.ts" },
+  "GET /calendar-feed": { uiLess: "dormant-by-design" },
+  "POST /calendar-feed": { uiLess: "dormant-by-design" },
+  "DELETE /calendar-feed": { uiLess: "dormant-by-design" },
+  "GET /calendar/:file": { uiLess: "external-client" },
   "GET /children": { consumer: "apps/app/src/shared/api/queries/children.ts" },
   "GET /children/link-config": {
     consumer: "apps/app/src/features/children/api/children.queries.ts",

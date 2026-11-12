@@ -1,4 +1,5 @@
 import type { AlertsSettings } from "@modules/alerts/application/config/alerts-settings";
+import type { CalendarFeedSettings } from "@modules/calendar-feed/application/config/calendar-feed-settings";
 import type { ChildrenSettings } from "@modules/children/application/config/children-settings";
 import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { defineModule } from "inwire";
@@ -9,6 +10,7 @@ import type { env } from "../shared/env";
 type SettingsSource = Pick<
   typeof env,
   | "APP_ORIGIN"
+  | "BETTER_AUTH_URL"
   | "SWEEP_DEADLINE_MS"
   | "RGPD_GRACE_PERIOD_DAYS"
   | "RGPD_SWEEP_BATCH_SIZE"
@@ -40,6 +42,10 @@ export const apiSettings = (source: SettingsSource) => {
     vapidSubject: source.VAPID_SUBJECT ?? "",
     emailFrom: source.RESEND_FROM ?? "",
   };
+  const calendarFeedSettings: CalendarFeedSettings = {
+    feedOrigin: source.BETTER_AUTH_URL,
+    appHost: new URL(source.APP_ORIGIN).host,
+  };
   const extractionSettings = {
     anthropicApiKey: source.ANTHROPIC_API_KEY ?? "",
   };
@@ -49,6 +55,7 @@ export const apiSettings = (source: SettingsSource) => {
       .add("rgpdSettings", (): RgpdSettings => rgpdSettings)
       .add("childrenSettings", (): ChildrenSettings => childrenSettings)
       .add("extractionSettings", () => extractionSettings)
-      .add("alertsSettings", (): AlertsSettings => alertsSettings),
+      .add("alertsSettings", (): AlertsSettings => alertsSettings)
+      .add("calendarFeedSettings", (): CalendarFeedSettings => calendarFeedSettings),
   );
 };

@@ -5,6 +5,7 @@ import type { EventIngestService } from "@modules/agenda/application/services/ev
 import type { EventQueryService } from "@modules/agenda/application/services/event-query.service";
 import type { IEventDeadlines } from "@modules/alerts/application/ports/event-deadlines.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
+import type { IFeedEntries } from "@modules/calendar-feed/application/ports/feed-entries.port";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
 import type { ChildSyncService } from "@modules/children/application/services/child-sync.service";
@@ -18,7 +19,9 @@ import type { IManualSyncGate } from "@modules/classroom-sync/application/ports/
 import type { SyncError } from "@modules/classroom-sync/application/sync-error";
 import type { ExtractionService } from "@modules/extraction/application/services/extraction.service";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { frCatalog } from "@packages/i18n";
 import type { IChildConnections } from "../modules/rgpd/application/ports/child-connections.port";
+import type { FeedAlarmsQuery } from "../queries/feed-alarms.query";
 
 type Children<K extends keyof ChildConnectionService> = Pick<ChildConnectionService, K>;
 type ChildSync<K extends keyof ChildSyncService> = Pick<ChildSyncService, K>;
@@ -208,5 +211,50 @@ export function alertPlannerFor(
     planDefault: (deadline) => planning().planDefault(deadline),
     replan: (deadline) => planning().replan(deadline),
     cancel: (eventId, actorUserId) => planning().cancel(eventId, actorUserId),
+  };
+}
+
+const FEED_EVENTS_MAX = 500;
+
+export function feedEntriesFor(
+  agenda: Pick<EventQueryService, "confirmedSince">,
+  children: Children<"list">,
+  alarms: Pick<FeedAlarmsQuery, "alarmsOf">,
+): IFeedEntries {
+  return {
+    list: async ({ userId, childIds, since, now }) => {
+      const events = await agenda.confirmedSince(userId, {
+        childIds: childIds.toUndefined(),
+        since,
+        now,
+        limit: FEED_EVENTS_MAX,
+      });
+      if (events.isFailure) return Result.fail(events.getError());
+      if (events.getValue().length === 0) return Result.ok([]);
+
+      const listed = await children.list(userId);
+      if (listed.isFailure) return Result.fail(listed.getError());
+
+      const rings = await alarms.alarmsOf(
+        userId,
+        events.getValue().map(({ id }) => id),
+      );
+      if (rings.isFailure) return Result.fail(rings.getError());
+
+      const labels = new Map(listed.getValue().map(({ id, label }) => [id, label]));
+      return Result.ok(
+        events.getValue().map((event) => ({
+          eventId: event.id,
+          childLabel: labels.get(event.childId) ?? "",
+          title: event.title,
+          description: event.description,
+          categoryLabel: frCatalog.events.categories[event.category],
+          deadlineDate: event.deadlineDate,
+          deadlineTime: Option.fromNullable(event.deadlineTime),
+          classroomUrl: Option.fromNullable(event.announcementUrl),
+          alarmsAt: rings.getValue().get(event.id) ?? [],
+        })),
+      );
+    },
   };
 }

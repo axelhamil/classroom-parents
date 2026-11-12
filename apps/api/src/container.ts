@@ -3,6 +3,7 @@ import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-plan
 import { alertsModule } from "@modules/alerts/alerts.module";
 import type { IAlertContextReader } from "@modules/alerts/application/ports/alert-context-reader.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
+import { calendarFeedModule } from "@modules/calendar-feed/calendar-feed.module";
 import { childrenModule } from "@modules/children/children.module";
 import { classroomSyncModule } from "@modules/classroom-sync/classroom-sync.module";
 import { extractionModule } from "@modules/extraction/extraction.module";
@@ -39,6 +40,7 @@ import {
   dueChildrenFor,
   eventDeadlinesFor,
   eventIngestFor,
+  feedEntriesFor,
   manualSyncGateFor,
   visibleChildrenFor,
 } from "./composition/bindings";
@@ -47,6 +49,7 @@ import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import { rgpdModule } from "./modules/rgpd/module";
 import { AlertContextQuery } from "./queries/alert-context.query";
+import { FeedAlarmsQuery } from "./queries/feed-alarms.query";
 import { authSecretKey } from "./shared/auth/auth-secrets";
 import { googleTokenSealing } from "./shared/auth/token-sealing";
 import type { OutermostUnitOfWork } from "./shared/auth/unit-of-work-adapter";
@@ -171,6 +174,15 @@ export const di = container()
     (c): IAlertContextReader => new AlertContextQuery(c.IInstrumentation, env.APP_ORIGIN),
   )
   .addModule(alertsModule)
+  .add("IFeedChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
+  .add("IFeedEntries", (c) =>
+    feedEntriesFor(
+      c.EventQueryService,
+      c.ChildConnectionService,
+      new FeedAlarmsQuery(c.IInstrumentation),
+    ),
+  )
+  .addModule(calendarFeedModule)
   .addModule(extractionModule)
   .add("IChildAccessTokens", (c) => childAccessTokensFor(c.GoogleAccessService))
   .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))

@@ -1,0 +1,35 @@
+{
+  "name": "@modules/calendar-feed",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./calendar-feed.module": "./src/calendar-feed.module.ts",
+    "./application/*": "./src/application/*.ts",
+    "./schemas/*": "./schemas/*.ts",
+    "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts"
+  },
+  "scripts": {
+    "test": "bun test --isolate",
+    "type-check": "tsc --noEmit",
+    "check": "biome check ."
+  },
+  "dependencies": {
+    "@packages/ddd-kit": "workspace:*",
+    "@packages/drizzle": "workspace:*",
+    "@packages/events": "workspace:*",
+    "@packages/http": "workspace:*",
+    "@packages/outbox": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.14",
+    "inwire": "^4.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@packages/test": "workspace:*",
+    "@packages/typescript-config": "workspace:*",
+    "@types/bun": "^1.4.4",
+    "ical.js": "2.2.1",
+    "typescript": "^7.0.2"
+  }
+}

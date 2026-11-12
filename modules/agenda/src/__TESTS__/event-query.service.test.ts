@@ -224,3 +224,40 @@ describe("get", () => {
     expect(result.getValue().isNone()).toBe(true);
   });
 });
+
+describe("confirmedSince", () => {
+  const SINCE = new Date("2026-10-11T09:00:00.000Z");
+
+  it("given a calendar scoped to a visible child and a child being disconnected, then only the visible child is read", async () => {
+    repo.listConfirmedSince.mockResolvedValue(
+      Result.ok<AgendaEvent[], AgendaError>([agendaEvent()]),
+    );
+
+    const result = await service.confirmedSince(PARENT, {
+      childIds: [CHILD, LEAVING],
+      since: SINCE,
+      now: NOW,
+      limit: 500,
+    });
+
+    expect(repo.listConfirmedSince).toHaveBeenCalledWith(
+      PARENT,
+      [CHILD],
+      { since: SINCE, now: NOW },
+      500,
+    );
+    expect(result.getValue()).toHaveLength(1);
+  });
+
+  it("given a calendar scoped only to children no longer visible, then nothing is read", async () => {
+    const result = await service.confirmedSince(PARENT, {
+      childIds: [LEAVING],
+      since: SINCE,
+      now: NOW,
+      limit: 500,
+    });
+
+    expect(result.getValue()).toEqual([]);
+    expect(repo.listConfirmedSince).not.toHaveBeenCalled();
+  });
+});
