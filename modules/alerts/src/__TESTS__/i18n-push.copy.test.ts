@@ -14,17 +14,19 @@ function context(n: number, childLabel = "Léa"): AlertContext {
 }
 
 const copy = new I18nPushCopy();
+const DETAILS = { details: true };
+const DISCREET = { details: false };
 
 describe("I18nPushCopy", () => {
   it("given one alert, then the title is the event and the body names the child and the deadline", async () => {
-    expect(await copy.forAlerts([context(1)])).toEqual({
+    expect(await copy.forAlerts([context(1)], DETAILS)).toEqual({
       title: "Devoir 1",
       body: "Léa, échéance lundi 16 novembre, 8 h",
     });
   });
 
   it("given three alerts of one child, then the title counts them for that child and the body lists each", async () => {
-    expect(await copy.forAlerts([context(1), context(2), context(3)])).toEqual({
+    expect(await copy.forAlerts([context(1), context(2), context(3)], DETAILS)).toEqual({
       title: "3 échéances pour Léa",
       body: [
         "Devoir 1, lundi 16 novembre, 8 h",
@@ -35,7 +37,7 @@ describe("I18nPushCopy", () => {
   });
 
   it("given alerts of two children, then each line names its child", async () => {
-    const text = await copy.forAlerts([context(1), context(2, "Hugo")]);
+    const text = await copy.forAlerts([context(1), context(2, "Hugo")], DETAILS);
 
     expect(text.title).toBe("2 échéances pour vos enfants");
     expect(text.body).toBe(
@@ -44,9 +46,28 @@ describe("I18nPushCopy", () => {
   });
 
   it("given more alerts than a notification shows, then the last line counts the rest", async () => {
-    const text = await copy.forAlerts([1, 2, 3, 4, 5, 6].map((n) => context(n)));
+    const text = await copy.forAlerts(
+      [1, 2, 3, 4, 5, 6].map((n) => context(n)),
+      DETAILS,
+    );
 
     expect(text.body.split("\n")).toHaveLength(5);
     expect(text.body.split("\n").at(-1)).toBe("et 2 autres");
+  });
+
+  it("given a parent keeping details off the lock screen, then one alert shows the app name and its deadline only", async () => {
+    expect(await copy.forAlerts([context(1)], DISCREET)).toEqual({
+      title: "KeepUpKids",
+      body: "1 échéance lundi 16 novembre, 8 h",
+    });
+  });
+
+  it("given a parent keeping details off the lock screen, then a group names neither child nor title", async () => {
+    const text = await copy.forAlerts([context(1), context(2, "Hugo"), context(3)], DISCREET);
+
+    expect(text).toEqual({
+      title: "KeepUpKids",
+      body: "3 échéances à venir",
+    });
   });
 });

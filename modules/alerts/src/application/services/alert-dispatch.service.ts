@@ -26,7 +26,10 @@ import type {
 import type { IEventDeadlines } from "../ports/event-deadlines.port";
 import type { IPushCopy } from "../ports/push-copy.port";
 import type { IPushSender, PushMessage } from "../ports/push-sender.port";
-import type { IPushSubscriptionRepository } from "../ports/push-subscription-repository.port";
+import {
+  type IPushSubscriptionRepository,
+  LOCK_SCREEN_DETAILS_BY_DEFAULT,
+} from "../ports/push-subscription-repository.port";
 import { pushToParent } from "./push-fanout";
 
 export const PUSH_TTL_SECONDS = 2 * 3600;
@@ -220,11 +223,17 @@ export class AlertDispatchService {
       transactions: this.transactions,
       outbox: this.outbox,
     };
-    const text = await this.copy.forAlerts(group.map(({ context }) => context));
+    const userId = first.item.alert.get("userId");
+    const details = await this.subscriptions.lockScreenDetailsFor(userId);
+    if (details.isFailure) return Result.fail(details.getError());
+    const text = await this.copy.forAlerts(
+      group.map(({ context }) => context),
+      { details: details.getValue().unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT) },
+    );
     const { url, tag, topic } = addressing(group);
     const fanout = await pushToParent(
       ports,
-      first.item.alert.get("userId"),
+      userId,
       { ...text, url, tag },
       { ttlSeconds: PUSH_TTL_SECONDS, topic, urgency: "high" },
     );

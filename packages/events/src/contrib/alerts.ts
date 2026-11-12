@@ -24,6 +24,7 @@ export const alertsEvents = defineEventContribution({
     WEEKLY_DIGEST_MISSED: "alert.weekly_digest.missed",
     WEEKLY_DIGEST_PREFERENCE_CHANGED: "alert.weekly_digest_preference.changed",
     ALERT_QUIET_HOURS_CHANGED: "alert.quiet_hours.changed",
+    ALERT_LOCK_SCREEN_CHANGED: "alert.lock_screen.changed",
   },
   payloads: {
     "alert.alert.scheduled": AlertRef.extend({
@@ -86,6 +87,7 @@ export const alertsEvents = defineEventContribution({
       start: z.string(),
       end: z.string(),
     }),
+    "alert.lock_screen.changed": z.object({ userId: z.string(), details: z.boolean() }),
   },
   retention: {
     "alert.alert.scheduled": "operational",
@@ -105,6 +107,7 @@ export const alertsEvents = defineEventContribution({
     "alert.weekly_digest.missed": "operational",
     "alert.weekly_digest_preference.changed": "operational",
     "alert.quiet_hours.changed": "operational",
+    "alert.lock_screen.changed": "operational",
   },
   visibility: {
     "alert.alert.scheduled": "public",
@@ -124,6 +127,7 @@ export const alertsEvents = defineEventContribution({
     "alert.weekly_digest.missed": "public",
     "alert.weekly_digest_preference.changed": "public",
     "alert.quiet_hours.changed": "public",
+    "alert.lock_screen.changed": "public",
   },
   descriptions: {
     "alert.alert.scheduled":
@@ -157,5 +161,7 @@ export const alertsEvents = defineEventContribution({
       "A parent turned the Sunday summary of the coming week on or off.",
     "alert.quiet_hours.changed":
       "A parent changed the hours during which no alert rings; upcoming alerts were replanned around them.",
+    "alert.lock_screen.changed":
+      "A parent chose whether push notifications show their children's names and deadline titles on the lock screen.",
   },
 });

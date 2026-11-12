@@ -33,3 +33,9 @@ export interface PushStatusDto {
 export interface PushConfigDto {
   vapidPublicKey: string;
 }
+
+export interface LockScreenDto {
+  details: boolean;
+}
+
+export const lockScreenBodySchema = z.object({ details: z.boolean() });

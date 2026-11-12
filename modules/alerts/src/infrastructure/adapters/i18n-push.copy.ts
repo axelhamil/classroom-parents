@@ -1,17 +1,23 @@
 import { createI18n, DEFAULT_LOCALE, loadCatalog } from "@packages/i18n";
 import type { AlertContext } from "../../application/ports/alert-context-reader.port";
-import type { IPushCopy, PushText } from "../../application/ports/push-copy.port";
+import type { IPushCopy, PushCopyOptions, PushText } from "../../application/ports/push-copy.port";
 
 const GROUP_LINES_MAX = 4;
 
 export class I18nPushCopy implements IPushCopy {
-  async forAlerts(contexts: AlertContext[]): Promise<PushText> {
+  async forAlerts(contexts: AlertContext[], { details }: PushCopyOptions): Promise<PushText> {
     const i18n = await createI18n({
       locale: DEFAULT_LOCALE,
       resources: await loadCatalog(DEFAULT_LOCALE),
     });
     const t = i18n.getFixedT(DEFAULT_LOCALE, "push");
     const [only] = contexts;
+    if (!details)
+      return {
+        title: i18n.getFixedT(DEFAULT_LOCALE, "common")("brand"),
+        body: t("discreet.body", { count: contexts.length, deadline: only?.deadlineLabel ?? "" }),
+      };
+
     if (only && contexts.length === 1)
       return {
         title: only.eventTitle,

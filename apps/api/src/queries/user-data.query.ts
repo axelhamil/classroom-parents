@@ -1,7 +1,8 @@
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { DIGEST_ENABLED_BY_DEFAULT } from "@modules/alerts/application/ports/digest-audience.port";
+import { LOCK_SCREEN_DETAILS_BY_DEFAULT } from "@modules/alerts/application/ports/push-subscription-repository.port";
 import { alert } from "@modules/alerts/schemas/alert.schema";
-import { pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
+import { pushLockScreen, pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
 import {
   alertDefaultReminders,
   alertEventReminders,
@@ -87,6 +88,11 @@ export class UserDataQuery implements IUserDataReader {
           .from(pushSubscription)
           .where(eq(pushSubscription.userId, userId))
           .orderBy(asc(pushSubscription.createdAt));
+
+        const [lockScreen] = await exec
+          .select({ details: pushLockScreen.details, updatedAt: pushLockScreen.updatedAt })
+          .from(pushLockScreen)
+          .where(eq(pushLockScreen.userId, userId));
 
         const [feed] = await exec
           .select({
@@ -177,6 +183,10 @@ export class UserDataQuery implements IUserDataReader {
             endpointHost: endpointHost(row.endpoint),
             createdAt: row.createdAt.toISOString(),
           })),
+          lockScreen: {
+            details: lockScreen?.details ?? LOCK_SCREEN_DETAILS_BY_DEFAULT,
+            chosenAt: iso(lockScreen?.updatedAt ?? null),
+          },
           calendarFeed: feed
             ? {
                 childIds: feed.childIds,

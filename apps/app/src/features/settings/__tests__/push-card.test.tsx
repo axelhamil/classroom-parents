@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { byRoute, json, renderWithProviders, stubApi } from "../../../__tests__/app-harness";
 import {
@@ -21,6 +21,7 @@ function renderCard(live: number, defaults: unknown[] = []) {
     byRoute({
       "GET /push/status": () => json({ live }),
       "GET /reminders/defaults": () => json({ reminders: defaults }),
+      "GET /push/lock-screen": () => json({ details: false }),
     }),
   );
   return renderWithProviders(<PushCard userId="user-1" />);
@@ -109,5 +110,29 @@ describe("PushCard", () => {
 
     expect(screen.getByText(/ne sait pas recevoir de notifications/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Activer les alertes" })).toBeNull();
+  });
+
+  it("given this phone is subscribed, then the parent can choose to show the children's details on the lock screen", async () => {
+    givenPushBrowser({ permission: "granted", existing: fakeSubscription(HERE) });
+    rememberPushOwner({ userId: "user-1", endpoint: HERE });
+    const calls = stubApi(
+      byRoute({
+        "GET /push/status": () => json({ live: 1 }),
+        "GET /reminders/defaults": () => json({ reminders: [] }),
+        "GET /push/lock-screen": () => json({ details: false }),
+        "PUT /push/lock-screen": ({ body }) => json(body),
+      }),
+    );
+    await renderWithProviders(<PushCard userId="user-1" />);
+
+    const details = await screen.findByRole("switch", {
+      name: "Afficher les détails sur l'écran verrouillé",
+    });
+    expect(details.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(details);
+
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === "PUT")?.body).toEqual({ details: true }),
+    );
   });
 });

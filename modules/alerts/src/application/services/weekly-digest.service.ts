@@ -23,13 +23,16 @@ import {
   type IDigestDeadlines,
 } from "../ports/digest-audience.port";
 import type { IPushSender } from "../ports/push-sender.port";
-import type { IPushSubscriptionRepository } from "../ports/push-subscription-repository.port";
+import {
+  type IPushSubscriptionRepository,
+  LOCK_SCREEN_DETAILS_BY_DEFAULT,
+} from "../ports/push-subscription-repository.port";
 import type {
   ClaimedDigest,
   DigestSettlement,
   IWeeklyDigestRepository,
 } from "../ports/weekly-digest-repository.port";
-import { DIGEST_TITLE, digestSummary } from "./digest-message";
+import { DIGEST_TITLE, digestCount, digestSummary } from "./digest-message";
 import { digestWeekDue, digestWeekOf } from "./digest-week";
 import { pushToParent } from "./push-fanout";
 
@@ -144,6 +147,11 @@ export class WeeklyDigestService {
     now: Date,
   ): Promise<Result<Delivered, AppError>> {
     const summary = digestSummary(deadlines);
+    const details = await this.subscriptions.lockScreenDetailsFor(digest.userId);
+    if (details.isFailure) return Result.fail(details.getError());
+    const body = details.getValue().unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT)
+      ? summary
+      : `${digestCount(deadlines)}.`;
     const appUrl = new URL("/", this.appOrigin).toString();
     const ports = {
       subscriptions: this.subscriptions,
@@ -154,7 +162,7 @@ export class WeeklyDigestService {
     const pushed = await pushToParent(
       ports,
       digest.userId,
-      { title: DIGEST_TITLE, body: summary, url: appUrl, tag: `week-${digest.weekStart}` },
+      { title: DIGEST_TITLE, body, url: appUrl, tag: `week-${digest.weekStart}` },
       {
         ttlSeconds: DIGEST_PUSH_TTL_SECONDS,
         topic: digest.lease.digestId.replaceAll("-", ""),

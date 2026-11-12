@@ -59,6 +59,8 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
     consumer: "apps/app/src/shared/api/mutations/save-push-subscription.ts",
   },
   "GET /push/status": { consumer: "apps/app/src/shared/api/queries/push-status.ts" },
+  "GET /push/lock-screen": { consumer: "apps/app/src/shared/api/queries/lock-screen.ts" },
+  "PUT /push/lock-screen": { consumer: "apps/app/src/shared/api/mutations/set-lock-screen.ts" },
   "GET /push/config": { consumer: "apps/app/src/shared/api/queries/push-config.ts" },
   "DELETE /push/subscriptions": {
     consumer: "apps/app/src/shared/api/mutations/delete-push-subscription.ts",

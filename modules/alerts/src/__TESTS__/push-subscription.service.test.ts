@@ -35,6 +35,8 @@ beforeEach(() => {
   );
   subscriptions.deleteOwned.mockResolvedValue(Result.ok(Option.none()));
   subscriptions.countForUser.mockResolvedValue(Result.ok(2));
+  subscriptions.lockScreenDetailsFor.mockResolvedValue(Result.ok(Option.none()));
+  subscriptions.saveLockScreenDetails.mockResolvedValue(Result.ok());
 
   service = new PushSubscriptionService(
     subscriptions,
@@ -200,6 +202,36 @@ describe("forget a revoked session", () => {
     const result = await service.forgetSession(PARENT, "session-laptop");
 
     expect(result.isSuccess).toBe(true);
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+});
+
+describe("lock screen details", () => {
+  it("given a parent who never chose, then the lock screen shows no detail of the children", async () => {
+    const result = await service.lockScreen(PARENT);
+
+    expect(result.getValue()).toEqual({ details: false });
+  });
+
+  it("given a parent choosing to show details, then the choice is stored and announced with the parent as actor", async () => {
+    const result = await service.setLockScreen(PARENT, true);
+
+    expect(result.getValue()).toEqual({ details: true });
+    expect(subscriptions.saveLockScreenDetails).toHaveBeenCalledWith(PARENT, true, NOW);
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.ALERT_LOCK_SCREEN_CHANGED,
+        aggregateId: PARENT,
+        payload: { userId: PARENT, details: true },
+      },
+    ]);
+  });
+
+  it("given the choice already in force, then nothing is written nor announced", async () => {
+    const result = await service.setLockScreen(PARENT, false);
+
+    expect(result.getValue()).toEqual({ details: false });
+    expect(subscriptions.saveLockScreenDetails).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([]);
   });
 });

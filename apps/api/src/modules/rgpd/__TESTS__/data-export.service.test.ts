@@ -36,6 +36,7 @@ const snapshot: UserDataSnapshot = {
   ],
   calendarFeed: null,
   quietHours: null,
+  lockScreen: { details: false, chosenAt: null },
   weeklyDigest: { enabled: true, chosenAt: null, weeks: [] },
   sync: [],
 };

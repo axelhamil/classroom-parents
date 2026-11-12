@@ -310,6 +310,8 @@ export default {
     loadDefaultReminders: "Échec du chargement des rappels par défaut",
     setDefaultReminders: "Échec de l'enregistrement des rappels par défaut",
     loadQuietHours: "Échec du chargement des heures calmes",
+    loadLockScreen: "Échec du chargement du choix d'écran verrouillé",
+    setLockScreen: "Échec de l'enregistrement du choix d'écran verrouillé",
     setQuietHours: "Échec de l'enregistrement des heures calmes",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",

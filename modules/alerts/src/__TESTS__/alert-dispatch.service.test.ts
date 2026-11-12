@@ -129,8 +129,9 @@ beforeEach(() => {
   push.send.mockResolvedValue(Result.ok());
   email.send.mockResolvedValue(Result.ok());
   contexts.load.mockResolvedValue(Result.ok([CONTEXT]));
-  copy.forAlerts.mockImplementation(async (shown) => ({
-    title: shown.length === 1 ? "one" : "many",
+  subscriptions.lockScreenDetailsFor.mockResolvedValue(Result.ok(Option.some(true)));
+  copy.forAlerts.mockImplementation(async (shown, { details }) => ({
+    title: details ? (shown.length === 1 ? "one" : "many") : "discreet",
     body: shown.map(({ eventTitle }) => eventTitle).join(" | "),
   }));
   givenDeadline({});
@@ -156,7 +157,7 @@ describe("runOnce", () => {
     expect(result.getValue()).toEqual({ claimed: 1, sent: 1, emailed: 0, missed: 0 });
     expect(alerts.claimDue).toHaveBeenCalledWith(NOW, DISPATCH_BATCH, DISPATCH_LEASE_SECONDS);
     expect(push.send).toHaveBeenCalledTimes(1);
-    expect(copy.forAlerts).toHaveBeenCalledWith([CONTEXT]);
+    expect(copy.forAlerts).toHaveBeenCalledWith([CONTEXT], { details: true });
     expect(push.send.mock.calls[0]?.[1]).toEqual({
       title: "one",
       body: "Contrôle de maths",
@@ -526,4 +527,24 @@ describe("dispatch across DST (RF 1)", () => {
       expect(push.send).toHaveBeenCalledTimes(1);
     },
   );
+});
+
+describe("lock screen", () => {
+  function pushedTitle(): string | undefined {
+    return push.send.mock.calls[0]?.[1].title;
+  }
+
+  it("given a parent who never chose, then the push keeps the children's details off the lock screen", async () => {
+    subscriptions.lockScreenDetailsFor.mockResolvedValue(Result.ok(Option.none()));
+
+    await service.runOnce(NOW);
+
+    expect(pushedTitle()).toBe("discreet");
+  });
+
+  it("given a parent who chose to show details, then the push names the deadline", async () => {
+    await service.runOnce(NOW);
+
+    expect(pushedTitle()).toBe("one");
+  });
 });

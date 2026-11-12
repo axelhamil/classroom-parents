@@ -13,7 +13,7 @@ exitUnlessLocalDatabase("check-data-export", process.env.DATABASE_URL);
 
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { alert } from "@modules/alerts/schemas/alert.schema";
-import { pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
+import { pushLockScreen, pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
 import {
   alertDefaultReminders,
   alertEventReminders,
@@ -151,6 +151,7 @@ async function family(name: string): Promise<{ userId: string; childId: string }
     lastFetchedAt: NOW,
   });
   await db.insert(alertDigestPreference).values({ userId, enabled: false, updatedAt: NOW });
+  await db.insert(pushLockScreen).values({ userId, details: true, updatedAt: NOW });
   await db
     .insert(alertQuietHours)
     .values({ userId, enabled: true, start: "22:00", end: "06:30", updatedAt: NOW });
@@ -245,6 +246,11 @@ run(async () => {
       document.weeklyDigest.weeks[0]?.weekStart === "2030-03-04" &&
       document.weeklyDigest.weeks[0]?.status === "sent",
     document.weeklyDigest,
+  );
+  await step(
+    "the lock screen choice comes along",
+    document.lockScreen.details && document.lockScreen.chosenAt === NOW.toISOString(),
+    document.lockScreen,
   );
   await step(
     "the quiet hours the parent chose come along",

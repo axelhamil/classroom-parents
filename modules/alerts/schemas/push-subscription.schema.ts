@@ -1,6 +1,6 @@
 import { authSchema } from "@packages/drizzle";
 import { sql } from "drizzle-orm";
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const pushSubscription = pgTable(
   "push_subscription",
@@ -22,3 +22,11 @@ export const pushSubscription = pgTable(
     index("push_subscription_session_idx").on(table.sessionId),
   ],
 );
+
+export const pushLockScreen = pgTable("push_lock_screen", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => authSchema.user.id, { onDelete: "cascade" }),
+  details: boolean("details").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});

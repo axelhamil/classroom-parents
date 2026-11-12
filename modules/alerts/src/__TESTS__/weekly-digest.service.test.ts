@@ -107,6 +107,7 @@ beforeEach(() => {
   digests.enabledFor.mockResolvedValue(Result.ok(Option.none()));
   deadlines.within.mockResolvedValue(Result.ok(FAMILY_WEEK));
   subscriptions.listForUser.mockResolvedValue(Result.ok([PHONE]));
+  subscriptions.lockScreenDetailsFor.mockResolvedValue(Result.ok(Option.some(true)));
   push.send.mockResolvedValue(Result.ok());
   email.sendDigest.mockResolvedValue(Result.ok());
 
@@ -215,6 +216,18 @@ describe("sending a planned digest", () => {
     expect(push.send.mock.calls[0]?.[1].body).toBe(
       "1 échéance cette semaine pour Léa. Prochaine : Piscine mardi.",
     );
+  });
+
+  it("given a parent who never chose to show details on the lock screen, then the push only counts the deadlines", async () => {
+    givenClaimed();
+    subscriptions.lockScreenDetailsFor.mockResolvedValue(Result.ok(Option.none()));
+
+    await service.runOnce(SUNDAY_EVENING);
+
+    expect(push.send.mock.calls[0]?.[1]).toMatchObject({
+      title: "Votre semaine",
+      body: "5 échéances cette semaine.",
+    });
   });
 
   it("given no live push subscription, then the digest goes out by email", async () => {

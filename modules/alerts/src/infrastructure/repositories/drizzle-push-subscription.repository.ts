@@ -1,6 +1,6 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import { and, count, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
-import { pushSubscription } from "../../../schemas/push-subscription.schema";
+import { pushLockScreen, pushSubscription } from "../../../schemas/push-subscription.schema";
 import type { AlertsError } from "../../application/ports/alert-repository.port";
 import type {
   IPushSubscriptionRepository,
@@ -149,6 +149,57 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
         } catch (err) {
           this.instrumentation.capture(err);
           return Result.fail(repositoryFailure("countForUser", err));
+        }
+      },
+    );
+  }
+
+  async lockScreenDetailsFor(userId: string): Promise<Result<Option<boolean>, AlertsError>> {
+    return this.run("lockScreenDetailsFor", async (exec) => {
+      const query = exec
+        .select({ details: pushLockScreen.details })
+        .from(pushLockScreen)
+        .where(eq(pushLockScreen.userId, userId))
+        .limit(1);
+      const [row] = await this.instrumentation.startSpan(
+        { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+        () => query.execute(),
+      );
+      return Option.fromNullable(row?.details);
+    });
+  }
+
+  async saveLockScreenDetails(
+    userId: string,
+    details: boolean,
+    at: Date,
+  ): Promise<Result<void, AlertsError>> {
+    return this.run("saveLockScreenDetails", async (exec) => {
+      const values = { details, updatedAt: at };
+      const query = exec
+        .insert(pushLockScreen)
+        .values({ userId, ...values })
+        .onConflictDoUpdate({ target: pushLockScreen.userId, set: values });
+      await this.instrumentation.startSpan(
+        { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+        () => query.execute(),
+      );
+    });
+  }
+
+  private async run<T>(
+    method: string,
+    work: (exec: ReturnType<typeof resolveExecutor>) => Promise<T>,
+  ): Promise<Result<T, AlertsError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: `DrizzlePushSubscriptionRepository > ${method}` },
+      async () => {
+        try {
+          return Result.ok(await work(exec));
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );

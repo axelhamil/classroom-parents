@@ -95,6 +95,11 @@ export interface ExportedQuietHours {
   chosenAt: string;
 }
 
+export interface ExportedLockScreen {
+  details: boolean;
+  chosenAt: string | null;
+}
+
 export interface UserDataSnapshot {
   children: ExportedChild[];
   events: ExportedEvent[];
@@ -102,6 +107,7 @@ export interface UserDataSnapshot {
   quietHours: ExportedQuietHours | null;
   alerts: ExportedAlert[];
   pushSubscriptions: ExportedPushSubscription[];
+  lockScreen: ExportedLockScreen;
   calendarFeed: ExportedCalendarFeed | null;
   weeklyDigest: ExportedWeeklyDigest;
   sync: ExportedSyncState[];

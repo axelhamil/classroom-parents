@@ -130,6 +130,7 @@ describe("dispatch budget under silent providers", () => {
     subscriptions.listForUser.mockResolvedValue(
       Result.ok([{ id: "sub-1", userId: PARENT, endpoint, ...browserKeys() }]),
     );
+    subscriptions.lockScreenDetailsFor.mockResolvedValue(Result.ok(Option.none()));
     const contexts = mockPort<IAlertContextReader>();
     contexts.load.mockResolvedValue(
       Result.ok(

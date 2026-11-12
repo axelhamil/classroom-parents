@@ -1,13 +1,25 @@
 import { Alert, AlertDescription, AlertTitle } from "@packages/ui/components/ui/alert";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from "@packages/ui/components/ui/field";
 import { Hint } from "@packages/ui/components/ui/hint";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { Switch } from "@packages/ui/components/ui/switch";
 import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
-import { useQuery } from "@tanstack/react-query";
+import { toastError } from "@packages/web-kit/api/errors/toast";
+import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellOff, BellRing, Mail } from "lucide-react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { setLockScreenMutationOptions } from "../../../shared/api/mutations/set-lock-screen";
 import { defaultRemindersQueryOptions } from "../../../shared/api/queries/default-reminders";
+import { lockScreenQueryOptions } from "../../../shared/api/queries/lock-screen";
 import { pushStatusQueryOptions } from "../../../shared/api/queries/push-status";
 import { InstallGuide } from "../../../shared/pwa/install-guide";
 import { useInstallState } from "../../../shared/pwa/use-install-state";
@@ -38,6 +50,7 @@ export function PushCard({ userId }: PushCardProps) {
       <DefaultRemindersSummary userId={userId} />
       {needsInstall ? <InstallGuide /> : null}
       <PushControl push={push} needsInstall={needsInstall} />
+      {push.subscribed ? <LockScreenSwitch userId={userId} /> : null}
       {emailFallback ? (
         <Alert>
           <Mail />
@@ -140,5 +153,37 @@ function PushControl({ push, needsInstall }: PushControlProps) {
       <BellRing />
       {push.pending ? t("push.enabling") : t("push.enable")}
     </Button>
+  );
+}
+
+function LockScreenSwitch({ userId }: PushCardProps) {
+  const { t } = useTranslation("settings");
+  const id = useId();
+  const queryClient = useQueryClient();
+  const details = useQuery(lockScreenQueryOptions(userId));
+  const save = useMutation({
+    ...setLockScreenMutationOptions,
+    onSuccess: (shown) => queryClient.setQueryData(lockScreenQueryOptions(userId).queryKey, shown),
+    onError: (error) => toastError(error, errorFallback("setLockScreen")),
+  });
+  if (!details.isSuccess) return null;
+
+  const shown = save.isPending ? save.variables : details.data;
+  return (
+    <Field orientation="horizontal">
+      <Switch
+        id={id}
+        checked={shown}
+        disabled={save.isPending}
+        onCheckedChange={(checked) => save.mutate(checked)}
+        aria-describedby={`${id}-description`}
+      />
+      <FieldContent>
+        <FieldLabel htmlFor={id}>{t("push.lockScreen")}</FieldLabel>
+        <FieldDescription id={`${id}-description`}>
+          {shown ? t("push.lockScreenShown") : t("push.lockScreenHidden")}
+        </FieldDescription>
+      </FieldContent>
+    </Field>
   );
 }

@@ -1,6 +1,8 @@
 import type { Option, Result } from "@packages/ddd-kit";
 import type { AlertsError } from "./alert-repository.port";
 
+export const LOCK_SCREEN_DETAILS_BY_DEFAULT = false;
+
 export interface PushSubscriptionRecord {
   id: string;
   userId: string;
@@ -36,4 +38,12 @@ export interface IPushSubscriptionRepository {
   listForUser(userId: string): Promise<Result<PushSubscriptionRecord[], AlertsError>>;
 
   countForUser(userId: string): Promise<Result<number, AlertsError>>;
+
+  lockScreenDetailsFor(userId: string): Promise<Result<Option<boolean>, AlertsError>>;
+
+  saveLockScreenDetails(
+    userId: string,
+    details: boolean,
+    at: Date,
+  ): Promise<Result<void, AlertsError>>;
 }

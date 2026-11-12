@@ -5,6 +5,10 @@ export interface PushText {
   body: string;
 }
 
+export interface PushCopyOptions {
+  details: boolean;
+}
+
 export interface IPushCopy {
-  forAlerts(contexts: AlertContext[]): Promise<PushText>;
+  forAlerts(contexts: AlertContext[], options: PushCopyOptions): Promise<PushText>;
 }

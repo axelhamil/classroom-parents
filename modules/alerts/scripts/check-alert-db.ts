@@ -83,10 +83,10 @@ const pushSender: IPushSender = {
 const pushedAlerts = new Map<string, number>();
 const i18nCopy = new I18nPushCopy();
 const countingCopy: IPushCopy = {
-  forAlerts: async (shown) => {
+  forAlerts: async (shown, options) => {
     for (const { alertId } of shown)
       pushedAlerts.set(alertId, (pushedAlerts.get(alertId) ?? 0) + 1);
-    return i18nCopy.forAlerts(shown);
+    return i18nCopy.forAlerts(shown, options);
   },
 };
 let emails = 0;
@@ -539,6 +539,22 @@ run(async () => {
       ringsAt.length === fewEvents.length + manyEvents.length &&
       ringsAt.every((time) => time === "19:00"),
     { quiet: quietRead.isSuccess && quietRead.getValue(), ringsAt: [...new Set(ringsAt)] },
+  );
+
+  const hiddenByDefault = await pushService.lockScreen(d.userId);
+  const shown = await pushService.setLockScreen(d.userId, true);
+  const shownRead = await pushService.lockScreen(d.userId);
+  await step(
+    "the lock screen hides the children's details until the parent chooses to show them",
+    hiddenByDefault.isSuccess &&
+      !hiddenByDefault.getValue().details &&
+      shown.isSuccess &&
+      shownRead.isSuccess &&
+      shownRead.getValue().details,
+    {
+      before: hiddenByDefault.isSuccess && hiddenByDefault.getValue(),
+      after: shownRead.isSuccess && shownRead.getValue(),
+    },
   );
 
   const eventOfB = dueEvents[0] ?? "";

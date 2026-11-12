@@ -77,6 +77,11 @@ export default {
     emailFallback:
       "Aucun appareil ne reçoit vos alertes pour l'instant : elles vous sont envoyées par e-mail, à l'adresse de votre compte Google.",
     installFirst: "Ajoutez d'abord l'application à l'écran d'accueil.",
+    lockScreen: "Afficher les détails sur l'écran verrouillé",
+    lockScreenHidden:
+      "Les notifications disent seulement « KeepUpKids » et le nombre d'échéances, sans prénom ni titre de devoir.",
+    lockScreenShown:
+      "Les notifications montrent le prénom de l'enfant et le titre de l'échéance, même téléphone verrouillé.",
   },
   reminders: {
     title: "Rappels par défaut",

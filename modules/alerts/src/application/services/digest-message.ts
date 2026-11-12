@@ -23,13 +23,17 @@ function plural(count: number): string {
   return count > 1 ? "s" : "";
 }
 
+export function digestCount(deadlines: DigestDeadline[]): string {
+  return `${deadlines.length} échéance${plural(deadlines.length)} cette semaine`;
+}
+
 export function digestSummary(deadlines: DigestDeadline[]): string {
   const sorted = deadlines.toSorted((a, b) => a.deadlineAt.getTime() - b.deadlineAt.getTime());
   const next = sorted[0];
   if (!next) return "";
 
   const children = countsByChild(sorted);
-  const total = `${sorted.length} échéance${plural(sorted.length)} cette semaine`;
+  const total = digestCount(sorted);
   const split =
     children.length === 1
       ? ` pour ${next.childLabel}.`
