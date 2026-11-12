@@ -18,13 +18,14 @@ exitUnlessLocalDatabase("check-alert-db", process.env.DATABASE_URL);
 
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
-import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE, utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import {
   and,
   authSchema,
   db,
+  emailSchema,
   eq,
   gte,
   inArray,
@@ -34,6 +35,8 @@ import {
   sql,
   TransactionService,
 } from "@packages/drizzle";
+import { DrizzleEmailQueue } from "@packages/email/drizzle-email-queue";
+import { QueuedEmailService } from "@packages/email/email.service";
 import { EventTypes } from "@packages/events";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { alert } from "../schemas/alert.schema";
@@ -58,6 +61,7 @@ import { PushSubscriptionService } from "../src/application/services/push-subscr
 import { ReminderSettingsService } from "../src/application/services/reminder-settings.service";
 import { ReminderList } from "../src/domain/value-objects/reminder-list.vo";
 import { I18nPushCopy } from "../src/infrastructure/adapters/i18n-push.copy";
+import { ResendAlertEmailSender } from "../src/infrastructure/adapters/resend-alert-email.sender";
 import {
   alertClaimQuery,
   DrizzleAlertRepository,
@@ -90,10 +94,20 @@ const countingCopy: IPushCopy = {
   },
   forWeek: (count) => i18nCopy.forWeek(count),
 };
+const silentLogger: ILogger = {
+  debug: () => undefined,
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
+};
 let emails = 0;
 const emailSender: IAlertEmailSender = {
   send: async () => {
     emails += 1;
+    return Result.ok<AppError>();
+  },
+  sendGroup: async (_to, { items }) => {
+    emails += items.length;
     return Result.ok<AppError>();
   },
   sendDigest: async () => Result.ok<AppError>(),
@@ -315,6 +329,9 @@ async function explainClaim(): Promise<string> {
 
 async function cleanup(): Promise<void> {
   await db.delete(authSchema.user).where(like(authSchema.user.id, `${probe}-%`));
+  await db
+    .delete(emailSchema.emailMessage)
+    .where(like(emailSchema.emailMessage.toAddress, `${probe}@%`));
 }
 
 const codeOf = (result: Result<unknown, AppError>) =>
@@ -726,6 +743,93 @@ run(async () => {
       lost,
       notifications: crowd.map(({ endpoint }) => visible.get(endpoint)?.size ?? 0),
       statuses: [...new Set(morningRows.map(({ status }) => status))],
+    },
+  );
+
+  const offline = await seedFamily("offline");
+  const offlineEvents = await seedEvents(offline, 25, "offline", groupedDeadline);
+  const offlineAlerts = await db
+    .insert(alert)
+    .values(
+      offlineEvents.map((eventId) => ({
+        eventId,
+        userId: offline.userId,
+        reminder: "d2@18:00",
+        dueAt: morning,
+        deadlineAt: groupedDeadline,
+        origin: "default" as const,
+        status: "pending" as const,
+      })),
+    )
+    .returning({ id: alert.id });
+  let directSends = 0;
+  const queuedSender = new ResendAlertEmailSender(
+    {
+      batchSend: async () => {
+        directSends += 1;
+        return { data: null, error: null };
+      },
+    },
+    "alerts@example.com",
+    instrumentation,
+    silentLogger,
+    new QueuedEmailService(new DrizzleEmailQueue(instrumentation, silentLogger), instrumentation),
+  );
+  const offlineDispatch = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    pushSender,
+    queuedSender,
+    contexts,
+    countingCopy,
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  const drainOffline = async () => {
+    for (let pass = 0; pass < 10; pass += 1) {
+      const outcome = await offlineDispatch.runOnce(NOW);
+      if (outcome.isFailure || outcome.getValue().claimed === 0) return;
+    }
+  };
+  const queuedFor = () =>
+    db
+      .select({ payload: emailSchema.emailMessage.payload })
+      .from(emailSchema.emailMessage)
+      .where(like(emailSchema.emailMessage.idempotencyKey, `%${offline.userId}%`));
+  await drainOffline();
+  const firstPass = await queuedFor();
+  await db
+    .update(alert)
+    .set({ status: "pending", sentAt: null, nextAttemptAt: null })
+    .where(
+      inArray(
+        alert.id,
+        offlineAlerts.map(({ id }) => id),
+      ),
+    );
+  await drainOffline();
+  const secondPass = await queuedFor();
+  const listed = (rows: { payload: unknown }[]) =>
+    rows.map(({ payload }) => {
+      const items =
+        typeof payload === "object" && payload !== null && "items" in payload
+          ? String(payload.items)
+          : "";
+      return items.split("\n").filter(Boolean).length;
+    });
+  await step(
+    "a parent with 25 due alerts and no device gets one queued email listing all 25, and a pass after a lost lease adds none",
+    firstPass.length === 1 &&
+      listed(firstPass)[0] === 25 &&
+      secondPass.length === 1 &&
+      directSends === 0,
+    {
+      firstPass: firstPass.length,
+      secondPass: secondPass.length,
+      listed: listed(firstPass),
+      directSends,
     },
   );
 

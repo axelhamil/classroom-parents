@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { createECDH, randomBytes } from "node:crypto";
 import { createServer, type Server, type Socket } from "node:net";
 import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
+import type { IEmailService } from "@packages/email/email.port";
 import { type ResendBatchClient, resendBatchSender } from "@packages/email/email-delivery-worker";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { mockPort } from "@packages/test/bun";
@@ -180,6 +181,7 @@ describe("dispatch budget under silent providers", () => {
         "alerts@example.com",
         instrumentation,
         mockPort<ILogger>(),
+        mockPort<IEmailService>(),
       ),
       contexts,
       new I18nPushCopy(),

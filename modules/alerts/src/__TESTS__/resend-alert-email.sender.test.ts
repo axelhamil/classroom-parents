@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { ILogger } from "@packages/ddd-kit";
+import type { IEmailService } from "@packages/email/email.port";
 import { type ResendBatchClient, resendBatchSender } from "@packages/email/email-delivery-worker";
 import { mockPort } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
@@ -25,7 +26,13 @@ function senderOver(client: ResendBatchClient | null) {
   return {
     instrumentation,
     logger,
-    sender: new ResendAlertEmailSender(kit, "alerts@example.com", instrumentation, logger),
+    sender: new ResendAlertEmailSender(
+      kit,
+      "alerts@example.com",
+      instrumentation,
+      logger,
+      mockPort<IEmailService>(),
+    ),
   };
 }
 

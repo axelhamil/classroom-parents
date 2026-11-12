@@ -3,6 +3,7 @@ import { render } from "@react-email/render";
 import type { TFunction } from "i18next";
 import type { ComponentType } from "react";
 import { I18nextProvider } from "react-i18next";
+import { AlertGroup, alertGroupSubject } from "./components/alert-group";
 import { AlertReminder } from "./components/alert-reminder";
 import { ApiTokenLeaked } from "./components/api-token-leaked";
 import { BackupCodeUsed } from "./components/backup-code-used";
@@ -56,6 +57,7 @@ const TEMPLATES: { [K in EmailTemplateKey]: TemplateEntry<K> } = {
     subject: (t, v) =>
       t("subjects.alertReminder", { eventTitle: v.eventTitle, childLabel: v.childLabel }),
   },
+  alert_group: { component: AlertGroup, subject: alertGroupSubject },
   weekly_digest: { component: WeeklyDigest, subject: (t) => t("subjects.weeklyDigest") },
 };
 

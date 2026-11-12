@@ -1,12 +1,9 @@
-import { createI18n, DEFAULT_LOCALE, loadCatalog } from "@packages/i18n";
+import { DEFAULT_LOCALE } from "@packages/i18n";
 import type { AlertContext } from "../../application/ports/alert-context-reader.port";
 import type { IPushCopy, PushCopyOptions, PushText } from "../../application/ports/push-copy.port";
+import { frenchCatalog as catalog } from "./french-catalog";
 
 const GROUP_LINES_MAX = 4;
-
-async function catalog() {
-  return createI18n({ locale: DEFAULT_LOCALE, resources: await loadCatalog(DEFAULT_LOCALE) });
-}
 
 export class I18nPushCopy implements IPushCopy {
   async forWeek(count: number): Promise<string> {

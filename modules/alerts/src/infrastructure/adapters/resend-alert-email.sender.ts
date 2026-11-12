@@ -1,12 +1,16 @@
 import { type IInstrumentation, type ILogger, Option, Result } from "@packages/ddd-kit";
+import type { IEmailService } from "@packages/email/email.port";
 import type { BatchSender } from "@packages/email/email-delivery-worker";
 import { type RenderedEmail, renderTemplate } from "@packages/emails";
+import { DEFAULT_LOCALE } from "@packages/i18n";
 import type {
   AlertEmailContent,
+  AlertGroupEmailContent,
   DigestEmailContent,
   IAlertEmailSender,
 } from "../../application/ports/alert-email-sender.port";
 import type { AlertsError } from "../../application/ports/alert-repository.port";
+import { frenchCatalog } from "./french-catalog";
 
 function alertEmail(content: AlertEmailContent) {
   return renderTemplate("alert_reminder", {
@@ -34,6 +38,7 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
     private readonly from: string,
     private readonly instrumentation: IInstrumentation,
     private readonly logger: ILogger,
+    private readonly queue: IEmailService,
   ) {}
 
   async send(to: string, content: AlertEmailContent): Promise<Result<void, AlertsError>> {
@@ -42,6 +47,29 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
         alertId: content.alertId,
         version: content.version,
       }),
+    );
+  }
+
+  async sendGroup(
+    to: string,
+    { groupKey, items, appUrl }: AlertGroupEmailContent,
+  ): Promise<Result<void, AlertsError>> {
+    return this.instrumentation.startSpan(
+      { name: "ResendAlertEmailSender > sendGroup" },
+      async () => {
+        const t = (await frenchCatalog()).getFixedT(DEFAULT_LOCALE, "emails");
+        const lines = items.map((item) => t("alertGroup.line", { ...item }));
+        const queued = await this.queue.sendTemplate(
+          "alert_group",
+          to,
+          { itemCount: String(items.length), items: lines.join("\n"), appUrl },
+          { idempotencyKey: groupKey },
+        );
+        if (queued.isFailure)
+          return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", queued.getError().message));
+
+        return Result.ok();
+      },
     );
   }
 

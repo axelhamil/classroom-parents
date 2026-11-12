@@ -463,14 +463,35 @@ describe("grouping", () => {
     ]);
   });
 
-  it("given a grouped notification no device accepts, then each alert falls back to its own email", async () => {
+  it("given a grouped notification no device accepts, then one email keyed by the window and the parent lists every deadline and each alert is sent", async () => {
     givenBatch([alertOf(1), alertOf(2)]);
     givenSubscriptions([]);
+    email.sendGroup.mockResolvedValue(Result.ok());
 
     const result = await service.runOnce(NOW);
 
     expect(result.getValue()).toEqual({ claimed: 2, sent: 0, emailed: 2, missed: 0 });
-    expect(email.send).toHaveBeenCalledTimes(2);
+    expect(email.send).not.toHaveBeenCalled();
+    expect(email.sendGroup).toHaveBeenCalledTimes(1);
+    const [to, content] = email.sendGroup.mock.calls[0] ?? [];
+    expect(to).toBe("parent@example.com");
+    expect(content?.groupKey).toStartWith(`alerts-2026-11-13-18:00-${PARENT}-`);
+    expect(content?.items.map(({ eventTitle }) => eventTitle)).toEqual(["Devoir 0", "Devoir 1"]);
+    expect(content?.appUrl).toBe("https://app.example.com/");
+  });
+
+  it("given the grouped email cannot be queued, then every alert of the group records the failure and is retried", async () => {
+    givenBatch([alertOf(1), alertOf(2)]);
+    givenSubscriptions([]);
+    email.sendGroup.mockResolvedValue(
+      Result.fail({ code: "ALERT_PROVIDER_FAILURE", message: "queue down" }),
+    );
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toEqual({ claimed: 2, sent: 0, emailed: 0, missed: 0 });
+    expect(alerts.addFailure).toHaveBeenCalledTimes(2);
+    expect(alerts.settle).not.toHaveBeenCalled();
   });
 
   it("given one alert of the group is done meanwhile, then the notification lists only the others", async () => {

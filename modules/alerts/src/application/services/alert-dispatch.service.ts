@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type AppError,
   type IInstrumentation,
@@ -81,6 +82,18 @@ function hex(id: string): string {
   return id.replaceAll("-", "");
 }
 
+function slotOf(group: Deliverable[]): string {
+  const opening = group[0]?.item.alert.get("time").value;
+  return `${opening?.date ?? ""}-${opening?.time ?? ""}`;
+}
+
+function groupEmailKey(group: Deliverable[]): string {
+  const userId = group[0]?.item.alert.get("userId") ?? "";
+  const members = group.map(({ item }) => item.lease.alertId).toSorted();
+  const digest = createHash("sha256").update(members.join(",")).digest("hex").slice(0, 16);
+  return `alerts-${slotOf(group)}-${userId}-${digest}`;
+}
+
 function addressing(group: Deliverable[]): Pick<PushMessage, "url" | "tag"> & { topic: string } {
   const [only] = group;
   if (only && group.length === 1) {
@@ -88,8 +101,7 @@ function addressing(group: Deliverable[]): Pick<PushMessage, "url" | "tag"> & { 
     return { url: only.context.eventUrl, tag: `event-${eventId}`, topic: hex(eventId) };
   }
 
-  const opening = group[0]?.item.alert.get("time").value;
-  const slot = `${opening?.date ?? ""}-${opening?.time ?? ""}`;
+  const slot = slotOf(group);
   return {
     url: new URL("/", group[0]?.context.eventUrl).toString(),
     tag: `alerts-${slot}`,
@@ -193,8 +205,44 @@ export class AlertDispatchService {
     if (pushed.isFailure) return each(async () => Result.fail(pushed.getError()));
     if (pushed.getValue())
       return each(({ item }) => this.markSent(item.alert, item.lease, "push", now));
+    if (group.length > 1) return this.emailGroup(group, now);
 
     return each((deliverable) => this.sendEmail(deliverable, now));
+  }
+
+  private async emailGroup(group: Deliverable[], now: Date): Promise<Settled[]> {
+    const to = group[0]?.context.email ?? "";
+    const queued = await this.transactions.run(async (): Promise<Result<Settled[], AppError>> => {
+      const emailed = await this.email.sendGroup(to, {
+        groupKey: groupEmailKey(group),
+        items: group.map(({ context: { eventTitle, childLabel, deadlineLabel } }) => ({
+          eventTitle,
+          childLabel,
+          deadlineLabel,
+        })),
+        appUrl: addressing(group).url,
+      });
+      if (emailed.isFailure) return Result.fail(emailed.getError());
+
+      const settled: Settled[] = [];
+      for (const { item } of group) {
+        const delivered = await this.markSent(item.alert, item.lease, "email", now);
+        if (delivered.isFailure) return Result.fail(delivered.getError());
+        settled.push({ alertId: item.lease.alertId, delivered });
+      }
+      return Result.ok(settled);
+    });
+    if (queued.isSuccess) return queued.getValue();
+
+    const code = queued.getError().code;
+    return mapBounded(
+      group,
+      DISPATCH_CONCURRENCY,
+      async ({ item: { alert, lease, failures } }) => ({
+        alertId: lease.alertId,
+        delivered: await this.emailFailed(alert, { lease, failures }, code, now),
+      }),
+    );
   }
 
   private async sendEmail(

@@ -1,4 +1,5 @@
 import type { IInstrumentation, ILogger, IUnitOfWork } from "@packages/ddd-kit";
+import type { IEmailService } from "@packages/email/email.port";
 import { type ResendBatchClient, resendBatchSender } from "@packages/email/email-delivery-worker";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
@@ -32,6 +33,7 @@ export interface AlertsPrerequisites {
   IInstrumentation: IInstrumentation;
   ILogger: ILogger;
   IResendClient: ResendBatchClient | null;
+  IEmailService: IEmailService;
   ITransactionService: IUnitOfWork;
   IOutboxRepository: IOutboxRepository;
   IEventDeadlines: IEventDeadlines;
@@ -69,6 +71,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.alertsSettings.emailFrom,
           c.IInstrumentation,
           c.ILogger,
+          c.IEmailService,
         ),
     )
     .add(
