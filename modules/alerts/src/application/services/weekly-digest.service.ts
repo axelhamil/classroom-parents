@@ -154,8 +154,12 @@ export class WeeklyDigestService {
     const pushed = await pushToParent(
       ports,
       digest.userId,
-      { title: DIGEST_TITLE, body: summary, url: appUrl },
-      { ttlSeconds: DIGEST_PUSH_TTL_SECONDS, topic: digest.lease.digestId.replaceAll("-", "") },
+      { title: DIGEST_TITLE, body: summary, url: appUrl, tag: `week-${digest.weekStart}` },
+      {
+        ttlSeconds: DIGEST_PUSH_TTL_SECONDS,
+        topic: digest.lease.digestId.replaceAll("-", ""),
+        urgency: "normal",
+      },
     );
     if (pushed.isFailure) return Result.fail(pushed.getError());
     if (pushed.getValue().delivered) return this.markSent(digest, "push", deadlines.length, now);

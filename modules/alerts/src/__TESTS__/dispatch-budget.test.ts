@@ -18,6 +18,7 @@ import type {
 import type { EventDeadline, IEventDeadlines } from "../application/ports/event-deadlines.port";
 import type { IPushSubscriptionRepository } from "../application/ports/push-subscription-repository.port";
 import { AlertDispatchService } from "../application/services/alert-dispatch.service";
+import { I18nPushCopy } from "../infrastructure/adapters/i18n-push.copy";
 import { ResendAlertEmailSender } from "../infrastructure/adapters/resend-alert-email.sender";
 import { WebPushSender } from "../infrastructure/adapters/web-push.sender";
 import { existingAlert, PARENT, paris } from "../testing/alert.fixture";
@@ -111,7 +112,10 @@ describe("dispatch budget under silent providers", () => {
     const endpoint = await silentPushService();
     const vapid = generateVAPIDKeys();
     const batch: ClaimedAlert[] = Array.from({ length: DISPATCH_BATCH }, (_, i) => {
-      const alert = existingAlert({ id: `0196a000-0000-7000-8000-${String(i).padStart(12, "0")}` });
+      const alert = existingAlert({
+        id: `0196a000-0000-7000-8000-${String(i).padStart(12, "0")}`,
+        userId: `parent-${i}`,
+      });
       return {
         alert,
         lease: { alertId: alert.id.value, attempts: 1, version: alert.get("version") },
@@ -177,6 +181,7 @@ describe("dispatch budget under silent providers", () => {
         mockPort<ILogger>(),
       ),
       contexts,
+      new I18nPushCopy(),
       deadlines,
       mockUnitOfWork().unitOfWork,
       mockPort<IOutboxRepository>(),

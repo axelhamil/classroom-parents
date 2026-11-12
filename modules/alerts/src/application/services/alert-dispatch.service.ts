@@ -24,11 +24,14 @@ import type {
   IAlertRepository,
 } from "../ports/alert-repository.port";
 import type { IEventDeadlines } from "../ports/event-deadlines.port";
-import type { IPushSender, PushMessage, PushOptions } from "../ports/push-sender.port";
+import type { IPushCopy } from "../ports/push-copy.port";
+import type { IPushSender, PushMessage } from "../ports/push-sender.port";
 import type { IPushSubscriptionRepository } from "../ports/push-subscription-repository.port";
 import { pushToParent } from "./push-fanout";
 
 export const PUSH_TTL_SECONDS = 2 * 3600;
+
+export const GROUP_WINDOW_MS = 30 * 60_000;
 
 export interface DispatchOutcome {
   claimed: number;
@@ -39,18 +42,54 @@ export interface DispatchOutcome {
 
 type Delivered = "push" | "email" | "missed" | "none";
 
-function pushMessage(context: AlertContext): PushMessage {
-  return {
-    title: context.eventTitle,
-    body: `${context.childLabel}, échéance ${context.deadlineLabel}`,
-    url: context.eventUrl,
-  };
+interface Deliverable {
+  item: ClaimedAlert;
+  context: AlertContext;
 }
 
-function pushOptions(alert: Alert): PushOptions {
+interface Settled {
+  alertId: string;
+  delivered: Result<Delivered, AppError>;
+}
+
+function dueAt({ item }: Deliverable): number {
+  return item.alert.get("time").value.at.getTime();
+}
+
+function windows(ready: Deliverable[]): Deliverable[][] {
+  const byUser = Map.groupBy(ready, ({ item }) => item.alert.get("userId"));
+  const groups: Deliverable[][] = [];
+  for (const alerts of byUser.values()) {
+    let open: Deliverable[] = [];
+    for (const deliverable of alerts.toSorted((a, b) => dueAt(a) - dueAt(b))) {
+      const first = open[0];
+      if (first && dueAt(deliverable) - dueAt(first) >= GROUP_WINDOW_MS) {
+        groups.push(open);
+        open = [];
+      }
+      open.push(deliverable);
+    }
+    if (open.length > 0) groups.push(open);
+  }
+  return groups;
+}
+
+function hex(id: string): string {
+  return id.replaceAll("-", "");
+}
+
+function addressing(group: Deliverable[]): Pick<PushMessage, "url" | "tag"> & { topic: string } {
+  const [only] = group;
+  if (only && group.length === 1) {
+    const eventId = only.item.alert.get("eventId");
+    return { url: only.context.eventUrl, tag: `event-${eventId}`, topic: hex(eventId) };
+  }
+
+  const day = group[0]?.item.alert.get("time").value.date ?? "";
   return {
-    ttlSeconds: PUSH_TTL_SECONDS,
-    topic: alert.id.value.replaceAll("-", ""),
+    url: new URL("/", group[0]?.context.eventUrl).toString(),
+    tag: `alerts-${day}`,
+    topic: `alerts${hex(day)}`,
   };
 }
 
@@ -61,6 +100,7 @@ export class AlertDispatchService {
     private readonly push: IPushSender,
     private readonly email: IAlertEmailSender,
     private readonly contexts: IAlertContextReader,
+    private readonly copy: IPushCopy,
     private readonly deadlines: IEventDeadlines,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
@@ -82,31 +122,46 @@ export class AlertDispatchService {
         if (contexts.isFailure) return Result.fail(contexts.getError());
         const byAlert = new Map(contexts.getValue().map((context) => [context.alertId, context]));
 
-        const outcomes = await mapBounded(batch, DISPATCH_CONCURRENCY, async (item) => ({
-          alertId: item.lease.alertId,
-          delivered: await this.dispatch(item, byAlert.get(item.lease.alertId), now),
+        const screened = await mapBounded(batch, DISPATCH_CONCURRENCY, async (item) => ({
+          item,
+          context: byAlert.get(item.lease.alertId),
+          verdict: await this.screen(item, byAlert.get(item.lease.alertId), now),
         }));
-        for (const { alertId, delivered } of outcomes) {
-          if (delivered.isFailure) {
-            this.instrumentation.capture(
-              new Error(`alert ${alertId}: ${delivered.getError().code}`),
-            );
+        const ready: Deliverable[] = [];
+        const settled: Settled[] = [];
+        for (const { item, context, verdict } of screened) {
+          if (verdict.isSuccess && verdict.getValue() === "ready" && context) {
+            ready.push({ item, context });
             continue;
           }
-          if (delivered.getValue() === "push") outcome.sent += 1;
-          if (delivered.getValue() === "email") outcome.emailed += 1;
-          if (delivered.getValue() === "missed") outcome.missed += 1;
+          settled.push({
+            alertId: item.lease.alertId,
+            delivered: verdict.map((value) => (value === "ready" ? "none" : value)),
+          });
+        }
+
+        const delivered = await mapBounded(windows(ready), DISPATCH_CONCURRENCY, (group) =>
+          this.deliver(group, now),
+        );
+        for (const { alertId, delivered: result } of [...settled, ...delivered.flat()]) {
+          if (result.isFailure) {
+            this.instrumentation.capture(new Error(`alert ${alertId}: ${result.getError().code}`));
+            continue;
+          }
+          if (result.getValue() === "push") outcome.sent += 1;
+          if (result.getValue() === "email") outcome.emailed += 1;
+          if (result.getValue() === "missed") outcome.missed += 1;
         }
         return Result.ok(outcome);
       },
     );
   }
 
-  private async dispatch(
-    { alert, lease, failures }: ClaimedAlert,
+  private async screen(
+    { alert, lease }: ClaimedAlert,
     context: AlertContext | undefined,
     now: Date,
-  ): Promise<Result<Delivered, AppError>> {
+  ): Promise<Result<Delivered | "ready", AppError>> {
     const verdict = alert.verdict(now);
     if (verdict === "wait") return Result.ok("none");
     if (verdict === "missed") return this.giveUp(alert, lease);
@@ -118,10 +173,30 @@ export class AlertDispatchService {
     if (deadline.isNone() || deadline.unwrap().done) return this.skip(alert, lease);
     if (!alert.ringsBefore(deadline.unwrap().deadlineAt)) return this.skip(alert, lease);
 
-    const pushed = await this.pushAll(alert, context);
-    if (pushed.isFailure) return Result.fail(pushed.getError());
-    if (pushed.getValue()) return this.markSent(alert, lease, "push", now);
+    return Result.ok("ready");
+  }
 
+  private async deliver(group: Deliverable[], now: Date): Promise<Settled[]> {
+    const pushed = await this.pushAll(group);
+    const each = (
+      work: (deliverable: Deliverable) => Promise<Result<Delivered, AppError>>,
+    ): Promise<Settled[]> =>
+      mapBounded(group, DISPATCH_CONCURRENCY, async (deliverable) => ({
+        alertId: deliverable.item.lease.alertId,
+        delivered: await work(deliverable),
+      }));
+
+    if (pushed.isFailure) return each(async () => Result.fail(pushed.getError()));
+    if (pushed.getValue())
+      return each(({ item }) => this.markSent(item.alert, item.lease, "push", now));
+
+    return each((deliverable) => this.sendEmail(deliverable, now));
+  }
+
+  private async sendEmail(
+    { item: { alert, lease, failures }, context }: Deliverable,
+    now: Date,
+  ): Promise<Result<Delivered, AppError>> {
     const emailed = await this.email.send(context.email, {
       alertId: alert.id.value,
       version: alert.get("version"),
@@ -135,24 +210,30 @@ export class AlertDispatchService {
     return this.emailFailed(alert, { lease, failures }, emailed.getError().code, now);
   }
 
-  private async pushAll(alert: Alert, context: AlertContext): Promise<Result<boolean, AppError>> {
+  private async pushAll(group: Deliverable[]): Promise<Result<boolean, AppError>> {
+    const [first] = group;
+    if (!first) return Result.ok(false);
+
     const ports = {
       subscriptions: this.subscriptions,
       push: this.push,
       transactions: this.transactions,
       outbox: this.outbox,
     };
+    const text = await this.copy.forAlerts(group.map(({ context }) => context));
+    const { url, tag, topic } = addressing(group);
     const fanout = await pushToParent(
       ports,
-      alert.get("userId"),
-      pushMessage(context),
-      pushOptions(alert),
+      first.item.alert.get("userId"),
+      { ...text, url, tag },
+      { ttlSeconds: PUSH_TTL_SECONDS, topic, urgency: "high" },
     );
     if (fanout.isFailure) return Result.fail(fanout.getError());
 
     const { delivered, failed } = fanout.getValue();
-    for (let failure = 0; failure < failed; failure += 1)
-      await this.emitFailure(alert, "push", "PUSH_FAILED");
+    for (const { item } of group)
+      for (let failure = 0; failure < failed; failure += 1)
+        await this.emitFailure(item.alert, "push", "PUSH_FAILED");
     return Result.ok(delivered);
   }
 

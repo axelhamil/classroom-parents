@@ -185,7 +185,9 @@ describe("sending a planned digest", () => {
       title: "Votre semaine",
       body: "5 échéances cette semaine : 2 pour Léa, 3 pour Hugo. Prochaine : Piscine lundi.",
       url: "https://app.example.com/",
+      tag: `week-${WEEK}`,
     });
+    expect(push.send.mock.calls[0]?.[2]).toMatchObject({ urgency: "normal" });
     expect(settlement()).toEqual({ status: "sent", channel: "push", at: SUNDAY_EVENING });
     expect(email.sendDigest).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([

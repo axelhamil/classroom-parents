@@ -277,7 +277,7 @@ run(async () => {
     keys: { p256dh: "demo-p256dh", auth: "demo-auth" },
   });
   const [due] = await db
-    .select({ id: alert.id })
+    .select({ id: alert.id, eventId: alert.eventId })
     .from(alert)
     .where(and(eq(alert.userId, family.userId), eq(alert.status, "pending")))
     .limit(1);
@@ -288,7 +288,7 @@ run(async () => {
     .where(eq(alert.id, due.id));
   const firstRun = await di.AlertDispatchService.runOnce(new Date());
   const secondRun = await di.AlertDispatchService.runOnce(new Date());
-  const topic = due.id.replaceAll("-", "");
+  const topic = due.eventId.replaceAll("-", "");
   const [dispatched] = await db
     .select({ status: alert.status })
     .from(alert)
@@ -296,7 +296,14 @@ run(async () => {
   await step(
     "a due alert reaches the parent's push subscription once, without an email",
     subscribed.status === 204 &&
-      fakes.pushed().filter((push) => push.topic === topic).length === 1 &&
+      fakes
+        .pushed()
+        .filter(
+          ({ message, options }) =>
+            options.topic === topic &&
+            options.urgency === "high" &&
+            message.tag === `event-${due.eventId}`,
+        ).length === 1 &&
       dispatched?.status === "sent" &&
       firstRun.isSuccess &&
       firstRun.getValue().emailed === 0 &&

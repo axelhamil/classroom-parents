@@ -8,6 +8,7 @@ import eventEdit from "./event-edit";
 import events from "./events";
 import history from "./history";
 import onboarding from "./onboarding";
+import push from "./push";
 import settings from "./settings";
 import site from "./site";
 import tour from "./tour";
@@ -24,6 +25,7 @@ const catalog = {
   eventEdit,
   history,
   onboarding,
+  push,
   site,
   tour,
 } as const;

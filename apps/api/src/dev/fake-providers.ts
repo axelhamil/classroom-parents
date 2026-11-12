@@ -1,4 +1,8 @@
-import type { IPushSender, PushMessage } from "@modules/alerts/application/ports/push-sender.port";
+import type {
+  IPushSender,
+  PushMessage,
+  PushOptions,
+} from "@modules/alerts/application/ports/push-sender.port";
 import type { IGoogleOAuthClient } from "@modules/children/application/ports/google-oauth-client.port";
 import type { IAnnouncementExtractor } from "@modules/classroom-sync/application/ports/announcement-extractor.port";
 import type {
@@ -54,7 +58,7 @@ function courseOf(courseId: string) {
 export interface FakePush {
   endpoint: string;
   message: PushMessage;
-  topic: string;
+  options: PushOptions;
 }
 
 export function fakeProviders(clock: () => Date = () => new Date()) {
@@ -180,7 +184,7 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
 
   const push: IPushSender = {
     send: async (target, message, options) => {
-      pushes.push({ endpoint: target.endpoint, message, topic: options.topic });
+      pushes.push({ endpoint: target.endpoint, message, options });
       return Result.ok();
     },
   };

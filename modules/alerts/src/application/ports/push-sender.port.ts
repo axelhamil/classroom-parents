@@ -10,11 +10,13 @@ export interface PushMessage {
   title: string;
   body: string;
   url: string;
+  tag: string;
 }
 
 export interface PushOptions {
   ttlSeconds: number;
   topic: string;
+  urgency: "high" | "normal";
 }
 
 export type PushFailure = "PUSH_GONE" | "PUSH_FAILED";

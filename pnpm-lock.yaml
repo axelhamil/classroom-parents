@@ -592,6 +592,9 @@ importers:
       '@packages/http':
         specifier: workspace:*
         version: link:../../packages/http
+      '@packages/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@packages/outbox':
         specifier: workspace:*
         version: link:../../packages/outbox

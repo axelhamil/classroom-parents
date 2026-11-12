@@ -26,6 +26,7 @@ function readNotification(data) {
       title: notification.title,
       body: notification.body,
       navigate: safeTarget(notification.navigate),
+      tag: typeof notification.tag === "string" && notification.tag ? notification.tag : undefined,
     };
   } catch {
     return FALLBACK;
@@ -41,7 +42,8 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  const { title, body, navigate } = readNotification(event.data);
+  const { title, body, navigate, tag } = readNotification(event.data);
+  const grouping = tag ? { tag, renotify: true } : {};
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -50,6 +52,7 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/badge-96.png",
       data: { navigate },
+      ...grouping,
     }),
   );
 });

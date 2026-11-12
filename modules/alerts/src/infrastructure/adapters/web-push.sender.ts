@@ -12,8 +12,11 @@ import type {
 
 const GONE_STATUSES = new Set([404, 410]);
 
-function declarativePayload({ title, body, url }: PushMessage): string {
-  return JSON.stringify({ web_push: 8030, notification: { title, body, navigate: url } });
+function declarativePayload({ title, body, url, tag }: PushMessage): string {
+  return JSON.stringify({
+    web_push: 8030,
+    notification: { title, body, navigate: url, tag, renotify: true },
+  });
 }
 
 export class WebPushSender implements IPushSender {
@@ -69,7 +72,7 @@ export class WebPushSender implements IPushSender {
           publicKey: this.settings.vapidPublicKey,
           privateKey: this.settings.vapidPrivateKey,
         },
-        urgency: "high",
+        urgency: options.urgency,
         TTL: options.ttlSeconds,
         topic: options.topic,
       },

@@ -9,6 +9,7 @@ import type { IAlertEmailSender } from "./application/ports/alert-email-sender.p
 import type { IAlertRepository } from "./application/ports/alert-repository.port";
 import type { IDigestAudience, IDigestDeadlines } from "./application/ports/digest-audience.port";
 import type { IEventDeadlines } from "./application/ports/event-deadlines.port";
+import type { IPushCopy } from "./application/ports/push-copy.port";
 import type { IPushSender } from "./application/ports/push-sender.port";
 import type { IPushSubscriptionRepository } from "./application/ports/push-subscription-repository.port";
 import type { IReminderSettingsRepository } from "./application/ports/reminder-settings.port";
@@ -19,6 +20,7 @@ import { DigestPreferenceService } from "./application/services/digest-preferenc
 import { PushSubscriptionService } from "./application/services/push-subscription.service";
 import { ReminderSettingsService } from "./application/services/reminder-settings.service";
 import { WeeklyDigestService } from "./application/services/weekly-digest.service";
+import { I18nPushCopy } from "./infrastructure/adapters/i18n-push.copy";
 import { ResendAlertEmailSender } from "./infrastructure/adapters/resend-alert-email.sender";
 import { WebPushSender } from "./infrastructure/adapters/web-push.sender";
 import { DrizzleAlertRepository } from "./infrastructure/repositories/drizzle-alert.repository";
@@ -57,6 +59,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
       "IWeeklyDigestRepository",
       (c): IWeeklyDigestRepository => new DrizzleWeeklyDigestRepository(c.IInstrumentation),
     )
+    .add("IPushCopy", (): IPushCopy => new I18nPushCopy())
     .add("IPushSender", (c): IPushSender => new WebPushSender(c.IInstrumentation, c.alertsSettings))
     .add(
       "IAlertEmailSender",
@@ -102,6 +105,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.IPushSender,
           c.IAlertEmailSender,
           c.IAlertContextReader,
+          c.IPushCopy,
           c.IEventDeadlines,
           c.ITransactionService,
           c.IOutboxRepository,

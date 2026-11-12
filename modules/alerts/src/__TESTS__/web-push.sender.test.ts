@@ -5,7 +5,7 @@ import { createServer as createNetServer, type Socket } from "node:net";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { generateRequestDetails, generateVAPIDKeys } from "web-push";
 import { SEND_TIMEOUT_MS } from "../application/config/dispatch-budget";
-import type { PushMessage } from "../application/ports/push-sender.port";
+import type { PushMessage, PushOptions } from "../application/ports/push-sender.port";
 import { WebPushSender } from "../infrastructure/adapters/web-push.sender";
 
 const vapid = generateVAPIDKeys();
@@ -52,11 +52,13 @@ const message: PushMessage = {
   title: "Contrôle de maths",
   body: "Léa, échéance dimanche 15 novembre",
   url: "https://app.example.com/events/1",
+  tag: "event-1",
 };
 const payload = JSON.stringify(message);
-const options = {
+const options: PushOptions = {
   ttlSeconds: 7200,
   topic: "0196a0000000700080000000000000a1",
+  urgency: "high",
 };
 
 interface PushService {
@@ -206,8 +208,22 @@ describe("WebPushSender", () => {
         title: "Contrôle de maths",
         body: "Léa, échéance dimanche 15 novembre",
         navigate: "https://app.example.com/events/1",
+        tag: "event-1",
+        renotify: true,
       },
     });
+  });
+
+  it("given a non urgent message, then the push service is told it may wait for the device to wake", async () => {
+    service = await pushService(201);
+    const sender = new WebPushSender(mockInstrumentation(), settings);
+
+    await sender.send({ ...target, endpoint: service.url }, message, {
+      ...options,
+      urgency: "normal",
+    });
+
+    expect(service.received[0]?.headers.urgency).toBe("normal");
   });
 
   it("spike: under Bun the library signs VAPID and encrypts the payload for a real browser key", () => {

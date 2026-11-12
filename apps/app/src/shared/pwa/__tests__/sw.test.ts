@@ -24,7 +24,9 @@ interface FakeClient {
 
 function loadWorker(windows: FakeClient[] = []) {
   const listeners = new Map<string, Listener>();
-  const showNotification = vi.fn(async () => undefined);
+  const showNotification = vi.fn(
+    async (_title: string, _options?: NotificationOptions) => undefined,
+  );
   const openWindow = vi.fn(async () => undefined);
   const self = {
     location: { origin: ORIGIN },
@@ -80,6 +82,35 @@ describe("service worker", () => {
         data: { navigate: "/events/e1" },
       }),
     );
+  });
+
+  it("given a push tagged with its event, then it replaces the earlier notification of that event and rings again", async () => {
+    const worker = loadWorker();
+
+    await worker.dispatch("push", {
+      data: {
+        json: () => ({
+          notification: { title: "t", body: "b", navigate: "/events/e1", tag: "event-e1" },
+        }),
+      },
+    });
+
+    expect(worker.showNotification).toHaveBeenCalledWith(
+      "t",
+      expect.objectContaining({ tag: "event-e1", renotify: true }),
+    );
+  });
+
+  it("given a push without a tag, then it is shown on its own without asking to ring again", async () => {
+    const worker = loadWorker();
+
+    await worker.dispatch("push", {
+      data: { json: () => ({ notification: { title: "t", body: "b", navigate: "/" } }) },
+    });
+
+    const options = worker.showNotification.mock.calls[0]?.[1];
+    expect(options).not.toHaveProperty("tag");
+    expect(options).not.toHaveProperty("renotify");
   });
 
   it("given a payload that is not JSON, then it still shows a generic French notification", async () => {

@@ -50,12 +50,14 @@ import type {
   IEventDeadlines,
   UpcomingDeadline,
 } from "../src/application/ports/event-deadlines.port";
+import type { IPushCopy } from "../src/application/ports/push-copy.port";
 import type { IPushSender } from "../src/application/ports/push-sender.port";
 import { AlertDispatchService } from "../src/application/services/alert-dispatch.service";
 import { AlertPlanningService } from "../src/application/services/alert-planning.service";
 import { PushSubscriptionService } from "../src/application/services/push-subscription.service";
 import { ReminderSettingsService } from "../src/application/services/reminder-settings.service";
 import { ReminderList } from "../src/domain/value-objects/reminder-list.vo";
+import { I18nPushCopy } from "../src/infrastructure/adapters/i18n-push.copy";
 import {
   alertClaimQuery,
   DrizzleAlertRepository,
@@ -71,11 +73,20 @@ const NOW = new Date();
 const probe = `check-alert-db-${crypto.randomUUID()}`;
 const { instrumentation, spans } = spanRecorder();
 
-const pushes = new Map<string, number>();
+let pushes = 0;
 const pushSender: IPushSender = {
-  send: async (_target, _payload, options) => {
-    pushes.set(options.topic, (pushes.get(options.topic) ?? 0) + 1);
+  send: async () => {
+    pushes += 1;
     return Result.ok();
+  },
+};
+const pushedAlerts = new Map<string, number>();
+const i18nCopy = new I18nPushCopy();
+const countingCopy: IPushCopy = {
+  forAlerts: async (shown) => {
+    for (const { alertId } of shown)
+      pushedAlerts.set(alertId, (pushedAlerts.get(alertId) ?? 0) + 1);
+    return i18nCopy.forAlerts(shown);
   },
 };
 let emails = 0;
@@ -160,6 +171,7 @@ const dispatch = new AlertDispatchService(
   pushSender,
   emailSender,
   contexts,
+  countingCopy,
   deadlines,
   transactions,
   outbox,
@@ -365,9 +377,11 @@ run(async () => {
     sentRows.length === dueReminders && sentRows.every((row) => row.status === "sent"),
   );
   await step(
-    "each reminder was pushed exactly once, each with its own topic",
-    pushes.size === dueReminders && [...pushes.values()].every((count) => count === 1),
-    { distinct: pushes.size, max: Math.max(...pushes.values()) },
+    "each reminder was pushed exactly once, grouped per parent into fewer notifications",
+    pushedAlerts.size === dueReminders &&
+      [...pushedAlerts.values()].every((count) => count === 1) &&
+      pushes < dueReminders,
+    { distinct: pushedAlerts.size, max: Math.max(...pushedAlerts.values()), pushes },
   );
   await step("no email fallback while a push got through", emails === 0, { emails });
 
@@ -412,6 +426,7 @@ run(async () => {
     racingPush,
     emailSender,
     contexts,
+    new I18nPushCopy(),
     deadlines,
     transactions,
     outbox,
@@ -615,6 +630,7 @@ run(async () => {
     recordingPush,
     emailSender,
     contexts,
+    new I18nPushCopy(),
     deadlines,
     transactions,
     outbox,
