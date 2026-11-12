@@ -20,6 +20,7 @@ import type { AlertContext, IAlertContextReader } from "../ports/alert-context-r
 import type { IAlertEmailSender } from "../ports/alert-email-sender.port";
 import type {
   AlertLease,
+  AlertsError,
   ClaimedAlert,
   DeliveryChannel,
   IAlertRepository,
@@ -92,6 +93,13 @@ function groupEmailKey(group: Deliverable[]): string {
   const members = group.map(({ item }) => item.lease.alertId).toSorted();
   const digest = createHash("sha256").update(members.join(",")).digest("hex").slice(0, 16);
   return `alerts-${slotOf(group)}-${userId}-${digest}`;
+}
+
+function leaseLost({ alertId }: AlertLease): AlertsError {
+  return {
+    code: "ALERT_LEASE_CONFLICT",
+    message: `alert ${alertId}: another dispatcher took the lease over, the group is left to it`,
+  };
 }
 
 function addressing(group: Deliverable[]): Pick<PushMessage, "url" | "tag"> & { topic: string } {
@@ -213,6 +221,14 @@ export class AlertDispatchService {
   private async emailGroup(group: Deliverable[], now: Date): Promise<Settled[]> {
     const to = group[0]?.context.email ?? "";
     const queued = await this.transactions.run(async (): Promise<Result<Settled[], AppError>> => {
+      const settled: Settled[] = [];
+      for (const { item } of group) {
+        const delivered = await this.markSent(item.alert, item.lease, "email", now);
+        if (delivered.isFailure) return Result.fail(delivered.getError());
+        if (delivered.getValue() !== "email") return Result.fail(leaseLost(item.lease));
+        settled.push({ alertId: item.lease.alertId, delivered });
+      }
+
       const emailed = await this.email.sendGroup(to, {
         groupKey: groupEmailKey(group),
         items: group.map(({ context: { eventTitle, childLabel, deadlineLabel } }) => ({
@@ -224,17 +240,17 @@ export class AlertDispatchService {
       });
       if (emailed.isFailure) return Result.fail(emailed.getError());
 
-      const settled: Settled[] = [];
-      for (const { item } of group) {
-        const delivered = await this.markSent(item.alert, item.lease, "email", now);
-        if (delivered.isFailure) return Result.fail(delivered.getError());
-        settled.push({ alertId: item.lease.alertId, delivered });
-      }
       return Result.ok(settled);
     });
     if (queued.isSuccess) return queued.getValue();
 
     const code = queued.getError().code;
+    if (code === "ALERT_LEASE_CONFLICT")
+      return group.map(({ item }) => ({
+        alertId: item.lease.alertId,
+        delivered: Result.ok("none"),
+      }));
+
     return mapBounded(
       group,
       DISPATCH_CONCURRENCY,

@@ -793,13 +793,17 @@ run(async () => {
       if (outcome.isFailure || outcome.getValue().claimed === 0) return;
     }
   };
-  const queuedFor = () =>
+  const queuedFor = (userId: string) =>
     db
       .select({ payload: emailSchema.emailMessage.payload })
       .from(emailSchema.emailMessage)
-      .where(like(emailSchema.emailMessage.idempotencyKey, `%${offline.userId}%`));
+      .where(like(emailSchema.emailMessage.idempotencyKey, `%${userId}%`));
+  const statusesOf = async (ids: string[]) =>
+    (await db.select({ status: alert.status }).from(alert).where(inArray(alert.id, ids))).map(
+      ({ status }) => status,
+    );
   await drainOffline();
-  const firstPass = await queuedFor();
+  const firstPass = await queuedFor(offline.userId);
   await db
     .update(alert)
     .set({ status: "pending", sentAt: null, nextAttemptAt: null })
@@ -810,7 +814,8 @@ run(async () => {
       ),
     );
   await drainOffline();
-  const secondPass = await queuedFor();
+  const secondPass = await queuedFor(offline.userId);
+  const offlineStatuses = await statusesOf(offlineAlerts.map(({ id }) => id));
   const listed = (rows: { payload: unknown }[]) =>
     rows.map(({ payload }) => {
       const items =
@@ -820,16 +825,107 @@ run(async () => {
       return items.split("\n").filter(Boolean).length;
     });
   await step(
-    "a parent with 25 due alerts and no device gets one queued email listing all 25, and a pass after a lost lease adds none",
+    "a parent with 25 due alerts and no device gets one queued email listing all 25, and a second pass over the same group adds none and counts it sent",
     firstPass.length === 1 &&
       listed(firstPass)[0] === 25 &&
       secondPass.length === 1 &&
+      offlineStatuses.length === 25 &&
+      offlineStatuses.every((status) => status === "sent") &&
       directSends === 0,
     {
       firstPass: firstPass.length,
       secondPass: secondPass.length,
       listed: listed(firstPass),
+      statuses: [...new Set(offlineStatuses)],
       directSends,
+    },
+  );
+
+  const taken = await seedFamily("taken");
+  const takenEvents = await seedEvents(taken, 3, "taken", groupedDeadline);
+  const takenAlert = (eventId: string) => ({
+    eventId,
+    userId: taken.userId,
+    reminder: "d2@18:00",
+    dueAt: morning,
+    deadlineAt: groupedDeadline,
+    origin: "default" as const,
+    status: "pending" as const,
+  });
+  const firstTaken = await db
+    .insert(alert)
+    .values(takenEvents.slice(0, 2).map(takenAlert))
+    .returning({ id: alert.id });
+  const takeover: IPushCopy = {
+    forAlerts: async (shown, options) => {
+      await db
+        .update(alert)
+        .set({ attempts: sql`${alert.attempts} + 1` })
+        .where(
+          inArray(
+            alert.id,
+            shown.map(({ alertId }) => alertId),
+          ),
+        );
+      return countingCopy.forAlerts(shown, options);
+    },
+    forWeek: (count) => countingCopy.forWeek(count),
+  };
+  const outrun = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    pushSender,
+    queuedSender,
+    contexts,
+    takeover,
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  await outrun.runOnce(NOW);
+  const afterLostLease = await queuedFor(taken.userId);
+  const lateTaken = await db
+    .insert(alert)
+    .values(takenEvents.slice(2).map(takenAlert))
+    .returning({ id: alert.id });
+  const takenIds = [...firstTaken, ...lateTaken].map(({ id }) => id);
+  for (let pass = 0; pass < 8; pass += 1) {
+    await db
+      .update(alert)
+      .set({ nextAttemptAt: null })
+      .where(and(inArray(alert.id, takenIds), eq(alert.status, "pending")));
+    const outcome = await offlineDispatch.runOnce(NOW);
+    if (outcome.isFailure || outcome.getValue().claimed === 0) break;
+  }
+  const takenQueued = await queuedFor(taken.userId);
+  const takenStatuses = await statusesOf(takenIds);
+  const takenTrouble = await db
+    .select({ type: outboxSchema.outboxEvent.eventType })
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        inArray(outboxSchema.outboxEvent.aggregateId, takenIds),
+        inArray(outboxSchema.outboxEvent.eventType, [
+          EventTypes.ALERT_MISSED,
+          EventTypes.ALERT_DELIVERY_FAILED,
+        ]),
+      ),
+    );
+  await step(
+    "a dispatcher that lost its lease queues no grouped email, and the worker that took over sends one email listing the group and the deadline added since, every alert sent",
+    afterLostLease.length === 0 &&
+      takenQueued.length === 1 &&
+      listed(takenQueued)[0] === 3 &&
+      takenStatuses.length === 3 &&
+      takenStatuses.every((status) => status === "sent") &&
+      takenTrouble.length === 0,
+    {
+      afterLostLease: afterLostLease.length,
+      queued: takenQueued.length,
+      listed: listed(takenQueued),
+      statuses: takenStatuses,
+      trouble: takenTrouble.map(({ type }) => type),
     },
   );
 

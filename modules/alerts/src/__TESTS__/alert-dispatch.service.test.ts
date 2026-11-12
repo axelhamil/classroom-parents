@@ -491,7 +491,22 @@ describe("grouping", () => {
 
     expect(result.getValue()).toEqual({ claimed: 2, sent: 0, emailed: 0, missed: 0 });
     expect(alerts.addFailure).toHaveBeenCalledTimes(2);
-    expect(alerts.settle).not.toHaveBeenCalled();
+  });
+
+  it("given another dispatcher took the lease of the group over, then no grouped email is queued and no failure is recorded", async () => {
+    givenBatch([alertOf(1), alertOf(2)]);
+    givenSubscriptions([]);
+    alerts.settle.mockResolvedValue(Result.ok(false));
+    email.sendGroup.mockResolvedValue(Result.ok());
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toEqual({ claimed: 2, sent: 0, emailed: 0, missed: 0 });
+    expect(email.sendGroup).not.toHaveBeenCalled();
+    expect(alerts.addFailure).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).not.toContain(
+      EventTypes.ALERT_DELIVERY_FAILED,
+    );
   });
 
   it("given one alert of the group is done meanwhile, then the notification lists only the others", async () => {

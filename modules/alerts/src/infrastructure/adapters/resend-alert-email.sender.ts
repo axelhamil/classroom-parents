@@ -65,7 +65,7 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
           { itemCount: String(items.length), items: lines.join("\n"), appUrl },
           { idempotencyKey: groupKey },
         );
-        if (queued.isFailure)
+        if (queued.isFailure && queued.getError().code !== "EMAIL_ALREADY_QUEUED")
           return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", queued.getError().message));
 
         return Result.ok();

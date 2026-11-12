@@ -125,7 +125,7 @@ export class QueuedEmailService implements IEmailService {
       // that believes an email was queued when nothing was written (e.g. the RGPD deletion
       // confirmation) must not commit on that false premise.
       return Result.fail({
-        code: "EMAIL_PROVIDER_FAILURE",
+        code: "EMAIL_ALREADY_QUEUED",
         message: `email enqueue fully suppressed: 0 of ${rows.length} row(s) written`,
       });
     }

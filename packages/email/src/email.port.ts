@@ -12,7 +12,8 @@ export interface EmailBody {
 
 export type EmailError =
   | { code: "EMAIL_TRANSPORT_NOT_CONFIGURED"; message: string; cause?: unknown }
-  | { code: "EMAIL_PROVIDER_FAILURE"; message: string; cause?: unknown };
+  | { code: "EMAIL_PROVIDER_FAILURE"; message: string; cause?: unknown }
+  | { code: "EMAIL_ALREADY_QUEUED"; message: string; cause?: unknown };
 
 export interface SendTemplateOptions {
   idempotencyKey?: string;
