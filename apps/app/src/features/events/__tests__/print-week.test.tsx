@@ -80,6 +80,48 @@ describe("Planning du frigo, the printable week", () => {
     expect(items[1]?.dataset.past).toBeUndefined();
   });
 
+  it("next week is found past a full page of earlier deadlines, without asking for past ones", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const busyFriday = Array.from({ length: 50 }, (_, index) =>
+      deadline(index + 1, "2026-11-13", `Exercice ${index + 1}`),
+    );
+    const calls = stubApi(({ method, url }) => {
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname !== "/events" || method !== "GET") return undefined;
+      if (url.searchParams.get("status") === "needs_review") return json({ items: [] });
+      if (url.searchParams.get("cursor") === "page-2")
+        return json({ items: [deadline(60, "2026-11-17", "Dictée de mardi")] });
+      return json({ items: busyFriday, nextCursor: "page-2" });
+    });
+    await renderAppAt("/week/print?week=next");
+
+    expect(
+      await within(await screen.findByRole("region", { name: "Léa" })).findByText(
+        "Dictée de mardi",
+      ),
+    ).toBeDefined();
+    expect(calls.some((call) => call.url.searchParams.get("scope") === "history")).toBe(false);
+  });
+
+  it("past days that fail to load leave the rest of the week printable", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    stubApi(({ method, url }) => {
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname !== "/events" || method !== "GET") return undefined;
+      if (url.searchParams.get("status") === "needs_review") return json({ items: [] });
+      if (url.searchParams.get("scope") === "history") return json({ code: "INTERNAL" }, 500);
+      return json({ items: [deadline(1, "2026-11-13", "Piscine du vendredi")] });
+    });
+    await renderAppAt("/week/print?week=current");
+
+    const lea = await screen.findByRole("region", { name: "Léa" }, { timeout: 4000 });
+
+    expect(within(lea).getByText("Piscine du vendredi")).toBeDefined();
+    expect(
+      screen.getByText("Les échéances déjà passées cette semaine n'ont pas pu être chargées."),
+    ).toBeDefined();
+  }, 10_000);
+
   it("empty child shows the friendly line", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenFamily([CHILD, HUGO], [deadline(1, "2026-11-13", "Piscine du vendredi")]);

@@ -13,16 +13,14 @@ export interface WeekRange {
   to: string;
 }
 
-export function useWeekEvents(scope: EventScope, { from, to }: WeekRange) {
-  const query = useInfiniteQuery(eventPagesQueryOptions(scope, WHOLE_FAMILY));
+export function useWeekEvents(scope: EventScope, { from, to }: WeekRange, enabled = true) {
+  const query = useInfiniteQuery(eventPagesQueryOptions(scope, WHOLE_FAMILY, enabled));
   const last = query.data?.pages.at(-1)?.items.at(-1);
-  const weekGoesOn =
-    query.hasNextPage &&
-    !query.isFetchingNextPage &&
-    !query.isFetchNextPageError &&
+  const notPastTheWeek =
     last !== undefined &&
-    last.deadlineDate >= from &&
-    last.deadlineDate <= to;
+    (scope === "upcoming" ? last.deadlineDate <= to : last.deadlineDate >= from);
+  const weekGoesOn =
+    query.hasNextPage && !query.isFetchingNextPage && !query.isFetchNextPageError && notPastTheWeek;
   const { fetchNextPage } = query;
 
   useEffect(() => {

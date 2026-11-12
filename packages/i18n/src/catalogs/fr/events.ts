@@ -45,6 +45,7 @@ export default {
     date: "{{weekday}} {{day}} {{month}}",
     printedOn: "Imprimé le {{date}}",
     past: "Passée",
+    pastFailed: "Les échéances déjà passées cette semaine n'ont pas pu être chargées.",
     loading: "Préparation du planning",
   },
   focus: {

@@ -60,6 +60,17 @@ function PrintSheetSubtitle({ className, ...props }: React.ComponentProps<"p">) 
   );
 }
 
+function PrintSheetNote({ className, ...props }: React.ComponentProps<"p">) {
+  return (
+    <p
+      data-slot="print-sheet-note"
+      role="status"
+      className={cn("text-xs text-muted-foreground", className)}
+      {...props}
+    />
+  );
+}
+
 function PrintSheetFooter({ className, ...props }: React.ComponentProps<"footer">) {
   return (
     <footer
@@ -292,6 +303,7 @@ export {
   PrintSheet,
   PrintSheetFooter,
   PrintSheetHeader,
+  PrintSheetNote,
   PrintSheetSubtitle,
   PrintSheetTitle,
   PrintTable,

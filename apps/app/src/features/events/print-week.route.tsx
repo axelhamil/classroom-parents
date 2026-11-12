@@ -5,6 +5,7 @@ import {
   PrintSheet,
   PrintSheetFooter,
   PrintSheetHeader,
+  PrintSheetNote,
   PrintSheetSubtitle,
   PrintSheetTitle,
 } from "@packages/ui/components/ui/print-planner";
@@ -77,7 +78,7 @@ function PrintWeekPage() {
   const range = { from: first, to: last };
   const children = useQuery(childrenQueryOptions);
   const upcoming = useWeekEvents("upcoming", range);
-  const past = useWeekEvents("history", range);
+  const past = useWeekEvents("history", range, week === "current");
   const title = t("print.title", rangeOf(first, last));
   const loading = <EventBoardSkeleton label={t("print.loading")} />;
 
@@ -122,22 +123,23 @@ function PrintWeekPage() {
         <QueryState query={children} skeleton={loading}>
           {(family) => (
             <QueryState query={upcoming} skeleton={loading}>
-              {(later) => (
-                <QueryState query={past} skeleton={loading}>
-                  {(earlier) => (
-                    <FridgePlanner
-                      title={title}
-                      subtitle={t("print.subtitle")}
-                      family={family}
-                      events={eventsOfWeek([earlier, later], range)}
-                      now={now}
-                    />
-                  )}
-                </QueryState>
-              )}
+              {(later) =>
+                past.isLoading ? (
+                  loading
+                ) : (
+                  <FridgePlanner
+                    title={title}
+                    subtitle={t("print.subtitle")}
+                    family={family}
+                    events={eventsOfWeek(past.data ? [past.data, later] : [later], range)}
+                    now={now}
+                  />
+                )
+              }
             </QueryState>
           )}
         </QueryState>
+        {past.isError ? <PrintSheetNote>{t("print.pastFailed")}</PrintSheetNote> : null}
         <PrintSheetFooter>
           <span>{tCommon("brand")}</span>
           <span>{t("print.printedOn", { date: wallDateLabel(today, today) })}</span>
