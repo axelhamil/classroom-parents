@@ -4,6 +4,7 @@ import { mutationOptions } from "@tanstack/react-query";
 import { api } from "../../../shared/api/api-client";
 import { savePushSubscription } from "../../../shared/api/mutations/save-push-subscription";
 import { pushConfigQueryOptions } from "../../../shared/api/queries/push-config";
+import { sessionQueryOptions } from "../../../shared/api/queries/session";
 import { queryClient } from "../../../shared/api/query-client";
 import { authClient } from "../../../shared/auth/auth-client";
 import {
@@ -24,7 +25,11 @@ export const enablePushMutationOptions = mutationOptions({
     const { vapidPublicKey } = await queryClient.fetchQuery(pushConfigQueryOptions);
     const subscription = await subscribeToPush(vapidPublicKey);
     await savePushSubscription(toSubscriptionBody(subscription));
-    rememberPushOwner({ userId, endpoint: subscription.endpoint });
+    rememberPushOwner({
+      userId,
+      endpoint: subscription.endpoint,
+      sessionId: queryClient.getQueryData(sessionQueryOptions.queryKey)?.session.id,
+    });
 
     return permission;
   },

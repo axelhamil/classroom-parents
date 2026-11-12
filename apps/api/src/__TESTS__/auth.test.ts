@@ -18,7 +18,6 @@ const forgetSession = mock(
 mock.module("../container", () => ({
   di: {
     IOutboxRepository: { enqueue },
-    ITransactionService: { run: <T>(work: () => Promise<T>) => work() },
     PushSubscriptionService: { forgetSession },
   },
 }));
@@ -258,6 +257,7 @@ describe("session revocation", () => {
   });
 
   const sessionDelete = auth.options.databaseHooks.session.delete.after;
+  const sessionBeforeDelete = auth.options.databaseHooks.session.delete.before;
   const revoked = { id: "session-2", userId: "user-1", token: "token-2" };
 
   function revocations() {
@@ -269,6 +269,7 @@ describe("session revocation", () => {
 
   for (const path of ["/revoke-session", "/revoke-sessions", "/revoke-other-sessions"]) {
     it(`announces the session the parent ended from another device through ${path}`, async () => {
+      await sessionBeforeDelete(revoked as never, { path } as never);
       await sessionDelete(revoked as never, { path } as never);
 
       expect(revocations()).toEqual([{ userId: "user-1", sessionId: "session-2" }]);
@@ -277,21 +278,35 @@ describe("session revocation", () => {
   }
 
   it("stays silent and keeps the device's push alerts when a session ends by signing out or expiring", async () => {
+    await sessionBeforeDelete(revoked as never, { path: "/sign-out" } as never);
     await sessionDelete(revoked as never, { path: "/sign-out" } as never);
+    await sessionBeforeDelete(revoked as never, null);
     await sessionDelete(revoked as never, null);
 
     expect(revocations()).toEqual([]);
     expect(forgetSession).not.toHaveBeenCalled();
   });
 
-  it("fails the revocation without announcing it when the device's push alerts could not be removed", async () => {
+  it("keeps the session, so the parent can retry, when the device's push alerts could not be removed", async () => {
     forgetSession.mockResolvedValue(
       Result.fail({ code: "PUSH_PROVIDER_FAILURE", message: "push store down" }),
     );
 
-    const attempt = sessionDelete(revoked as never, { path: "/revoke-session" } as never);
+    const attempt = sessionBeforeDelete(revoked as never, { path: "/revoke-session" } as never);
 
     await expect(attempt).rejects.toMatchObject({ code: "PUSH_PROVIDER_FAILURE" });
     expect(revocations()).toEqual([]);
+  });
+
+  it("removes the device's push alerts before the session row goes, and announces the revocation once it is gone", async () => {
+    await sessionBeforeDelete(revoked as never, { path: "/revoke-session" } as never);
+
+    expect(forgetSession.mock.calls).toEqual([["user-1", "session-2"]]);
+    expect(revocations()).toEqual([]);
+
+    await sessionDelete(revoked as never, { path: "/revoke-session" } as never);
+
+    expect(forgetSession.mock.calls).toHaveLength(1);
+    expect(revocations()).toEqual([{ userId: "user-1", sessionId: "session-2" }]);
   });
 });

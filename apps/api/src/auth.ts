@@ -141,22 +141,20 @@ const authOptions = {
         },
       },
       delete: {
+        before: async (session, context) => {
+          if (!context || !REVOKE_PATHS.has(context.path)) return;
+          const forgotten = await di.PushSubscriptionService.forgetSession(
+            session.userId,
+            session.id,
+          );
+          if (forgotten.isFailure) throw new AppErrorException(forgotten.getError());
+        },
         after: async (session, context) => {
           if (!context || !REVOKE_PATHS.has(context.path)) return;
-          const revoked = await di.ITransactionService.run(async () => {
-            const forgotten = await di.PushSubscriptionService.forgetSession(
-              session.userId,
-              session.id,
-            );
-            if (forgotten.isFailure) return forgotten;
-
-            await emit(EventTypes.USER_SESSION_REVOKED, "session", session.id, {
-              userId: session.userId,
-              sessionId: session.id,
-            });
-            return forgotten;
+          await emit(EventTypes.USER_SESSION_REVOKED, "session", session.id, {
+            userId: session.userId,
+            sessionId: session.id,
           });
-          if (revoked.isFailure) throw new AppErrorException(revoked.getError());
         },
       },
     },

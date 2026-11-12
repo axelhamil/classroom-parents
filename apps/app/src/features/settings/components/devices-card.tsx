@@ -19,7 +19,7 @@ import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Globe, Laptop, LogOut, type LucideIcon, Smartphone } from "lucide-react";
-import { type ComponentProps, useId, useRef } from "react";
+import { type ComponentProps, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   revokeOtherSessionsMutationOptions,
@@ -163,12 +163,13 @@ function DeviceList(props: DeviceListProps) {
 
 function VirtualDeviceList({ sessions, currentSessionToken, locked, onRevoked }: DeviceListProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  const scrollMargin = useDocumentTop(listRef);
   const virtualizer = useWindowVirtualizer({
     count: sessions.length,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     gap: ROW_GAP,
     overscan: OVERSCAN_ROWS,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    scrollMargin,
     getItemKey: (index) => sessions[index]?.id ?? index,
   });
 
@@ -198,6 +199,23 @@ function VirtualDeviceList({ sessions, currentSessionToken, locked, onRevoked }:
       })}
     </ItemGroup>
   );
+}
+
+function useDocumentTop(ref: { current: HTMLElement | null }): number {
+  const [top, setTop] = useState(0);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const measure = () => setTop(element.getBoundingClientRect().top + window.scrollY);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return top;
 }
 
 interface DeviceRowProps extends ComponentProps<typeof Item> {

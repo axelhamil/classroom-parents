@@ -11,7 +11,7 @@ import {
   toSubscriptionBody,
 } from "./push-support";
 
-export function usePushEndpointSync(userId: string): void {
+export function usePushEndpointSync(userId: string, sessionId: string): void {
   const { mutate } = useMutation(savePushSubscriptionMutationOptions);
 
   useEffect(() => {
@@ -25,12 +25,14 @@ export function usePushEndpointSync(userId: string): void {
         }
 
         const owner = storedPushOwner();
-        if (owner?.userId !== userId || owner.endpoint === subscription.endpoint) return;
+        if (owner?.userId !== userId) return;
+        if (owner.endpoint === subscription.endpoint && owner.sessionId === sessionId) return;
 
         mutate(toSubscriptionBody(subscription), {
-          onSuccess: () => rememberPushOwner({ userId, endpoint: subscription.endpoint }),
+          onSuccess: () =>
+            rememberPushOwner({ userId, endpoint: subscription.endpoint, sessionId }),
         });
       })
       .catch((error: unknown) => captureError(error, { area: "push" }));
-  }, [mutate, userId]);
+  }, [mutate, userId, sessionId]);
 }

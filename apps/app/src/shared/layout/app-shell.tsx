@@ -18,15 +18,16 @@ import { type ShellUser, UserMenu } from "./user-menu";
 
 interface AppShellProps {
   user: ShellUser & { id: string };
+  sessionId: string;
   children: ReactNode;
 }
 
-export function AppShell({ user, children }: AppShellProps) {
+export function AppShell({ user, sessionId, children }: AppShellProps) {
   const { t } = useTranslation("common");
   const active = useActiveNavItem();
   useAppUserStream();
   useSyncOnOpen();
-  usePushEndpointSync(user.id);
+  usePushEndpointSync(user.id, sessionId);
 
   return (
     <div className="flex min-h-dvh flex-col pb-nav md:pb-0">

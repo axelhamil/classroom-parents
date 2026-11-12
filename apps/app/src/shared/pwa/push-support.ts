@@ -5,7 +5,11 @@ export type PushPermission = NotificationPermission | "unsupported";
 
 const OWNER_STORAGE_KEY = "push-owner";
 
-const pushOwnerSchema = z.object({ userId: z.string(), endpoint: z.string() });
+const pushOwnerSchema = z.object({
+  userId: z.string(),
+  endpoint: z.string(),
+  sessionId: z.string().optional(),
+});
 
 export type PushOwner = z.infer<typeof pushOwnerSchema>;
 

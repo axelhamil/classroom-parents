@@ -46,5 +46,9 @@ export function NotFoundPage() {
 
   if (!session) return <div className="flex min-h-dvh flex-col">{page}</div>;
 
-  return <AppShell user={session.user}>{page}</AppShell>;
+  return (
+    <AppShell user={session.user} sessionId={session.session.id}>
+      {page}
+    </AppShell>
+  );
 }

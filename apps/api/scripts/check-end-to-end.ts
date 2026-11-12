@@ -25,6 +25,7 @@ import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-pr
 import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
+import { Result } from "@packages/ddd-kit";
 import {
   type AnyPgTable,
   alias,
@@ -392,23 +393,57 @@ run(async () => {
     discarded.status,
   );
 
-  const phone = await signedSession(family.userId);
   const phoneEndpoint = `https://fcm.googleapis.com/fcm/send/${probe}-phone`;
-  const phoneSubscribed = await client(phone.cookie)("/push/subscriptions", "POST", {
-    endpoint: phoneEndpoint,
-    keys: { p256dh: "demo-p256dh", auth: "demo-auth" },
-  });
-  const revoked = await auth.handler(
-    new Request(new URL("/api/auth/revoke-session", env.BETTER_AUTH_URL).href, {
-      method: "POST",
-      headers: {
-        cookie: await sessionCookie(family.userId),
-        origin,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ token: phone.token }),
-    }),
+  const subscribePhone = (cookie: string) =>
+    client(cookie)("/push/subscriptions", "POST", {
+      endpoint: phoneEndpoint,
+      keys: { p256dh: "demo-p256dh", auth: "demo-auth" },
+    });
+  const revokeFromLaptop = async (token: string) =>
+    auth.handler(
+      new Request(new URL("/api/auth/revoke-session", env.BETTER_AUTH_URL).href, {
+        method: "POST",
+        headers: {
+          cookie: await sessionCookie(family.userId),
+          origin,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ token }),
+      }),
+    );
+  const phoneSessionOf = async () => {
+    const [row] = await db
+      .select({ sessionId: pushSubscription.sessionId })
+      .from(pushSubscription)
+      .where(eq(pushSubscription.endpoint, phoneEndpoint));
+    return row?.sessionId;
+  };
+
+  const expired = await signedSession(family.userId);
+  await subscribePhone(expired.cookie);
+  await db.delete(authSchema.session).where(eq(authSchema.session.id, expired.id));
+  const phone = await signedSession(family.userId);
+  const phoneSubscribed = await subscribePhone(phone.cookie);
+  await step(
+    "a phone signing in again after its session expired ties its push subscription to the new session",
+    phoneSubscribed.status === 204 && (await phoneSessionOf()) === phone.id,
+    { status: phoneSubscribed.status, sessionId: await phoneSessionOf(), expected: phone.id },
   );
+
+  const pushSubscriptions = di.PushSubscriptionService;
+  const forgetSession = pushSubscriptions.forgetSession.bind(pushSubscriptions);
+  pushSubscriptions.forgetSession = async () =>
+    Result.fail({ code: "PUSH_PROVIDER_FAILURE", message: "push store down" });
+  const refused = await revokeFromLaptop(phone.token);
+  pushSubscriptions.forgetSession = forgetSession;
+  const phoneSessionsLeft = await rowsIn(authSchema.session, eq(authSchema.session.id, phone.id));
+  await step(
+    "a revocation whose push removal fails keeps the phone's session and alerts, so the parent can retry",
+    refused.status >= 500 && phoneSessionsLeft === 1 && (await phoneSessionOf()) === phone.id,
+    { status: refused.status, phoneSessionsLeft },
+  );
+
+  const revoked = await revokeFromLaptop(phone.token);
   const endpointsLeft = (
     await db
       .select({ endpoint: pushSubscription.endpoint })

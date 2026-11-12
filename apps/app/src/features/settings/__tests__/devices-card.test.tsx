@@ -110,4 +110,37 @@ describe("devices card", () => {
     await waitFor(() => expect(within(card).getAllByRole("listitem")).toHaveLength(1));
     expect(writesTo(calls)).toEqual([{ path: "/api/auth/revoke-other-sessions", body: {} }]);
   });
+
+  it("a long list of devices starts with this device once the parent scrolls down to it", async () => {
+    const LIST_TOP_ON_A_PHONE = 1373;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: Element,
+    ) {
+      const top = this.getAttribute("role") === "list" ? LIST_TOP_ON_A_PHONE - window.scrollY : 0;
+      return DOMRect.fromRect({ x: 0, y: top, width: 358, height: 72 });
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(72);
+    window.scrollY = LIST_TOP_ON_A_PHONE;
+    givenSessions([
+      session("s-1", "token-1", IPHONE, "2026-11-12T08:00:00.000Z"),
+      ...Array.from({ length: 24 }, (_, index) =>
+        session(`s-${index + 2}`, `token-${index + 2}`, WINDOWS_CHROME, "2026-11-10T19:30:00.000Z"),
+      ),
+    ]);
+    await renderAppAt("/settings");
+
+    const card = await screen.findByRole("region", { name: "Appareils connectés" });
+
+    expect(await within(card).findByText("Cet appareil")).toBeTruthy();
+    window.scrollY = 0;
+    vi.unstubAllGlobals();
+  });
 });
