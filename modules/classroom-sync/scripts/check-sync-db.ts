@@ -13,7 +13,7 @@ exitUnlessLocalDatabase("check-sync-db", process.env.DATABASE_URL);
 
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
-import { type AppError, type ILogger, Result } from "@packages/ddd-kit";
+import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import {
   and,
@@ -134,6 +134,7 @@ const service = new SyncChildService(
   { accessTokenFor: async (childId) => Result.ok(childId) },
   extractor,
   ingest,
+  { nextAlertAt: async () => Result.ok(Option.none()) },
   syncState,
   ledger,
   transactions,

@@ -190,9 +190,15 @@ export function manualSyncGateFor(
       if (claimed.isFailure) return Result.fail(asSyncError(claimed.getError()));
 
       const claim = claimed.getValue();
-      if (claim.outcome !== "started") return Result.ok({ outcome: claim.outcome });
+      if (claim.outcome !== "started")
+        return Result.ok({ outcome: claim.outcome, retryAt: claim.retryAt });
 
-      return Result.ok({ outcome: "started", lease: claim.lease.lease, label: claim.label });
+      return Result.ok({
+        outcome: "started",
+        lease: claim.lease.lease,
+        label: claim.label,
+        retryAt: claim.retryAt,
+      });
     },
   };
 }

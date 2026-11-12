@@ -4,7 +4,7 @@ import type { ChildLabel } from "./value-objects/child-label.vo";
 import { ChildStatus, type ReconnectCause } from "./value-objects/child-status.vo";
 import type { GoogleEmail } from "./value-objects/google-email.vo";
 
-export const MANUAL_SYNC_THROTTLE_MS = 60_000;
+export const MANUAL_SYNC_COOLDOWN_MS = 5 * 60_000;
 export const SYNC_LEASE_MS = 10 * 60_000;
 export const DISCONNECT_LEASE_MS = 2 * 60_000;
 
@@ -105,15 +105,20 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
 
     if (this.isSyncLeased(now)) return Result.fail("running");
 
-    const last = this._props.lastSyncRequestedAt;
-    if (last.isSome() && now.getTime() - last.unwrap().getTime() < MANUAL_SYNC_THROTTLE_MS)
-      return Result.fail("throttled");
+    if (this.manualSyncAvailableAt(now) > now) return Result.fail("throttled");
 
     this._props.lastSyncRequestedAt = Option.some(now);
     this._props.syncStartedAt = Option.some(now);
     this._props.nextSyncAt = new Date(now.getTime() + SYNC_LEASE_MS);
     this._props.syncLease += 1;
     return Result.ok();
+  }
+
+  manualSyncAvailableAt(now: Date): Date {
+    return this._props.lastSyncRequestedAt
+      .map((last) => new Date(last.getTime() + MANUAL_SYNC_COOLDOWN_MS))
+      .filter((availableAt) => availableAt > now)
+      .unwrapOr(now);
   }
 
   private isSyncLeased(now: Date): boolean {

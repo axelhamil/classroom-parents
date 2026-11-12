@@ -47,6 +47,7 @@ import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import { rgpdModule } from "./modules/rgpd/module";
 import { AlertContextQuery } from "./queries/alert-context.query";
+import { UpcomingAlertsQuery } from "./queries/upcoming-alerts.query";
 import { authSecretKey } from "./shared/auth/auth-secrets";
 import { googleTokenSealing } from "./shared/auth/token-sealing";
 import type { OutermostUnitOfWork } from "./shared/auth/unit-of-work-adapter";
@@ -178,6 +179,7 @@ export const di = container()
   .add("IDueChildren", (c) => dueChildrenFor(c.ChildSyncService))
   .add("IChildSyncState", (c) => childSyncStateFor(c.ChildSyncService))
   .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService, c.ChildSyncService))
+  .add("IUpcomingAlerts", (c) => new UpcomingAlertsQuery(c.IInstrumentation))
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .addModule(rgpdModule)

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Option } from "@packages/ddd-kit";
+import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import type { PortMock } from "@packages/test/bun";
@@ -56,9 +57,12 @@ describe("markNeedsReconnect", () => {
   });
 });
 
+const COOLDOWN_MS = 5 * 60_000;
+const at = (offsetMs: number) => new Date(NOW.getTime() + offsetMs);
+
 describe("claimManualSync", () => {
   it("given an idle connected child, then started with a new lease and the child shows as syncing", async () => {
-    const owned = child({ lastSyncRequestedAt: new Date(NOW.getTime() - 61_000) });
+    const owned = child({ lastSyncRequestedAt: at(-COOLDOWN_MS - 1_000) });
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
 
     const result = await sync.claimManualSync(PARENT, owned.id.value, NOW);
@@ -67,9 +71,25 @@ describe("claimManualSync", () => {
       outcome: "started",
       lease: { childId: owned.id.value, lease: 5 },
       label: "Léa",
+      retryAt: at(COOLDOWN_MS),
     });
     expect(owned.get("syncStartedAt").unwrap()).toEqual(NOW);
     expect(repo.save).toHaveBeenCalledWith(owned);
+  });
+
+  it("given a started manual sync, then the parent's request is recorded with the parent as actor", async () => {
+    const owned = child();
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    await sync.claimManualSync(PARENT, owned.id.value, NOW);
+
+    expect(enqueuedEvents(outbox)).toEqual([
+      expect.objectContaining({
+        eventType: EventTypes.CHILD_SYNC_REQUESTED,
+        aggregateId: owned.id.value,
+        payload: { userId: PARENT, childId: owned.id.value, actorUserId: PARENT },
+      }),
+    ]);
   });
 
   it("given a sync holding an active lease, then running and no second sync starts", async () => {
@@ -81,18 +101,19 @@ describe("claimManualSync", () => {
 
     const result = await sync.claimManualSync(PARENT, owned.id.value, NOW);
 
-    expect(result.getValue()).toEqual({ outcome: "running" });
+    expect(result.getValue()).toEqual({ outcome: "running", retryAt: NOW });
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it("given a finished sync requested less than 60 s ago, then throttled", async () => {
-    const owned = child({ lastSyncRequestedAt: new Date(NOW.getTime() - 59_000) });
+  it("given a refresh requested 4 min ago, then a no-op that tells when the next one is possible", async () => {
+    const owned = child({ lastSyncRequestedAt: at(-4 * 60_000) });
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
 
     const result = await sync.claimManualSync(PARENT, owned.id.value, NOW);
 
-    expect(result.getValue()).toEqual({ outcome: "throttled" });
+    expect(result.getValue()).toEqual({ outcome: "throttled", retryAt: at(60_000) });
     expect(repo.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
   });
 
   it.each<ReconnectCause>(["invalid_grant", "school_blocked"])(
