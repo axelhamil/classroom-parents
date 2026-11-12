@@ -68,6 +68,41 @@ async function offsetDrift(page: Page): Promise<number> {
   return gap === null ? Number.POSITIVE_INFINITY : Math.abs(gap - SIDE_OFFSET);
 }
 
+async function controlsOverflow(page: Page): Promise<number> {
+  return page.locator(TOUR_SELECTOR).evaluate((popover) => {
+    const box = popover.getBoundingClientRect();
+    return [...popover.querySelectorAll("button")].filter((button) => {
+      const rect = button.getBoundingClientRect();
+      return rect.left < box.left || rect.right > box.right;
+    }).length;
+  });
+}
+
+async function settledDrift(page: Page): Promise<number> {
+  await page.evaluate(
+    (selector) =>
+      new Promise<void>((resolve) => {
+        let last = "";
+        let still = 0;
+        const sample = () => {
+          const rects = [selector, "[data-tour-active]"].map((query) => {
+            const rect = document.querySelector(query)?.getBoundingClientRect();
+            return rect ? [rect.top, rect.left] : null;
+          });
+          const next = JSON.stringify(rects);
+          still = next === last ? still + 1 : 0;
+          last = next;
+          if (still >= 10) resolve();
+          else requestAnimationFrame(sample);
+        };
+        sample();
+      }),
+    TOUR_SELECTOR,
+  );
+
+  return offsetDrift(page);
+}
+
 test.describe("guided tour inside the event overlay", () => {
   test.use({ storageState: STORAGE_STATE });
 
@@ -97,22 +132,25 @@ test.describe("guided tour inside the event overlay", () => {
 
   for (const [width, height] of [
     [390, 844],
+    [390, 664],
+    [375, 548],
     [844, 390],
   ] as const) {
-    test(`never covers a tall target before the dialog scrolls at ${width}x${height}`, async ({
-      page,
-    }) => {
+    test(`never covers a tall target at ${width}x${height}`, async ({ page }) => {
       await page.setViewportSize({ width, height });
       await forgetTours(page);
       await serveFamily(page, { children: [LEA], events: EVENTS });
       await page.goto(`/?event=${REVIEW_EVENT.id}`);
 
       const tour = page.locator(TOUR_SELECTOR);
-      await tour.getByRole("button", { name: "Suivant" }).click();
-      await expect(tour.getByText("Étape 2 sur 4")).toBeVisible();
+      for (const step of [2, 3, 4]) {
+        await tour.getByRole("button", { name: "Suivant" }).click();
+        await expect(tour.getByText(`Étape ${step} sur 4`)).toBeVisible();
 
-      await expect.poll(() => offsetDrift(page)).toBeLessThanOrEqual(2);
-      await expect(tour.getByRole("button", { name: "Suivant" })).toBeInViewport();
+        await expect.poll(() => settledDrift(page)).toBeLessThanOrEqual(2);
+        await expect(tour.getByRole("button", { name: /Suivant|C'est parti/ })).toBeInViewport();
+        expect(await controlsOverflow(page)).toBe(0);
+      }
     });
   }
 });

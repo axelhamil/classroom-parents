@@ -64,10 +64,18 @@ interface Band {
   bottom: number;
 }
 
+function scrollerIn(dialog: Element, element: HTMLElement): Element {
+  for (let node = element.parentElement; node && dialog.contains(node); node = node.parentElement) {
+    if (/auto|scroll/.test(getComputedStyle(node).overflowY)) return node;
+  }
+
+  return dialog;
+}
+
 function visibleBand(element: HTMLElement): Band {
   const dialog = element.closest("[role=dialog], [role=alertdialog]");
   if (dialog) {
-    const { top, bottom } = dialog.getBoundingClientRect();
+    const { top, bottom } = scrollerIn(dialog, element).getBoundingClientRect();
     return { top: Math.max(top, 0), bottom: Math.min(bottom, window.innerHeight) };
   }
 
@@ -83,7 +91,11 @@ function remToPx(rem: number): number {
   return rem * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
 }
 
-type TourSide = "bottom" | "left" | "right";
+type TourSide = "bottom" | "top" | "left" | "right";
+
+function popoverRoom(): number {
+  return remToPx(MIN_ROOM_REM) + SIDE_OFFSET + EDGE_GAP;
+}
 
 function sideFor(element: HTMLElement): TourSide {
   const rect = element.getBoundingClientRect();
@@ -93,6 +105,8 @@ function sideFor(element: HTMLElement): TourSide {
   const sideRoom = remToPx(MIN_SIDE_REM) + SIDE_OFFSET + EDGE_GAP;
   if (rect.left >= sideRoom) return "left";
   if (window.innerWidth - rect.right >= sideRoom) return "right";
+  if (element.closest("[role=dialog], [role=alertdialog]") && band.top >= popoverRoom())
+    return "top";
   return "bottom";
 }
 
@@ -101,12 +115,10 @@ function anchorRect(element: HTMLElement, side: TourSide): DOMRect {
   if (side !== "bottom") return rect;
 
   const band = visibleBand(element);
-  const room = remToPx(MIN_ROOM_REM);
+  const room = popoverRoom();
   if (rect.top - band.top >= room || band.bottom - rect.bottom >= room) return rect;
 
-  const top = Math.min(Math.max(rect.top, band.top), band.bottom - room);
-
-  return new DOMRect(rect.left, top, rect.width, 0);
+  return new DOMRect(rect.left, Math.max(band.bottom - room, band.top), rect.width, 0);
 }
 
 function prefersReducedMotion(): boolean {
@@ -215,7 +227,7 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
           left: EDGE_GAP,
         }}
         side={side}
-        align={side === "bottom" ? "center" : "start"}
+        align={side === "bottom" || side === "top" ? "center" : "start"}
         sideOffset={SIDE_OFFSET}
         className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-(--radix-popover-content-available-width) flex-col gap-4"
         onOpenAutoFocus={(event) => {
@@ -248,11 +260,11 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
           <PopoverTitle id={titleId}>{current.title}</PopoverTitle>
           <PopoverDescription id={bodyId}>{current.body}</PopoverDescription>
         </PopoverHeader>
-        <div className="flex shrink-0 items-center justify-between gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={finish}>
             {labels.skip}
           </Button>
-          <div className="flex gap-2">
+          <div className="ml-auto flex gap-2">
             {position > 0 && (
               <Button type="button" variant="outline" size="sm" onClick={back}>
                 {labels.previous}
