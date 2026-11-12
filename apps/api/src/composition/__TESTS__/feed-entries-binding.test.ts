@@ -80,6 +80,22 @@ describe("calendar feed IFeedEntries bound to the agenda", () => {
     });
     expect(timed?.deadlineTime.toUndefined()).toBe("08:30");
     expect(allDay?.deadlineTime.isNone()).toBe(true);
+    expect(timed?.doneLabel.isNone()).toBe(true);
+  });
+
+  it("labels a deadline the parent marked done from the French catalog", async () => {
+    const agenda = {
+      confirmedSince: async () => Result.ok<EventDto[], AppError>([{ ...exam, done: true }]),
+    };
+
+    const result = await feedEntriesFor(agenda, children, alarms).list({
+      userId: FAMILY,
+      childIds: Option.none(),
+      since: SINCE,
+      now: NOW,
+    });
+
+    expect(result.getValue()[0]?.doneLabel.toUndefined()).toBe("Fait");
   });
 
   it("asks every visible child when the feed has no scope", async () => {

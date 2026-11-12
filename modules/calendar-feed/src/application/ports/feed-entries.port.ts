@@ -10,6 +10,7 @@ export interface FeedEntry {
   deadlineTime: Option<string>;
   classroomUrl: Option<string>;
   alarmsAt: Date[];
+  doneLabel: Option<string>;
 }
 
 export interface FeedEntriesRequest {

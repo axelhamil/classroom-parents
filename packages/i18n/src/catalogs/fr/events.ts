@@ -201,6 +201,7 @@ export default {
   agenda: {
     add: "Ajouter à mon agenda",
     downloaded: "Fichier agenda téléchargé : ouvrez-le pour l'ajouter.",
+    done: "Fait",
   },
   reminders: {
     title: "Rappels",

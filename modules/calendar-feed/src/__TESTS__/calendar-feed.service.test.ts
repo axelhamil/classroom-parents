@@ -39,6 +39,7 @@ const entry: FeedEntry = {
   deadlineTime: Option.none(),
   classroomUrl: Option.some("https://classroom.google.com/c/abc/p/def"),
   alarmsAt: [],
+  doneLabel: Option.none(),
 };
 
 let feeds: PortMock<ICalendarFeedRepository>;

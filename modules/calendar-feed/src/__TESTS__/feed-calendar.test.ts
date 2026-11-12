@@ -17,6 +17,7 @@ const allDay: FeedEntry = {
   deadlineTime: Option.none(),
   classroomUrl: Option.some("https://classroom.google.com/c/abc/p/def"),
   alarmsAt: [new Date("2026-11-17T17:00:00.000Z"), new Date("2026-11-18T17:00:00.000Z")],
+  doneLabel: Option.none(),
 };
 
 const timed: FeedEntry = {
@@ -110,6 +111,16 @@ describe("writeFeedCalendar", () => {
       .map((alarm) => timeOf(alarm, "trigger").toString());
 
     expect(triggers).toEqual(["2026-11-17T17:00:00Z", "2026-11-18T17:00:00Z"]);
+  });
+
+  it("given a deadline marked done, then its summary says so and it rings no alarm", () => {
+    const done = { ...allDay, doneLabel: Option.some("Fait") };
+    const event = eventOf(parse(render([done])), `${allDay.eventId}@${APP_HOST}`);
+
+    expect(event.getFirstPropertyValue("summary")).toBe(
+      "Fait · Léa · Contrôle; chapitre 3, partie \\ B",
+    );
+    expect(event.getAllSubcomponents("valarm")).toEqual([]);
   });
 
   it("given a long accented title, then no line exceeds 75 octets nor splits a character, and unfolding restores it", () => {

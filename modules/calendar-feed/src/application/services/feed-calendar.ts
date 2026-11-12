@@ -113,7 +113,11 @@ function startLines(entry: FeedEntry): string[] {
 }
 
 function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] {
-  const summary = `${entry.childLabel} · ${entry.title}`;
+  const summary = [
+    ...entry.doneLabel.map((done) => [done]).unwrapOr([]),
+    entry.childLabel,
+    entry.title,
+  ].join(" · ");
   const url = webUrl(entry.classroomUrl);
   const description = [
     entry.description.trim(),
@@ -121,7 +125,8 @@ function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] 
   ]
     .filter((part) => part.length > 0)
     .join("\n\n");
-  const alarms = entry.alarmsAt.flatMap((at) => [
+  const ringing = entry.doneLabel.isSome() ? [] : entry.alarmsAt;
+  const alarms = ringing.flatMap((at) => [
     "BEGIN:VALARM",
     "ACTION:DISPLAY",
     `DESCRIPTION:${escapeText(summary)}`,

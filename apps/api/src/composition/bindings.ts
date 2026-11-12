@@ -284,6 +284,7 @@ export function feedEntriesFor(
           deadlineTime: Option.fromNullable(event.deadlineTime),
           classroomUrl: Option.fromNullable(event.announcementUrl),
           alarmsAt: rings.getValue().get(event.id) ?? [],
+          doneLabel: event.done ? Option.some(frCatalog.events.agenda.done) : Option.none<string>(),
         })),
       );
     },
