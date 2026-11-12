@@ -1,24 +1,25 @@
-import { type AppError, Result } from "@packages/ddd-kit";
+import { type AppError, Option, Result } from "@packages/ddd-kit";
 import type { AgendaEvent } from "../../domain/event.aggregate";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { CourseDay, IEventRepository } from "../ports/event-repository.port";
 import { plannedDeadline } from "./planned-deadline";
 
-export function courseDayOf(event: AgendaEvent): CourseDay {
-  return {
+export function courseDayOf(event: AgendaEvent): Option<CourseDay> {
+  return event.get("courseId").map((courseId) => ({
     childId: event.get("childId"),
-    courseId: event.get("courseId"),
+    courseId,
     deadlineDate: event.get("deadline").value.date,
-  };
+  }));
 }
 
-export function leftItsDay(coursework: AgendaEvent, day: CourseDay): boolean {
-  if (coursework.get("source").value !== "coursework") return false;
+export function dayLeftBy(coursework: AgendaEvent, day: Option<CourseDay>): Option<CourseDay> {
+  if (coursework.get("source").value !== "coursework") return Option.none();
 
-  return (
-    coursework.get("deletedAt").isSome() ||
-    coursework.get("withdrawnAt").isSome() ||
-    coursework.get("deadline").value.date !== day.deadlineDate
+  return day.filter(
+    (before) =>
+      coursework.get("deletedAt").isSome() ||
+      coursework.get("withdrawnAt").isSome() ||
+      coursework.get("deadline").value.date !== before.deadlineDate,
   );
 }
 

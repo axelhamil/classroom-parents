@@ -9,6 +9,14 @@ export interface AlertEmailContent {
   eventUrl: string;
 }
 
+export interface DigestEmailContent {
+  digestId: string;
+  summary: string;
+  appUrl: string;
+}
+
 export interface IAlertEmailSender {
   send(to: string, content: AlertEmailContent): Promise<Result<void, AppError>>;
+
+  sendDigest(to: string, content: DigestEmailContent): Promise<Result<void, AppError>>;
 }

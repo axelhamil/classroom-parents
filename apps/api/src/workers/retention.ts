@@ -1,4 +1,8 @@
+import { agendaEvent } from "@modules/agenda/schemas/event.schema";
+import { dismissedEventBefore, pastEventBefore } from "@modules/agenda/schemas/event-retention";
+import { firstSyncedDay } from "@modules/classroom-sync/application/sync-lookback";
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
+import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
 import {
   type AnyPgColumn,
   type AnyPgTable,
@@ -11,10 +15,19 @@ import {
   outboxSchema,
   type SQL,
 } from "@packages/drizzle";
+import { EventTypes, type PayloadByEventType } from "@packages/events";
+import { type BatchedEvent, emitEvents } from "@packages/outbox/event-emitter";
+import type { IOutboxRepository } from "@packages/outbox/outbox.port";
+import type { z } from "zod";
 import { countEligibleWithTimeout } from "../shared/internal-routes/sweep-count";
 import { beatOfSweep, withSweepHeartbeat } from "../shared/internal-routes/sweep-heartbeat";
 import { sweepLockFor } from "../shared/internal-routes/sweep-lock";
-import { purgeBatchWithTimeout, requireFilter } from "../shared/internal-routes/sweep-purge";
+import {
+  lockedBatch,
+  purgeBatchWithTimeout,
+  requireFilter,
+  withSweepGuards,
+} from "../shared/internal-routes/sweep-purge";
 import {
   type RetentionPass,
   runRetentionSweep,
@@ -27,6 +40,9 @@ import type { ISweepRunStore } from "../shared/ports/sweep-run.port";
 export const EMAIL_RETENTION_LABEL = "sweep-email-messages";
 export const OUTBOX_RETENTION_LABEL = "sweep-outbox-events";
 export const OUTBOX_RETENTION_DAYS = 7;
+export const EVENT_HISTORY_LABEL = "sweep-event-history";
+export const PAST_EVENT_RETENTION_DAYS = 365;
+export const DISMISSED_EVENT_RETENTION_DAYS = 30;
 
 const { emailMessage } = emailSchema;
 const { outboxEvent } = outboxSchema;
@@ -108,12 +124,91 @@ const deliveredEvents: PassTarget = {
     and(isNotNull(outboxEvent.dispatchedAt), lt(outboxEvent.dispatchedAt, cutoff)),
 };
 
+type EventsPurgedPayload = z.infer<(typeof PayloadByEventType)[typeof EventTypes.EVENTS_PURGED]>;
+type PurgeScope = EventsPurgedPayload["scope"];
+
+interface EventHistoryTarget {
+  scope: PurgeScope;
+  before: (cutoff: Date) => SQL | undefined;
+}
+
+const pastEvents: EventHistoryTarget = { scope: "past", before: pastEventBefore };
+
+const dismissedEvents: EventHistoryTarget = {
+  scope: "dismissed",
+  before: (cutoff) =>
+    dismissedEventBefore({
+      dismissedBefore: cutoff,
+      courseworkDayBefore: shiftDate(
+        firstSyncedDay(shiftInstant(cutoff, DISMISSED_EVENT_RETENTION_DAYS)),
+        -1,
+      ),
+    }),
+};
+
+function purgedPerParent(
+  deleted: { userId: string }[],
+  scope: PurgeScope,
+): BatchedEvent<EventsPurgedPayload>[] {
+  const counts = new Map<string, number>();
+  for (const { userId } of deleted) counts.set(userId, (counts.get(userId) ?? 0) + 1);
+
+  return [...counts].map(
+    ([userId, count]): BatchedEvent<EventsPurgedPayload> => ({
+      eventType: EventTypes.EVENTS_PURGED,
+      aggregateId: userId,
+      payload: { userId, count, reason: "retention", scope, actorUserId: null },
+    }),
+  );
+}
+
+function eventHistoryPass(
+  target: EventHistoryTarget,
+  retentionDays: number,
+  spans: SweepSpans,
+  deps: EventHistoryDeps,
+): RetentionPass {
+  const where = (cutoff: Date) => requireFilter(target.before(cutoff), EVENT_HISTORY_LABEL);
+
+  return {
+    label: target.scope,
+    retentionDays,
+    purgeBatch: (cutoff, batchSize) =>
+      withSweepGuards(deps.uow, async (exec) => {
+        const batch = lockedBatch(exec, {
+          table: agendaEvent,
+          idColumn: agendaEvent.id,
+          where: where(cutoff),
+          orderBy: agendaEvent.deadlineAt,
+          batchSize,
+        });
+        const query = exec
+          .delete(agendaEvent)
+          .where(inArray(agendaEvent.id, batch))
+          .returning({ userId: agendaEvent.userId });
+        const deleted = await spans.db(
+          () => query.toSQL().sql,
+          () => query.execute(),
+        );
+
+        await emitEvents(deps.outbox, "user", purgedPerParent(deleted, target.scope));
+        return deleted.length;
+      }),
+    countEligible: (cutoff) =>
+      countEligibleWithTimeout(agendaEvent, where(cutoff), spans, deps.uow),
+  };
+}
+
 export interface RetentionDeps {
   uow: IUnitOfWork;
   instrumentation: IInstrumentation;
   sweepRuns: ISweepRunStore;
   logger: Logger;
   deadlineMs?: number;
+}
+
+export interface EventHistoryDeps extends RetentionDeps {
+  outbox: IOutboxRepository;
 }
 
 export interface EmailRetentionDeps extends RetentionDeps {
@@ -152,5 +247,12 @@ export function sweepOldEmails(deps: EmailRetentionDeps): Promise<SweepResponse>
 export function sweepDeliveredOutbox(deps: RetentionDeps): Promise<SweepResponse> {
   return sweep(OUTBOX_RETENTION_LABEL, deps, (spans) => [
     retentionPass(deliveredEvents, OUTBOX_RETENTION_DAYS, spans, deps.uow),
+  ]);
+}
+
+export function sweepEventHistory(deps: EventHistoryDeps): Promise<SweepResponse> {
+  return sweep(EVENT_HISTORY_LABEL, deps, (spans) => [
+    eventHistoryPass(pastEvents, PAST_EVENT_RETENTION_DAYS, spans, deps),
+    eventHistoryPass(dismissedEvents, DISMISSED_EVENT_RETENTION_DAYS, spans, deps),
   ]);
 }

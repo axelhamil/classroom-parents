@@ -7,19 +7,24 @@ import { SEND_TIMEOUT_MS } from "./application/config/dispatch-budget";
 import type { IAlertContextReader } from "./application/ports/alert-context-reader.port";
 import type { IAlertEmailSender } from "./application/ports/alert-email-sender.port";
 import type { IAlertRepository } from "./application/ports/alert-repository.port";
+import type { IDigestAudience, IDigestDeadlines } from "./application/ports/digest-audience.port";
 import type { IEventDeadlines } from "./application/ports/event-deadlines.port";
 import type { IPushSender } from "./application/ports/push-sender.port";
 import type { IPushSubscriptionRepository } from "./application/ports/push-subscription-repository.port";
 import type { IReminderSettingsRepository } from "./application/ports/reminder-settings.port";
+import type { IWeeklyDigestRepository } from "./application/ports/weekly-digest-repository.port";
 import { AlertDispatchService } from "./application/services/alert-dispatch.service";
 import { AlertPlanningService } from "./application/services/alert-planning.service";
+import { DigestPreferenceService } from "./application/services/digest-preference.service";
 import { PushSubscriptionService } from "./application/services/push-subscription.service";
 import { ReminderSettingsService } from "./application/services/reminder-settings.service";
+import { WeeklyDigestService } from "./application/services/weekly-digest.service";
 import { ResendAlertEmailSender } from "./infrastructure/adapters/resend-alert-email.sender";
 import { WebPushSender } from "./infrastructure/adapters/web-push.sender";
 import { DrizzleAlertRepository } from "./infrastructure/repositories/drizzle-alert.repository";
 import { DrizzlePushSubscriptionRepository } from "./infrastructure/repositories/drizzle-push-subscription.repository";
 import { DrizzleReminderSettingsRepository } from "./infrastructure/repositories/drizzle-reminder-settings.repository";
+import { DrizzleWeeklyDigestRepository } from "./infrastructure/repositories/drizzle-weekly-digest.repository";
 
 export interface AlertsPrerequisites {
   IInstrumentation: IInstrumentation;
@@ -29,6 +34,8 @@ export interface AlertsPrerequisites {
   IOutboxRepository: IOutboxRepository;
   IEventDeadlines: IEventDeadlines;
   IAlertContextReader: IAlertContextReader;
+  IDigestAudience: IDigestAudience;
+  IDigestDeadlines: IDigestDeadlines;
   alertsSettings: AlertsSettings;
 }
 
@@ -45,6 +52,10 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
     .add(
       "IPushSubscriptionRepository",
       (c): IPushSubscriptionRepository => new DrizzlePushSubscriptionRepository(c.IInstrumentation),
+    )
+    .add(
+      "IWeeklyDigestRepository",
+      (c): IWeeklyDigestRepository => new DrizzleWeeklyDigestRepository(c.IInstrumentation),
     )
     .add("IPushSender", (c): IPushSender => new WebPushSender(c.IInstrumentation, c.alertsSettings))
     .add(
@@ -92,6 +103,32 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.IAlertEmailSender,
           c.IAlertContextReader,
           c.IEventDeadlines,
+          c.ITransactionService,
+          c.IOutboxRepository,
+          c.IInstrumentation,
+        ),
+    )
+    .add(
+      "WeeklyDigestService",
+      (c) =>
+        new WeeklyDigestService(
+          c.IWeeklyDigestRepository,
+          c.IDigestAudience,
+          c.IDigestDeadlines,
+          c.IPushSubscriptionRepository,
+          c.IPushSender,
+          c.IAlertEmailSender,
+          c.ITransactionService,
+          c.IOutboxRepository,
+          c.IInstrumentation,
+          c.alertsSettings.appOrigin,
+        ),
+    )
+    .add(
+      "DigestPreferenceService",
+      (c) =>
+        new DigestPreferenceService(
+          c.IWeeklyDigestRepository,
           c.ITransactionService,
           c.IOutboxRepository,
           c.IInstrumentation,

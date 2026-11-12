@@ -20,6 +20,10 @@ export function retryAt(now: Date): Date {
   return new Date(now.getTime() + FAILURE_RETRY_MS);
 }
 
+export function firstSyncedDay(now: Date): string {
+  return windowStart(now).toISOString().slice(0, 10);
+}
+
 export function isDayWithinWindow(day: string, now: Date): boolean {
-  return day >= windowStart(now).toISOString().slice(0, 10);
+  return day >= firstSyncedDay(now);
 }

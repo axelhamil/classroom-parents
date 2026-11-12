@@ -61,6 +61,16 @@ describe("event detail reminders", () => {
     });
     expect(screen.queryByRole("alert")).toBeNull();
   });
+
+  it("given an event the parent added by hand, then no Classroom link is offered", async () => {
+    const { announcementUrl: _url, ...manual } = EVENT;
+    givenEvent({ ...manual, source: "manual" }, () => json({ customized: false, reminders: [] }));
+
+    await renderAppAt(DETAIL_PATH);
+
+    await screen.findByRole("heading", { level: 1, name: EVENT.title });
+    expect(screen.queryByText("Ouvrir dans Classroom")).toBeNull();
+  });
 });
 
 describe("event detail, family helpers", () => {

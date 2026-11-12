@@ -172,6 +172,10 @@ export default {
       description: "Les prestataires qui font fonctionner le service.",
       viewAll: "Voir le registre des sous-traitants",
     },
+    retention: {
+      title: "Combien de temps nous gardons vos échéances",
+      body: "Une échéance reste 12 mois après sa date, puis elle est effacée avec ses rappels. Une échéance que vous supprimez ou que l'enseignant retire est effacée 30 jours plus tard ; un devoir Classroom reste au moins 61 jours après sa date, pour qu'une synchronisation ne le recrée pas.",
+    },
     rights: {
       title: "Vos droits",
       description:

@@ -176,6 +176,17 @@ jobs:
         # alert forged onto another family's event reads nothing. Removes its probe rows.
         run: pnpm --filter api check:alert-context
 
+      - name: Check that a calendar feed serves only its owner's deadlines
+        # The secret-hash lookup, the event window and the owner filter live in SQL; only
+        # Postgres proves a rotated or revoked link serves nothing and an account deletion
+        # removes the feed. Removes its probe rows.
+        run: pnpm --filter api check:calendar-feed
+
+      - name: Check that the data export reads only the parent's family
+        # The owner filter lives in the host query and the 24 h limit in the stored request
+        # date; only Postgres proves both. Removes its probe families.
+        run: pnpm --filter api check:data-export
+
       - name: Check the alert dispatch claim against a real database
         # Skip locked and the lease live in the claim query; only concurrent dispatchers
         # on Postgres prove each alert is sent once and the partial index is read.
@@ -199,11 +210,21 @@ jobs:
         # The batched delete, its lease and its heartbeat are SQL. Removes its probes.
         run: pnpm --filter api check:email-retention
 
+      - name: Check the event history retention sweep against a real database
+        # The 12 month and 30 day windows, the sync window guard (purge then sync), the
+        # purge events and the cascade to reminders and alerts are SQL. Removes its probe family.
+        run: pnpm --filter api check:event-retention
+
       - name: Check the composed api end to end against a real database
         # Fake Google and model, real modules, real Postgres: a family's agenda filled by
         # the first sync, served over HTTP, the live stream, a school block, a
         # disconnection and the RGPD revocation. Removes its probe family.
         run: pnpm --filter api check:end-to-end
+
+      - name: Check the Sunday digest against a real database
+        # The parent and week unique key, the SKIP LOCKED claim and the audience query are
+        # SQL: four racing instances send each parent one digest. Removes its probes.
+        run: pnpm --filter api check:weekly-digest
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4

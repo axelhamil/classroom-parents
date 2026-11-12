@@ -41,7 +41,7 @@ describe("list", () => {
 
     const result = await service.listUpcoming(PARENT, filter, NOW);
 
-    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, filter, NOW);
+    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { ...filter, done: false }, NOW);
     expect(result.getValue()).toEqual({
       items: [
         {
@@ -78,6 +78,35 @@ describe("list", () => {
   });
 });
 
+describe("list by done state", () => {
+  beforeEach(() => {
+    repo.listUpcoming.mockResolvedValue(
+      Result.ok<EventPage, AgendaError>({ events: [], nextCursor: Option.none() }),
+    );
+    repo.listHistory.mockResolvedValue(
+      Result.ok<EventPage, AgendaError>({ events: [], nextCursor: Option.none() }),
+    );
+  });
+
+  it("given no done filter, then upcoming lists only the events to do", async () => {
+    await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(repo.listUpcoming.mock.calls[0]?.[1].done).toBe(false);
+  });
+
+  it("given done=true, then upcoming lists only the done events", async () => {
+    await service.listUpcoming(PARENT, { limit: 20, done: true }, NOW);
+
+    expect(repo.listUpcoming.mock.calls[0]?.[1].done).toBe(true);
+  });
+
+  it("given no done filter, then history lists done and to-do events alike", async () => {
+    await service.listHistory(PARENT, { limit: 20 }, NOW);
+
+    expect(repo.listHistory.mock.calls[0]?.[1].done).toBeUndefined();
+  });
+});
+
 describe("list while a child is being disconnected", () => {
   beforeEach(() => {
     repo.listUpcoming.mockResolvedValue(
@@ -89,13 +118,21 @@ describe("list while a child is being disconnected", () => {
     await service.listUpcoming(PARENT, { limit: 20 }, NOW);
 
     expect(children.idsOf).toHaveBeenCalledWith(PARENT);
-    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { limit: 20, childIds: [CHILD] }, NOW);
+    expect(repo.listUpcoming).toHaveBeenCalledWith(
+      PARENT,
+      { limit: 20, childIds: [CHILD], done: false },
+      NOW,
+    );
   });
 
   it("given a filter naming the child being disconnected, then it is dropped from the filter", async () => {
     await service.listUpcoming(PARENT, { limit: 20, childIds: [CHILD, LEAVING] }, NOW);
 
-    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { limit: 20, childIds: [CHILD] }, NOW);
+    expect(repo.listUpcoming).toHaveBeenCalledWith(
+      PARENT,
+      { limit: 20, childIds: [CHILD], done: false },
+      NOW,
+    );
   });
 
   it("given only the child being disconnected, then the page is empty without reading events", async () => {
@@ -113,6 +150,47 @@ describe("list while a child is being disconnected", () => {
 
     expect(result.getError()).toEqual(down);
     expect(repo.listUpcoming).not.toHaveBeenCalled();
+  });
+});
+
+describe("calendar", () => {
+  beforeEach(() => {
+    repo.listCalendar.mockResolvedValue(Result.ok<AgendaEvent[], AgendaError>([agendaEvent()]));
+  });
+
+  it("given a month, then every event of its days is read for the visible children only", async () => {
+    const result = await service.listCalendar(PARENT, {
+      from: "2026-11-01",
+      to: "2026-11-30",
+      childIds: [CHILD, LEAVING],
+      categories: ["homework"],
+    });
+
+    const [userId, filter] = repo.listCalendar.mock.calls[0] ?? [];
+    expect(userId).toBe(PARENT);
+    expect(filter?.childIds).toEqual([CHILD]);
+    expect(filter?.categories).toEqual(["homework"]);
+    expect(filter?.range.value.from).toBe("2026-11-01");
+    expect(filter?.range.value.to).toBe("2026-11-30");
+    expect(result.getValue().items).toHaveLength(1);
+  });
+
+  it("given more than 62 days, then EVENT_RANGE_INVALID and nothing is read", async () => {
+    const result = await service.listCalendar(PARENT, { from: "2026-11-01", to: "2027-01-02" });
+
+    expect(result.getError().code).toBe("EVENT_RANGE_INVALID");
+    expect(repo.listCalendar).not.toHaveBeenCalled();
+  });
+
+  it("given only a child being disconnected, then the calendar is empty without reading events", async () => {
+    const result = await service.listCalendar(PARENT, {
+      from: "2026-11-01",
+      to: "2026-11-30",
+      childIds: [LEAVING],
+    });
+
+    expect(result.getValue()).toEqual({ items: [] });
+    expect(repo.listCalendar).not.toHaveBeenCalled();
   });
 });
 
@@ -144,5 +222,42 @@ describe("get", () => {
     const result = await service.get(PARENT, "0196a000-0000-7000-8000-00000000abcd");
 
     expect(result.getValue().isNone()).toBe(true);
+  });
+});
+
+describe("confirmedSince", () => {
+  const SINCE = new Date("2026-10-11T09:00:00.000Z");
+
+  it("given a calendar scoped to a visible child and a child being disconnected, then only the visible child is read", async () => {
+    repo.listConfirmedSince.mockResolvedValue(
+      Result.ok<AgendaEvent[], AgendaError>([agendaEvent()]),
+    );
+
+    const result = await service.confirmedSince(PARENT, {
+      childIds: [CHILD, LEAVING],
+      since: SINCE,
+      now: NOW,
+      limit: 500,
+    });
+
+    expect(repo.listConfirmedSince).toHaveBeenCalledWith(
+      PARENT,
+      [CHILD],
+      { since: SINCE, now: NOW },
+      500,
+    );
+    expect(result.getValue()).toHaveLength(1);
+  });
+
+  it("given a calendar scoped only to children no longer visible, then nothing is read", async () => {
+    const result = await service.confirmedSince(PARENT, {
+      childIds: [LEAVING],
+      since: SINCE,
+      now: NOW,
+      limit: 500,
+    });
+
+    expect(result.getValue()).toEqual([]);
+    expect(repo.listConfirmedSince).not.toHaveBeenCalled();
   });
 });

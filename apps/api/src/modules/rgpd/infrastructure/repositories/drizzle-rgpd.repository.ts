@@ -15,6 +15,7 @@ import {
 } from "@packages/drizzle";
 import type { Logger } from "../../../../shared/logger";
 import type {
+  DataExportAccount,
   ExecuteWipeOutput,
   IRgpdRepository,
   PendingDeletionRow,
@@ -221,6 +222,66 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.getUserDeletionState failed");
           return Result.fail(repositoryFailure("getUserDeletionState", err));
+        }
+      },
+    );
+  }
+
+  async lockDataExportAccount(
+    userId: string,
+  ): Promise<Result<Option<DataExportAccount>, RgpdError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleRgpdRepository > lockDataExportAccount" },
+      async () => {
+        try {
+          const query = exec
+            .select({
+              name: schema.user.name,
+              email: schema.user.email,
+              createdAt: schema.user.createdAt,
+              lastDataExportAt: schema.user.lastDataExportAt,
+            })
+            .from(schema.user)
+            .where(eq(schema.user.id, userId))
+            .for("update");
+          const [row] = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+          if (!row) return Result.ok(Option.none());
+
+          return Result.ok(
+            Option.some({ ...row, lastDataExportAt: Option.fromNullable(row.lastDataExportAt) }),
+          );
+        } catch (err) {
+          this.instrumentation.capture(err);
+          this.logger.error({ err, userId }, "RgpdRepository.lockDataExportAccount failed");
+          return Result.fail(repositoryFailure("lockDataExportAccount", err));
+        }
+      },
+    );
+  }
+
+  async markDataExported(userId: string, at: Date): Promise<Result<void, RgpdError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleRgpdRepository > markDataExported" },
+      async () => {
+        try {
+          const query = exec
+            .update(schema.user)
+            .set({ lastDataExportAt: at })
+            .where(eq(schema.user.id, userId));
+          await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+          return Result.ok();
+        } catch (err) {
+          this.instrumentation.capture(err);
+          this.logger.error({ err, userId }, "RgpdRepository.markDataExported failed");
+          return Result.fail(repositoryFailure("markDataExported", err));
         }
       },
     );

@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { env } from "../env";
 import { logger } from "../logger";
+import { redactSecretPath } from "../secret-path";
 
 const isProd = env.NODE_ENV === "production";
 
@@ -24,10 +25,11 @@ export function createErrorHandler(instrumentation: IInstrumentation): ErrorHand
   return (err, c) => {
     const requestId = c.get("requestId");
     const userId = c.get("user")?.id;
-    const trackerContext = { requestId, userId, path: c.req.path, method: c.req.method };
+    const path = redactSecretPath(c.req.path);
+    const trackerContext = { requestId, userId, path, method: c.req.method };
 
     const reportServerError = (message: string) => {
-      logger.error({ err, requestId, path: c.req.path }, message);
+      logger.error({ err, requestId, path }, message);
       instrumentation.capture(err, trackerContext);
     };
 
@@ -71,7 +73,7 @@ export function createErrorHandler(instrumentation: IInstrumentation): ErrorHand
       return c.json(body, status);
     }
 
-    logger.error({ err, requestId, path: c.req.path, method: c.req.method }, "Unhandled error");
+    logger.error({ err, requestId, path, method: c.req.method }, "Unhandled error");
     instrumentation.capture(err, trackerContext);
 
     const body: ErrorBody = {

@@ -2,10 +2,17 @@ import { AppErrorException } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { emitEventBestEffort } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { logger } from "../logger";
 import type { ICaptchaService } from "../ports/captcha.port";
-import type { IRateLimiter, IRateLimitUsage, WindowConfig } from "../ports/rate-limiter.port";
+import type {
+  IRateLimiter,
+  IRateLimitUsage,
+  RateLimitDecision,
+  WindowConfig,
+} from "../ports/rate-limiter.port";
+import { redactSecretPath } from "../secret-path";
 import { resolveClientIp } from "./rate-limit.ip";
 import type { PolicyConfig } from "./rate-limit.policies";
 
@@ -22,6 +29,53 @@ function captchaRequired(): AppErrorException {
     code: "CAPTCHA_REQUIRED",
     message: "Complete the captcha, then send your request again.",
   });
+}
+
+function limiterUnavailable(): AppErrorException {
+  return new AppErrorException({
+    code: "RATE_LIMITER_UNAVAILABLE",
+    message: "Service temporarily unavailable",
+  });
+}
+
+function rateLimited(c: Context, resetSeconds: number): AppErrorException {
+  // Floor to 1 so clients never see Retry-After: 0 and hammer immediately.
+  const retryAfter = Math.max(1, resetSeconds);
+  c.header("Retry-After", String(retryAfter));
+
+  return new AppErrorException({
+    code: "SECURITY_RATE_LIMITED",
+    message: "Too many requests",
+    metadata: { retryAfter },
+  });
+}
+
+async function announceFirstBlock(
+  c: Context,
+  deps: Pick<RateLimitDeps, "outbox">,
+  policy: PolicyConfig,
+  decision: RateLimitDecision,
+): Promise<void> {
+  if (!decision.firstBlock || !policy.emitSecurityEvent || !deps.outbox) return;
+
+  const rawIp = resolveClientIp(c);
+  const user = c.get("user") as { id: string } | null | undefined;
+  // Truncate before building payload, Zod bounds on SecurityRateLimitExceededPayload
+  // would reject at enqueue and silently swallow the emit if not pre-clamped.
+  const ip = rawIp.slice(0, 45);
+  const path = redactSecretPath(c.req.path).slice(0, 512);
+  const method = c.req.method.slice(0, 16);
+  const policyName = decision.policyName.slice(0, 64);
+  await emitEventBestEffort(
+    deps.outbox,
+    logger,
+    EventTypes.SECURITY_RATE_LIMIT_EXCEEDED,
+    "rate_limit",
+    `${policy.name}:${ip}`,
+    { actorUserId: user?.id ?? null, ip, policyName, path, method },
+    "rate-limit event emit failed, still sending 429",
+    { policy: policy.name },
+  );
 }
 
 async function needsCaptcha(
@@ -66,10 +120,7 @@ export function requireRateLimit(deps: RateLimitDeps, policy: PolicyConfig) {
       if (policy.failClosed) {
         // 503 routes through the central error handler (logs at error + Sentry capture);
         // a store outage must not silently disable brute-force protection (OWASP A10:2025).
-        throw new AppErrorException({
-          code: "RATE_LIMITER_UNAVAILABLE",
-          message: "Service temporarily unavailable",
-        });
+        throw limiterUnavailable();
       }
       logger.warn({ policy: policy.name, key }, "rate limiter internal error, failing open");
       return next();
@@ -91,36 +142,8 @@ export function requireRateLimit(deps: RateLimitDeps, policy: PolicyConfig) {
     }
 
     if (!decision.allowed) {
-      // Floor to 1 so clients never see Retry-After: 0 and hammer immediately.
-      const retryAfter = Math.max(1, decision.resetSeconds);
-      c.header("Retry-After", String(retryAfter));
-
-      if (decision.firstBlock && policy.emitSecurityEvent && deps.outbox) {
-        const rawIp = resolveClientIp(c);
-        const user = c.get("user") as { id: string } | null | undefined;
-        // Truncate before building payload, Zod bounds on SecurityRateLimitExceededPayload
-        // would reject at enqueue and silently swallow the emit if not pre-clamped.
-        const ip = rawIp.slice(0, 45);
-        const path = c.req.path.slice(0, 512);
-        const method = c.req.method.slice(0, 16);
-        const policyName = decision.policyName.slice(0, 64);
-        await emitEventBestEffort(
-          deps.outbox,
-          logger,
-          EventTypes.SECURITY_RATE_LIMIT_EXCEEDED,
-          "rate_limit",
-          `${policy.name}:${ip}`,
-          { actorUserId: user?.id ?? null, ip, policyName, path, method },
-          "rate-limit event emit failed, still sending 429",
-          { policy: policy.name },
-        );
-      }
-
-      throw new AppErrorException({
-        code: "SECURITY_RATE_LIMITED",
-        message: "Too many requests",
-        metadata: { retryAfter },
-      });
+      await announceFirstBlock(c, deps, policy, decision);
+      throw rateLimited(c, decision.resetSeconds);
     }
 
     if (guarded && token) {
@@ -133,5 +156,37 @@ export function requireRateLimit(deps: RateLimitDeps, policy: PolicyConfig) {
     }
 
     await next();
+  });
+}
+
+export interface MissRateLimitDeps {
+  limiter: IRateLimiter & IRateLimitUsage;
+  outbox?: IOutboxRepository;
+}
+
+// Spends the budget only on requests answered 404, so a client that keeps naming
+// resources that do not exist is refused while one serving many real ones never is.
+// Once the budget is spent every request of that key is refused until the window
+// resets: letting a hit through would tell a guesser which guess was right.
+export function requireMissRateLimit(deps: MissRateLimitDeps, policy: PolicyConfig) {
+  const longestWindow = Math.max(...policy.windows.map(({ windowSec }) => windowSec));
+
+  return createMiddleware(async (c, next) => {
+    const key = policy.keyFn(c);
+    const spent = await deps.limiter.usage(key, policy.windows);
+    if (spent.isFailure && policy.failClosed) throw limiterUnavailable();
+    if (spent.isSuccess && spent.getValue().some(({ used, limit }) => used >= limit))
+      throw rateLimited(c, longestWindow);
+
+    await next();
+    if (c.res.status !== 404) return;
+
+    const consumed = await deps.limiter.consume(key, policy.windows);
+    if (consumed.isFailure) {
+      logger.warn({ policy: policy.name }, "rate limiter internal error, miss not counted");
+      return;
+    }
+
+    await announceFirstBlock(c, deps, policy, consumed.getValue());
   });
 }

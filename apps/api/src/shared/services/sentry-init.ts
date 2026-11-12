@@ -1,6 +1,16 @@
 import { IP_HEADERS, scrubBreadcrumb, scrubEvent, scrubLog } from "@packages/sentry-scrub";
 import * as Sentry from "@sentry/bun";
 import { env } from "../env";
+import { redactSecretPath } from "../secret-path";
+
+function withoutFeedSecret<E extends Sentry.Event>(event: E): E {
+  if (event.transaction) event.transaction = redactSecretPath(event.transaction);
+  if (event.request?.url) event.request.url = redactSecretPath(event.request.url);
+  for (const span of event.spans ?? [])
+    if (span.description) span.description = redactSecretPath(span.description);
+
+  return event;
+}
 
 if (env.SENTRY_DSN) {
   Sentry.init({
@@ -23,7 +33,8 @@ if (env.SENTRY_DSN) {
       genAI: { inputs: false, outputs: false },
       graphQL: { document: false, variables: false },
     },
-    beforeSend: scrubEvent,
+    beforeSend: (event) => scrubEvent(withoutFeedSecret(event)),
+    beforeSendTransaction: withoutFeedSecret,
     beforeBreadcrumb: scrubBreadcrumb,
     beforeSendLog: scrubLog,
   });

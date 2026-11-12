@@ -23,6 +23,14 @@ describe("databaseNameFor", () => {
 
     expect(databaseNameFor(`${branch}-1`)).not.toBe(databaseNameFor(`${branch}-2`));
   });
+
+  it("gives two worktrees on a detached HEAD two databases", () => {
+    const first = databaseNameFor("HEAD", "/repo/.claude/worktrees/agent-a");
+    const second = databaseNameFor("HEAD", "/repo/.claude/worktrees/agent-b");
+
+    expect(first).toMatch(/^classroom_parents_detached_[0-9a-f]{8}$/);
+    expect(first).not.toBe(second);
+  });
 });
 
 describe("requireLocalDatabase", () => {

@@ -4,7 +4,11 @@ import { timeIdCursorSchema } from "@packages/http/time-id-cursor";
 import { zV } from "@packages/http/validator";
 import { Hono } from "hono";
 import { z } from "zod";
-import { editEventBodySchema, eventIdParamSchema } from "../../application/dto/event.dto";
+import {
+  addEventBodySchema,
+  editEventBodySchema,
+  eventIdParamSchema,
+} from "../../application/dto/event.dto";
 import { eventNotFound } from "../../application/ports/event-repository.port";
 import type { EventEditService } from "../../application/services/event-edit.service";
 import type { EventQueryService } from "../../application/services/event-query.service";
@@ -26,14 +30,28 @@ const listEventsQuerySchema = z.object({
   category: oneOrMany(eventCategorySchema),
   childId: oneOrMany(z.uuid()),
   status: oneOrMany(eventStatusSchema),
+  done: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
   cursor: timeIdCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });
 
+const calendarQuerySchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  category: oneOrMany(eventCategorySchema),
+  childId: oneOrMany(z.uuid()),
+});
+
 export interface EventsRoutesDeps {
   routeGuards: RouteGuards;
-  EventQueryService: Pick<EventQueryService, "listUpcoming" | "listHistory" | "get">;
-  EventEditService: Pick<EventEditService, "edit" | "confirm" | "remove">;
+  EventQueryService: Pick<
+    EventQueryService,
+    "listUpcoming" | "listHistory" | "listCalendar" | "get"
+  >;
+  EventEditService: Pick<EventEditService, "add" | "edit" | "confirm" | "markDone" | "remove">;
 }
 
 export function createEventsRoutes(deps: EventsRoutesDeps) {
@@ -41,8 +59,15 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
 
   return new Hono<RouteEnv>()
     .get("/", g.requireAuth, zV("query", listEventsQuerySchema), async (c) => {
-      const { scope, category, childId, status, cursor, limit } = c.req.valid("query");
-      const filter = { categories: category, childIds: childId, statuses: status, cursor, limit };
+      const { scope, category, childId, status, done, cursor, limit } = c.req.valid("query");
+      const filter = {
+        categories: category,
+        childIds: childId,
+        statuses: status,
+        done,
+        cursor,
+        limit,
+      };
       const userId = g.currentUserId(c);
       const now = new Date();
       const result =
@@ -51,6 +76,22 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
           : await query.listUpcoming(userId, filter, now);
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
+    })
+    .get("/calendar", g.requireAuth, zV("query", calendarQuerySchema), async (c) => {
+      const { from, to, category, childId } = c.req.valid("query");
+      const result = await query.listCalendar(g.currentUserId(c), {
+        from,
+        to,
+        categories: category,
+        childIds: childId,
+      });
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .post("/", g.requireAuth, zV("json", addEventBodySchema), async (c) => {
+      const result = await edits.add(g.currentUserId(c), c.req.valid("json"));
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue(), 201);
     })
     .get("/:id", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
       const result = await query.get(g.currentUserId(c), c.req.valid("param").id);
@@ -75,6 +116,16 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
     )
     .post("/:id/confirm", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
       const result = await edits.confirm(g.currentUserId(c), c.req.valid("param").id);
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .post("/:id/done", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
+      const result = await edits.markDone(g.currentUserId(c), c.req.valid("param").id, true);
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .delete("/:id/done", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
+      const result = await edits.markDone(g.currentUserId(c), c.req.valid("param").id, false);
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })
