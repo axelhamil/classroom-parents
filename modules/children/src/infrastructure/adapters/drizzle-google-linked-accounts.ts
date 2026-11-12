@@ -74,7 +74,7 @@ export class DrizzleGoogleLinkedAccounts implements IGoogleLinkedAccounts {
           return Result.ok(rows.map(toLinkedAccount));
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(linkedAccountsFailure(method));
+          return Result.fail(linkedAccountsFailure(method, err));
         }
       },
     );

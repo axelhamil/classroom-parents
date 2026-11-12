@@ -1,4 +1,4 @@
-import type { ErrorContext } from "@packages/ddd-kit";
+import { asException, type ErrorContext } from "@packages/ddd-kit";
 import { NoOpInstrumentation } from "./noop-instrumentation";
 
 interface ErrorLogger {
@@ -11,6 +11,6 @@ export class LoggingInstrumentation extends NoOpInstrumentation {
   }
 
   override capture(error: unknown, context?: ErrorContext): void {
-    this.logger.error({ err: error, ...context }, "captured error");
+    this.logger.error({ err: asException(error), ...context }, "captured error");
   }
 }

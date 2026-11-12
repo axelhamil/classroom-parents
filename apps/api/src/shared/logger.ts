@@ -1,5 +1,6 @@
 import { pino } from "pino";
 import { env } from "./env";
+import { serializeError } from "./error-serializer";
 
 const isProd = env.NODE_ENV === "production";
 const isTest = env.NODE_ENV === "test";
@@ -14,6 +15,7 @@ const level = isProd ? "info" : isTest ? "silent" : "debug";
 export const logger = pino({
   level,
   base: { env: env.NODE_ENV },
+  serializers: { err: serializeError },
   ...(isProd || isTest
     ? {}
     : {

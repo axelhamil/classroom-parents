@@ -21,7 +21,8 @@ export async function drainDueAlerts(
   while (!signal.aborted && clock() - startedAt < ALERT_TICK_MS) {
     const tick = await deps.AlertDispatchService.runOnce(new Date(clock()));
     if (tick.isFailure) {
-      logger.warn({ code: tick.getError().code }, "alert dispatch failed");
+      const { code, cause } = tick.getError();
+      logger.warn({ code, err: cause }, "alert dispatch failed");
       return;
     }
 

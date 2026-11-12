@@ -38,7 +38,10 @@ export function startRgpdWorkers(
       batchSize: settings.sweepBatchSize,
       deadlineMs: settings.sweepDeadlineMs,
     });
-    if (swept.isFailure) logger.warn({ code: swept.getError().code }, "rgpd sweep failed");
+    if (swept.isFailure) {
+      const { code, cause } = swept.getError();
+      logger.warn({ code, err: cause }, "rgpd sweep failed");
+    }
   };
 
   const retention = {

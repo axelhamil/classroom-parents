@@ -90,7 +90,8 @@ export class RateLimiterFlexibleAdapter implements IRateLimiter, IRateLimitUsage
         this.instrumentation.capture(err);
         return Result.fail<RateLimitDecision, RateLimitError>({
           code: "RATE_LIMITER_INTERNAL_ERROR",
-          message: err instanceof Error ? err.message : "rate limiter error",
+          message: "rate limiter error",
+          cause: err,
         });
       }
     });
@@ -117,7 +118,8 @@ export class RateLimiterFlexibleAdapter implements IRateLimiter, IRateLimitUsage
 
           return Result.fail<WindowUsage[], RateLimitError>({
             code: "RATE_LIMITER_INTERNAL_ERROR",
-            message: err instanceof Error ? err.message : "rate limiter error",
+            message: "rate limiter error",
+            cause: err,
           });
         }
       },

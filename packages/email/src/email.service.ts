@@ -114,10 +114,8 @@ export class QueuedEmailService implements IEmailService {
   private async enqueue(rows: EmailMessageInsert[]): Promise<Result<void, EmailError>> {
     const result = await this.queue.enqueue(rows);
     if (result.isFailure) {
-      return Result.fail({
-        code: "EMAIL_PROVIDER_FAILURE",
-        message: result.getError().message,
-      });
+      const { message, cause } = result.getError();
+      return Result.fail({ code: "EMAIL_PROVIDER_FAILURE", message, cause });
     }
 
     const { written } = result.getValue();

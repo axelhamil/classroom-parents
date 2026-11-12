@@ -53,7 +53,7 @@ Cross-cutting infra, no business; the rule is where a new file goes.
 - `ports/` + `services/`: cross-context ports (captcha, health, rate limiter) and the impls no module owns, plus the instrumentation impls and `notification-stream-hub.ts` (per-user SSE fan-out over Postgres `LISTEN`).
 - `auth/unit-of-work-adapter.ts`: `asUnitOfWork`, which hands BetterAuth a `db` whose transactions are outermost units of work.
 - `surface/`: back↔front route parity: live route table from `app.ts`, front `api.*.$method` call-site scan, `route-map.ts` with the intent of every route; `surface-parity.test.ts` fails on drift.
-- `aead.ts` (XChaCha20-Poly1305 with HKDF sub-keys), `db-failure.ts`, `private-ranges.ts`, `request-context.ts` (request-scoped ALS: request id and trusted-proxy client IP, for BetterAuth hooks that have no Hono context), `shutdown.ts` (steps in series, each raced against its timeout, a global deadline).
+- `aead.ts` (XChaCha20-Poly1305 with HKDF sub-keys), `error-serializer.ts` (the logger's `err` serializer, see "Logging & error handling"), `private-ranges.ts`, `request-context.ts` (request-scoped ALS: request id and trusted-proxy client IP, for BetterAuth hooks that have no Hono context), `shutdown.ts` (steps in series, each raced against its timeout, a global deadline).
 - `env.ts`, `logger.ts`: process-level singletons. `env-schema.ts` holds the schema and the keys production requires, free of side effects; `env-bounds.ts` holds the cross-field refinements (lease vs budget, hosts, trusted proxies) so a test can call them without a full `.env`.
 
 **Port placement.** The decisor is who consumes the port: two contexts or pure transport (email, push) → `shared/ports/`; one context with orchestration above it → `modules/<x>/application/ports/`. Promote on the second consumer, demote when it disappears.
@@ -88,6 +88,8 @@ The API exports `AppType`; the app consumes it via `hono/client`. Routes **must 
 No `console.*` in production: logs go through `pino` (JSON in prod, `pino-pretty` in dev), HTTP through `hono-pino` keyed on `requestId`.
 
 One `app.onError(createErrorHandler(instrumentation))`, no per-route `try/catch`. Envelope: `{ error: { code, message, requestId } }`; unknown → `500 INTERNAL_ERROR`, stack only outside prod. Domain and application return `Result<T, E>`; typed codes map to HTTP through `httpStatusFromCode` (`*_NOT_FOUND` → 404).
+
+**An infrastructure error mapped to an `AppError` travels as its `cause`** (`dbOperationFailure(code)(op, err)` for a store), and an adapter that remaps one `AppError` into another carries the `cause` over; a worker logs a failed `Result` with `err: error.cause`. The client body is built from `code`, `message` and `metadata` only. Both instrumentation adapters turn a captured `AppError` value into its exception (`asException`), so the log and the telemetry see a chain of errors, never a plain object whose cause they would print raw; the logger's `err` serializer prints that chain with the database fields (SQLSTATE code, table, constraint) and strips the values bound to the query with the same helper as the telemetry scrubber. **Why**: a failure logged as "database operation failed: x" without its reason cannot be diagnosed, and the bound values carry personal data.
 
 ## Observability (`IInstrumentation`)
 

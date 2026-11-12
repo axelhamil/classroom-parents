@@ -44,7 +44,7 @@ export class DrizzleSeenAnnouncementRepository implements ISeenAnnouncementRepos
           return Result.ok(rows);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("findForCourse"));
+          return Result.fail(repositoryFailure("findForCourse", err));
         }
       },
     );
@@ -80,7 +80,7 @@ export class DrizzleSeenAnnouncementRepository implements ISeenAnnouncementRepos
           return Result.ok(written.length > 0);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("record"));
+          return Result.fail(repositoryFailure("record", err));
         }
       },
     );

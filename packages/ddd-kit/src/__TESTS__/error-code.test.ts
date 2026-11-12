@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { httpStatusFromCode } from "../application/error-code";
+import { AppErrorException, asException, httpStatusFromCode } from "../application/error-code";
 
 describe("httpStatusFromCode", () => {
   it("resolves BILLING_PAYMENT_REQUIRED to 402, not 401 (shadowing regression)", () => {
@@ -37,5 +37,16 @@ describe("httpStatusFromCode", () => {
   it("resolves the alert time codes to 400 so the alert form shows them inline", () => {
     expect(httpStatusFromCode("ALERT_AFTER_DEADLINE")).toBe(400);
     expect(httpStatusFromCode("ALERT_IN_PAST")).toBe(400);
+  });
+});
+
+describe("asException", () => {
+  it("turns an AppError value into an exception chained to its cause", () => {
+    const cause = new Error("relation does not exist");
+
+    const exception = asException({ code: "X_PROVIDER_FAILURE", message: "failed", cause });
+
+    expect(exception).toBeInstanceOf(AppErrorException);
+    expect(exception).toMatchObject({ code: "X_PROVIDER_FAILURE", message: "failed", cause });
   });
 });

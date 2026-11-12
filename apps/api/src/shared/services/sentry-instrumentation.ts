@@ -1,4 +1,10 @@
-import type { Breadcrumb, ErrorContext, IInstrumentation, SpanOptions } from "@packages/ddd-kit";
+import {
+  asException,
+  type Breadcrumb,
+  type ErrorContext,
+  type IInstrumentation,
+  type SpanOptions,
+} from "@packages/ddd-kit";
 import * as Sentry from "@sentry/bun";
 
 export class SentryInstrumentation implements IInstrumentation {
@@ -16,7 +22,7 @@ export class SentryInstrumentation implements IInstrumentation {
       if (context?.path) scope.setTag("path", context.path);
       if (context?.method) scope.setTag("method", context.method);
       if (context?.metadata) scope.setContext("metadata", context.metadata);
-      Sentry.captureException(error);
+      Sentry.captureException(asException(error));
     });
   }
 

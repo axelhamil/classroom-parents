@@ -27,7 +27,7 @@ export class DrizzleSweepRunStore implements ISweepRunStore {
         return Result.ok();
       } catch (err) {
         this.instrumentation.capture(err);
-        return Result.fail(failure("record sweep run"));
+        return Result.fail(failure("record sweep run", err));
       }
     });
   }
@@ -46,7 +46,7 @@ export class DrizzleSweepRunStore implements ISweepRunStore {
         return Result.ok(rows);
       } catch (err) {
         this.instrumentation.capture(err);
-        return Result.fail(failure("list sweep runs"));
+        return Result.fail(failure("list sweep runs", err));
       }
     });
   }

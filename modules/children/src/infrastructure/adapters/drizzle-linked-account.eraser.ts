@@ -41,7 +41,7 @@ export class DrizzleLinkedAccountEraser implements ILinkedAccountEraser {
           return Result.ok(Option.fromNullable(erased));
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(eraserFailure("delete"));
+          return Result.fail(eraserFailure("delete", err));
         }
       },
     );

@@ -28,6 +28,7 @@ import {
   sql,
 } from "@packages/drizzle";
 import { PayloadByEventType } from "@packages/events";
+import { stripQueryValues } from "@packages/sentry-scrub";
 import type {
   IOutboxRepository,
   OutboxClaimRequest,
@@ -64,8 +65,15 @@ function assertPayloadValid(event: IDomainEvent): void {
   }
 }
 
+function reasonOf(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+
+  const driverReason = error.cause instanceof Error ? `: ${error.cause.message}` : "";
+  return `${stripQueryValues(error.message)}${driverReason}`;
+}
+
 function unavailable(error: unknown): string {
-  return `outbox_unavailable: ${error instanceof Error ? error.message : String(error)}`;
+  return `outbox_unavailable: ${reasonOf(error)}`;
 }
 
 function byOccurrence(a: OutboxRecord, b: OutboxRecord): number {

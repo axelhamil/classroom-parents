@@ -36,13 +36,17 @@ const SYNC_CODES: Partial<Record<ChildrenError["code"], SyncError["code"]>> = {
 };
 
 function asSyncError(error: ChildrenError): SyncError {
-  return { code: SYNC_CODES[error.code] ?? "SYNC_PROVIDER_FAILURE", message: error.message };
+  return {
+    code: SYNC_CODES[error.code] ?? "SYNC_PROVIDER_FAILURE",
+    message: error.message,
+    cause: error.cause,
+  };
 }
 
 function withLeaseConflict(error: ChildrenError): AppError {
   if (error.code !== "CHILD_SYNC_LEASE_CONFLICT") return error;
 
-  return { code: "SYNC_LEASE_CONFLICT", message: error.message };
+  return { code: "SYNC_LEASE_CONFLICT", message: error.message, cause: error.cause };
 }
 
 export function childOwnershipFor(children: ChildSync<"isOwnedBy">): IChildOwnership {

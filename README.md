@@ -17,7 +17,7 @@ pnpm install
 docker compose up postgres -d
 pnpm bootstrap
 scripts/worktree-db.sh
-pnpm db:push
+pnpm db:migrate
 pnpm dev
 ```
 

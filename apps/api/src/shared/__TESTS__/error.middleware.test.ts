@@ -1,9 +1,19 @@
-import { describe, expect, it, spyOn } from "bun:test";
+import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { AppErrorException, type IInstrumentation } from "@packages/ddd-kit";
+import { DrizzleQueryError, dbOperationFailure } from "@packages/drizzle";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { createErrorHandler, SERVER_ERROR_MESSAGE } from "../middleware/error.middleware";
-import { NoOpInstrumentation } from "../services/noop-instrumentation";
+
+const errorLog = mock((_fields: { err?: unknown }, _message: string) => {});
+const realLogger = await import("../logger");
+mock.module("../logger", () => ({
+  ...realLogger,
+  logger: { ...realLogger.logger, error: errorLog },
+}));
+
+const { createErrorHandler, SERVER_ERROR_MESSAGE } = await import("../middleware/error.middleware");
+const { serializeError } = await import("../error-serializer");
+const { NoOpInstrumentation } = await import("../services/noop-instrumentation");
 
 function makeSpy() {
   const instrumentation = new NoOpInstrumentation();
@@ -23,6 +33,65 @@ function makeApp(instrumentation?: IInstrumentation) {
 }
 
 describe("errorHandler", () => {
+  beforeEach(() => errorLog.mockClear());
+
+  describe("database failure behind an application error", () => {
+    const SQL = 'select "reminders" from "alert_event_reminders" where "user_id" = $1';
+    const QUERY_VALUE = "parent@example.fr";
+    const DRIVER_TEXT = 'relation "alert_event_reminders" does not exist';
+
+    function failingRoute(instrumentation?: IInstrumentation) {
+      const driverError = Object.assign(new Error(DRIVER_TEXT), {
+        code: "42P01",
+        severity: "ERROR",
+      });
+      const queryError = new DrizzleQueryError(SQL, [QUERY_VALUE], driverError);
+      const failure = dbOperationFailure("ALERT_PROVIDER_FAILURE")("eventPlansFor", queryError);
+
+      return makeApp(instrumentation).get("/", () => {
+        throw new AppErrorException(failure);
+      });
+    }
+
+    it("logs the SQL and the database code that made the request fail", async () => {
+      await failingRoute().request("/");
+
+      const logged = serializeError(errorLog.mock.calls[0]?.[0].err);
+      expect(logged).toMatchObject({
+        message: expect.stringContaining(`${SQL}: ${DRIVER_TEXT}`),
+        database: { code: "42P01" },
+      });
+      expect(JSON.stringify(logged)).not.toContain(QUERY_VALUE);
+    });
+
+    it("hands telemetry the error chained to the database cause", async () => {
+      const { captureSpy, instrumentation } = makeSpy();
+
+      await failingRoute(instrumentation).request("/");
+
+      const captured = captureSpy.mock.calls[0]?.[0];
+      expect(captured).toBeInstanceOf(AppErrorException);
+      const cause = captured instanceof Error ? captured.cause : undefined;
+      expect(cause).toBeInstanceOf(DrizzleQueryError);
+    });
+
+    it("answers the client with a stable message, never the database text", async () => {
+      const res = await failingRoute().request("/");
+
+      expect(res.status).toBe(502);
+      const body = await res.text();
+      expect(body).not.toContain(DRIVER_TEXT);
+      expect(body).not.toContain(SQL);
+      expect(JSON.parse(body)).toEqual({
+        error: {
+          code: "ALERT_PROVIDER_FAILURE",
+          message: SERVER_ERROR_MESSAGE,
+          requestId: "req-test-123",
+        },
+      });
+    });
+  });
+
   it("should map AppErrorException to status from suffix and include code/message/metadata/requestId", async () => {
     const app = makeApp().get("/", () => {
       throw new AppErrorException({

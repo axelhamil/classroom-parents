@@ -35,7 +35,7 @@ The gate audits the **preview build** on port 4173, against a live API:
 
 ```sh
 docker compose up postgres -d
-pnpm db:push && pnpm --filter api db:seed   # seeds dev@example.com and its session cookie
+pnpm db:migrate && pnpm --filter api db:seed # seeds dev@example.com and its session cookie
 pnpm --filter api dev                        # API on :3000
 pnpm --filter app check:a11y                 # builds nothing, run `pnpm --filter app build` first
 ```

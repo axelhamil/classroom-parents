@@ -123,7 +123,7 @@ export class DrizzleChildRepository implements IChildRepository {
         return Result.ok();
       } catch (err) {
         this.instrumentation.capture(err);
-        return Result.fail(repositoryFailure("create"));
+        return Result.fail(repositoryFailure("create", err));
       }
     });
   }
@@ -191,7 +191,7 @@ export class DrizzleChildRepository implements IChildRepository {
           return this.mapRows(rows, "listForUser");
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("listForUser"));
+          return Result.fail(repositoryFailure("listForUser", err));
         }
       },
     );
@@ -216,7 +216,7 @@ export class DrizzleChildRepository implements IChildRepository {
           return Result.ok();
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("deleteLeased"));
+          return Result.fail(repositoryFailure("deleteLeased", err));
         }
       },
     );
@@ -268,7 +268,7 @@ export class DrizzleChildRepository implements IChildRepository {
           return Result.ok(rows.length > 0);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("holdsLease"));
+          return Result.fail(repositoryFailure("holdsLease", err));
         }
       },
     );
@@ -343,7 +343,7 @@ export class DrizzleChildRepository implements IChildRepository {
           return Result.ok(claimed);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );
@@ -374,7 +374,7 @@ export class DrizzleChildRepository implements IChildRepository {
           return Result.ok();
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );
@@ -399,7 +399,7 @@ export class DrizzleChildRepository implements IChildRepository {
           return this.mapRows(rows, method).map((children) => Option.fromNullable(children[0]));
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );
@@ -410,8 +410,9 @@ export class DrizzleChildRepository implements IChildRepository {
     for (const row of rows) {
       const mapped = toDomain(row);
       if (mapped.isFailure) {
-        this.instrumentation.capture(new Error(`child_account ${row.id}: ${mapped.getError()}`));
-        return Result.fail(repositoryFailure(method));
+        const corrupt = new Error(`child_account ${row.id}: ${mapped.getError()}`);
+        this.instrumentation.capture(corrupt);
+        return Result.fail(repositoryFailure(method, corrupt));
       }
       children.push(mapped.getValue());
     }

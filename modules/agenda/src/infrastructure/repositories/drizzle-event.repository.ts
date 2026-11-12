@@ -192,7 +192,7 @@ export class DrizzleEventRepository implements IEventRepository {
           return Result.ok(inserted.length > 0);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("insertIfAbsent"));
+          return Result.fail(repositoryFailure("insertIfAbsent", err));
         }
       },
     );
@@ -216,7 +216,7 @@ export class DrizzleEventRepository implements IEventRepository {
         return Result.ok();
       } catch (err) {
         this.instrumentation.capture(err);
-        return Result.fail(repositoryFailure("save"));
+        return Result.fail(repositoryFailure("save", err));
       }
     });
   }
@@ -255,7 +255,7 @@ export class DrizzleEventRepository implements IEventRepository {
           return this.mapRows(rows, "lockCourseworkItems");
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("lockCourseworkItems"));
+          return Result.fail(repositoryFailure("lockCourseworkItems", err));
         }
       },
     );
@@ -324,7 +324,7 @@ export class DrizzleEventRepository implements IEventRepository {
           return this.mapRows(rows, method);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );
@@ -381,7 +381,7 @@ export class DrizzleEventRepository implements IEventRepository {
           return this.mapRows(rows, "listAlertableUpcoming");
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("listAlertableUpcoming"));
+          return Result.fail(repositoryFailure("listAlertableUpcoming", err));
         }
       },
     );
@@ -446,7 +446,7 @@ export class DrizzleEventRepository implements IEventRepository {
           ).map((events) => ({ events, nextCursor }));
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );
@@ -478,7 +478,7 @@ export class DrizzleEventRepository implements IEventRepository {
           return this.mapRows(rows, method).map((events) => Option.fromNullable(events[0]));
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );
@@ -489,8 +489,9 @@ export class DrizzleEventRepository implements IEventRepository {
     for (const row of rows) {
       const mapped = toDomain(row);
       if (mapped.isFailure) {
-        this.instrumentation.capture(new Error(`event ${row.id}: ${mapped.getError()}`));
-        return Result.fail(repositoryFailure(method));
+        const corrupt = new Error(`event ${row.id}: ${mapped.getError()}`);
+        this.instrumentation.capture(corrupt);
+        return Result.fail(repositoryFailure(method, corrupt));
       }
       events.push(mapped.getValue());
     }

@@ -49,10 +49,14 @@ function cleanUrl(url: string): string {
   return withoutQuery;
 }
 
-export function scrubText(text: string): string {
-  const [withoutParams = ""] = text.split(QUERY_PARAMS_MARKER);
+export function stripQueryValues(text: string): string {
+  const [statement = ""] = text.split(QUERY_PARAMS_MARKER);
 
-  return withoutParams.replace(QUERY_IN_TOKEN, dropQuery).replace(EMAIL, "[email]");
+  return statement;
+}
+
+export function scrubText(text: string): string {
+  return stripQueryValues(text).replace(QUERY_IN_TOKEN, dropQuery).replace(EMAIL, "[email]");
 }
 
 function dropQuery(token: string, beforeQuery: string, query: string): string {

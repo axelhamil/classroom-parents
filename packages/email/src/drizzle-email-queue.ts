@@ -41,7 +41,8 @@ const dbAttrs = { "db.system.name": "postgresql" } as const;
 function fail(err: unknown, fallback: string): Result<never, EmailQueueError> {
   return Result.fail({
     code: "EMAIL_QUEUE_WRITE_FAILED",
-    message: err instanceof Error ? err.message : fallback,
+    message: fallback,
+    cause: err,
   });
 }
 

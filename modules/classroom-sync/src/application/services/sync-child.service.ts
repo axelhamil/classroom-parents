@@ -64,16 +64,17 @@ const blocked: SyncError = {
   message: "L'accès à Classroom de cet enfant ne fonctionne plus, sa fiche indique quoi faire.",
 };
 
-const providerFailure = (step: string): SyncError => ({
+const providerFailure = (step: string, cause?: unknown): SyncError => ({
   code: "SYNC_PROVIDER_FAILURE",
   message: `La synchronisation a échoué (${step}), elle sera relancée dans quelques minutes.`,
+  cause,
 });
 
 function asSyncError(error: AppError, step: string): SyncError {
-  const { code, message } = error;
-  if (!isSyncCode(code)) return providerFailure(step);
+  const { code, message, cause } = error;
+  if (!isSyncCode(code)) return providerFailure(step, cause);
 
-  return { code, message };
+  return { code, message, cause };
 }
 
 export interface SyncChildInput {
@@ -402,7 +403,7 @@ export class SyncChildService {
     const held = await this.syncState.holdsLease(lease);
     if (held.isFailure) {
       this.instrumentation.capture(held.getError(), { metadata: { childId: lease.childId } });
-      return Result.fail(providerFailure("état de l'enfant"));
+      return Result.fail(providerFailure("état de l'enfant", held.getError().cause));
     }
     if (!held.getValue()) return Result.fail(leaseLost);
 

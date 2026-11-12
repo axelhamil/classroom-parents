@@ -23,7 +23,7 @@ src/
 2. **Typed builder first, raw SQL last.** `select`/`insert`/`update`/`delete` and the helpers cover filters, array operators and row locks (`.for("update", { skipLocked: true })`). A `sql` fragment is acceptable only for DDL, session-scoped tuning (`SET LOCAL ...`) or an operator with no helper (search the exports first), and keeps its columns typed (`${table.col}`). **Why**: the typed builder catches rename and type drift at compile time; raw SQL rots until a runtime exception.
 3. **Every user-owned table carries `userId NOT NULL` + FK `user(id) ON DELETE CASCADE` from its first migration** (directly, or through a parent row that carries it). **Why**: ownership is filtered in the repository `WHERE`, and a missing cascade leaves orphans after an account deletion. The outbox is the exception: it keeps no owner column, so the account wipe deletes the rows whose payload names the user (`userId` or `actorUserId`), and only `user.deleted` remains.
 4. **A new table's primary key defaults to `uuid("id").primaryKey().default(sql`uuidv7()`)`** (native in Postgres 18): time-ordered, so inserts avoid the B-tree hotspot of a random uuid. The BetterAuth tables keep their `text` ids, which the library generates.
-5. **A schema change ships with its migration**: `db:push` is dev only, anything reaching `main` goes through `db:generate` + `db:migrate`. Touch an existing schema as little as possible.
+5. **A schema change ships with its migration**: every database, local ones included, is built by `db:generate` + `db:migrate`; `db:push` is for a throwaway database only. Touch an existing schema as little as possible.
 
 ## Unit of work
 

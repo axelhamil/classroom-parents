@@ -193,7 +193,7 @@ export class DrizzleAlertRepository implements IAlertRepository {
           return Result.ok();
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("saveMany"));
+          return Result.fail(repositoryFailure("saveMany", err));
         }
       },
     );
@@ -231,7 +231,7 @@ export class DrizzleAlertRepository implements IAlertRepository {
           return Result.ok(claimed);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("claimDue"));
+          return Result.fail(repositoryFailure("claimDue", err));
         }
       },
     );
@@ -254,7 +254,7 @@ export class DrizzleAlertRepository implements IAlertRepository {
         return Result.ok(updated.length === 1);
       } catch (err) {
         this.instrumentation.capture(err);
-        return Result.fail(repositoryFailure("settle"));
+        return Result.fail(repositoryFailure("settle", err));
       }
     });
   }
@@ -278,7 +278,7 @@ export class DrizzleAlertRepository implements IAlertRepository {
           return Result.ok(updated.length === 1);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("addFailure"));
+          return Result.fail(repositoryFailure("addFailure", err));
         }
       },
     );
@@ -305,7 +305,7 @@ export class DrizzleAlertRepository implements IAlertRepository {
           return Result.ok();
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("recordDelivery"));
+          return Result.fail(repositoryFailure("recordDelivery", err));
         }
       },
     );
@@ -338,15 +338,16 @@ export class DrizzleAlertRepository implements IAlertRepository {
           for (const row of rows) {
             const mapped = toDomain(row);
             if (mapped.isFailure) {
-              this.instrumentation.capture(new Error(`alert ${row.id}: ${mapped.getError()}`));
-              return Result.fail(repositoryFailure(method));
+              const corrupt = new Error(`alert ${row.id}: ${mapped.getError()}`);
+              this.instrumentation.capture(corrupt);
+              return Result.fail(repositoryFailure(method, corrupt));
             }
             alerts.push(mapped.getValue());
           }
           return Result.ok(alerts);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );

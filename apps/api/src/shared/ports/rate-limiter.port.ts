@@ -21,7 +21,11 @@ export interface RateLimitDecision {
   firstBlock: boolean;
 }
 
-export type RateLimitError = { code: "RATE_LIMITER_INTERNAL_ERROR"; message: string };
+export type RateLimitError = {
+  code: "RATE_LIMITER_INTERNAL_ERROR";
+  message: string;
+  cause?: unknown;
+};
 
 export interface WindowUsage {
   used: number;

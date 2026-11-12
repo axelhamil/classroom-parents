@@ -74,6 +74,7 @@ export class SiteverifyCaptchaService implements ICaptchaService {
       return Result.fail({
         code: "CAPTCHA_PROVIDER_FAILURE",
         message: "captcha verification is unavailable",
+        cause: err,
       });
     }
   }

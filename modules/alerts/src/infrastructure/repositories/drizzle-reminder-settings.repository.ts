@@ -68,10 +68,9 @@ export class DrizzleReminderSettingsRepository implements IReminderSettingsRepos
       for (const row of rows) {
         const reminders = ReminderList.from(row.reminders);
         if (reminders.isFailure) {
-          this.instrumentation.capture(
-            new Error(`reminders of ${row.eventId}: ${reminders.getError()}`),
-          );
-          return Result.fail(repositoryFailure("eventPlansFor"));
+          const corrupt = new Error(`reminders of ${row.eventId}: ${reminders.getError()}`);
+          this.instrumentation.capture(corrupt);
+          return Result.fail(repositoryFailure("eventPlansFor", corrupt));
         }
         plans.set(row.eventId, reminders.getValue());
       }
@@ -163,15 +162,14 @@ export class DrizzleReminderSettingsRepository implements IReminderSettingsRepos
 
           const reminders = ReminderList.from(row.reminders);
           if (reminders.isFailure) {
-            this.instrumentation.capture(
-              new Error(`reminders of ${subject}: ${reminders.getError()}`),
-            );
-            return Result.fail(repositoryFailure(method));
+            const corrupt = new Error(`reminders of ${subject}: ${reminders.getError()}`);
+            this.instrumentation.capture(corrupt);
+            return Result.fail(repositoryFailure(method, corrupt));
           }
           return Result.ok(Option.some(reminders.getValue()));
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );
@@ -188,7 +186,7 @@ export class DrizzleReminderSettingsRepository implements IReminderSettingsRepos
           return await work();
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );

@@ -58,7 +58,7 @@ export class DrizzleGoogleCredentialStore implements IGoogleCredentialStore {
           );
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(storeFailure("read"));
+          return Result.fail(storeFailure("read", err));
         }
       },
     );
@@ -105,7 +105,7 @@ export class DrizzleGoogleCredentialStore implements IGoogleCredentialStore {
           return Result.ok();
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(storeFailure("replace"));
+          return Result.fail(storeFailure("replace", err));
         }
       },
     );

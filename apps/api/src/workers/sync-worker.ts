@@ -22,8 +22,10 @@ export function startSyncWorkers(
 
   const syncDue = async () => {
     const tick = await deps.SyncDueChildrenService.runOnce(new Date());
-    if (tick.isFailure) logger.warn({ code: tick.getError().code }, "sync tick failed");
-    else if (tick.getValue().children > 0) logger.info(tick.getValue(), "sync tick done");
+    if (tick.isFailure) {
+      const { code, cause } = tick.getError();
+      logger.warn({ code, err: cause }, "sync tick failed");
+    } else if (tick.getValue().children > 0) logger.info(tick.getValue(), "sync tick done");
   };
 
   const resumeDisconnections = async () => {
@@ -31,9 +33,10 @@ export function startSyncWorkers(
       DISCONNECT_RESUME_BATCH,
       new Date(),
     );
-    if (resumed.isFailure)
-      logger.warn({ code: resumed.getError().code }, "disconnection resume failed");
-    else if (resumed.getValue().finished + resumed.getValue().failed > 0)
+    if (resumed.isFailure) {
+      const { code, cause } = resumed.getError();
+      logger.warn({ code, err: cause }, "disconnection resume failed");
+    } else if (resumed.getValue().finished + resumed.getValue().failed > 0)
       logger.info(resumed.getValue(), "disconnections resumed");
   };
 

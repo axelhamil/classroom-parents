@@ -119,6 +119,46 @@ describe("DrizzleEmailQueue.enqueue", () => {
     expect(result.getError().code).toBe("EMAIL_QUEUE_WRITE_FAILED");
   });
 
+  it("keeps the query values out of the failure, which carries the driver error as its cause", async () => {
+    const queue = new DrizzleEmailQueue(mockInstrumentation(), logger);
+    const queryError = new realDrizzle.DrizzleQueryError(
+      'insert into "email_message" ("to_address") values ($1)',
+      ["parent@example.fr"],
+      new Error('duplicate key value violates unique constraint "email_message_idempotency_key"'),
+    );
+    executor = {
+      insert: () => ({
+        values: () => ({
+          onConflictDoNothing: () => ({
+            returning: () => ({
+              toSQL: () => ({ sql: "insert into email_message" }),
+              execute: async () => {
+                throw queryError;
+              },
+            }),
+          }),
+        }),
+      }),
+    };
+
+    const result = await queue.enqueue([
+      {
+        kind: "raw",
+        template: Option.none(),
+        toAddress: "parent@example.fr",
+        subject: "s",
+        locale: "fr",
+        payload: {},
+        idempotencyKey: Option.none(),
+        eraseOnSettle: false,
+      },
+    ]);
+
+    const failure = result.getError();
+    expect(failure.message).not.toContain("parent@example.fr");
+    expect(failure.cause).toBe(queryError);
+  });
+
   it("suppresses a duplicate row instead of failing the whole batch", async () => {
     insertReturns = (rows) => rows.slice(1).map(() => ({ id: "id" })); // one row dropped
     const queue = new DrizzleEmailQueue(mockInstrumentation(), logger);
@@ -164,8 +204,9 @@ describe("DrizzleEmailQueue.claim", () => {
   });
 
   it("claim returns a failure Result when the query rejects", async () => {
+    const dbDown = new Error("db down");
     executor = chainResolving(async () => {
-      throw new Error("db down");
+      throw dbDown;
     });
 
     const result = await new DrizzleEmailQueue(mockInstrumentation(), logger).claim({
@@ -175,7 +216,7 @@ describe("DrizzleEmailQueue.claim", () => {
     });
 
     expect(result.isFailure).toBe(true);
-    expect(result.getError().message).toBe("db down");
+    expect(result.getError()).toMatchObject({ message: "claim failed", cause: dbDown });
   });
 });
 

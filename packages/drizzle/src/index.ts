@@ -4,6 +4,7 @@ export {
   arrayContains,
   asc,
   count,
+  DrizzleQueryError,
   desc,
   eq,
   exists,

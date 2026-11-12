@@ -50,7 +50,11 @@ export type EmailFailure =
   | { lastError: string; status: "pending"; retryAfterSeconds: number }
   | { lastError: string; status: "dead"; retryAfterSeconds: number; replayWindowHours: number };
 
-export type EmailQueueError = { code: "EMAIL_QUEUE_WRITE_FAILED"; message: string };
+export type EmailQueueError = {
+  code: "EMAIL_QUEUE_WRITE_FAILED";
+  message: string;
+  cause?: unknown;
+};
 
 export interface IEmailQueue {
   enqueue(rows: EmailMessageInsert[]): Promise<Result<{ written: number }, EmailQueueError>>;

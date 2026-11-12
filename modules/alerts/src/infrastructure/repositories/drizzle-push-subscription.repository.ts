@@ -41,12 +41,12 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
             .values({ endpoint: subscription.endpoint, createdAt: subscription.now, ...keys })
             .onConflictDoUpdate({ target: pushSubscription.endpoint, set: keys })
             .returning({ id: pushSubscription.id });
-          if (!row) return Result.fail(repositoryFailure("upsert"));
+          if (!row) throw new Error("upsert returned no row");
 
           return Result.ok({ id: row.id, previousUserId: Option.fromNullable(previous?.userId) });
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("upsert"));
+          return Result.fail(repositoryFailure("upsert", err));
         }
       },
     );
@@ -94,7 +94,7 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
           return Result.ok(rows);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("listForUser"));
+          return Result.fail(repositoryFailure("listForUser", err));
         }
       },
     );
@@ -118,7 +118,7 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
           return Result.ok(row?.live ?? 0);
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure("countForUser"));
+          return Result.fail(repositoryFailure("countForUser", err));
         }
       },
     );
@@ -145,7 +145,7 @@ export class DrizzlePushSubscriptionRepository implements IPushSubscriptionRepos
           return Result.ok(Option.fromNullable(row?.id));
         } catch (err) {
           this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method));
+          return Result.fail(repositoryFailure(method, err));
         }
       },
     );

@@ -11,7 +11,24 @@ const insert = mock(() => ({
     return { onConflictDoNothing: async () => {} };
   },
 }));
-const executor = { insert, execute: mock(async () => ({ rows: [] })) };
+const failedUpdate = new realDrizzle.DrizzleQueryError(
+  'update "outbox_event" set "dispatched_at" = $1 where "id" = $2',
+  ["2026-11-12T09:00:00.000Z", "parent@example.fr"],
+  new Error("could not serialize access due to concurrent update"),
+);
+const update = mock(() => ({
+  set: () => ({
+    where: () => ({
+      returning: () => ({
+        toSQL: () => ({ sql: 'update "outbox_event"' }),
+        execute: async () => {
+          throw failedUpdate;
+        },
+      }),
+    }),
+  }),
+}));
+const executor = { insert, update, execute: mock(async () => ({ rows: [] })) };
 
 mock.module("@packages/drizzle", () => ({ ...realDrizzle, resolveExecutor: () => executor }));
 
@@ -74,5 +91,16 @@ describe("DrizzleOutboxRepository.enqueue", () => {
     });
 
     expect(insertedRows.map((row) => row.id)).toEqual([eventId]);
+  });
+});
+
+describe("DrizzleOutboxRepository.release", () => {
+  it("given a failing query, when released, then the failure names the database error without its query values", async () => {
+    const repo = new DrizzleOutboxRepository(mockInstrumentation(), () => undefined);
+
+    const released = await repo.release({ id: "evt-1", attempts: 1 });
+
+    expect(released.getError()).toContain("could not serialize access");
+    expect(released.getError()).not.toContain("parent@example.fr");
   });
 });

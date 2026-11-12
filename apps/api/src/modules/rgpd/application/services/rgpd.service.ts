@@ -116,7 +116,7 @@ export class RgpdService {
         );
         if (sent.isFailure)
           this.logger.warn(
-            { userId: input.userId, code: sent.getError().code },
+            { userId: input.userId, code: sent.getError().code, err: sent.getError().cause },
             "deletion marked but notification email failed",
           );
 
@@ -170,7 +170,7 @@ export class RgpdService {
         );
         if (sent.isFailure)
           this.logger.warn(
-            { userId: input.userId, code: sent.getError().code },
+            { userId: input.userId, code: sent.getError().code, err: sent.getError().cause },
             "deletion cleared but notification email failed",
           );
 
@@ -226,7 +226,11 @@ export class RgpdService {
             );
             if (notified.isFailure) {
               this.logger.error(
-                { userId: input.userId, code: notified.getError().code },
+                {
+                  userId: input.userId,
+                  code: notified.getError().code,
+                  err: notified.getError().cause,
+                },
                 "account wipe rolled back: deletion confirmation could not be enqueued",
               );
               return Result.fail<ExecuteWipeOutput, RgpdError>({
@@ -242,6 +246,7 @@ export class RgpdService {
           return Result.fail({
             code: "ACCOUNT_WIPE_PROVIDER_FAILURE",
             message: "wipe transaction failed",
+            cause: e,
           });
         }
 
@@ -250,12 +255,13 @@ export class RgpdService {
           if (failure.code === "ACCOUNT_WIPE_NOTIFY_PROVIDER_FAILURE") return Result.fail(failure);
 
           this.logger.error(
-            { userId: input.userId, code: failure.code },
+            { userId: input.userId, code: failure.code, err: failure.cause },
             "account wipe transaction reported failure",
           );
           return Result.fail({
             code: "ACCOUNT_WIPE_PROVIDER_FAILURE",
             message: "wipe transaction failed",
+            cause: failure.cause,
           });
         }
         return Result.ok({ alreadyWiped: inner.getValue().alreadyWiped });
@@ -274,7 +280,7 @@ export class RgpdService {
         const batchResult = await this.rgpd.findUsersReadyForWipe(input.now, input.batchSize ?? 50);
         if (batchResult.isFailure) {
           this.logger.error(
-            { code: batchResult.getError().code },
+            { code: batchResult.getError().code, err: batchResult.getError().cause },
             "rgpd sweep aborted: could not load batch",
           );
           return Result.fail(batchResult.getError());
@@ -385,7 +391,7 @@ export class RgpdService {
     const revocation = await this.childConnections.revokeAll(userId);
     if (revocation.isFailure) {
       this.logger.warn(
-        { userId, code: revocation.getError().code },
+        { userId, code: revocation.getError().code, err: revocation.getError().cause },
         "child token revocation failed, the wipe goes on (right to erasure)",
       );
       return;

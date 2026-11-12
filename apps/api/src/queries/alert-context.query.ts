@@ -86,7 +86,7 @@ export class AlertContextQuery implements IAlertContextReader {
         );
       } catch (err) {
         this.instrumentation.capture(err);
-        return Result.fail(queryFailure("load"));
+        return Result.fail(queryFailure("load", err));
       }
     });
   }

@@ -51,7 +51,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.markPendingDeletion failed");
-          return Result.fail(repositoryFailure("markPendingDeletion"));
+          return Result.fail(repositoryFailure("markPendingDeletion", err));
         }
       },
     );
@@ -76,7 +76,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.clearPendingDeletion failed");
-          return Result.fail(repositoryFailure("clearPendingDeletion"));
+          return Result.fail(repositoryFailure("clearPendingDeletion", err));
         }
       },
     );
@@ -113,7 +113,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, limit }, "RgpdRepository.findUsersReadyForWipe failed");
-          return Result.fail(repositoryFailure("findUsersReadyForWipe"));
+          return Result.fail(repositoryFailure("findUsersReadyForWipe", err));
         }
       },
     );
@@ -153,7 +153,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.executeWipe failed");
-          return Result.fail(repositoryFailure("executeWipe"));
+          return Result.fail(repositoryFailure("executeWipe", err));
         }
       },
     );
@@ -182,7 +182,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.findSessionStart failed");
-          return Result.fail(repositoryFailure("findSessionStart"));
+          return Result.fail(repositoryFailure("findSessionStart", err));
         }
       },
     );
@@ -220,7 +220,7 @@ export class DrizzleRgpdRepository implements IRgpdRepository {
         } catch (err) {
           this.instrumentation.capture(err);
           this.logger.error({ err, userId }, "RgpdRepository.getUserDeletionState failed");
-          return Result.fail(repositoryFailure("getUserDeletionState"));
+          return Result.fail(repositoryFailure("getUserDeletionState", err));
         }
       },
     );
