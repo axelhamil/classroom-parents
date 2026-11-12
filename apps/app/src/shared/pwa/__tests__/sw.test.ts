@@ -18,8 +18,10 @@ interface FakeEvent {
 
 interface FakeClient {
   url: string;
+  controlled: boolean;
   focus: ReturnType<typeof vi.fn>;
   navigate: ReturnType<typeof vi.fn>;
+  postMessage: ReturnType<typeof vi.fn>;
 }
 
 function loadWorker(windows: FakeClient[] = []) {
@@ -32,7 +34,9 @@ function loadWorker(windows: FakeClient[] = []) {
     location: { origin: ORIGIN },
     registration: { showNotification },
     clients: {
-      matchAll: vi.fn(async () => windows),
+      matchAll: vi.fn(async (options?: { includeUncontrolled?: boolean }) =>
+        windows.filter(({ controlled }) => controlled || options?.includeUncontrolled === true),
+      ),
       openWindow,
       claim: vi.fn(async () => undefined),
     },
@@ -50,14 +54,28 @@ function loadWorker(windows: FakeClient[] = []) {
   return { dispatch, showNotification, openWindow };
 }
 
-function client(url: string): FakeClient {
+interface ClientOptions {
+  controlled?: boolean;
+  answers?: boolean;
+}
+
+function client(
+  url: string,
+  { controlled = true, answers = true }: ClientOptions = {},
+): FakeClient {
   const self: FakeClient = {
     url,
+    controlled,
     focus: vi.fn(async () => self),
     navigate: vi.fn(async () => self),
+    postMessage: vi.fn((_message: unknown, ports: MessagePort[]) => {
+      if (answers) ports[0]?.postMessage("navigated");
+    }),
   };
   return self;
 }
+
+const NAVIGATE = { type: "keepupkids:navigate", path: "/events/e1" };
 
 describe("service worker", () => {
   it("given a valid push payload, then it shows the notification with its title, body and target", async () => {
@@ -181,7 +199,7 @@ describe("service worker", () => {
     );
   });
 
-  it("given an open app window, when the notification is clicked, then that window is focused on the target", async () => {
+  it("given an open app window, when the notification is clicked, then that window is focused and its router moves to the target without a reload", async () => {
     const open = client(`${ORIGIN}/history`);
     const worker = loadWorker([open]);
     const close = vi.fn();
@@ -192,14 +210,54 @@ describe("service worker", () => {
 
     expect(close).toHaveBeenCalled();
     expect(open.focus).toHaveBeenCalled();
-    expect(open.navigate).toHaveBeenCalledWith(`${ORIGIN}/events/e1`);
+    expect(open.postMessage).toHaveBeenCalledWith(NAVIGATE, [expect.anything()]);
+    expect(open.navigate).not.toHaveBeenCalled();
     expect(worker.openWindow).not.toHaveBeenCalled();
   });
 
-  it("given a window the worker does not control, when the notification is clicked, then the target opens in a new window", async () => {
-    const uncontrolled = client(`${ORIGIN}/history`);
+  it("given a window the worker does not control, when the notification is clicked, then that window is reused instead of opening a second one", async () => {
+    const uncontrolled = client(`${ORIGIN}/history`, { controlled: false });
     uncontrolled.navigate.mockRejectedValue(new TypeError("client is not controlled"));
     const worker = loadWorker([uncontrolled]);
+
+    await worker.dispatch("notificationclick", {
+      notification: { data: { navigate: "/events/e1" }, close: vi.fn() },
+    });
+
+    expect(uncontrolled.focus).toHaveBeenCalled();
+    expect(uncontrolled.postMessage).toHaveBeenCalledWith(NAVIGATE, [expect.anything()]);
+    expect(worker.openWindow).not.toHaveBeenCalled();
+  });
+
+  it("given a controlled and an uncontrolled window, when the notification is clicked, then the controlled one is used", async () => {
+    const uncontrolled = client(`${ORIGIN}/history`, { controlled: false });
+    const controlled = client(`${ORIGIN}/children`);
+    const worker = loadWorker([uncontrolled, controlled]);
+
+    await worker.dispatch("notificationclick", {
+      notification: { data: { navigate: "/events/e1" }, close: vi.fn() },
+    });
+
+    expect(controlled.focus).toHaveBeenCalled();
+    expect(uncontrolled.focus).not.toHaveBeenCalled();
+  });
+
+  it("given a window whose app does not answer, when the notification is clicked, then the worker navigates it itself", async () => {
+    const silent = client(`${ORIGIN}/history`, { answers: false });
+    const worker = loadWorker([silent]);
+
+    await worker.dispatch("notificationclick", {
+      notification: { data: { navigate: "/events/e1" }, close: vi.fn() },
+    });
+
+    expect(silent.navigate).toHaveBeenCalledWith(`${ORIGIN}/events/e1`);
+    expect(worker.openWindow).not.toHaveBeenCalled();
+  });
+
+  it("given an uncontrolled window whose app does not answer, when the notification is clicked, then the target opens in a new window", async () => {
+    const silent = client(`${ORIGIN}/history`, { controlled: false, answers: false });
+    silent.navigate.mockRejectedValue(new TypeError("client is not controlled"));
+    const worker = loadWorker([silent]);
 
     await worker.dispatch("notificationclick", {
       notification: { data: { navigate: "/events/e1" }, close: vi.fn() },

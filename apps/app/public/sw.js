@@ -57,10 +57,31 @@ self.addEventListener("push", (event) => {
   );
 });
 
+const NAVIGATE_MESSAGE = "keepupkids:navigate";
+const ANSWER_TIMEOUT_MS = 500;
+
+function askAppToNavigate(client, path) {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => {
+      channel.port1.close();
+      resolve(false);
+    }, ANSWER_TIMEOUT_MS);
+    channel.port1.onmessage = () => {
+      clearTimeout(timer);
+      channel.port1.close();
+      resolve(true);
+    };
+    client.postMessage({ type: NAVIGATE_MESSAGE, path }, [channel.port2]);
+  });
+}
+
 async function openTarget(navigate) {
-  const url = new URL(safeTarget(navigate), self.location.origin).href;
-  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  const existing = windows[0];
+  const path = safeTarget(navigate);
+  const url = new URL(path, self.location.origin).href;
+  const controlled = await self.clients.matchAll({ type: "window" });
+  const any = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const existing = controlled[0] ?? any[0];
 
   if (!existing) {
     await self.clients.openWindow(url);
@@ -69,6 +90,7 @@ async function openTarget(navigate) {
 
   const focused = await existing.focus();
   if (focused.url === url) return;
+  if (await askAppToNavigate(focused, path)) return;
 
   try {
     await focused.navigate(url);

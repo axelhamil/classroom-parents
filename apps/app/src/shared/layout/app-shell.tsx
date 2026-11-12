@@ -9,6 +9,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { DeletionPendingBanner } from "../components/deletion-pending-banner";
+import { useNotificationNavigation } from "../pwa/use-notification-navigation";
 import { usePushEndpointSync } from "../pwa/use-push-endpoint-sync";
 import { useAppUserStream } from "../stream/use-app-user-stream";
 import { useSyncOnOpen } from "../sync/use-sync-on-open";
@@ -27,6 +28,7 @@ export function AppShell({ user, sessionId, children }: AppShellProps) {
   useAppUserStream();
   useSyncOnOpen();
   usePushEndpointSync(user.id, sessionId);
+  useNotificationNavigation();
 
   return (
     <div className="flex min-h-dvh flex-col pb-nav md:pb-0 print:min-h-0 print:pb-0">
