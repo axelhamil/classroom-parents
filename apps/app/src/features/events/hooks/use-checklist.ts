@@ -25,6 +25,7 @@ const CHECKLIST_DEFAULTS = {
   document_due: ["prepare.items.document_due.sign", "prepare.items.document_due.pack"],
   assessment: ["prepare.items.assessment.revise"],
   homework: ["prepare.items.homework.check"],
+  other: [],
 } as const satisfies Record<EventCategory, readonly string[]>;
 
 export const SIGN_ITEMS: readonly string[] = [

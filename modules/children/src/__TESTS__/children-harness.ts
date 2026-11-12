@@ -26,6 +26,8 @@ import { ChildSyncService } from "../application/services/child-sync.service";
 import { GoogleAccessService } from "../application/services/google-access.service";
 import { ChildAccount } from "../domain/child-account.aggregate";
 import { ChildAccountId } from "../domain/child-account-id";
+import { AvatarUrl } from "../domain/value-objects/avatar-url.vo";
+import { ChildColor, type ChildColorValue } from "../domain/value-objects/child-color.vo";
 import { ChildLabel } from "../domain/value-objects/child-label.vo";
 import { ChildStatus } from "../domain/value-objects/child-status.vo";
 import { GoogleEmail } from "../domain/value-objects/google-email.vo";
@@ -34,6 +36,7 @@ export const NOW = new Date("2026-11-09T10:00:00.000Z");
 export const PARENT = "parent-1";
 export const CLIENT_ID = "school-client.apps.googleusercontent.com";
 export const LINKED = "account-1";
+export const LEA_PICTURE = "https://lh3.googleusercontent.com/a/lea";
 
 export function linkedAccount(overrides: Partial<LinkedGoogleAccount> = {}): LinkedGoogleAccount {
   return {
@@ -60,6 +63,8 @@ export function child(
     linkedAccountId?: string;
     syncStartedAt?: Date;
     nextSyncAt?: Date;
+    color?: ChildColorValue;
+    avatarUrl?: string;
   } = {},
 ): ChildAccount {
   return ChildAccount.reconstitute(
@@ -68,6 +73,10 @@ export function child(
       linkedAccountId: overrides.linkedAccountId ?? LINKED,
       googleEmail: GoogleEmail.create("lea@school.example").getValue(),
       label: ChildLabel.create("Léa").getValue(),
+      color: ChildColor.create(overrides.color ?? 1).getValue(),
+      avatarUrl: Option.fromNullable(overrides.avatarUrl).map((url) =>
+        AvatarUrl.create(url).getValue(),
+      ),
       status: overrides.status ?? ChildStatus.connected(),
       connectedAt: new Date("2026-10-01T08:00:00.000Z"),
       lastSyncedAt: Option.none(),
@@ -119,7 +128,11 @@ export function childrenHarness(): ChildrenHarness {
   store.read.mockResolvedValue(ok(Option.some(credentials())));
   store.replace.mockResolvedValue(Result.ok());
   google.profile.mockResolvedValue(
-    ok<GoogleProfile>({ email: "lea@school.example", givenName: Option.some("Léa") }),
+    ok<GoogleProfile>({
+      email: "lea@school.example",
+      givenName: Option.some("Léa"),
+      picture: Option.some(LEA_PICTURE),
+    }),
   );
   google.revoke.mockImplementation(async () => {
     revokedInsideTransaction.push(UnitOfWorkContext.transaction() !== undefined);

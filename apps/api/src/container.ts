@@ -2,7 +2,9 @@ import { agendaModule } from "@modules/agenda/agenda.module";
 import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
 import { alertsModule } from "@modules/alerts/alerts.module";
 import type { IAlertContextReader } from "@modules/alerts/application/ports/alert-context-reader.port";
+import type { IDigestAudience } from "@modules/alerts/application/ports/digest-audience.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
+import { calendarFeedModule } from "@modules/calendar-feed/calendar-feed.module";
 import { childrenModule } from "@modules/children/children.module";
 import { classroomSyncModule } from "@modules/classroom-sync/classroom-sync.module";
 import { extractionModule } from "@modules/extraction/extraction.module";
@@ -36,17 +38,23 @@ import {
   childConnectionsFor,
   childOwnershipFor,
   childSyncStateFor,
+  digestDeadlinesFor,
   dueChildrenFor,
   eventDeadlinesFor,
   eventIngestFor,
+  feedEntriesFor,
   manualSyncGateFor,
   visibleChildrenFor,
 } from "./composition/bindings";
 import { fakeProviderBindings } from "./composition/fake-bindings";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
+import type { IUserDataReader } from "./modules/rgpd/application/ports/user-data-reader.port";
 import { rgpdModule } from "./modules/rgpd/module";
 import { AlertContextQuery } from "./queries/alert-context.query";
+import { DigestAudienceQuery } from "./queries/digest-audience.query";
+import { FeedAlarmsQuery } from "./queries/feed-alarms.query";
+import { UserDataQuery } from "./queries/user-data.query";
 import { authSecretKey } from "./shared/auth/auth-secrets";
 import { googleTokenSealing } from "./shared/auth/token-sealing";
 import type { OutermostUnitOfWork } from "./shared/auth/unit-of-work-adapter";
@@ -170,7 +178,18 @@ export const di = container()
     "IAlertContextReader",
     (c): IAlertContextReader => new AlertContextQuery(c.IInstrumentation, env.APP_ORIGIN),
   )
+  .add("IDigestAudience", (c): IDigestAudience => new DigestAudienceQuery(c.IInstrumentation))
+  .add("IDigestDeadlines", (c) => digestDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
   .addModule(alertsModule)
+  .add("IFeedChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
+  .add("IFeedEntries", (c) =>
+    feedEntriesFor(
+      c.EventQueryService,
+      c.ChildConnectionService,
+      new FeedAlarmsQuery(c.IInstrumentation),
+    ),
+  )
+  .addModule(calendarFeedModule)
   .addModule(extractionModule)
   .add("IChildAccessTokens", (c) => childAccessTokensFor(c.GoogleAccessService))
   .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))
@@ -180,6 +199,7 @@ export const di = container()
   .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService, c.ChildSyncService))
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
+  .add("IUserDataReader", (c): IUserDataReader => new UserDataQuery(c.IInstrumentation))
   .addModule(rgpdModule)
   .addModule(await fakeProviderBindings(env))
   .add(

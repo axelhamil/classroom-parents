@@ -1,5 +1,5 @@
 {
-  "id": "bba19c2c-01ee-404c-a865-cd7bf1a6d8de",
+  "id": "a4c9d44a-9ac6-4ce9-86a6-28d73ec4d4ce",
   "prevId": "8d2042b1-e1d8-409d-aef0-854d06713888",
   "version": "7",
   "dialect": "postgresql",
@@ -1502,12 +1502,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "session_id": {
-          "name": "session_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1529,21 +1523,6 @@
           "columns": [
             {
               "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "push_subscription_session_idx": {
-          "name": "push_subscription_session_idx",
-          "columns": [
-            {
-              "expression": "session_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1728,6 +1707,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "color": {
+          "name": "color",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -1873,7 +1864,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "child_account_color_hue": {
+          "name": "child_account_color_hue",
+          "value": "\"child_account\".\"color\" BETWEEN 1 AND 8"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.seen_announcement": {

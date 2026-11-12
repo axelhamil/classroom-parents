@@ -17,6 +17,7 @@ import { NotificationDigest, notificationDigestSubject } from "./components/noti
 import { OrgInvitation } from "./components/org-invitation";
 import { ResetPassword } from "./components/reset-password";
 import { VerifyEmail } from "./components/verify-email";
+import { WeeklyDigest } from "./components/weekly-digest";
 import type { EmailTemplateKey, EmailTemplates } from "./templates";
 
 export interface RenderedEmail {
@@ -55,6 +56,7 @@ const TEMPLATES: { [K in EmailTemplateKey]: TemplateEntry<K> } = {
     subject: (t, v) =>
       t("subjects.alertReminder", { eventTitle: v.eventTitle, childLabel: v.childLabel }),
   },
+  weekly_digest: { component: WeeklyDigest, subject: (t) => t("subjects.weeklyDigest") },
 };
 
 export const EMAIL_TEMPLATE_KEYS = Object.keys(TEMPLATES) as EmailTemplateKey[];

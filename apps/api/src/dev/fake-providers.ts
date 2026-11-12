@@ -91,7 +91,11 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
         return Result.fail({ code: "CHILD_PROVIDER_FAILURE", message: "Unknown fake token." });
 
       const child = demoChild(key.unwrap());
-      return Result.ok({ email: child.googleEmail, givenName: Option.some(child.firstName) });
+      return Result.ok({
+        email: child.googleEmail,
+        givenName: Option.some(child.firstName),
+        picture: Option.none(),
+      });
     },
   };
 

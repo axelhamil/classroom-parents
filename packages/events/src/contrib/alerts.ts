@@ -3,6 +3,7 @@ import { defineEventContribution } from "../contribution";
 
 const AlertRef = z.object({ userId: z.string(), alertId: z.string() });
 const Channel = z.enum(["push", "email"]);
+const DigestRef = z.object({ userId: z.string(), digestId: z.string(), weekStart: z.iso.date() });
 
 export const alertsEvents = defineEventContribution({
   types: {
@@ -18,6 +19,10 @@ export const alertsEvents = defineEventContribution({
     ALERT_DEFAULTS_CHANGED: "alert.reminder_defaults.changed",
     ALERT_REMINDERS_CUSTOMIZED: "alert.event_reminders.customized",
     ALERT_REMINDERS_RESET: "alert.event_reminders.reset",
+    WEEKLY_DIGEST_SENT: "alert.weekly_digest.sent",
+    WEEKLY_DIGEST_SKIPPED: "alert.weekly_digest.skipped",
+    WEEKLY_DIGEST_MISSED: "alert.weekly_digest.missed",
+    WEEKLY_DIGEST_PREFERENCE_CHANGED: "alert.weekly_digest_preference.changed",
   },
   payloads: {
     "alert.alert.scheduled": AlertRef.extend({
@@ -60,6 +65,20 @@ export const alertsEvents = defineEventContribution({
       reminders: z.number(),
     }),
     "alert.event_reminders.reset": z.object({ userId: z.string(), eventId: z.string() }),
+    "alert.weekly_digest.sent": DigestRef.extend({
+      channel: Channel,
+      deadlines: z.number(),
+      actorUserId: z.null(),
+    }),
+    "alert.weekly_digest.skipped": DigestRef.extend({
+      reason: z.enum(["opted_out", "no_deadline"]),
+      actorUserId: z.null(),
+    }),
+    "alert.weekly_digest.missed": DigestRef.extend({ actorUserId: z.null() }),
+    "alert.weekly_digest_preference.changed": z.object({
+      userId: z.string(),
+      enabled: z.boolean(),
+    }),
   },
   retention: {
     "alert.alert.scheduled": "operational",
@@ -74,6 +93,10 @@ export const alertsEvents = defineEventContribution({
     "alert.reminder_defaults.changed": "operational",
     "alert.event_reminders.customized": "operational",
     "alert.event_reminders.reset": "operational",
+    "alert.weekly_digest.sent": "operational",
+    "alert.weekly_digest.skipped": "operational",
+    "alert.weekly_digest.missed": "operational",
+    "alert.weekly_digest_preference.changed": "operational",
   },
   visibility: {
     "alert.alert.scheduled": "public",
@@ -88,6 +111,10 @@ export const alertsEvents = defineEventContribution({
     "alert.reminder_defaults.changed": "public",
     "alert.event_reminders.customized": "public",
     "alert.event_reminders.reset": "public",
+    "alert.weekly_digest.sent": "public",
+    "alert.weekly_digest.skipped": "internal",
+    "alert.weekly_digest.missed": "public",
+    "alert.weekly_digest_preference.changed": "public",
   },
   descriptions: {
     "alert.alert.scheduled":
@@ -111,5 +138,13 @@ export const alertsEvents = defineEventContribution({
     "alert.event_reminders.customized":
       "A parent set the reminders of one event, which no longer follow the default reminders.",
     "alert.event_reminders.reset": "A parent put one event back on the default reminders.",
+    "alert.weekly_digest.sent":
+      "The Sunday summary of the coming week's deadlines reached the parent by web push or, failing that, by email.",
+    "alert.weekly_digest.skipped":
+      "A planned Sunday summary was not sent: the parent turned it off or no deadline was left in the coming week.",
+    "alert.weekly_digest.missed":
+      "A planned Sunday summary could not reach the parent before the week began, by push or by email, and was given up.",
+    "alert.weekly_digest_preference.changed":
+      "A parent turned the Sunday summary of the coming week on or off.",
   },
 });

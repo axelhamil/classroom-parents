@@ -6,6 +6,8 @@ function child(id: string): ChildDto {
   return {
     id,
     label: id,
+    color: 1,
+    avatarUrl: null,
     googleEmail: `${id}@example.com`,
     status: "connected",
     lastSyncedAt: "2026-11-09T08:00:00.000Z",

@@ -17,14 +17,20 @@ import { EventSource } from "../../domain/value-objects/event-source.vo";
 import type { EventTitle } from "../../domain/value-objects/event-title.vo";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
-import type {
-  AgendaError,
-  CourseDay,
-  CourseworkCourses,
-  IEventRepository,
+import {
+  type AgendaError,
+  type CourseDay,
+  type CourseworkCourses,
+  childNotFound,
+  type IEventRepository,
 } from "../ports/event-repository.port";
-import { alertAnnouncementsOn, courseDayOf, leftItsDay } from "./alert-planning";
-import { parseCategory, parseComputedDeadline, parseDescription, parseTitle } from "./event-fields";
+import { alertAnnouncementsOn, courseDayOf, dayLeftBy } from "./alert-planning";
+import {
+  parseClassroomCategory,
+  parseComputedDeadline,
+  parseDescription,
+  parseTitle,
+} from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
 
 export interface IngestedEvent {
@@ -92,11 +98,6 @@ interface ParsedCoursework {
   title: EventTitle;
   deadline: EventDeadline;
 }
-
-const childNotFound: AgendaError = {
-  code: "EVENT_CHILD_NOT_FOUND",
-  message: "Cet enfant n'est pas relié à votre compte, ses événements ne sont pas enregistrés.",
-};
 
 export class EventIngestService {
   constructor(
@@ -252,8 +253,8 @@ export class EventIngestService {
         source: EventSource.coursework(),
         announcementId: item.id,
         ordinal: 0,
-        courseId: input.courseId,
-        announcementUrl: item.url,
+        courseId: Option.some(input.courseId),
+        announcementUrl: Option.some(item.url),
         title,
         description: EventDescription.create("").getValue(),
         category: EventCategory.create("homework").getValue(),
@@ -278,7 +279,7 @@ export class EventIngestService {
   private async saveFollowed(
     event: AgendaEvent,
     fields: EventField[],
-    day: CourseDay,
+    day: Option<CourseDay>,
   ): Promise<Result<CourseworkOutcome, IngestError>> {
     const saved = await this.events.save(event);
     if (saved.isFailure) return Result.fail(saved.getError());
@@ -286,10 +287,11 @@ export class EventIngestService {
     const alerted = await this.realert(event, fields);
     if (alerted.isFailure) return Result.fail(alerted.getError());
 
-    if (leftItsDay(event, day)) {
+    const left = dayLeftBy(event, day);
+    if (left.isSome()) {
       const unmasked = await alertAnnouncementsOn(this.events, this.alerts, {
         userId: event.get("userId"),
-        day,
+        day: left.unwrap(),
         actorUserId: null,
       });
       if (unmasked.isFailure) return Result.fail(unmasked.getError());
@@ -324,7 +326,7 @@ export class EventIngestService {
       if (title.isFailure) return Result.fail(title.getError());
       const description = parseDescription(raw.description);
       if (description.isFailure) return Result.fail(description.getError());
-      const category = parseCategory(raw.category);
+      const category = parseClassroomCategory(raw.category);
       if (category.isFailure) return Result.fail(category.getError());
       const deadline = parseComputedDeadline(raw.deadlineDate, raw.deadlineTime);
       if (deadline.isFailure) return Result.fail(deadline.getError());
@@ -336,8 +338,8 @@ export class EventIngestService {
           source: EventSource.announcement(),
           announcementId: input.announcement.id,
           ordinal,
-          courseId: input.announcement.courseId,
-          announcementUrl: input.announcement.url,
+          courseId: Option.some(input.announcement.courseId),
+          announcementUrl: Option.some(input.announcement.url),
           title: title.getValue(),
           description: description.getValue(),
           category: category.getValue(),

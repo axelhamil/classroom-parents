@@ -6,6 +6,8 @@ function child(status: ChildDto["status"]): ChildDto {
   return {
     id: "8a7c2f4e-1d2b-4c3a-9e8f-0a1b2c3d4e5f",
     label: "Léa",
+    color: 1,
+    avatarUrl: null,
     googleEmail: "lea@college.example",
     status,
     syncing: false,

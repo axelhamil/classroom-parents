@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { AppErrorException, httpStatusFromCode } from "@packages/ddd-kit";
+import { AppErrorException, httpStatusFromCode, Result } from "@packages/ddd-kit";
 import { openRouteGuards } from "@packages/http/testing/route-guards";
 import { mockPort } from "@packages/test/bun";
 import { Hono } from "hono";
@@ -40,4 +40,55 @@ describe("GET /events", () => {
       expect(query.listUpcoming).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("GET /events done filter", () => {
+  it.each([
+    ["false", false],
+    ["true", true],
+  ])("given done=%s, then the list is read with done %p", async (raw, done) => {
+    const query = mockPort<EventQueryService>();
+    query.listUpcoming.mockResolvedValue(Result.ok({ items: [], nextCursor: undefined }));
+    const app = new Hono().route(
+      "/events",
+      createEventsRoutes({
+        routeGuards: openRouteGuards({ userId: "parent-1" }),
+        EventQueryService: query,
+        EventEditService: mockPort<EventEditService>(),
+      }),
+    );
+
+    const response = await app.request(`/events?done=${raw}`);
+
+    expect(response.status).toBe(200);
+    expect(query.listUpcoming.mock.calls[0]?.[1].done).toBe(done);
+  });
+});
+
+describe("GET /events/calendar", () => {
+  it("given a range and two children, then the calendar is read rather than an event by id", async () => {
+    const query = mockPort<EventQueryService>();
+    query.listCalendar.mockResolvedValue(Result.ok({ items: [] }));
+    const app = new Hono().route(
+      "/events",
+      createEventsRoutes({
+        routeGuards: openRouteGuards({ userId: "parent-1" }),
+        EventQueryService: query,
+        EventEditService: mockPort<EventEditService>(),
+      }),
+    );
+    const child = "0196a000-0000-7000-8000-000000000001";
+
+    const response = await app.request(
+      `/events/calendar?from=2026-11-01&to=2026-11-30&childId=${child}&childId=${child}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(query.get).not.toHaveBeenCalled();
+    expect(query.listCalendar.mock.calls[0]?.[1]).toMatchObject({
+      from: "2026-11-01",
+      to: "2026-11-30",
+      childIds: [child, child],
+    });
+  });
 });

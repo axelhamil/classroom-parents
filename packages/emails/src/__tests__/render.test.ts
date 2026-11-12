@@ -41,6 +41,10 @@ const STUB_VARS = {
     deadlineLabel: "jeudi 19 novembre, 8 h 30",
     eventUrl: "https://x.test/events/1",
   },
+  weekly_digest: {
+    summary: "3 échéances cette semaine : 2 pour Léa, 1 pour Hugo. Prochaine : Piscine lundi.",
+    appUrl: "https://x.test/",
+  },
 } as const satisfies Record<EmailTemplateKey, unknown>;
 
 describe("renderTemplate", () => {

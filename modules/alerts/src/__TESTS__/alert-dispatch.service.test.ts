@@ -11,6 +11,7 @@ import {
   DISPATCH_BATCH,
   DISPATCH_CONCURRENCY,
   DISPATCH_LEASE_SECONDS,
+  MAX_EMAIL_FAILURES,
   worstCaseBatchMs,
 } from "../application/config/dispatch-budget";
 import type {
@@ -29,10 +30,7 @@ import type {
   IPushSubscriptionRepository,
   PushSubscriptionRecord,
 } from "../application/ports/push-subscription-repository.port";
-import {
-  AlertDispatchService,
-  MAX_EMAIL_FAILURES,
-} from "../application/services/alert-dispatch.service";
+import { AlertDispatchService } from "../application/services/alert-dispatch.service";
 import type { Alert } from "../domain/alert.aggregate";
 import {
   ALERT_EVENT,

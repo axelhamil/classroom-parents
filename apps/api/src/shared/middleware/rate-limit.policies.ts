@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Context } from "hono";
 import type { WindowConfig } from "../ports/rate-limiter.port";
 import { resolveClientIp } from "./rate-limit.ip";
@@ -94,6 +95,38 @@ export const AUTH_VERIFY_EMAIL_POLICY: PolicyConfig = {
     return `auth-verify-email:${token ?? resolveClientIp(c)}`;
   },
   windows: [{ policyName: "auth-verify-email", windowSec: 900, maxRequests: 5 }],
+  emitSecurityEvent: true,
+  failClosed: true,
+  advertiseBudget: false,
+};
+
+// GET /calendar/<secret>.ics: public, no session, polled by calendar clients from shared
+// server pools, so it keys on the feed and not on the IP. A client asks about once per hour;
+// 60 per hour leaves room for retries while bounding a leaked link hammered from many
+// addresses. The key is a digest of the secret, so the limiter store never holds a usable link.
+export const CALENDAR_FEED_POLICY: PolicyConfig = {
+  name: "calendar-feed",
+  keyFn: (c) => {
+    const digest = createHash("sha256")
+      .update(c.req.param("file") ?? resolveClientIp(c))
+      .digest("hex")
+      .slice(0, 32);
+    return `calendar-feed:${digest}`;
+  },
+  windows: [{ policyName: "calendar-feed", windowSec: 3600, maxRequests: 60 }],
+  emitSecurityEvent: true,
+  failClosed: true,
+  advertiseBudget: false,
+};
+
+// The feed route is exempt from GLOBAL_POLICY: one calendar server polls the links of
+// many parents from one address. Only unknown links spend this per-IP budget, so link
+// guessing stays bounded while a shared poller serving real links never is. 300 leaves
+// room for a poller still asking for links its parents revoked.
+export const CALENDAR_FEED_MISS_POLICY: PolicyConfig = {
+  name: "calendar-feed-miss",
+  keyFn: ipKeyFn("calendar-feed-miss"),
+  windows: [{ policyName: "calendar-feed-miss", windowSec: 3600, maxRequests: 300 }],
   emitSecurityEvent: true,
   failClosed: true,
   advertiseBudget: false,

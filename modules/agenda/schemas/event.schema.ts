@@ -31,8 +31,8 @@ export const agendaEvent = pgTable(
     source: text("source", { enum: EVENT_SOURCES }).notNull().default("announcement"),
     announcementId: text("announcement_id").notNull(),
     ordinal: integer("ordinal").notNull(),
-    courseId: text("course_id").notNull(),
-    announcementUrl: text("announcement_url").notNull(),
+    courseId: text("course_id"),
+    announcementUrl: text("announcement_url"),
     title: text("title").notNull(),
     description: text("description").notNull(),
     category: text("category", { enum: EVENT_CATEGORIES }).notNull(),
@@ -64,5 +64,8 @@ export const agendaEvent = pgTable(
         sql`${table.source} = 'coursework' and ${table.deletedAt} is null and ${table.withdrawnAt} is null`,
       ),
     index("event_user_deadline_idx").on(table.userId, table.deadlineAt),
+    index("event_dismissed_deadline_idx")
+      .on(table.deadlineAt)
+      .where(sql`${table.deletedAt} is not null or ${table.withdrawnAt} is not null`),
   ],
 );

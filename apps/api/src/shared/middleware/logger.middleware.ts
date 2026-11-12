@@ -1,5 +1,6 @@
 import { pinoLogger } from "hono-pino";
 import { logger } from "../logger";
+import { redactSecretPath } from "../secret-path";
 
 export const httpLogger = pinoLogger({
   pino: logger,
@@ -12,7 +13,7 @@ export const httpLogger = pinoLogger({
       return "info";
     },
     onReqBindings: (c) => ({
-      req: { method: c.req.method, url: c.req.path },
+      req: { method: c.req.method, url: redactSecretPath(c.req.path) },
     }),
     onResBindings: (c) => ({
       res: { status: c.res.status },

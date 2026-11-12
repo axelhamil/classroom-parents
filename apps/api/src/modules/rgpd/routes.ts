@@ -1,12 +1,14 @@
 import { AppErrorException } from "@packages/ddd-kit";
 import type { RouteEnv, RouteGuard, RouteGuards } from "@packages/http/route-guards";
 import { Hono } from "hono";
+import type { DataExportService } from "./application/services/data-export.service";
 import type { RgpdService } from "./application/services/rgpd.service";
 
 export interface RgpdRoutesDeps {
   routeGuards: RouteGuards;
   accountDeleteRateLimit: RouteGuard;
   RgpdService: Pick<RgpdService, "requestAccountDeletion" | "cancelAccountDeletion">;
+  DataExportService: Pick<DataExportService, "requestExport">;
 }
 
 export function createRgpdRoutes(deps: RgpdRoutesDeps) {
@@ -28,5 +30,15 @@ export function createRgpdRoutes(deps: RgpdRoutesDeps) {
       });
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
+    })
+    .post("/export", g.requireAuth, async (c) => {
+      const result = await deps.DataExportService.requestExport({ userId: g.currentUserId(c) });
+      if (result.isFailure) throw new AppErrorException(result.getError());
+
+      const { fileName, document } = result.getValue();
+      return c.json(document, 200, {
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Cache-Control": "no-store",
+      });
     });
 }

@@ -42,8 +42,18 @@ describe("user stream relay", () => {
       delivered("agenda.event.updated", { userId: "parent", eventId: "e1", fields: ["done"] }),
     );
     await relay.handle(delivered("agenda.event.deleted", { userId: "parent", eventId: "e1" }));
+    await relay.handle(
+      delivered("agenda.events_purged", {
+        userId: "parent",
+        count: 3,
+        reason: "retention",
+        scope: "past",
+        actorUserId: null,
+      }),
+    );
 
     expect(published).toEqual([
+      { userId: "parent", message: { type: "events.changed" } },
       { userId: "parent", message: { type: "events.changed" } },
       { userId: "parent", message: { type: "events.changed" } },
       { userId: "parent", message: { type: "events.changed" } },
