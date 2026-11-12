@@ -9,7 +9,7 @@ import {
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
-import { nextDelayMs } from "@packages/outbox/jitter";
+import { JITTER_MULTIPLIER, nextDelayMs } from "@packages/outbox/jitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import {
   extractedVerdict,
@@ -17,7 +17,7 @@ import {
   type LedgerVerdict,
   nextAttempt,
 } from "../../domain/announcement-ledger";
-import { ALERT_LEAD_MS, nextSyncAt, retryAt } from "../../domain/sync-window";
+import { alertLookupFrom, nextSyncAt, retryAt, SYNC_JITTER_MAX_MS } from "../../domain/sync-window";
 import {
   type IAnnouncementExtractor,
   isExtractorOutage,
@@ -45,7 +45,7 @@ import type { SyncError } from "../sync-error";
 
 const COURSE_CONCURRENCY = 4;
 const EXTRACTION_CONCURRENCY = 8;
-const SYNC_JITTER_BASE_MS = 60_000;
+const SYNC_JITTER_BASE_MS = SYNC_JITTER_MAX_MS / JITTER_MULTIPLIER;
 
 const SYNC_ERROR_CODES: readonly string[] = [
   "SYNC_CHILD_NOT_FOUND",
@@ -368,11 +368,7 @@ export class SyncChildService {
   }
 
   private async plannedNextSync(input: SyncChildInput, now: Date): Promise<Date> {
-    const alert = await this.alerts.nextAlertAt(
-      input.userId,
-      input.childId,
-      new Date(now.getTime() + ALERT_LEAD_MS),
-    );
+    const alert = await this.alerts.nextAlertAt(input.userId, input.childId, alertLookupFrom(now));
     if (alert.isFailure)
       this.instrumentation.capture(alert.getError(), { metadata: { childId: input.childId } });
 

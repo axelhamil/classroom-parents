@@ -9,6 +9,8 @@ const SCHOOL_DAY_INTERVAL_MS = 60 * MINUTE_MS;
 const OFF_HOURS_INTERVAL_MS = 6 * 60 * MINUTE_MS;
 export const ALERT_LEAD_MS = 30 * MINUTE_MS;
 export const FAILURE_RETRY_MS = 10 * MINUTE_MS;
+export const SYNC_JITTER_MAX_MS = 3 * MINUTE_MS;
+export const SERVED_MARGIN_MS = SYNC_JITTER_MAX_MS;
 
 const SCHOOL_DAY_OPENS = "07:00";
 const SCHOOL_DAY_CLOSES = "21:00";
@@ -31,11 +33,15 @@ export function nextSyncAt(now: Date, plan: SyncPlan): Date {
   const slot = cadenceSlot(now, plan.jitterMs);
   const lead = plan.nextAlertAt
     .map((alertAt) => new Date(alertAt.getTime() - ALERT_LEAD_MS))
-    .filter((leadAt) => leadAt > now);
+    .filter((leadAt) => !isServedBy(now, leadAt));
 
   return lead
     .map((leadAt) => earliest(slot, spreadBefore(leadAt, plan.jitterMs, now)))
     .unwrapOr(slot);
+}
+
+export function alertLookupFrom(now: Date): Date {
+  return new Date(now.getTime() + ALERT_LEAD_MS + SERVED_MARGIN_MS);
 }
 
 export function retryAt(now: Date): Date {
@@ -56,8 +62,16 @@ function cadenceSlot(now: Date, jitterMs: number): Date {
     return new Date(now.getTime() + SCHOOL_DAY_INTERVAL_MS + jitterMs);
 
   return nextOpening(date, time)
-    .map((opening) => earliest(offHours, spreadBefore(opening, jitterMs, now)))
+    .map((opening) =>
+      isServedBy(now, opening)
+        ? new Date(opening.getTime() + SCHOOL_DAY_INTERVAL_MS + jitterMs)
+        : earliest(offHours, spreadBefore(opening, jitterMs, now)),
+    )
     .unwrapOr(offHours);
+}
+
+function isServedBy(now: Date, deadline: Date): boolean {
+  return deadline.getTime() - now.getTime() <= SERVED_MARGIN_MS;
 }
 
 function spreadBefore(deadline: Date, jitterMs: number, now: Date): Date {

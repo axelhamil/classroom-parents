@@ -480,6 +480,16 @@ describe("syncChild", () => {
     expect(delayMs).toBeLessThan(10 * MINUTE_MS);
   });
 
+  it("given an alert this sync already serves, then the next alert is looked up past its lead and served margin", async () => {
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.alerts.nextAlertAt).toHaveBeenCalledWith(
+      CHILD.userId,
+      CHILD.childId,
+      new Date(NOW.getTime() + 33 * MINUTE_MS),
+    );
+  });
+
   it("given the next alert cannot be read, then the sync still lands on the cadence and the failure is surfaced", async () => {
     const failure: AppError = { code: "ALERT_PROVIDER_FAILURE", message: "db down" };
     h.alerts.nextAlertAt.mockResolvedValue(Result.fail<Option<Date>, AppError>(failure));

@@ -125,8 +125,7 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     const cooldownEnd = this.manualSyncCooldownEndsAt(now);
     if (!this.isSyncLeased(now)) return cooldownEnd;
 
-    const leaseEnd = this._props.nextSyncAt;
-    return leaseEnd > cooldownEnd ? leaseEnd : cooldownEnd;
+    return new Date(Math.max(this._props.nextSyncAt.getTime(), cooldownEnd.getTime()));
   }
 
   private isSyncLeased(now: Date): boolean {
