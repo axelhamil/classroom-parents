@@ -1,6 +1,12 @@
 import { useSyncExternalStore } from "react";
 import { THEME_COLORS } from "./theme-colors";
-import { createThemeStore, type ResolvedTheme, type ThemeHost } from "./theme-store";
+import {
+  createThemeStore,
+  type ResolvedTheme,
+  type ThemeHost,
+  type ThemePreference,
+} from "./theme-store";
+import { type RevealOrigin, transitionTheme } from "./theme-transition";
 
 const STORAGE_KEY = "theme";
 const SWITCHING_CLASS = "theme-switching";
@@ -60,9 +66,27 @@ const browserHost: ThemeHost = {
 
 let themeStore: ReturnType<typeof createThemeStore> | undefined;
 
-export function useTheme() {
+function getThemeStore() {
   themeStore ??= createThemeStore(browserHost);
-  const state = useSyncExternalStore(themeStore.subscribe, themeStore.getState);
 
-  return { ...state, setTheme: themeStore.setTheme };
+  return themeStore;
+}
+
+export function changeTheme(theme: ThemePreference, origin: RevealOrigin | null): Promise<void> {
+  const store = getThemeStore();
+  const apply = () => store.setTheme(theme);
+
+  if (store.resolve(theme) === store.getState().resolvedTheme) {
+    apply();
+    return Promise.resolve();
+  }
+
+  return transitionTheme(origin, apply);
+}
+
+export function useTheme() {
+  const store = getThemeStore();
+  const state = useSyncExternalStore(store.subscribe, store.getState);
+
+  return { ...state, changeTheme };
 }

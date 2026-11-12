@@ -207,8 +207,11 @@ export default {
     confirm: "Je l'ai enregistré",
   },
   theme: {
-    switchToLight: "Passer au thème clair",
-    switchToDark: "Passer au thème sombre",
+    label: "Thème",
+    current: "Thème : {{mode}}",
+    light: "Clair",
+    dark: "Sombre",
+    system: "Automatique",
   },
   notifications: {
     title: "Notifications",

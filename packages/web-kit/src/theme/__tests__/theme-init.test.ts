@@ -57,4 +57,10 @@ describe("theme-init script", () => {
     expect(setAttribute).toHaveBeenCalledTimes(2);
     expect(setAttribute).toHaveBeenCalledWith("content", THEME_COLORS.dark);
   });
+
+  it("paints the browser chrome light with the same hex the running app uses", () => {
+    const { setAttribute } = runThemeInit(() => null, true);
+
+    expect(setAttribute).toHaveBeenCalledWith("content", THEME_COLORS.light);
+  });
 });

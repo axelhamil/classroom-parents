@@ -11,12 +11,12 @@ import { IconButton } from "@packages/ui/components/ui/icon-button";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { initialsOf } from "@packages/ui/libs/initials.js";
 import { Link } from "@tanstack/react-router";
-import { LogOut, Moon, Settings, Sun } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SignOutDialog } from "../auth/sign-out-dialog";
 import { useSignOut } from "../auth/use-sign-out";
-import { useThemeToggle } from "../components/theme-toggle";
+import { ThemeRadioItems } from "../components/theme-toggle";
 
 export interface ShellUser {
   name: string;
@@ -31,7 +31,6 @@ export interface UserMenuProps {
 
 export function UserMenu({ user, className }: UserMenuProps) {
   const { t } = useTranslation("common");
-  const theme = useThemeToggle();
   const signOut = useSignOut();
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,10 +66,8 @@ export function UserMenu({ user, className }: UserMenuProps) {
               {t("nav.settings")}
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={(event) => theme.toggle(event.currentTarget)}>
-            {theme.isDark ? <Sun /> : <Moon />}
-            {theme.label}
-          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <ThemeRadioItems origin={triggerRef} />
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={signOut.isPending}

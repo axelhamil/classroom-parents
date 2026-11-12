@@ -10,3 +10,9 @@ export function ensureMatchMedia(): void {
     removeEventListener: () => undefined,
   }));
 }
+
+export function ensureGetAnimations(): void {
+  if (typeof Element.prototype.getAnimations === "function") return;
+
+  Element.prototype.getAnimations = () => [];
+}

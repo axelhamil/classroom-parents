@@ -64,10 +64,10 @@ test("opens an icon button tooltip on keyboard focus and closes it with Escape",
 }) => {
   await page.goto("/login");
 
-  const toggle = page.getByRole("button", { name: /Passer au thème (sombre|clair)/ });
+  const toggle = page.getByRole("button", { name: /^Thème : / });
   await tabTo(page, toggle);
 
-  const tooltip = page.getByRole("tooltip").filter({ hasText: /Passer au thème (sombre|clair)/ });
+  const tooltip = page.getByRole("tooltip").filter({ hasText: /^Thème : / });
   await expect(tooltip).toBeVisible();
 
   await page.keyboard.press("Escape");
@@ -93,7 +93,8 @@ test("skips the theme view transition under reduced motion", async ({ page }) =>
   const isDark = () => page.evaluate(() => document.documentElement.classList.contains("dark"));
   const before = await isDark();
 
-  await page.getByRole("button", { name: /Passer au thème (sombre|clair)/ }).click();
+  await page.getByRole("button", { name: /^Thème : / }).click();
+  await page.getByRole("menuitemradio", { name: before ? "Clair" : "Sombre" }).click();
 
   await expect.poll(isDark).toBe(!before);
   const transitioned = await page.evaluate(
@@ -201,9 +202,7 @@ test.describe("signed in", () => {
 
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitem", { name: "Se déconnecter" })).toBeVisible();
-    await expect(
-      menu.getByRole("menuitem", { name: /Passer au thème (sombre|clair)/ }),
-    ).toBeVisible();
+    await expect(menu.getByRole("menuitemradio", { name: "Automatique" })).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
@@ -217,13 +216,13 @@ test.describe("signed in", () => {
 
     const light = page.getByRole("radio", { name: "Clair" });
     await tabTo(page, light);
-    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowRight", { delay: 50 });
 
     await expect(page.getByRole("radio", { name: "Sombre" })).toBeFocused();
     await expect(page.getByRole("radio", { name: "Sombre" })).toBeChecked();
     await expect(page.locator("html")).toHaveClass(/dark/);
 
-    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("ArrowLeft", { delay: 50 });
     await expect(light).toBeChecked();
     await expect(page.locator("html")).not.toHaveClass(/dark/);
   });

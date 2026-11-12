@@ -1,4 +1,6 @@
-export type ThemePreference = "light" | "dark" | "system";
+export const THEME_PREFERENCES = ["light", "dark", "system"] as const;
+
+export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 export type ResolvedTheme = "light" | "dark";
 
 export interface ThemeState {
@@ -15,8 +17,12 @@ export interface ThemeHost {
   applyResolved: (resolved: ResolvedTheme) => void;
 }
 
+export function isThemePreference(value: string | null): value is ThemePreference {
+  return THEME_PREFERENCES.some((preference) => preference === value);
+}
+
 function parsePreference(stored: string | null): ThemePreference {
-  return stored === "dark" || stored === "system" ? stored : "light";
+  return isThemePreference(stored) ? stored : "light";
 }
 
 export function createThemeStore(host: ThemeHost) {
@@ -24,16 +30,16 @@ export function createThemeStore(host: ThemeHost) {
   const listeners = new Set<() => void>();
   let detach: (() => void) | undefined;
 
-  const resolve = (): ResolvedTheme => {
-    if (preference !== "system") return preference;
+  const resolve = (theme: ThemePreference): ResolvedTheme => {
+    if (theme !== "system") return theme;
 
     return host.systemPrefersDark() ? "dark" : "light";
   };
 
-  let state: ThemeState = { theme: preference, resolvedTheme: resolve() };
+  let state: ThemeState = { theme: preference, resolvedTheme: resolve(preference) };
 
   const refresh = () => {
-    const resolvedTheme = resolve();
+    const resolvedTheme = resolve(preference);
     if (state.theme === preference && state.resolvedTheme === resolvedTheme) return;
 
     if (state.resolvedTheme !== resolvedTheme) host.applyResolved(resolvedTheme);
@@ -56,6 +62,8 @@ export function createThemeStore(host: ThemeHost) {
 
   return {
     getState: () => state,
+
+    resolve,
 
     setTheme: (theme: ThemePreference) => {
       preference = theme;

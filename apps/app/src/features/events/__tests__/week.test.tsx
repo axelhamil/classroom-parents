@@ -6,7 +6,11 @@ import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
+  useTheme: () => ({
+    theme: "system",
+    resolvedTheme: "light",
+    changeTheme: () => Promise.resolve(),
+  }),
 }));
 
 const HUGO = { ...CHILD, id: "2b9e4c1a-7d3f-4b6e-9a8c-1f0e2d3c4b5a", label: "Hugo" };

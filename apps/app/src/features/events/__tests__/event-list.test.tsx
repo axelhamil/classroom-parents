@@ -5,7 +5,11 @@ import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__t
 import { CHILD } from "../../../__tests__/family-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
+  useTheme: () => ({
+    theme: "system",
+    resolvedTheme: "light",
+    changeTheme: () => Promise.resolve(),
+  }),
 }));
 
 const EVENT = {

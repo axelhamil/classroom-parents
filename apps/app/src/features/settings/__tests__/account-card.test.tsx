@@ -13,7 +13,11 @@ import {
 import { rememberPushOwner, storedPushOwner } from "../../../shared/pwa/push-support";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
+  useTheme: () => ({
+    theme: "system",
+    resolvedTheme: "light",
+    changeTheme: () => Promise.resolve(),
+  }),
 }));
 
 const HERE = "https://fcm.googleapis.com/fcm/send/here";

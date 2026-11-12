@@ -26,4 +26,16 @@ describe("appearance card", () => {
     expect(localStorage.getItem("theme")).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
+
+  it("settings appearance offers Automatique, which follows the device and is kept", async () => {
+    stubApi(byRoute({ "GET /push/status": () => json({ live: 1 }) }));
+    await renderAppAt("/settings");
+
+    const system = await screen.findByRole("radio", { name: "Automatique" });
+    await userEvent.setup().click(system);
+
+    await waitFor(() => expect(system.getAttribute("aria-checked")).toBe("true"));
+    expect(localStorage.getItem("theme")).toBe("system");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
 });

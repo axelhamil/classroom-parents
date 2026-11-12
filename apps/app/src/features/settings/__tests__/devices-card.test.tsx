@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { byRoute, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({ theme: "light", resolvedTheme: "light", setTheme: () => undefined }),
+  useTheme: () => ({
+    theme: "light",
+    resolvedTheme: "light",
+    changeTheme: () => Promise.resolve(),
+  }),
 }));
 
 const IPHONE =

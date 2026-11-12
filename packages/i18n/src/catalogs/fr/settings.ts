@@ -5,9 +5,8 @@ export default {
   },
   appearance: {
     title: "Apparence",
-    description: "Le thème de l'application sur cet appareil.",
-    light: "Clair",
-    dark: "Sombre",
+    description:
+      "Le thème de l'application sur cet appareil. Automatique suit le réglage clair ou sombre de l'appareil.",
   },
   devices: {
     title: "Appareils connectés",

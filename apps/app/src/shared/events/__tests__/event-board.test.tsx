@@ -6,7 +6,11 @@ import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({ theme: "light", resolvedTheme: "light", setTheme: () => undefined }),
+  useTheme: () => ({
+    theme: "light",
+    resolvedTheme: "light",
+    changeTheme: () => Promise.resolve(),
+  }),
 }));
 
 function upcomingEvent(index: number) {

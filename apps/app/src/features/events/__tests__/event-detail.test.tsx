@@ -5,7 +5,11 @@ import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-har
 import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
+  useTheme: () => ({
+    theme: "system",
+    resolvedTheme: "light",
+    changeTheme: () => Promise.resolve(),
+  }),
 }));
 
 const EVENT = {
