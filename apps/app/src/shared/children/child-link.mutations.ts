@@ -82,6 +82,7 @@ export const syncChildMutationOptions = mutationOptions({
     const res = await $sync({ param: { childId } });
     if (!res.ok) await throwApiError(res, "syncChild");
   },
+  onSettled: () => queryClient.invalidateQueries({ queryKey: childrenQueryOptions.queryKey }),
 });
 
 export const renameChildMutationOptions = mutationOptions({

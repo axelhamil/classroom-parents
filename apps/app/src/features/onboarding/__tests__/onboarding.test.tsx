@@ -3,7 +3,9 @@ import { frCatalog } from "@packages/i18n";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 import { type ApiCall, fakeApi, renderApp, resetApp } from "../../../__tests__/render-app";
+import { authClient } from "../../../shared/auth/auth-client";
 
 vi.mock("../../../shared/auth/auth-client", () => ({
   authClient: { getSession: vi.fn(), linkSocial: vi.fn() },
@@ -93,7 +95,7 @@ describe("guided first child onboarding", () => {
 
     await renderApp("/onboarding?error=admin_policy_enforced");
 
-    expect(await heading(copy.connect.title)).toBeTruthy();
+    expect(await heading(copy.connect.blockedTitle)).toBeTruthy();
     expect(screen.getByText(frCatalog.children.school.title)).toBeTruthy();
     expect(
       await screen.findByRole("button", { name: frCatalog.children.school.share }),
@@ -124,5 +126,119 @@ describe("guided first child onboarding", () => {
     await renderApp(`/onboarding?child=${CHILD_ID}&step=done`);
 
     expect(await heading(copy.analysis.title)).toBeTruthy();
+  });
+
+  it("a parent back from Google with an account still to register resumes it instead of the welcome", async () => {
+    fakeApi({
+      "GET /children": { body: [] },
+      "GET /children/linkable": {
+        body: [
+          { linkedAccountId: "acc-1", googleEmail: "lea@college.example" },
+          { linkedAccountId: "acc-2", googleEmail: "tom@ecole.example" },
+        ],
+      },
+    });
+
+    await renderApp("/");
+
+    expect(await screen.findByText(copy.connect.pickTitle)).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1, name: copy.welcome.title })).toBeNull();
+  });
+
+  it("analysis offers to reconnect instead of loading forever when the account needs it", async () => {
+    fakeApi({
+      "GET /children": {
+        body: [{ ...LEA, status: "needs_reconnect", cause: "invalid_grant", syncing: false }],
+      },
+      "GET /children/link-config": { body: LINK_CONFIG },
+    });
+
+    await renderApp(`/onboarding?child=${CHILD_ID}&step=analysis`);
+
+    expect(await heading(copy.analysis.reconnectTitle)).toBeTruthy();
+    expect(screen.queryByRole("progressbar", { name: copy.analysis.phases.courses })).toBeNull();
+    expect(screen.getByRole("link", { name: copy.analysis.addAnother })).toBeTruthy();
+    expect(screen.getByRole("link", { name: copy.connect.later })).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: copy.analysis.reconnect }));
+
+    await waitFor(() =>
+      expect(authClient.linkSocial).toHaveBeenCalledWith(
+        expect.objectContaining({ loginHint: LEA.googleEmail }),
+      ),
+    );
+  });
+
+  it("analysis offers to read Classroom again when the first read failed", async () => {
+    let syncing = false;
+    const calls = fakeApi({
+      "GET /children": () => ({ body: [{ ...LEA, syncing }] }),
+      [`POST /sync/${CHILD_ID}`]: () => {
+        syncing = true;
+        return { status: 202, body: { status: "started" } };
+      },
+    });
+
+    await renderApp(`/onboarding?child=${CHILD_ID}&step=analysis`);
+
+    expect(await heading(copy.analysis.failedTitle)).toBeTruthy();
+    expect(screen.queryByRole("progressbar", { name: copy.analysis.phases.courses })).toBeNull();
+    expect(screen.getByRole("link", { name: copy.analysis.addAnother })).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: copy.analysis.retry }));
+
+    await waitFor(() => expect(posts(calls, `/sync/${CHILD_ID}`)).toHaveLength(1));
+    expect(
+      await screen.findByRole("progressbar", { name: copy.analysis.phases.courses }),
+    ).toBeTruthy();
+  });
+
+  it("a school block at Analyse offers another child or finishing later", async () => {
+    fakeApi({
+      "GET /children": {
+        body: [{ ...LEA, status: "blocked_by_school", cause: "school_blocked", syncing: false }],
+      },
+      "GET /children/link-config": { body: LINK_CONFIG },
+    });
+
+    await renderApp(`/onboarding?child=${CHILD_ID}&step=analysis`);
+
+    expect(await screen.findByRole("link", { name: copy.analysis.addAnother })).toBeTruthy();
+    expect(screen.getByRole("link", { name: copy.connect.later })).toBeTruthy();
+  });
+
+  it("reminders step saves and continues with one primary action and reads naturally", async () => {
+    const calls = fakeApi({
+      "GET /children": { body: [LEA_SYNCED] },
+      "GET /reminders/defaults": {
+        body: {
+          reminders: [
+            { kind: "days_before", days: 2, time: "18:00" },
+            { kind: "days_before", days: 1, time: "19:00" },
+          ],
+        },
+      },
+      "PUT /reminders/defaults": {
+        body: { reminders: [{ kind: "days_before", days: 2, time: "18:00" }] },
+      },
+      "GET /events": {
+        body: {
+          items: [
+            { ...EVENT_BASE, childId: CHILD_ID, title: "Piscine", deadlineDate: "2026-11-20" },
+          ],
+        },
+      },
+      "GET /push/status": { body: { live: 0 } },
+    });
+
+    await renderApp(`/onboarding?child=${CHILD_ID}&step=reminders`);
+
+    expect(await screen.findByText(/et la veille, à 19/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: frCatalog.common.actions.save })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: copy.reminders.save }));
+
+    expect(await heading(copy.notifications.title)).toBeTruthy();
+    expect(calls.filter((call) => call.method === "PUT")).toHaveLength(1);
   });
 });

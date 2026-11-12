@@ -1,6 +1,7 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
+import { Spinner } from "@packages/ui/components/ui/spinner";
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlarmClock, CalendarClock } from "lucide-react";
@@ -17,6 +18,11 @@ import { useReminderLabel } from "../../../shared/reminders/use-reminder-label";
 import { StepFrame } from "./step-frame";
 
 const LIST_FORMAT = new Intl.ListFormat("fr-FR", { type: "conjunction" });
+const FORM_ID = "onboarding-reminders";
+
+function inSentence(label: string): string {
+  return label.charAt(0).toLocaleLowerCase("fr-FR") + label.slice(1);
+}
 
 export interface RemindersStepProps {
   child: ChildDto;
@@ -43,7 +49,9 @@ function ReminderPreview({ childId, reminders }: ReminderPreviewProps) {
           ? t("reminders.previewNone")
           : t("reminders.preview", {
               title: first.title,
-              reminders: LIST_FORMAT.format(reminders.map((reminder) => label(reminder))),
+              reminders: LIST_FORMAT.format(
+                reminders.map((reminder) => inSentence(label(reminder))),
+              ),
             })}
       </AlertDescription>
     </Alert>
@@ -70,9 +78,20 @@ export function RemindersStep({ child, userId, onNext }: RemindersStepProps) {
       title={t("reminders.title")}
       description={t("reminders.description")}
       actions={
-        <Button size="lg" variant="ghost" onClick={onNext}>
-          {t("reminders.skip")}
-        </Button>
+        <>
+          <Button
+            type="submit"
+            form={FORM_ID}
+            size="lg"
+            disabled={save.isPending || !query.isSuccess}
+          >
+            {save.isPending && <Spinner aria-hidden label={t("reminders.save")} />}
+            {t("reminders.save")}
+          </Button>
+          <Button size="lg" variant="ghost" onClick={onNext}>
+            {t("reminders.skip")}
+          </Button>
+        </>
       }
     >
       <QueryState
@@ -91,6 +110,7 @@ export function RemindersStep({ child, userId, onNext }: RemindersStepProps) {
               reminders={reminders}
               allowHours
               pending={save.isPending}
+              formId={FORM_ID}
               onSubmit={(next) => save.mutate(next)}
             />
           </div>

@@ -8,7 +8,7 @@ import {
   ADD_FIRST_CHILD,
   type ChildLinkRoundTrip,
 } from "../../../shared/children/child-link.mutations";
-import { LinkRefusal } from "../../../shared/children/link-refusal";
+import { LinkRefusal, refusalIsSchoolBlock } from "../../../shared/children/link-refusal";
 import { useStartChildLink } from "../../../shared/children/use-start-child-link";
 import { linkWasRefused, type OnboardingMode, type OnboardingSearch } from "../onboarding-steps";
 import { LinkedAccount } from "./linked-account";
@@ -38,7 +38,11 @@ export function ConnectStep({ mode, search, navigate }: ConnectStepProps) {
       <StepFrame
         media={<ShieldCheck />}
         mediaTone="warning"
-        title={t("connect.title")}
+        title={
+          refusalIsSchoolBlock(search.error, search.error_description)
+            ? t("connect.blockedTitle")
+            : t("connect.refusedTitle")
+        }
         actions={
           <>
             <Button size="lg" disabled={start.isPending} onClick={() => start.mutate(roundTrip)}>

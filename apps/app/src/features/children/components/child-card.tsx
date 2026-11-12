@@ -88,10 +88,7 @@ export function ChildCard({ child, hue, avatarUrl }: ChildCardProps) {
     queryClient.invalidateQueries({ queryKey: childrenQueryOptions.queryKey });
   const sync = useMutation({
     ...syncChildMutationOptions,
-    onSuccess: () => {
-      toastSuccess(t("sync.started", { label: child.label }));
-      void invalidateChildren();
-    },
+    onSuccess: () => toastSuccess(t("sync.started", { label: child.label })),
     onError: (error) => toastError(error, t("sync.failed")),
   });
   const disconnect = useMutation({

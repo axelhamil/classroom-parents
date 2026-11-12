@@ -16,6 +16,13 @@ function oauthParams(error: string | undefined, errorDescription: string | undef
   return params;
 }
 
+export function refusalIsSchoolBlock(
+  error: string | undefined,
+  errorDescription: string | undefined,
+): boolean {
+  return isSchoolBlock(classifySchoolError(oauthParams(error, errorDescription)));
+}
+
 export function LinkRefusal({ error, errorDescription }: LinkRefusalProps) {
   const { t } = useTranslation("children");
   const kind = classifySchoolError(oauthParams(error, errorDescription));

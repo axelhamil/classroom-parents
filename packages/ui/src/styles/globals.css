@@ -421,7 +421,7 @@
     transform: scale(var(--press-scale));
   }
 
-  @media (pointer: coarse) {
+  @media (pointer: coarse), (width < 48rem) {
     [data-slot="button"],
     [data-slot="nav-link"],
     [data-slot="toggle-group-item"] {

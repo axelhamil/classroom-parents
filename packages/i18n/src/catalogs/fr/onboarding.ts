@@ -61,7 +61,7 @@ export default {
   },
   name: {
     title: "Comment s'appelle votre enfant ?",
-    description: "Le prénom affiché sur ses échéances. Seul vous le voyez.",
+    description: "Le prénom affiché sur ses échéances. Vous seul le voyez.",
     label: "Prénom affiché",
     hint: "Repris de son profil Google, vous pouvez le changer.",
     next: "Continuer",
@@ -81,6 +81,15 @@ export default {
     noEvent:
       "Aucune échéance à venir pour l'instant. Vous serez prévenu dès qu'une annonce en contient une.",
     blocked: "L'école de {{label}} bloque la lecture de Classroom.",
+    reconnectTitle: "Google demande de reconnecter le compte",
+    reconnectDescription:
+      "L'accès au compte de {{label}} a expiré ou a été retiré. Reconnectez-le pour lire Classroom.",
+    reconnect: "Reconnecter le compte",
+    reconnecting: "Ouverture de Google…",
+    failedTitle: "La lecture de Classroom n'a pas abouti",
+    failedDescription:
+      "Nous n'avons pas pu lire Classroom pour {{label}}. Relancez la lecture, elle reprend depuis le début.",
+    retry: "Relancer la lecture",
     next: "Continuer",
     toEvents: "Voir les échéances",
     addAnother: "Ajouter un autre enfant",
@@ -92,6 +101,7 @@ export default {
     preview: "Pour « {{title}} », vous serez prévenu : {{reminders}}.",
     previewNone: "Sans rappel, aucune alerte ne sera envoyée.",
     loading: "Chargement des rappels",
+    save: "Enregistrer et continuer",
     skip: "Garder les rappels actuels",
     saveFailed: "Les rappels n'ont pas pu être enregistrés. Réessayez.",
   },

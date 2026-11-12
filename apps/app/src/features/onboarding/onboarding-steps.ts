@@ -38,6 +38,17 @@ export function isFirstSyncDone(child: ChildDto): boolean {
   return child.status === "connected" && !child.syncing && Boolean(child.lastSyncedAt);
 }
 
+export type AnalysisState = "blocked" | "reconnect" | "failed" | "reading" | "ready";
+
+export function analysisState(child: ChildDto, syncRequested: boolean): AnalysisState {
+  if (child.status === "blocked_by_school") return "blocked";
+  if (child.status !== "connected") return "reconnect";
+  if (isFirstSyncDone(child)) return "ready";
+  if (child.syncing || syncRequested) return "reading";
+
+  return "failed";
+}
+
 export function linkWasRefused(search: OnboardingSearch): boolean {
   return search.error !== undefined || search.error_description !== undefined;
 }

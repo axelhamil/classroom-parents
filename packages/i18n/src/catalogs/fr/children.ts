@@ -61,9 +61,6 @@ export default {
     done: "Prénom enregistré.",
     failed: "Le prénom n'a pas pu être enregistré. Réessayez.",
   },
-  new: {
-    title: "Ajouter un enfant",
-  },
   linkError: {
     title: "Connexion refusée",
     description: "Le compte de votre enfant n'a pas pu être relié.",
