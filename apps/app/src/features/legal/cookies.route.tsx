@@ -1,6 +1,3 @@
-import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
-import { PageHeader } from "@packages/ui/components/ui/page-header";
-import { Separator } from "@packages/ui/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -15,10 +12,10 @@ import {
   TypographyInlineCode,
   TypographyP,
 } from "@packages/ui/components/ui/typography";
-import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { COOKIE_INVENTORY, type CookieInfo } from "./cookies.config";
+import { LegalScreen } from "./legal-screen";
 
 export const Route = createFileRoute("/legal/cookies")({
   component: CookiesPage,
@@ -62,11 +59,7 @@ function CookieTable({ cookies, caption }: CookieTableProps) {
 function CookiesPage() {
   const { t } = useTranslation("common");
   return (
-    <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
-      <PageHeader title={t("legal.cookies.title")} description={t("legal.cookies.subtitle")} />
-
-      <Separator />
-
+    <LegalScreen title={t("legal.cookies.title")} description={t("legal.cookies.subtitle")}>
       <section className="flex flex-col gap-3">
         <TypographyH2>Seulement le nécessaire</TypographyH2>
         <TypographyP>
@@ -80,6 +73,6 @@ function CookiesPage() {
         <TypographyH2>Cookies déposés</TypographyH2>
         <CookieTable cookies={COOKIE_INVENTORY} caption={t("legal.cookies.tableCaption")} />
       </section>
-    </main>
+    </LegalScreen>
   );
 }

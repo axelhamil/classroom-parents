@@ -107,6 +107,7 @@ export default {
     preferencesTitle: "Préférences cookies",
   },
   legal: {
+    backToApp: "Revenir à l'application",
     policies: {
       privacyTitle: "Politique de confidentialité",
       termsTitle: "Conditions d'utilisation",

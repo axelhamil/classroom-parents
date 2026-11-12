@@ -8,12 +8,13 @@ import { rememberPushOwner, storedPushOwner } from "../push-support";
 import { usePushEndpointSync } from "../use-push-endpoint-sync";
 
 function Probe() {
-  usePushEndpointSync(PARENT);
+  usePushEndpointSync(PARENT, SESSION);
   return null;
 }
 
 const ROTATED = "https://fcm.googleapis.com/fcm/send/rotated";
 const PARENT = "parent-b";
+const SESSION = "session-now";
 
 describe("usePushEndpointSync", () => {
   afterEach(() => {
@@ -33,7 +34,9 @@ describe("usePushEndpointSync", () => {
 
     await renderWithProviders(<Probe />);
 
-    await waitFor(() => expect(storedPushOwner()).toEqual({ userId: PARENT, endpoint: ROTATED }));
+    await waitFor(() =>
+      expect(storedPushOwner()).toEqual({ userId: PARENT, endpoint: ROTATED, sessionId: SESSION }),
+    );
     expect(calls.map(({ method, url, body }) => ({ method, path: url.pathname, body }))).toEqual([
       {
         method: "POST",
@@ -45,13 +48,30 @@ describe("usePushEndpointSync", () => {
 
   it("given the endpoint already posted, when the app opens, then nothing is posted", async () => {
     givenPushBrowser({ permission: "granted", existing: fakeSubscription(ROTATED) });
-    rememberPushOwner({ userId: PARENT, endpoint: ROTATED });
+    rememberPushOwner({ userId: PARENT, endpoint: ROTATED, sessionId: SESSION });
     const calls = stubApi(byRoute({}));
 
     await renderWithProviders(<Probe />);
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(calls).toEqual([]);
+  });
+
+  it("given the subscription was posted under a session that expired since, when the parent signs in again, then it is posted again and tied to the new session", async () => {
+    givenPushBrowser({ permission: "granted", existing: fakeSubscription(ROTATED) });
+    rememberPushOwner({ userId: PARENT, endpoint: ROTATED, sessionId: "session-expired" });
+    const calls = stubApi(
+      byRoute({
+        "POST /push/subscriptions": () => new Response(null, { status: 204 }),
+      }),
+    );
+
+    await renderWithProviders(<Probe />);
+
+    await waitFor(() => expect(storedPushOwner()?.sessionId).toBe(SESSION));
+    expect(calls.map(({ method, url }) => `${method} ${url.pathname}`)).toEqual([
+      "POST /push/subscriptions",
+    ]);
   });
 
   it("given alerts turned off in the browser, when the app opens, then the remembered endpoint is forgotten and nothing is posted", async () => {

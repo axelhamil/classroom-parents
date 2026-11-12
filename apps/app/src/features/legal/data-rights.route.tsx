@@ -1,12 +1,9 @@
-import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
-import { PageHeader } from "@packages/ui/components/ui/page-header";
-import { Separator } from "@packages/ui/components/ui/separator";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { TypographyH2, TypographyList, TypographyP } from "@packages/ui/components/ui/typography";
-import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ContactLink } from "./components/contact-link";
+import { LegalScreen } from "./legal-screen";
 
 export const Route = createFileRoute("/legal/data-rights")({
   component: DataRightsPage,
@@ -16,14 +13,7 @@ function DataRightsPage() {
   const { t } = useTranslation("common");
 
   return (
-    <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
-      <PageHeader
-        title={t("legal.dataRights.title")}
-        description={t("legal.dataRights.subtitle")}
-      />
-
-      <Separator />
-
+    <LegalScreen title={t("legal.dataRights.title")} description={t("legal.dataRights.subtitle")}>
       <section className="flex flex-col gap-3">
         <TypographyH2>Retirer un enfant</TypographyH2>
         <TypographyP>
@@ -75,6 +65,6 @@ function DataRightsPage() {
           <Link to="/legal/sub-processors">Registre des sous-traitants</Link>
         </TextLink>
       </section>
-    </main>
+    </LegalScreen>
   );
 }

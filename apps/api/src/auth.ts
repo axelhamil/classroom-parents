@@ -1,4 +1,5 @@
 import "zod/v4/core";
+import { AppErrorException } from "@packages/ddd-kit";
 import { db } from "@packages/drizzle";
 import { type EventType, EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
@@ -26,6 +27,12 @@ async function emit<TPayload>(
 ): Promise<void> {
   await emitEvent(di.IOutboxRepository, eventType, aggregateType, aggregateId, payload);
 }
+
+const REVOKE_PATHS: ReadonlySet<string> = new Set([
+  "/revoke-session",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+]);
 
 const authOptions = {
   appName: "classroom-parents",
@@ -130,6 +137,23 @@ const authOptions = {
             sessionId: session.id,
             ipAddress: session.ipAddress ?? undefined,
             userAgent: session.userAgent ?? undefined,
+          });
+        },
+      },
+      delete: {
+        before: async (session, context) => {
+          if (!context || !REVOKE_PATHS.has(context.path)) return;
+          const forgotten = await di.PushSubscriptionService.forgetSession(
+            session.userId,
+            session.id,
+          );
+          if (forgotten.isFailure) throw new AppErrorException(forgotten.getError());
+        },
+        after: async (session, context) => {
+          if (!context || !REVOKE_PATHS.has(context.path)) return;
+          await emit(EventTypes.USER_SESSION_REVOKED, "session", session.id, {
+            userId: session.userId,
+            sessionId: session.id,
           });
         },
       },

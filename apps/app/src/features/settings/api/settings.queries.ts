@@ -1,6 +1,8 @@
-import { throwApiError } from "@packages/web-kit/api/errors/api-error";
+import { throwApiError, toAuthClientError } from "@packages/web-kit/api/errors/api-error";
+import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "../../../shared/api/api-client";
+import { authClient } from "../../../shared/auth/auth-client";
 
 const $status = api.push.status.$get;
 const $defaultReminders = api.reminders.defaults.$get;
@@ -25,6 +27,17 @@ export function defaultRemindersQueryOptions(userId: string) {
       const res = await $defaultReminders({}, { init: { signal } });
       if (!res.ok) await throwApiError(res, "loadDefaultReminders");
       return (await res.json()).reminders;
+    },
+  });
+}
+
+export function sessionsQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: ["sessions", userId] as const,
+    queryFn: async ({ signal }) => {
+      const { data, error } = await authClient.listSessions({ fetchOptions: { signal } });
+      if (error) throw toAuthClientError(error, errorFallback("loadSessions"));
+      return data;
     },
   });
 }

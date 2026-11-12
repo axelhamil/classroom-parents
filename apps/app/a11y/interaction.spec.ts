@@ -210,6 +210,24 @@ test.describe("signed in", () => {
     await expect(trigger).toBeFocused();
   });
 
+  test("switches the theme from the appearance radio group with the arrow keys", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+
+    const light = page.getByRole("radio", { name: "Clair" });
+    await tabTo(page, light);
+    await page.keyboard.press("ArrowRight");
+
+    await expect(page.getByRole("radio", { name: "Sombre" })).toBeFocused();
+    await expect(page.getByRole("radio", { name: "Sombre" })).toBeChecked();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    await page.keyboard.press("ArrowLeft");
+    await expect(light).toBeChecked();
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+  });
+
   test("reaches every section from the bottom navigation on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await page.goto("/");

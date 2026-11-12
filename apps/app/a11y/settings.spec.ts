@@ -12,7 +12,9 @@ test.describe("settings on a phone", () => {
       await page.emulateMedia({ colorScheme });
       await page.goto("/settings");
 
-      await expect(page.getByRole("heading", { name: "Alertes sur ce téléphone" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Notifications sur ce téléphone" }),
+      ).toBeVisible();
       await expect(page.getByRole("button", { name: "Supprimer mon compte" })).toBeVisible();
       await expect(page.locator("main")).toHaveCount(1);
       await expect(page.locator("h1")).toHaveCount(1);

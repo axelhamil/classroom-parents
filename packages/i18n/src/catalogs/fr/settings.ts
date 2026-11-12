@@ -1,10 +1,56 @@
 export default {
   home: {
     title: "Réglages",
-    description: "Rappels, installation sur le téléphone et données personnelles.",
+    description: "Vos alertes, vos appareils et les données de votre famille.",
+  },
+  appearance: {
+    title: "Apparence",
+    description: "Le thème de l'application sur cet appareil.",
+    light: "Clair",
+    dark: "Sombre",
+  },
+  devices: {
+    title: "Appareils connectés",
+    description: "Les téléphones et ordinateurs où votre compte est ouvert.",
+    loading: "Chargement de vos appareils",
+    loadError: "Impossible de charger vos appareils.",
+    label: "{{browser}} sur {{device}}",
+    unknown: "Appareil inconnu",
+    kind: {
+      ios: "iPhone ou iPad",
+      android: "Android",
+      mac: "Mac",
+      windows: "Windows",
+      linux: "Linux",
+      unknown: "un appareil inconnu",
+    },
+    browser: {
+      chrome: "Chrome",
+      safari: "Safari",
+      firefox: "Firefox",
+      edge: "Edge",
+      samsung: "Samsung Internet",
+      unknown: "Navigateur",
+    },
+    current: "Cet appareil",
+    currentActivity: "Celui que vous utilisez en ce moment.",
+    lastActive: "Dernière activité le {{date}}.",
+    others: "Vos autres appareils",
+    alone: "Aucun autre appareil n'est connecté à votre compte.",
+    revoke: "Déconnecter",
+    revoked: "Appareil déconnecté. Il ne reçoit plus vos alertes.",
+    revokeFailed: "L'appareil n'a pas pu être déconnecté. Réessayez dans un instant.",
+    revokeOthers: "Se déconnecter partout ailleurs",
+    revokeOthersTitle: "Déconnecter les autres appareils ?",
+    revokeOthersDescription:
+      "Vos autres appareils ne recevront plus vos alertes et devront se reconnecter avec Google pour revoir les échéances de vos enfants. Cet appareil reste connecté.",
+    revokeOthersConfirm: "Oui, les déconnecter",
+    revokedOthers: "Vos autres appareils sont déconnectés et ne reçoivent plus vos alertes.",
+    revokeOthersFailed:
+      "Vos autres appareils n'ont pas pu être déconnectés. Réessayez dans un instant.",
   },
   push: {
-    title: "Alertes sur ce téléphone",
+    title: "Notifications sur ce téléphone",
     description: "Une notification à chaque rappel de vos échéances, même application fermée.",
     defaults: "Rappels par défaut : {{reminders}}.",
     noDefaults:
@@ -48,15 +94,19 @@ export default {
     },
   },
   links: {
-    title: "Vos données",
-    description: "Ce que nous conservons, pourquoi, et vos droits.",
+    title: "Confidentialité",
+    description: "Ce que l'application lit, ce qu'elle garde, et vos droits.",
     privacy: "Confidentialité et données",
     policy: "Politique de confidentialité",
     dataRights: "Vos droits sur vos données",
   },
+  account: {
+    title: "Compte",
+    description: "Votre compte Google sert à vous connecter, rien de plus.",
+  },
   signOut: {
     title: "Se déconnecter",
-    description: "Ce téléphone ne recevra plus vos alertes.",
+    description: "Cet appareil ne recevra plus vos alertes.",
     action: "Se déconnecter",
     dialogTitle: "Se déconnecter de ce téléphone ?",
     dialogDescription:

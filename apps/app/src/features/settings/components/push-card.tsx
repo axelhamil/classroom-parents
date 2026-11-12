@@ -2,7 +2,7 @@ import { Alert, AlertDescription, AlertTitle } from "@packages/ui/components/ui/
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
 import { Hint } from "@packages/ui/components/ui/hint";
-import { SettingsSection } from "@packages/ui/components/ui/settings-section";
+import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
 import { BellOff, BellRing, Mail } from "lucide-react";
@@ -26,7 +26,7 @@ export function PushCard({ userId }: PushCardProps) {
   const emailFallback = !push.subscribed && status.data?.live === 0;
 
   return (
-    <SettingsSection title={t("push.title")} description={t("push.description")}>
+    <SectionCard title={t("push.title")} description={t("push.description")}>
       <DefaultRemindersSummary userId={userId} />
       {needsInstall ? <InstallGuide /> : null}
       <PushControl push={push} needsInstall={needsInstall} />
@@ -36,7 +36,7 @@ export function PushCard({ userId }: PushCardProps) {
           <AlertDescription>{t("push.emailFallback")}</AlertDescription>
         </Alert>
       ) : null}
-    </SettingsSection>
+    </SectionCard>
   );
 }
 

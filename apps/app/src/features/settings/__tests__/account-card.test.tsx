@@ -18,7 +18,7 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 
 const HERE = "https://fcm.googleapis.com/fcm/send/here";
 
-describe("SignOutCard", () => {
+describe("AccountCard", () => {
   afterEach(() => {
     resetApp();
     localStorage.clear();

@@ -5,7 +5,11 @@ export const Route = createFileRoute("/_protected")({
   beforeLoad: async ({ context, location }) => {
     const session = await context.queryClient.ensureQueryData(sessionQueryOptions);
     if (!session) throw redirect({ to: "/login", search: { redirect: location.href } });
-    return { user: session.user, sessionToken: session.session.token };
+    return {
+      user: session.user,
+      sessionId: session.session.id,
+      sessionToken: session.session.token,
+    };
   },
   component: Outlet,
 });

@@ -5,7 +5,8 @@
  * replans only the events that follow them, a family never reads, sets or resets another family's
  * reminders nor deletes its push subscription, the claim query reads alert_pending_due_idx among
  * thousands of settled alerts, the reminders migration turns legacy alerts into reminders, and a
- * phone shared by two parents belongs to the last one who subscribed it: A's alerts stop reaching it.
+ * phone shared by two parents belongs to the last one who subscribed it: A's alerts stop reaching it,
+ * and revoking a device's session removes that device's push alerts while an expired session keeps them.
  * The dispatchers claim only the alerts of the parents this run creates, so another writer on the
  * same database (a demo seed, a second run) neither fails the counts nor gets its alerts sent.
  */
@@ -320,6 +321,7 @@ run(async () => {
       p256dh: "p256dh",
       auth: "auth",
       userAgent: Option.none(),
+      sessionId: Option.none(),
       now: NOW,
     });
     await step(`subscription of ${family.userId} stored`, stored.isSuccess);
@@ -706,5 +708,64 @@ run(async () => {
       planOf(legacyLate) === "null" &&
       migrated.plans.length === 2,
     migrated,
+  );
+
+  const phoneSession = `${c.userId}-phone`;
+  const laptopSession = `${c.userId}-laptop`;
+  await db.insert(authSchema.session).values(
+    [phoneSession, laptopSession].map((id) => ({
+      id,
+      token: `${id}-token`,
+      userId: c.userId,
+      expiresAt: NOW,
+      updatedAt: NOW,
+    })),
+  );
+  const deviceKeys = {
+    p256dh:
+      "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+    auth: "tBHItJI5svbpez7KI4CCXg",
+  };
+  const phoneEndpoint = `https://fcm.googleapis.com/fcm/send/${probe}-phone`;
+  const laptopEndpoint = `https://fcm.googleapis.com/fcm/send/${probe}-laptop`;
+  await pushService.subscribe(c.userId, {
+    endpoint: phoneEndpoint,
+    keys: deviceKeys,
+    sessionId: phoneSession,
+  });
+  await pushService.subscribe(c.userId, {
+    endpoint: laptopEndpoint,
+    keys: deviceKeys,
+    sessionId: laptopSession,
+  });
+  const endpointsOfC = async () =>
+    (
+      await db
+        .select({ endpoint: pushSubscription.endpoint })
+        .from(pushSubscription)
+        .where(eq(pushSubscription.userId, c.userId))
+    )
+      .map(({ endpoint }) => endpoint)
+      .sort();
+
+  await db.delete(authSchema.session).where(eq(authSchema.session.id, laptopSession));
+  await step(
+    "a session that expires keeps its device's push alerts",
+    isDeepStrictEqual(await endpointsOfC(), [laptopEndpoint, phoneEndpoint].sort()),
+    await endpointsOfC(),
+  );
+
+  const foreign = await pushService.forgetSession(a.userId, phoneSession);
+  await step(
+    "another parent cannot drop C's device by naming its session",
+    foreign.isSuccess && (await endpointsOfC()).length === 2,
+    await endpointsOfC(),
+  );
+
+  const forgotten = await pushService.forgetSession(c.userId, phoneSession);
+  await step(
+    "revoking the phone's session removes the phone's push alerts and keeps the laptop's",
+    forgotten.isSuccess && isDeepStrictEqual(await endpointsOfC(), [laptopEndpoint]),
+    await endpointsOfC(),
   );
 }, "each reminder is sent and planned once and stays inside its family on a real database");

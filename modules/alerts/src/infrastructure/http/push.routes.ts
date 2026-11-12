@@ -26,6 +26,7 @@ export function createPushRoutes(deps: PushRoutesDeps) {
       const result = await subscriptions.subscribe(g.currentUserId(c), {
         ...c.req.valid("json"),
         userAgent: c.req.header("user-agent")?.slice(0, USER_AGENT_MAX),
+        sessionId: g.currentSession(c).id,
       });
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.body(null, 204);

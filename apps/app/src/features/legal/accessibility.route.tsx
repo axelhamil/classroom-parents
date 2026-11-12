@@ -1,11 +1,8 @@
-import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
-import { PageHeader } from "@packages/ui/components/ui/page-header";
-import { Separator } from "@packages/ui/components/ui/separator";
 import { TypographyH2, TypographyList, TypographyP } from "@packages/ui/components/ui/typography";
-import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ContactLink } from "./components/contact-link";
+import { LegalScreen } from "./legal-screen";
 
 export const Route = createFileRoute("/legal/accessibility")({
   component: AccessibilityPage,
@@ -14,14 +11,10 @@ export const Route = createFileRoute("/legal/accessibility")({
 function AccessibilityPage() {
   const { t } = useTranslation("common");
   return (
-    <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
-      <PageHeader
-        title={t("legal.accessibility.title")}
-        description={t("legal.accessibility.subtitle")}
-      />
-
-      <Separator />
-
+    <LegalScreen
+      title={t("legal.accessibility.title")}
+      description={t("legal.accessibility.subtitle")}
+    >
       <section className="flex flex-col gap-3">
         <TypographyH2>État de conformité</TypographyH2>
         <TypographyP>
@@ -62,6 +55,6 @@ function AccessibilityPage() {
           (defenseurdesdroits.fr).
         </TypographyP>
       </section>
-    </main>
+    </LegalScreen>
   );
 }

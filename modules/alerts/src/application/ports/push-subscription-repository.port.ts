@@ -15,6 +15,7 @@ export interface NewPushSubscription {
   p256dh: string;
   auth: string;
   userAgent: Option<string>;
+  sessionId: Option<string>;
   now: Date;
 }
 
@@ -27,6 +28,8 @@ export interface IPushSubscriptionRepository {
   upsert(subscription: NewPushSubscription): Promise<Result<StoredPushSubscription, AlertsError>>;
 
   deleteOwned(userId: string, endpoint: string): Promise<Result<Option<string>, AlertsError>>;
+
+  deleteForSession(userId: string, sessionId: string): Promise<Result<string[], AlertsError>>;
 
   deleteGone(userId: string, subscriptionId: string): Promise<Result<void, AlertsError>>;
 

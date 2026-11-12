@@ -13,6 +13,7 @@ export const VISIBILITY = {
   "user.deletion.cancelled": "public",
   "user.deleted": "public",
   "user.profile.updated": "public",
+  "user.session.revoked": "public",
   "security.rate_limit.exceeded": "internal",
   "security.csrf.rejected": "internal",
   "email.delivery.exhausted": "internal",
