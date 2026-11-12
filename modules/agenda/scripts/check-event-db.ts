@@ -2,7 +2,8 @@
  * Proves against a real Postgres what mocked ports cannot: 20 concurrent ingests of one
  * announcement create its events once, a parent edit or deletion survives a later ingest,
  * upcoming and history split on the deadline instant with their filters and keyset cursors,
- * a turned-in coursework leaves upcoming, the status filter isolates the events to review,
+ * a turned-in coursework leaves upcoming, a parent's done or to-do choice survives the next sync
+ * and drives the done filter, the status filter isolates the events to review,
  * a family never reads, edits, confirms or deletes another family's event, deleting a user
  * cascades its events, a coursework is stored once and follows its teacher until the parent edits
  * the field, an announcement deadline on a coursework's course and day stays hidden only while a
@@ -408,6 +409,24 @@ run(async () => {
   await step(
     "after a parent edit the teacher's date is ignored, the done state still follows",
     kept?.deadlineDate === "2030-01-24" && kept.done && cancelled.includes(miaWork.id),
+  );
+
+  const reopened = await edits.markDone(a, miaWork.id, false);
+  await ingestCoursework(a, aMia, [homework({ deadlineDate: "2030-01-25", done: true })]);
+  const [stillToDo] = await rowsOf(aMia, "w-mia");
+  const miaList = async (filter: Partial<EventFilter>) =>
+    idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10, ...filter }, NOW));
+  await step(
+    "a parent who marks a turned-in coursework to do keeps it to do over the next sync",
+    reopened.isSuccess && stillToDo?.done === false && stillToDo.editedFields.includes("done"),
+  );
+  await step(
+    "upcoming lists the events to do by default, done=true lists only the done ones",
+    (await miaList({})).includes(miaWork.id) &&
+      !(await miaList({ done: true })).includes(miaWork.id) &&
+      (await edits.markDone(a, miaWork.id, true)).isSuccess &&
+      !(await miaList({})).includes(miaWork.id) &&
+      (await miaList({ done: true })).includes(miaWork.id),
   );
 
   const aNoe = await createChild(a, "noe");

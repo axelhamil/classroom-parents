@@ -370,6 +370,29 @@ describe("ingestCoursework", () => {
     expect(updatedFields()).toEqual([["title", "done"]]);
   });
 
+  it("given the parent marked a turned-in coursework to do, then the next sync keeps it to do but still follows the date", async () => {
+    await ingestCoursework([homework({ done: true })]);
+    const row = courseworkRow();
+    row?.markDone(false);
+
+    await ingestCoursework([homework({ deadlineDate: "2026-11-23", done: true })]);
+
+    expect(row?.get("done")).toBe(false);
+    expect(row?.get("deadline").value.date).toBe("2026-11-23");
+    expect(planner.cancel).not.toHaveBeenCalled();
+    expect(updatedFields()).toEqual([["deadline"]]);
+  });
+
+  it("given the parent marked a coursework done, then a sync that still sees it pending leaves it done", async () => {
+    await ingestCoursework([homework()]);
+    courseworkRow()?.markDone(true);
+
+    const result = await ingestCoursework([homework()]);
+
+    expect(result.getValue()).toEqual({ created: 0, updated: 0, rejected: 0, withdrawn: 0 });
+    expect(courseworkRow()?.get("done")).toBe(true);
+  });
+
   it("given the parent changed the title, then the teacher's title is ignored but the date still follows", async () => {
     await ingestCoursework([homework()]);
     const row = courseworkRow();

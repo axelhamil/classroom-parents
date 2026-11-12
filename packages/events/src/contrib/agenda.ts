@@ -39,7 +39,7 @@ export const agendaEvents = defineEventContribution({
     "agenda.event.created":
       "A school event was extracted from a Classroom announcement into a parent's agenda.",
     "agenda.event.updated":
-      "A parent edited or confirmed a school event of their agenda, or a sync followed the coursework it comes from.",
+      "A parent edited, confirmed or marked done or to do a school event of their agenda, or a sync followed the coursework it comes from.",
     "agenda.event.deleted":
       "A parent deleted a school event, which never comes back on a later sync.",
   },

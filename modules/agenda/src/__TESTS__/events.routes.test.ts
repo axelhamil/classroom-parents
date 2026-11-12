@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { AppErrorException, httpStatusFromCode } from "@packages/ddd-kit";
+import { AppErrorException, httpStatusFromCode, Result } from "@packages/ddd-kit";
 import { openRouteGuards } from "@packages/http/testing/route-guards";
 import { mockPort } from "@packages/test/bun";
 import { Hono } from "hono";
@@ -40,4 +40,27 @@ describe("GET /events", () => {
       expect(query.listUpcoming).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("GET /events done filter", () => {
+  it.each([
+    ["false", false],
+    ["true", true],
+  ])("given done=%s, then the list is read with done %p", async (raw, done) => {
+    const query = mockPort<EventQueryService>();
+    query.listUpcoming.mockResolvedValue(Result.ok({ items: [], nextCursor: undefined }));
+    const app = new Hono().route(
+      "/events",
+      createEventsRoutes({
+        routeGuards: openRouteGuards({ userId: "parent-1" }),
+        EventQueryService: query,
+        EventEditService: mockPort<EventEditService>(),
+      }),
+    );
+
+    const response = await app.request(`/events?done=${raw}`);
+
+    expect(response.status).toBe(200);
+    expect(query.listUpcoming.mock.calls[0]?.[1].done).toBe(done);
+  });
 });

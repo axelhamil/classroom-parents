@@ -7,11 +7,11 @@ import type { EventSource } from "./value-objects/event-source.vo";
 import { EventStatus } from "./value-objects/event-status.vo";
 import type { EventTitle } from "./value-objects/event-title.vo";
 
-export const EDITABLE_FIELDS = ["title", "description", "category", "deadline"] as const;
+export const EDITABLE_FIELDS = ["title", "description", "category", "deadline", "done"] as const;
 
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 
-export type EventField = EditableField | "status" | "done" | "withdrawn";
+export type EventField = EditableField | "status" | "withdrawn";
 
 export type EventRefusal = "deleted" | "withdrawn";
 
@@ -118,7 +118,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
       this._props.deadline = state.deadline;
       fields.push("deadline");
     }
-    if (state.done !== this._props.done) {
+    if (!edited.includes("done") && state.done !== this._props.done) {
       this._props.done = state.done;
       fields.push("done");
     }
@@ -146,6 +146,17 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     this._props.deadline = changes.deadline ?? this._props.deadline;
     this._props.editedAt = Option.some(now);
     return Result.ok();
+  }
+
+  markDone(done: boolean): Result<boolean, EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+    if (done === this._props.done) return Result.ok(false);
+
+    this._props.done = done;
+    this._props.editedFields = EDITABLE_FIELDS.filter(
+      (field) => field === "done" || this._props.editedFields.includes(field),
+    );
+    return Result.ok(true);
   }
 
   confirm(): Result<void, EventRefusal> {

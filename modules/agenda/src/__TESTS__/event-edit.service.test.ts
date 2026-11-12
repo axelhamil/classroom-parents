@@ -174,6 +174,56 @@ describe("confirm", () => {
   });
 });
 
+describe("markDone", () => {
+  it("given an event to do, when the parent marks it done, then it is saved done, its reminders are replanned and EVENT_UPDATED names the parent", async () => {
+    const result = await service.markDone(PARENT, event.id.value, true);
+
+    expect(result.getValue()).toMatchObject({ done: true, edited: false, editedFields: ["done"] });
+    expect(repo.save.mock.calls[0]?.[0].get("done")).toBe(true);
+    expect(planner.replan).toHaveBeenCalledWith({
+      eventId: event.id.value,
+      userId: PARENT,
+      actorUserId: PARENT,
+    });
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.EVENT_UPDATED,
+        aggregateId: event.id.value,
+        payload: { userId: PARENT, eventId: event.id.value, fields: ["done"], actorUserId: PARENT },
+      },
+    ]);
+  });
+
+  it("given a done event, when the parent marks it to do, then its reminders are replanned", async () => {
+    event.markDone(true);
+
+    const result = await service.markDone(PARENT, event.id.value, false);
+
+    expect(result.getValue().done).toBe(false);
+    expect(planner.replan).toHaveBeenCalledTimes(1);
+  });
+
+  it("given an event already done, when the parent marks it done again, then nothing is written", async () => {
+    event.markDone(true);
+
+    const result = await service.markDone(PARENT, event.id.value, true);
+
+    expect(result.getValue().done).toBe(true);
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(planner.replan).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given an event the parent does not own, then EVENT_NOT_FOUND and nothing is written", async () => {
+    repo.lockOwned.mockResolvedValue(Result.ok(Option.none()));
+
+    const result = await service.markDone(PARENT, event.id.value, true);
+
+    expect(result.getError().code).toBe("EVENT_NOT_FOUND");
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+});
+
 describe("remove", () => {
   it("given an owned event, then it is tombstoned, its alert cancelled and EVENT_DELETED enqueued", async () => {
     const result = await service.remove(PARENT, event.id.value);

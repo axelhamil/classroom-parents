@@ -93,6 +93,33 @@ export class EventEditService {
     );
   }
 
+  async markDone(
+    userId: string,
+    eventId: string,
+    done: boolean,
+  ): Promise<Result<EventDto, EditError>> {
+    return traced(this.instrumentation, "EventEditService > markDone", () =>
+      this.transactions.run(async () => {
+        const found = await this.owned(userId, eventId);
+        if (found.isFailure) return Result.fail(found.getError());
+        const event = found.getValue();
+
+        const marked = event.markDone(done);
+        if (marked.isFailure) return Result.fail(eventNotFound);
+        if (!marked.getValue()) return Result.ok(toEventDto(event));
+
+        const saved = await this.events.save(event);
+        if (saved.isFailure) return Result.fail(saved.getError());
+
+        const replanned = await this.alerts.replan(plannedDeadline(event, userId));
+        if (replanned.isFailure) return Result.fail(replanned.getError());
+
+        await this.emitUpdated(event, ["done"]);
+        return Result.ok(toEventDto(event));
+      }),
+    );
+  }
+
   async remove(userId: string, eventId: string): Promise<Result<void, EditError>> {
     return traced(this.instrumentation, "EventEditService > remove", () =>
       this.transactions.run(async (): Promise<Result<void, EditError>> => {

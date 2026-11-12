@@ -27,6 +27,7 @@ export interface EventFilter {
   childIds?: string[];
   categories?: EventCategoryValue[];
   statuses?: EventStatusValue[];
+  done?: boolean;
   cursor?: EventCursor;
   limit: number;
 }

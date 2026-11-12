@@ -41,7 +41,7 @@ describe("list", () => {
 
     const result = await service.listUpcoming(PARENT, filter, NOW);
 
-    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, filter, NOW);
+    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { ...filter, done: false }, NOW);
     expect(result.getValue()).toEqual({
       items: [
         {
@@ -78,6 +78,35 @@ describe("list", () => {
   });
 });
 
+describe("list by done state", () => {
+  beforeEach(() => {
+    repo.listUpcoming.mockResolvedValue(
+      Result.ok<EventPage, AgendaError>({ events: [], nextCursor: Option.none() }),
+    );
+    repo.listHistory.mockResolvedValue(
+      Result.ok<EventPage, AgendaError>({ events: [], nextCursor: Option.none() }),
+    );
+  });
+
+  it("given no done filter, then upcoming lists only the events to do", async () => {
+    await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(repo.listUpcoming.mock.calls[0]?.[1].done).toBe(false);
+  });
+
+  it("given done=true, then upcoming lists only the done events", async () => {
+    await service.listUpcoming(PARENT, { limit: 20, done: true }, NOW);
+
+    expect(repo.listUpcoming.mock.calls[0]?.[1].done).toBe(true);
+  });
+
+  it("given no done filter, then history lists done and to-do events alike", async () => {
+    await service.listHistory(PARENT, { limit: 20 }, NOW);
+
+    expect(repo.listHistory.mock.calls[0]?.[1].done).toBeUndefined();
+  });
+});
+
 describe("list while a child is being disconnected", () => {
   beforeEach(() => {
     repo.listUpcoming.mockResolvedValue(
@@ -89,13 +118,21 @@ describe("list while a child is being disconnected", () => {
     await service.listUpcoming(PARENT, { limit: 20 }, NOW);
 
     expect(children.idsOf).toHaveBeenCalledWith(PARENT);
-    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { limit: 20, childIds: [CHILD] }, NOW);
+    expect(repo.listUpcoming).toHaveBeenCalledWith(
+      PARENT,
+      { limit: 20, childIds: [CHILD], done: false },
+      NOW,
+    );
   });
 
   it("given a filter naming the child being disconnected, then it is dropped from the filter", async () => {
     await service.listUpcoming(PARENT, { limit: 20, childIds: [CHILD, LEAVING] }, NOW);
 
-    expect(repo.listUpcoming).toHaveBeenCalledWith(PARENT, { limit: 20, childIds: [CHILD] }, NOW);
+    expect(repo.listUpcoming).toHaveBeenCalledWith(
+      PARENT,
+      { limit: 20, childIds: [CHILD], done: false },
+      NOW,
+    );
   });
 
   it("given only the child being disconnected, then the page is empty without reading events", async () => {

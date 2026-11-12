@@ -140,11 +140,18 @@ function notShadowedByCoursework(exec: ReturnType<typeof resolveExecutor>): SQL 
   );
 }
 
+function doneIs(done: boolean | undefined): SQL | undefined {
+  if (done === undefined) return undefined;
+
+  return done ? sql`${agendaEvent.done}` : not(agendaEvent.done);
+}
+
 function filtered(filter: EventFilter, order: Order): (SQL | undefined)[] {
   return [
     filter.childIds?.length ? inArray(agendaEvent.childId, filter.childIds) : undefined,
     filter.categories?.length ? inArray(agendaEvent.category, filter.categories) : undefined,
     filter.statuses?.length ? inArray(agendaEvent.status, filter.statuses) : undefined,
+    doneIs(filter.done),
     filter.cursor
       ? afterTimeIdCursor(agendaEvent.deadlineAt, agendaEvent.id, filter.cursor, order)
       : undefined,
@@ -392,8 +399,7 @@ export class DrizzleEventRepository implements IEventRepository {
     filter: EventFilter,
     now: Date,
   ): Promise<Result<EventPage, AgendaError>> {
-    const window = [gte(agendaEvent.deadlineAt, now), not(agendaEvent.done)];
-    return this.page("listUpcoming", window, userId, filter, "asc");
+    return this.page("listUpcoming", [gte(agendaEvent.deadlineAt, now)], userId, filter, "asc");
   }
 
   async listHistory(

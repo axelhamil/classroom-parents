@@ -58,6 +58,8 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "POST /children/linkable/:linkedAccountId/discard": {
     consumer: "apps/app/src/features/children/api/children.mutations.ts",
   },
+  "POST /events/:id/done": { uiLess: "dormant-by-design" },
+  "DELETE /events/:id/done": { uiLess: "dormant-by-design" },
   "POST /events/:id/confirm": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "POST /me/delete": { consumer: "apps/app/src/shared/api/mutations/request-account-deletion.ts" },
   "POST /sync": { consumer: "apps/app/src/shared/api/mutations/request-sync.ts" },

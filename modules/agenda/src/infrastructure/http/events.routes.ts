@@ -26,6 +26,10 @@ const listEventsQuerySchema = z.object({
   category: oneOrMany(eventCategorySchema),
   childId: oneOrMany(z.uuid()),
   status: oneOrMany(eventStatusSchema),
+  done: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
   cursor: timeIdCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });
@@ -33,7 +37,7 @@ const listEventsQuerySchema = z.object({
 export interface EventsRoutesDeps {
   routeGuards: RouteGuards;
   EventQueryService: Pick<EventQueryService, "listUpcoming" | "listHistory" | "get">;
-  EventEditService: Pick<EventEditService, "edit" | "confirm" | "remove">;
+  EventEditService: Pick<EventEditService, "edit" | "confirm" | "markDone" | "remove">;
 }
 
 export function createEventsRoutes(deps: EventsRoutesDeps) {
@@ -41,8 +45,15 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
 
   return new Hono<RouteEnv>()
     .get("/", g.requireAuth, zV("query", listEventsQuerySchema), async (c) => {
-      const { scope, category, childId, status, cursor, limit } = c.req.valid("query");
-      const filter = { categories: category, childIds: childId, statuses: status, cursor, limit };
+      const { scope, category, childId, status, done, cursor, limit } = c.req.valid("query");
+      const filter = {
+        categories: category,
+        childIds: childId,
+        statuses: status,
+        done,
+        cursor,
+        limit,
+      };
       const userId = g.currentUserId(c);
       const now = new Date();
       const result =
@@ -75,6 +86,16 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
     )
     .post("/:id/confirm", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
       const result = await edits.confirm(g.currentUserId(c), c.req.valid("param").id);
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .post("/:id/done", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
+      const result = await edits.markDone(g.currentUserId(c), c.req.valid("param").id, true);
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .delete("/:id/done", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
+      const result = await edits.markDone(g.currentUserId(c), c.req.valid("param").id, false);
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })

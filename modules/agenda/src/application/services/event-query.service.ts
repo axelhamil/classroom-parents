@@ -38,7 +38,9 @@ export class EventQueryService {
     now: Date,
   ): Promise<Result<EventPageDto, ListError>> {
     return traced(this.instrumentation, "EventQueryService > listUpcoming", () =>
-      this.listVisible(userId, filter, (visible) => this.events.listUpcoming(userId, visible, now)),
+      this.listVisible(userId, { ...filter, done: filter.done ?? false }, (visible) =>
+        this.events.listUpcoming(userId, visible, now),
+      ),
     );
   }
 
