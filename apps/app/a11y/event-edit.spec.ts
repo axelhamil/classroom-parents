@@ -1,5 +1,6 @@
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { expect, test } from "@playwright/test";
+import { showColorScheme } from "./color-scheme";
 import { LEA, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
@@ -19,7 +20,7 @@ test.describe("event edit on a phone", () => {
     test(`prefilled form with a long title and an unbreakable link (${colorScheme})`, async ({
       page,
     }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       await serveFamily(page, { children: [LEA], events: [], detail: WORST_CASE_EVENT });
       await page.goto(`/events/${REVIEW_EVENT.id}/edit`);
 

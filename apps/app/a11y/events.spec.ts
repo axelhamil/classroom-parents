@@ -1,5 +1,6 @@
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { expect, type Page, test } from "@playwright/test";
+import { showColorScheme } from "./color-scheme";
 import { EVENTS, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
@@ -19,7 +20,7 @@ test.describe("upcoming events on a phone", () => {
     test(`two children, a blocked one and an event to review (${colorScheme})`, async ({
       page,
     }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
       await page.goto("/");
 
@@ -33,7 +34,7 @@ test.describe("upcoming events on a phone", () => {
     });
 
     test(`first sync still running (${colorScheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       await serveFamily(page, {
         children: [{ ...LEA, lastSyncedAt: undefined, syncing: true }],
         events: [],

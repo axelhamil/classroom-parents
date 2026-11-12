@@ -1,5 +1,6 @@
 import { blockingViolations } from "@packages/test/a11y";
 import { expect, test } from "@playwright/test";
+import { showColorScheme } from "./color-scheme";
 import { STORAGE_STATE } from "./playwright.config";
 
 test.describe("settings on a phone", () => {
@@ -9,7 +10,7 @@ test.describe("settings on a phone", () => {
     test(`shows the alerts and the account sections without overflow (${colorScheme})`, async ({
       page,
     }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       await page.goto("/settings");
 
       await expect(

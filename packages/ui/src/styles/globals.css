@@ -518,10 +518,34 @@ html.theme-transitioning::view-transition-new(root) {
   animation: theme-reveal var(--duration-theme) var(--ease-emphasized);
 }
 
-html.theme-fading body {
-  transition:
-    background-color var(--duration-slow) var(--ease-out),
-    color var(--duration-slow) var(--ease-out);
+@keyframes theme-veil-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes theme-veil-out {
+  to {
+    opacity: 0;
+  }
+}
+
+html.theme-veil-in::after,
+html.theme-veil-out::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  background: var(--theme-veil);
+}
+
+html.theme-veil-in::after {
+  animation: theme-veil-in var(--duration-fast) var(--ease-out) both;
+}
+
+html.theme-veil-out::after {
+  animation: theme-veil-out var(--duration-base) var(--ease-out) both;
 }
 
 @media (display-mode: standalone) {
@@ -566,7 +590,7 @@ html.theme-fading body {
 }
 
 html.theme-switching,
-html.theme-switching *:not(body, [data-slot="swap-icon"] > svg),
+html.theme-switching *:not([data-slot="swap-icon"] > svg),
 html.theme-switching *::before,
 html.theme-switching *::after {
   /* biome-ignore lint/complexity/noImportantStyles: a theme switch repaints at once, a utility transition must not lag behind it */

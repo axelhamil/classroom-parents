@@ -12,7 +12,7 @@ export function ensureMatchMedia(): void {
 }
 
 export function ensureGetAnimations(): void {
-  if (typeof Element.prototype.getAnimations === "function") return;
+  if (typeof Document.prototype.getAnimations === "function") return;
 
-  Element.prototype.getAnimations = () => [];
+  Document.prototype.getAnimations = () => [];
 }

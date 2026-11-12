@@ -1,3 +1,5 @@
+export const THEME_STORAGE_KEY = "theme";
+
 export const THEME_PREFERENCES = ["light", "dark", "system"] as const;
 
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
@@ -82,3 +84,5 @@ export function createThemeStore(host: ThemeHost) {
     },
   };
 }
+
+export type ThemeStore = ReturnType<typeof createThemeStore>;

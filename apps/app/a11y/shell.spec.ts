@@ -1,12 +1,13 @@
 import { blockingViolations } from "@packages/test/a11y";
 import { expect, test } from "@playwright/test";
+import { showColorScheme } from "./color-scheme";
 
 test.describe("login on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   for (const colorScheme of ["light", "dark"] as const) {
     test(`has one main, one h1 and no blocking violation (${colorScheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       await page.goto("/login");
 
       await expect(page).toHaveURL(/\/login$/);

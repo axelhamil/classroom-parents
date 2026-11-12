@@ -14,7 +14,13 @@ function givenBrowser({ reducedMotion, viewTransitions }: BrowserOptions) {
   const root = {
     classList: {
       add: (name: string) => classes.add(name),
-      remove: (name: string) => classes.delete(name),
+      remove: (...names: string[]) => {
+        for (const name of names) classes.delete(name);
+      },
+      replace: (from: string, to: string) => {
+        classes.delete(from);
+        classes.add(to);
+      },
     },
     style: {
       setProperty: (name: string, value: string) => properties.set(name, value),
@@ -32,6 +38,16 @@ function givenBrowser({ reducedMotion, viewTransitions }: BrowserOptions) {
     for (const finish of finishers.splice(0)) finish();
   };
 
+  class CSSAnimation {
+    finished = Promise.resolve();
+
+    constructor(readonly animationName: string) {}
+  }
+
+  vi.stubGlobal("CSSAnimation", CSSAnimation);
+  vi.stubGlobal("getComputedStyle", () => ({
+    getPropertyValue: (name: string) => (name === "--background" ? "oklch(0.97 0.01 82)" : ""),
+  }));
   vi.stubGlobal("window", {
     innerWidth: 400,
     innerHeight: 800,
@@ -39,7 +55,7 @@ function givenBrowser({ reducedMotion, viewTransitions }: BrowserOptions) {
   });
   vi.stubGlobal("document", {
     documentElement: root,
-    body: { getAnimations: () => [{ finished: Promise.resolve() }] },
+    getAnimations: () => [...classes].map((name) => new CSSAnimation(name)),
     ...(viewTransitions ? { startViewTransition } : {}),
   });
 
@@ -84,14 +100,18 @@ describe("theme transition", () => {
     expect(browser.properties.size).toBe(0);
   });
 
-  it("cross-fades the page colors when view transitions are missing", async () => {
+  it("swaps under one page-wide veil of the old background when view transitions are missing", async () => {
     const browser = givenBrowser({ reducedMotion: false, viewTransitions: false });
-    const apply = vi.fn(() => expect(browser.classes.has("theme-fading")).toBe(true));
+    const seen: Array<{ classes: string[]; veil: string | undefined }> = [];
+    const apply = vi.fn(() =>
+      seen.push({ classes: [...browser.classes], veil: browser.properties.get("--theme-veil") }),
+    );
 
     await transitionTheme(origin, apply);
 
-    expect(apply).toHaveBeenCalledOnce();
+    expect(seen).toEqual([{ classes: ["theme-veil-in"], veil: "oklch(0.97 0.01 82)" }]);
     expect(browser.classes.size).toBe(0);
+    expect(browser.properties.size).toBe(0);
   });
 
   it("keeps the second reveal running when a quick second switch interrupts the first", async () => {

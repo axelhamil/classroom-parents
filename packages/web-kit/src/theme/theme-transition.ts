@@ -1,10 +1,12 @@
 const TRANSITIONING_CLASS = "theme-transitioning";
-const FADING_CLASS = "theme-fading";
+const VEIL_IN_CLASS = "theme-veil-in";
+const VEIL_OUT_CLASS = "theme-veil-out";
+const VEIL_COLOR = "--theme-veil";
 const REVEAL_X = "--theme-reveal-x";
 const REVEAL_Y = "--theme-reveal-y";
 const REVEAL_RADIUS = "--theme-reveal-radius";
 
-let latestReveal = 0;
+let latestTransition = 0;
 
 export interface RevealOrigin {
   getBoundingClientRect: () => Pick<DOMRectReadOnly, "left" | "top" | "width" | "height">;
@@ -19,7 +21,7 @@ function revealCenter(origin: RevealOrigin | null) {
 }
 
 async function revealTheme(root: HTMLElement, origin: RevealOrigin | null, apply: () => void) {
-  const reveal = ++latestReveal;
+  const reveal = ++latestTransition;
   const { x, y } = revealCenter(origin);
   const radius = Math.hypot(
     Math.max(x, window.innerWidth - x),
@@ -34,7 +36,7 @@ async function revealTheme(root: HTMLElement, origin: RevealOrigin | null, apply
   try {
     await document.startViewTransition(apply).finished;
   } finally {
-    if (reveal === latestReveal) {
+    if (reveal === latestTransition) {
       root.classList.remove(TRANSITIONING_CLASS);
       for (const property of [REVEAL_X, REVEAL_Y, REVEAL_RADIUS])
         root.style.removeProperty(property);
@@ -42,14 +44,30 @@ async function revealTheme(root: HTMLElement, origin: RevealOrigin | null, apply
   }
 }
 
-async function fadeTheme(root: HTMLElement, apply: () => void) {
-  root.classList.add(FADING_CLASS);
-  apply();
+function veilFinished(name: string) {
+  const running = document
+    .getAnimations()
+    .filter((animation) => animation instanceof CSSAnimation && animation.animationName === name);
+
+  return Promise.allSettled(running.map((animation) => animation.finished));
+}
+
+async function veilTheme(root: HTMLElement, apply: () => void) {
+  const veil = ++latestTransition;
+
+  root.style.setProperty(VEIL_COLOR, getComputedStyle(root).getPropertyValue("--background"));
+  root.classList.add(VEIL_IN_CLASS);
 
   try {
-    await Promise.allSettled(document.body.getAnimations().map((animation) => animation.finished));
+    await veilFinished("theme-veil-in");
+    apply();
+    root.classList.replace(VEIL_IN_CLASS, VEIL_OUT_CLASS);
+    await veilFinished("theme-veil-out");
   } finally {
-    root.classList.remove(FADING_CLASS);
+    if (veil === latestTransition) {
+      root.classList.remove(VEIL_IN_CLASS, VEIL_OUT_CLASS);
+      root.style.removeProperty(VEIL_COLOR);
+    }
   }
 }
 
@@ -61,7 +79,7 @@ export function transitionTheme(origin: RevealOrigin | null, apply: () => void):
     return Promise.resolve();
   }
 
-  if (typeof document.startViewTransition !== "function") return fadeTheme(root, apply);
+  if (typeof document.startViewTransition !== "function") return veilTheme(root, apply);
 
   return revealTheme(root, origin, apply);
 }

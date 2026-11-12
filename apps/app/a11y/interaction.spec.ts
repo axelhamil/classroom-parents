@@ -1,6 +1,7 @@
 import { COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { stubChildrenApi } from "./children-fixture";
+import { showColorScheme } from "./color-scheme";
 import { STORAGE_STATE } from "./playwright.config";
 
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
@@ -176,7 +177,7 @@ test.describe("signed in", () => {
     test(`draws the destructive focus ring at 3:1 against its surface (${colorScheme})`, async ({
       page,
     }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       const { dialog } = await openDeletionDialog(page);
 
       const confirm = dialog.getByRole("button", { name: "Oui, supprimer mon compte" });
