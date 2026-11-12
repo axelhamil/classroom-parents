@@ -11,12 +11,14 @@ const $resetReminders = api.events[":eventId"].reminders.$delete;
 const $add = api.events.$post;
 const $markDone = api.events[":id"].done.$post;
 const $markUndone = api.events[":id"].done.$delete;
+const $changeChecklist = api.events[":id"].checklist.$post;
 const $issueFeed = api["calendar-feed"].$post;
 const $revokeFeed = api["calendar-feed"].$delete;
 
 type EventReminders = InferRequestType<typeof $customizeReminders>["json"]["reminders"];
 export type EventPatch = InferRequestType<typeof $edit>["json"];
 export type NewEvent = InferRequestType<typeof $add>["json"];
+export type ChecklistChange = InferRequestType<typeof $changeChecklist>["json"];
 
 export const confirmEventMutationOptions = mutationOptions({
   mutationKey: ["events", "confirm"] as const,
@@ -66,6 +68,15 @@ export const addEventMutationOptions = mutationOptions({
   mutationFn: async (event: NewEvent) => {
     const res = await $add({ json: event });
     if (!res.ok) await throwApiError(res, "addEvent");
+    return res.json();
+  },
+});
+
+export const changeChecklistMutationOptions = mutationOptions({
+  mutationKey: ["events", "checklist"] as const,
+  mutationFn: async ({ eventId, change }: { eventId: string; change: ChecklistChange }) => {
+    const res = await $changeChecklist({ param: { id: eventId }, json: change });
+    if (!res.ok) await throwApiError(res, "changeChecklist");
     return res.json();
   },
 });

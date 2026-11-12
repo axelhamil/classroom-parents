@@ -29,6 +29,7 @@ const exam: EventDto = {
   receivedAt: "2026-11-09T07:00:00.000Z",
   edited: false,
   editedFields: [],
+  checklist: { done: [], removed: [], extra: [] },
 };
 
 const children = {

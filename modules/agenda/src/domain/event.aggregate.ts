@@ -1,6 +1,7 @@
 import { Aggregate, Option, Result } from "@packages/ddd-kit";
 import { EventId } from "./event-id";
 import type { EventCategory } from "./value-objects/event-category.vo";
+import { type ChecklistChange, EventChecklist } from "./value-objects/event-checklist.vo";
 import type { EventDeadline } from "./value-objects/event-deadline.vo";
 import type { EventDescription } from "./value-objects/event-description.vo";
 import { EventSource } from "./value-objects/event-source.vo";
@@ -11,9 +12,11 @@ export const EDITABLE_FIELDS = ["title", "description", "category", "deadline", 
 
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 
-export type EventField = EditableField | "status" | "withdrawn";
+export type EventField = EditableField | "status" | "withdrawn" | "checklist";
 
 export type EventRefusal = "deleted" | "withdrawn";
+
+export type ChecklistRefusal = "deleted" | "invalid";
 
 export interface AgendaEventProps {
   userId: string;
@@ -30,6 +33,7 @@ export interface AgendaEventProps {
   receivedAt: Date;
   status: EventStatus;
   done: boolean;
+  checklist: EventChecklist;
   editedAt: Option<Date>;
   editedFields: EditableField[];
   deletedAt: Option<Date>;
@@ -90,6 +94,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
       {
         ...props,
         status: EventStatus.of(needsReview),
+        checklist: EventChecklist.empty(),
         editedAt: Option.none(),
         editedFields: [],
         deletedAt: Option.none(),
@@ -114,6 +119,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
         receivedAt: now,
         status: EventStatus.confirmed(),
         done: false,
+        checklist: EventChecklist.empty(),
         editedAt: Option.none(),
         editedFields: [],
         deletedAt: Option.none(),
@@ -190,6 +196,17 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     this._props.editedFields = EDITABLE_FIELDS.filter(
       (field) => field === "done" || this._props.editedFields.includes(field),
     );
+    return Result.ok(true);
+  }
+
+  changeChecklist(change: ChecklistChange): Result<boolean, ChecklistRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+
+    const next = this._props.checklist.change(change);
+    if (next.isFailure) return Result.fail("invalid");
+    if (next.getValue().equals(this._props.checklist)) return Result.ok(false);
+
+    this._props.checklist = next.getValue();
     return Result.ok(true);
   }
 

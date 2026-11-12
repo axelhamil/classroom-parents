@@ -7,6 +7,7 @@ import {
   traced,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
+import { CHECKLIST_ITEM_MAX, CHECKLIST_ITEMS_MAX } from "@packages/events/agenda-contract";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import {
@@ -15,6 +16,7 @@ import {
   type EventField,
   type ManualEvent,
 } from "../../domain/event.aggregate";
+import type { ChecklistChange } from "../../domain/value-objects/event-checklist.vo";
 import {
   CLEAR_TIME,
   type EventDto,
@@ -37,6 +39,11 @@ import { plannedDeadline } from "./planned-deadline";
 import { visibleEvent } from "./visible-event";
 
 type EditError = AgendaError | AppError;
+
+const invalidChecklist: AgendaError = {
+  code: "EVENT_CHECKLIST_INVALID",
+  message: `Une liste à préparer compte au plus ${CHECKLIST_ITEMS_MAX} éléments de 1 à ${CHECKLIST_ITEM_MAX} caractères.`,
+};
 
 export class EventEditService {
   constructor(
@@ -156,6 +163,31 @@ export class EventEditService {
         if (replanned.isFailure) return Result.fail(replanned.getError());
 
         await this.emitUpdated(event, ["done"]);
+        return Result.ok(toEventDto(event));
+      }),
+    );
+  }
+
+  async changeChecklist(
+    userId: string,
+    eventId: string,
+    change: ChecklistChange,
+  ): Promise<Result<EventDto, EditError>> {
+    return traced(this.instrumentation, "EventEditService > changeChecklist", () =>
+      this.transactions.run(async () => {
+        const found = await this.owned(userId, eventId);
+        if (found.isFailure) return Result.fail(found.getError());
+        const event = found.getValue();
+
+        const changed = event.changeChecklist(change);
+        if (changed.isFailure)
+          return Result.fail(changed.getError() === "invalid" ? invalidChecklist : eventNotFound);
+        if (!changed.getValue()) return Result.ok(toEventDto(event));
+
+        const saved = await this.events.save(event);
+        if (saved.isFailure) return Result.fail(saved.getError());
+
+        await this.emitUpdated(event, ["checklist"]);
         return Result.ok(toEventDto(event));
       }),
     );

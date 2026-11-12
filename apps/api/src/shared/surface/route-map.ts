@@ -70,6 +70,9 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "POST /events/:id/done": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "DELETE /events/:id/done": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "POST /events/:id/confirm": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
+  "POST /events/:id/checklist": {
+    consumer: "apps/app/src/features/events/api/events.mutations.ts",
+  },
   "POST /me/export": { uiLess: "dormant-by-design" },
   "POST /me/delete": { consumer: "apps/app/src/shared/api/mutations/request-account-deletion.ts" },
   "POST /sync": { consumer: "apps/app/src/shared/api/mutations/request-sync.ts" },

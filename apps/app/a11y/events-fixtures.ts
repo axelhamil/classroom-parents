@@ -42,6 +42,7 @@ export const REVIEW_EVENT = {
   receivedAt: new Date().toISOString(),
   edited: false,
   editedFields: [],
+  checklist: { done: [], removed: [], extra: [] },
 };
 
 export const EVENTS = [

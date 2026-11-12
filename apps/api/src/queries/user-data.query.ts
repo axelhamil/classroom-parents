@@ -141,6 +141,7 @@ export class UserDataQuery implements IUserDataReader {
             receivedAt: event.receivedAt.toISOString(),
             status: event.status,
             done: event.done,
+            checklist: event.checklist,
             editedAt: iso(event.editedAt),
             editedFields: event.editedFields,
             deletedAt: iso(event.deletedAt),

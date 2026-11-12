@@ -71,6 +71,13 @@
       "when": 1794503485985,
       "tag": "0009_push_subscription_session",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794505770496,
+      "tag": "0010_event_checklist",
+      "breakpoints": true
     }
   ]
 }

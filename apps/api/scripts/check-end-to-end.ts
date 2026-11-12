@@ -78,6 +78,10 @@ const EventRow = z.object({
 
 const EventPage = z.object({ items: z.array(EventRow) });
 
+const Checklist = z.object({ checklist: z.object({ done: z.array(z.string()) }) });
+
+const Actor = z.object({ actorUserId: z.string() });
+
 async function signedSession(
   userId: string,
 ): Promise<{ id: string; token: string; cookie: string }> {
@@ -240,6 +244,34 @@ run(async () => {
       !afterEdits.some((event) => event.title === fractions.title) &&
       afterEdits.find((event) => event.id === quiz.id)?.title === "Quiz unité 4, relu",
     afterEdits.filter((event) => event.source === "coursework").map(({ title }) => title),
+  );
+
+  const ticked = await call(`/events/${quiz.id}/checklist`, "POST", {
+    kind: "tick",
+    itemId: "prepare.items.assessment.revise",
+    done: true,
+  });
+  const otherDevice = client(await sessionCookie(family.userId));
+  const seenElsewhere = Checklist.parse(
+    await (await otherDevice(`/events/${quiz.id}`)).json(),
+  ).checklist;
+  const checklistEvents = await db
+    .select({ payload: outboxSchema.outboxEvent.payload })
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        eq(outboxSchema.outboxEvent.aggregateId, quiz.id),
+        eq(outboxSchema.outboxEvent.eventType, EventTypes.EVENT_UPDATED),
+        sql`${outboxSchema.outboxEvent.payload}->'fields' ? 'checklist'`,
+      ),
+    );
+  await step(
+    "a ticked preparation item is kept on the event, seen from another device, and announced with its actor",
+    ticked.status === 200 &&
+      seenElsewhere.done.includes("prepare.items.assessment.revise") &&
+      checklistEvents.length === 1 &&
+      Actor.safeParse(checklistEvents[0]?.payload).data?.actorUserId === family.userId,
+    { status: ticked.status, seenElsewhere, checklistEvents },
   );
 
   const planned = {

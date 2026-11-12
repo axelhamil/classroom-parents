@@ -1,4 +1,5 @@
 import {
+  CHECKLIST_ITEM_MAX,
   EVENT_CATEGORIES,
   EVENT_DESCRIPTION_MAX,
   EVENT_TITLE_MAX,
@@ -6,7 +7,6 @@ import {
 import { z } from "zod";
 import { eventFiltersSearchSchema } from "../../shared/events/event-filters.schema";
 import { CALENDAR_VIEWS } from "./calendar";
-import { CHECKLIST_ITEM_MAX } from "./hooks/use-checklist";
 import { PRINT_WEEKS } from "./week";
 
 export const eventEditSchema = z.object({

@@ -52,7 +52,7 @@ export function ChecklistRows({ checklist, removable = false }: ChecklistRowsPro
 }
 
 export interface PrepareChecklistProps {
-  event: Pick<EventItem, "id" | "category">;
+  event: Pick<EventItem, "id" | "category" | "checklist">;
 }
 
 export function PrepareChecklist({ event }: PrepareChecklistProps) {
