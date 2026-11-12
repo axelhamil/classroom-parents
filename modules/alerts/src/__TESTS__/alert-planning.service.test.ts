@@ -339,6 +339,46 @@ describe("replan when the deadline moves", () => {
     });
   });
 
+  it("given a reminder sent at the start of quiet hours, when the event is replanned later without its deadline moving, then it stays sent", async () => {
+    givenDefaults(hours(2));
+    givenQuietHours({ enabled: true, start: "09:00", end: "11:00" });
+    givenAlerts(
+      existingAlert({
+        reminder: "h2",
+        status: "sent",
+        date: "2026-11-10",
+        time: "09:00",
+        deadlineAt: paris("2026-11-10", "12:00"),
+      }),
+    );
+    givenEvent(deadlineOn("2026-11-10", "12:00"));
+
+    await service.replan(planned);
+
+    expect(savedAlerts().map((alert) => alert.get("status").value)).not.toContain("pending");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given a reminder already sent, when the deadline moves and the new instant has no room outside quiet hours, then it stays sent", async () => {
+    givenDefaults(hours(1));
+    givenQuietHours({ enabled: true, start: "09:30", end: "23:00" });
+    givenAlerts(
+      existingAlert({
+        reminder: "h1",
+        status: "sent",
+        date: "2026-11-10",
+        time: "08:00",
+        deadlineAt: paris("2026-11-10", "09:00"),
+      }),
+    );
+    givenEvent(deadlineOn("2026-11-10", "12:00"));
+
+    await service.replan(planned);
+
+    expect(savedAlerts().map((alert) => alert.get("status").value)).not.toContain("pending");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
   it("given a reminder in hours already sent, when the deadline moves so its new instant is already past, then it stays sent and nothing rings again", async () => {
     givenDefaults(hours(3));
     givenAlerts(

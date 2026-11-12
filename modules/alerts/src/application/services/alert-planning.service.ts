@@ -204,7 +204,7 @@ export class AlertPlanningService {
       const alert = existing.find((candidate) => candidate.key() === reminder.key());
       if (alert) {
         const before = occurrenceOf(alert);
-        alert.follow({ time, origin }, target, now);
+        alert.follow({ time, origin }, target, quiet, now);
         this.record(changes, alert, before, event.actorUserId);
         continue;
       }

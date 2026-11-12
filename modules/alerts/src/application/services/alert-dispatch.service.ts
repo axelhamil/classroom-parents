@@ -88,11 +88,12 @@ function addressing(group: Deliverable[]): Pick<PushMessage, "url" | "tag"> & { 
     return { url: only.context.eventUrl, tag: `event-${eventId}`, topic: hex(eventId) };
   }
 
-  const day = group[0]?.item.alert.get("time").value.date ?? "";
+  const opening = group[0]?.item.alert.get("time").value;
+  const slot = `${opening?.date ?? ""}-${opening?.time ?? ""}`;
   return {
     url: new URL("/", group[0]?.context.eventUrl).toString(),
-    tag: `alerts-${day}`,
-    topic: `alerts${hex(day)}`,
+    tag: `alerts-${slot}`,
+    topic: `alerts${slot.replace(/\D/g, "")}`,
   };
 }
 

@@ -403,11 +403,11 @@ describe("grouping", () => {
       title: "many",
       body: "Devoir 0 | Devoir 1 | Devoir 2 | Devoir 3 | Devoir 4",
       url: "https://app.example.com/",
-      tag: "alerts-2026-11-13",
+      tag: "alerts-2026-11-13-18:00",
     });
     expect(push.send.mock.calls[0]?.[2]).toEqual({
       ttlSeconds: 7200,
-      topic: "alerts20261113",
+      topic: "alerts202611131800",
       urgency: "high",
     });
     expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual(
@@ -439,6 +439,27 @@ describe("grouping", () => {
     expect(push.send.mock.calls.map(([, message]) => message.tag).toSorted()).toEqual([
       `event-${eventId(1)}`,
       `event-${eventId(2)}`,
+    ]);
+  });
+
+  it("given two groups of one parent the same day, then each notification has its own tag and topic so neither replaces the other", async () => {
+    givenBatch([
+      alertOf(1, { time: "16:00" }),
+      alertOf(2, { time: "16:05" }),
+      alertOf(3, { time: "17:00" }),
+      alertOf(4, { time: "17:05" }),
+    ]);
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toEqual({ claimed: 4, sent: 4, emailed: 0, missed: 0 });
+    expect(push.send.mock.calls.map(([, message]) => message.tag).toSorted()).toEqual([
+      "alerts-2026-11-13-16:00",
+      "alerts-2026-11-13-17:00",
+    ]);
+    expect(push.send.mock.calls.map(([, , options]) => options.topic).toSorted()).toEqual([
+      "alerts202611131600",
+      "alerts202611131700",
     ]);
   });
 

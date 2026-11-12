@@ -4,12 +4,18 @@ import type { IPushCopy, PushCopyOptions, PushText } from "../../application/por
 
 const GROUP_LINES_MAX = 4;
 
+async function catalog() {
+  return createI18n({ locale: DEFAULT_LOCALE, resources: await loadCatalog(DEFAULT_LOCALE) });
+}
+
 export class I18nPushCopy implements IPushCopy {
+  async forWeek(count: number): Promise<string> {
+    const i18n = await catalog();
+    return i18n.getFixedT(DEFAULT_LOCALE, "push")("discreet.week", { count });
+  }
+
   async forAlerts(contexts: AlertContext[], { details }: PushCopyOptions): Promise<PushText> {
-    const i18n = await createI18n({
-      locale: DEFAULT_LOCALE,
-      resources: await loadCatalog(DEFAULT_LOCALE),
-    });
+    const i18n = await catalog();
     const t = i18n.getFixedT(DEFAULT_LOCALE, "push");
     const [only] = contexts;
     if (!details)

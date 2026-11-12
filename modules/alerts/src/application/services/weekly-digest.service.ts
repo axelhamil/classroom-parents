@@ -22,6 +22,7 @@ import {
   type IDigestAudience,
   type IDigestDeadlines,
 } from "../ports/digest-audience.port";
+import type { IPushCopy } from "../ports/push-copy.port";
 import type { IPushSender } from "../ports/push-sender.port";
 import {
   type IPushSubscriptionRepository,
@@ -32,7 +33,7 @@ import type {
   DigestSettlement,
   IWeeklyDigestRepository,
 } from "../ports/weekly-digest-repository.port";
-import { DIGEST_TITLE, digestCount, digestSummary } from "./digest-message";
+import { DIGEST_TITLE, digestSummary } from "./digest-message";
 import { digestWeekDue, digestWeekOf } from "./digest-week";
 import { pushToParent } from "./push-fanout";
 
@@ -64,6 +65,7 @@ export class WeeklyDigestService {
     private readonly subscriptions: IPushSubscriptionRepository,
     private readonly push: IPushSender,
     private readonly email: IAlertEmailSender,
+    private readonly copy: IPushCopy,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
@@ -151,7 +153,7 @@ export class WeeklyDigestService {
     if (details.isFailure) return Result.fail(details.getError());
     const body = details.getValue().unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT)
       ? summary
-      : `${digestCount(deadlines)}.`;
+      : await this.copy.forWeek(deadlines.length);
     const appUrl = new URL("/", this.appOrigin).toString();
     const ports = {
       subscriptions: this.subscriptions,

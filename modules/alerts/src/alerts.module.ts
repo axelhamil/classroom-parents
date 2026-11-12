@@ -122,6 +122,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.IPushSubscriptionRepository,
           c.IPushSender,
           c.IAlertEmailSender,
+          c.IPushCopy,
           c.ITransactionService,
           c.IOutboxRepository,
           c.IInstrumentation,

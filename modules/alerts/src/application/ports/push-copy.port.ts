@@ -11,4 +11,5 @@ export interface PushCopyOptions {
 
 export interface IPushCopy {
   forAlerts(contexts: AlertContext[], options: PushCopyOptions): Promise<PushText>;
+  forWeek(count: number): Promise<string>;
 }

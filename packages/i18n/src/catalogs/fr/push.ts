@@ -5,6 +5,8 @@ export default {
   discreet: {
     body_one: "{{count}} échéance {{deadline}}",
     body_other: "{{count}} échéances à venir",
+    week_one: "{{count}} échéance cette semaine.",
+    week_other: "{{count}} échéances cette semaine.",
   },
   group: {
     titleChild_one: "{{count}} échéance pour {{childLabel}}",

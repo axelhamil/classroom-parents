@@ -14,6 +14,7 @@ import type {
   IDigestAudience,
   IDigestDeadlines,
 } from "../application/ports/digest-audience.port";
+import type { IPushCopy } from "../application/ports/push-copy.port";
 import type { IPushSender } from "../application/ports/push-sender.port";
 import type {
   IPushSubscriptionRepository,
@@ -68,6 +69,7 @@ let subscriptions: PortMock<IPushSubscriptionRepository>;
 let push: PortMock<IPushSender>;
 let email: PortMock<IAlertEmailSender>;
 let outbox: PortMock<IOutboxRepository>;
+let copy: PortMock<IPushCopy>;
 let service: WeeklyDigestService;
 
 function claimed(overrides: Partial<ClaimedDigest> = {}): ClaimedDigest {
@@ -97,7 +99,9 @@ beforeEach(() => {
   push = mockPort<IPushSender>();
   email = mockPort<IAlertEmailSender>();
   outbox = mockPort<IOutboxRepository>();
+  copy = mockPort<IPushCopy>();
 
+  copy.forWeek.mockImplementation(async (count) => `week of ${count}`);
   audience.awaiting.mockResolvedValue(Result.ok([]));
   audience.emailOf.mockResolvedValue(Result.ok(Option.some("parent@example.com")));
   digests.plan.mockResolvedValue(Result.ok(0));
@@ -118,6 +122,7 @@ beforeEach(() => {
     subscriptions,
     push,
     email,
+    copy,
     mockUnitOfWork().unitOfWork,
     outbox,
     mockInstrumentation(),
@@ -226,7 +231,7 @@ describe("sending a planned digest", () => {
 
     expect(push.send.mock.calls[0]?.[1]).toMatchObject({
       title: "Votre semaine",
-      body: "5 échéances cette semaine.",
+      body: "week of 5",
     });
   });
 

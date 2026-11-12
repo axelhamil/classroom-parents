@@ -70,4 +70,9 @@ describe("I18nPushCopy", () => {
       body: "3 échéances à venir",
     });
   });
+
+  it("given a weekly digest kept off the lock screen, then it only counts the week's deadlines", async () => {
+    expect(await copy.forWeek(1)).toBe("1 échéance cette semaine.");
+    expect(await copy.forWeek(5)).toBe("5 échéances cette semaine.");
+  });
 });

@@ -88,6 +88,7 @@ const countingCopy: IPushCopy = {
       pushedAlerts.set(alertId, (pushedAlerts.get(alertId) ?? 0) + 1);
     return i18nCopy.forAlerts(shown, options);
   },
+  forWeek: (count) => i18nCopy.forWeek(count),
 };
 let emails = 0;
 const emailSender: IAlertEmailSender = {
@@ -539,6 +540,107 @@ run(async () => {
       ringsAt.length === fewEvents.length + manyEvents.length &&
       ringsAt.every((time) => time === "19:00"),
     { quiet: quietRead.isSuccess && quietRead.getValue(), ringsAt: [...new Set(ringsAt)] },
+  );
+
+  const e = await seedFamily("e");
+  const minute = new Date(Math.floor(NOW.getTime() / 60_000) * 60_000);
+  const wallOf = (at: Date) => utcToZonedWall(at, PARIS_TIME_ZONE).unwrapOr({ date: "", time: "" });
+  const quietStart = new Date(minute.getTime() - 30 * 60_000);
+  await settings.setDefaults(e.userId, [{ kind: "hours_before", hours: 1 }]);
+  await settings.setQuietHours(e.userId, {
+    enabled: true,
+    start: wallOf(quietStart).time,
+    end: wallOf(new Date(minute.getTime() + 3 * 3_600_000)).time,
+  });
+  const lateDeadline = new Date(minute.getTime() + 2 * 3_600_000);
+  const [sentEvent = ""] = await seedEvents(e, 1, "sent-in-quiet", lateDeadline);
+  await db
+    .update(agendaEvent)
+    .set({ deadlineTime: wallOf(lateDeadline).time })
+    .where(eq(agendaEvent.id, sentEvent));
+  await db.insert(alert).values({
+    eventId: sentEvent,
+    userId: e.userId,
+    reminder: "h1",
+    dueAt: quietStart,
+    deadlineAt: lateDeadline,
+    origin: "default",
+    status: "sent",
+    sentAt: quietStart,
+  });
+  const replanned = await planning.replan({
+    eventId: sentEvent,
+    userId: e.userId,
+    actorUserId: e.userId,
+  });
+  const [kept] = await alertsOn(sentEvent);
+  await step(
+    "a reminder sent when quiet hours began stays sent when its event is replanned inside them",
+    replanned.isSuccess &&
+      kept?.status === "sent" &&
+      kept.dueAt.getTime() === quietStart.getTime() &&
+      (await scheduledFor(sentEvent)) === 0,
+    { status: kept?.status, dueAt: kept?.dueAt, scheduled: await scheduledFor(sentEvent) },
+  );
+
+  const f = await seedFamily("f");
+  const groupedEndpoint = `https://fcm.googleapis.com/fcm/send/${f.userId}`;
+  await pushService.subscribe(f.userId, {
+    endpoint: groupedEndpoint,
+    keys: {
+      p256dh:
+        "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+      auth: "tBHItJI5svbpez7KI4CCXg",
+    },
+  });
+  const groupedDeadline = shiftInstant(NOW, 3);
+  const groupedEvents = await seedEvents(f, 4, "two-groups", groupedDeadline);
+  await db.insert(alert).values(
+    groupedEvents.map((eventId, i) => ({
+      eventId,
+      userId: f.userId,
+      reminder: "d2@18:00",
+      dueAt: new Date(NOW.getTime() - (i < 2 ? 50 : 5) * 60_000 - i * 1000),
+      deadlineAt: groupedDeadline,
+      origin: "default" as const,
+      status: "pending" as const,
+    })),
+  );
+  const shownTags: string[] = [];
+  const shownTopics: string[] = [];
+  const grouping = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    {
+      send: async (target, message, options) => {
+        if (target.endpoint === groupedEndpoint) {
+          shownTags.push(message.tag);
+          shownTopics.push(options.topic);
+        }
+        return Result.ok();
+      },
+    },
+    emailSender,
+    contexts,
+    new I18nPushCopy(),
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  await grouping.runOnce(NOW);
+  const groupedRows = await db
+    .select({ status: alert.status })
+    .from(alert)
+    .where(inArray(alert.eventId, groupedEvents));
+  await step(
+    "two groups of one parent sent the same day keep their own tag and topic, so every sent alert stays visible",
+    groupedRows.length === 4 &&
+      groupedRows.every(({ status }) => status === "sent") &&
+      shownTags.length === 2 &&
+      new Set(shownTags).size === 2 &&
+      new Set(shownTopics).size === 2,
+    { tags: shownTags, topics: shownTopics, statuses: groupedRows.map(({ status }) => status) },
   );
 
   const hiddenByDefault = await pushService.lockScreen(d.userId);
