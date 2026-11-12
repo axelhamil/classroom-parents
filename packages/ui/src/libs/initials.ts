@@ -13,5 +13,5 @@ export function initialsOf(name: string): string {
   return edges
     .map((word) => (word ? firstGrapheme(word) : ""))
     .join("")
-    .toLocaleUpperCase();
+    .toLocaleUpperCase("fr-FR");
 }

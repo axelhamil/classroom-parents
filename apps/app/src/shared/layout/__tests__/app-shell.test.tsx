@@ -18,20 +18,29 @@ const nav = frCatalog.common.nav;
 describe("app shell", () => {
   afterEach(resetApp);
 
-  it("app shell shows Accueil, Enfants, Réglages with aria-current on the active route", async () => {
-    fakeApi({ "GET /children": { body: [] } });
+  it.each([
+    ["/", nav.home],
+    ["/history", nav.home],
+    ["/events/event-1", nav.home],
+    ["/children", nav.children],
+    ["/children/new", nav.children],
+    ["/settings", nav.settings],
+    ["/settings/privacy", nav.settings],
+  ])(
+    "app shell shows Accueil, Enfants, Réglages with aria-current on the active route (%s)",
+    async (path, active) => {
+      fakeApi({ "GET /children": { body: [] }, "GET /events": { body: [] } });
 
-    await renderApp("/children");
+      await renderApp(path);
 
-    const navigations = await screen.findAllByRole("navigation", { name: nav.label });
-    expect(navigations.length).toBeGreaterThan(0);
-    for (const navigation of navigations) {
+      const navigation = await screen.findByRole("navigation", { name: nav.label });
       const links = within(navigation).getAllByRole("link");
       expect(links.map((link) => link.textContent)).toEqual([nav.home, nav.children, nav.settings]);
-      expect(within(navigation).getByRole("link", { name: nav.children }).ariaCurrent).toBe("page");
-      expect(within(navigation).getByRole("link", { name: nav.home }).ariaCurrent).toBeNull();
-    }
-  });
+      expect(
+        links.filter((link) => link.ariaCurrent === "page").map((link) => link.textContent),
+      ).toEqual([active]);
+    },
+  );
 
   it("user menu offers Se déconnecter", async () => {
     vi.stubGlobal(

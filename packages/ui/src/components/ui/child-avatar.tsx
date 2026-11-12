@@ -54,11 +54,18 @@ export interface ChildAvatarProps {
   src?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
+  label?: string;
 }
 
-function ChildAvatar({ name, tone, src, size, className }: ChildAvatarProps) {
+function ChildAvatar({ name, tone, src, size, className, label }: ChildAvatarProps) {
   return (
-    <Avatar data-slot="child-avatar" className={cn(childAvatarVariants({ tone, size }), className)}>
+    <Avatar
+      data-slot="child-avatar"
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+      className={cn(childAvatarVariants({ tone, size }), className)}
+    >
       {src && <AvatarImage src={src} alt="" referrerPolicy="no-referrer" />}
       <AvatarFallback className={childInitialsVariants({ tone, size })}>
         {initialsOf(name)}
