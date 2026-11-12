@@ -198,6 +198,11 @@ jobs:
         # disconnection and the RGPD revocation. Removes its probe family.
         run: pnpm --filter api check:end-to-end
 
+      - name: Check the Sunday digest against a real database
+        # The parent and week unique key, the SKIP LOCKED claim and the audience query are
+        # SQL: four racing instances send each parent one digest. Removes its probes.
+        run: pnpm --filter api check:weekly-digest
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:

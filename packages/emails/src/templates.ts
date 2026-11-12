@@ -34,6 +34,10 @@ export type EmailTemplates = {
     deadlineLabel: string;
     eventUrl: string;
   };
+  weekly_digest: {
+    summary: string;
+    appUrl: string;
+  };
 };
 
 export type EmailTemplateKey = keyof EmailTemplates;

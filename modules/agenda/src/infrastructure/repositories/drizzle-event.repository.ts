@@ -1,6 +1,5 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import {
-  alias,
   and,
   asc,
   dbOperationFailure,
@@ -11,13 +10,13 @@ import {
   isNull,
   lt,
   not,
-  notExists,
   notInArray,
   resolveExecutor,
   type SQL,
   sql,
 } from "@packages/drizzle";
 import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/http/time-id-cursor";
+import { alertableEvent, notShadowedByCoursework } from "../../../schemas/alertable-event";
 import { agendaEvent } from "../../../schemas/event.schema";
 import {
   type AgendaError,
@@ -121,27 +120,6 @@ function ownedUndeleted(userId: string): SQL | undefined {
 
 function ownedAlive(userId: string): SQL | undefined {
   return and(ownedUndeleted(userId), isNull(agendaEvent.withdrawnAt));
-}
-
-const coursework = alias(agendaEvent, "coursework");
-
-function notShadowedByCoursework(exec: ReturnType<typeof resolveExecutor>): SQL {
-  return notExists(
-    exec
-      .select({ id: coursework.id })
-      .from(coursework)
-      .where(
-        and(
-          sql`${agendaEvent.source} = 'announcement'`,
-          sql`${coursework.source} = 'coursework'`,
-          isNull(coursework.deletedAt),
-          isNull(coursework.withdrawnAt),
-          eq(coursework.childId, agendaEvent.childId),
-          eq(coursework.courseId, agendaEvent.courseId),
-          eq(coursework.deadlineDate, agendaEvent.deadlineDate),
-        ),
-      ),
-  );
 }
 
 function doneIs(done: boolean | undefined): SQL | undefined {
@@ -395,6 +373,7 @@ export class DrizzleEventRepository implements IEventRepository {
   async listAlertableUpcoming(
     userId: string,
     now: Date,
+    until?: Date,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -404,15 +383,7 @@ export class DrizzleEventRepository implements IEventRepository {
           const query = exec
             .select()
             .from(agendaEvent)
-            .where(
-              and(
-                ownedAlive(userId),
-                gte(agendaEvent.deadlineAt, now),
-                eq(agendaEvent.done, false),
-                eq(agendaEvent.status, "confirmed"),
-                notShadowedByCoursework(exec),
-              ),
-            )
+            .where(and(eq(agendaEvent.userId, userId), alertableEvent(exec, { from: now, until })))
             .orderBy(asc(agendaEvent.deadlineAt));
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },

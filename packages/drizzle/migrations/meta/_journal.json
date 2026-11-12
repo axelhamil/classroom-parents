@@ -43,6 +43,13 @@
       "when": 1794483973716,
       "tag": "0005_calendar_feed",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794484485586,
+      "tag": "0006_weekly_digest",
+      "breakpoints": true
     }
   ]
 }

@@ -92,7 +92,11 @@ export interface IEventRepository {
 
   findAlertable(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
-  listAlertableUpcoming(userId: string, now: Date): Promise<Result<AgendaEvent[], AgendaError>>;
+  listAlertableUpcoming(
+    userId: string,
+    now: Date,
+    until?: Date,
+  ): Promise<Result<AgendaEvent[], AgendaError>>;
 
   listUpcoming(
     userId: string,

@@ -13,6 +13,7 @@ import {
   DISPATCH_BATCH,
   DISPATCH_CONCURRENCY,
   DISPATCH_LEASE_SECONDS,
+  emailRetryAfter,
 } from "../config/dispatch-budget";
 import type { AlertContext, IAlertContextReader } from "../ports/alert-context-reader.port";
 import type { IAlertEmailSender } from "../ports/alert-email-sender.port";
@@ -24,12 +25,9 @@ import type {
 } from "../ports/alert-repository.port";
 import type { IEventDeadlines } from "../ports/event-deadlines.port";
 import type { IPushSender, PushMessage, PushOptions } from "../ports/push-sender.port";
-import type {
-  IPushSubscriptionRepository,
-  PushSubscriptionRecord,
-} from "../ports/push-subscription-repository.port";
+import type { IPushSubscriptionRepository } from "../ports/push-subscription-repository.port";
+import { pushToParent } from "./push-fanout";
 
-export const MAX_EMAIL_FAILURES = 5;
 export const PUSH_TTL_SECONDS = 2 * 3600;
 
 export interface DispatchOutcome {
@@ -138,56 +136,24 @@ export class AlertDispatchService {
   }
 
   private async pushAll(alert: Alert, context: AlertContext): Promise<Result<boolean, AppError>> {
-    const userId = alert.get("userId");
-    const live = await this.subscriptions.listForUser(userId);
-    if (live.isFailure) return Result.fail(live.getError());
-
-    const outcomes = await Promise.all(
-      live.getValue().map(async (subscription) => ({
-        subscription,
-        sent: await this.push.send(subscription, pushMessage(context), pushOptions(alert)),
-      })),
+    const ports = {
+      subscriptions: this.subscriptions,
+      push: this.push,
+      transactions: this.transactions,
+      outbox: this.outbox,
+    };
+    const fanout = await pushToParent(
+      ports,
+      alert.get("userId"),
+      pushMessage(context),
+      pushOptions(alert),
     );
+    if (fanout.isFailure) return Result.fail(fanout.getError());
 
-    let delivered = false;
-    for (const { subscription, sent } of outcomes) {
-      if (sent.isSuccess) {
-        delivered = true;
-        continue;
-      }
-
-      const recorded =
-        sent.getError() === "PUSH_GONE"
-          ? await this.expire(subscription)
-          : await this.pushFailed(alert);
-      if (recorded.isFailure) return Result.fail(recorded.getError());
-    }
+    const { delivered, failed } = fanout.getValue();
+    for (let failure = 0; failure < failed; failure += 1)
+      await this.emitFailure(alert, "push", "PUSH_FAILED");
     return Result.ok(delivered);
-  }
-
-  private expire(subscription: PushSubscriptionRecord): Promise<Result<void, AppError>> {
-    return this.transactions.run(async (): Promise<Result<void, AppError>> => {
-      const deleted = await this.subscriptions.deleteGone(subscription.userId, subscription.id);
-      if (deleted.isFailure) return deleted;
-
-      await emitEvent(
-        this.outbox,
-        EventTypes.PUSH_SUBSCRIPTION_EXPIRED,
-        "push_subscription",
-        subscription.id,
-        {
-          userId: subscription.userId,
-          subscriptionId: subscription.id,
-          actorUserId: null,
-        },
-      );
-      return Result.ok();
-    });
-  }
-
-  private async pushFailed(alert: Alert): Promise<Result<void, AppError>> {
-    await this.emitFailure(alert, "push", "PUSH_FAILED");
-    return Result.ok();
   }
 
   private markSent(
@@ -236,10 +202,9 @@ export class AlertDispatchService {
       if (recorded.isFailure) return Result.fail(recorded.getError());
 
       await this.emitFailure(alert, "email", code);
-      if (code === "ALERT_EMAIL_UNAVAILABLE") return Result.ok<Delivered, AppError>("none");
-
-      const retryable = code !== "ALERT_EMAIL_INVALID";
-      if (retryable && failures + 1 < MAX_EMAIL_FAILURES) {
+      const retry = emailRetryAfter(code, failures);
+      if (retry === "wait") return Result.ok<Delivered, AppError>("none");
+      if (retry === "retry") {
         const counted = await this.alerts.addFailure(lease);
         return counted.map((): Delivered => "none");
       }

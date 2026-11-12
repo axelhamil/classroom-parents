@@ -44,6 +44,8 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /events/:eventId/reminders": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
   },
+  "GET /reminders/digest": { uiLess: "dormant-by-design" },
+  "PUT /reminders/digest": { uiLess: "dormant-by-design" },
   "GET /reminders/defaults": { consumer: "apps/app/src/features/settings/api/settings.queries.ts" },
   "PUT /reminders/defaults": {
     consumer: "apps/app/src/features/settings/api/settings.mutations.ts",

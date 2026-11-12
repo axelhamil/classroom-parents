@@ -2,6 +2,7 @@ import { agendaModule } from "@modules/agenda/agenda.module";
 import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
 import { alertsModule } from "@modules/alerts/alerts.module";
 import type { IAlertContextReader } from "@modules/alerts/application/ports/alert-context-reader.port";
+import type { IDigestAudience } from "@modules/alerts/application/ports/digest-audience.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import { calendarFeedModule } from "@modules/calendar-feed/calendar-feed.module";
 import { childrenModule } from "@modules/children/children.module";
@@ -37,6 +38,7 @@ import {
   childConnectionsFor,
   childOwnershipFor,
   childSyncStateFor,
+  digestDeadlinesFor,
   dueChildrenFor,
   eventDeadlinesFor,
   eventIngestFor,
@@ -49,6 +51,7 @@ import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import { rgpdModule } from "./modules/rgpd/module";
 import { AlertContextQuery } from "./queries/alert-context.query";
+import { DigestAudienceQuery } from "./queries/digest-audience.query";
 import { FeedAlarmsQuery } from "./queries/feed-alarms.query";
 import { authSecretKey } from "./shared/auth/auth-secrets";
 import { googleTokenSealing } from "./shared/auth/token-sealing";
@@ -173,6 +176,8 @@ export const di = container()
     "IAlertContextReader",
     (c): IAlertContextReader => new AlertContextQuery(c.IInstrumentation, env.APP_ORIGIN),
   )
+  .add("IDigestAudience", (c): IDigestAudience => new DigestAudienceQuery(c.IInstrumentation))
+  .add("IDigestDeadlines", (c) => digestDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
   .addModule(alertsModule)
   .add("IFeedChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
   .add("IFeedEntries", (c) =>

@@ -41,6 +41,7 @@ export const apiSettings = (source: SettingsSource) => {
     vapidPrivateKey: source.VAPID_PRIVATE_KEY ?? "",
     vapidSubject: source.VAPID_SUBJECT ?? "",
     emailFrom: source.RESEND_FROM ?? "",
+    appOrigin: source.APP_ORIGIN,
   };
   const calendarFeedSettings: CalendarFeedSettings = {
     feedOrigin: source.BETTER_AUTH_URL,

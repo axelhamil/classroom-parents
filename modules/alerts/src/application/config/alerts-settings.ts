@@ -3,4 +3,5 @@ export interface AlertsSettings {
   vapidPrivateKey: string;
   vapidSubject: string;
   emailFrom: string;
+  appOrigin: string;
 }

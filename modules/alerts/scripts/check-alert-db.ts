@@ -83,6 +83,7 @@ const emailSender: IAlertEmailSender = {
     emails += 1;
     return Result.ok<AppError>();
   },
+  sendDigest: async () => Result.ok<AppError>(),
 };
 
 const alive = (userId: string) =>

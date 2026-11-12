@@ -3,6 +3,7 @@ import type { IChildOwnership } from "@modules/agenda/application/ports/child-ow
 import type { IVisibleChildren } from "@modules/agenda/application/ports/visible-children.port";
 import type { EventIngestService } from "@modules/agenda/application/services/event-ingest.service";
 import type { EventQueryService } from "@modules/agenda/application/services/event-query.service";
+import type { IDigestDeadlines } from "@modules/alerts/application/ports/digest-audience.port";
 import type { IEventDeadlines } from "@modules/alerts/application/ports/event-deadlines.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import type { IFeedEntries } from "@modules/calendar-feed/application/ports/feed-entries.port";
@@ -104,6 +105,36 @@ export function eventDeadlinesFor(
 
       return Result.ok(
         upcoming.getValue().filter(({ childId }) => alerted.getValue().has(childId)),
+      );
+    },
+  };
+}
+
+export function digestDeadlinesFor(
+  agenda: Pick<EventQueryService, "alertableWithin">,
+  children: Children<"list">,
+): IDigestDeadlines {
+  return {
+    within: async (userId, from, to) => {
+      const listed = await children.list(userId);
+      if (listed.isFailure) return Result.fail(listed.getError());
+      const labels = new Map(
+        listed
+          .getValue()
+          .filter(({ status }) => status !== "disconnecting")
+          .map(({ id, label }) => [id, label]),
+      );
+
+      const deadlines = await agenda.alertableWithin(userId, from, to);
+      if (deadlines.isFailure) return Result.fail(deadlines.getError());
+
+      return Result.ok(
+        deadlines.getValue().flatMap(({ title, childId, deadlineAt, deadlineDate }) => {
+          const childLabel = labels.get(childId);
+          return childLabel === undefined
+            ? []
+            : [{ title, childId, childLabel, deadlineAt, deadlineDate }];
+        }),
       );
     },
   };

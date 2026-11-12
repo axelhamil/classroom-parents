@@ -35,6 +35,10 @@ export interface UpcomingDeadlineDto extends EventDeadlineDto {
   eventId: string;
 }
 
+export interface TitledDeadlineDto extends UpcomingDeadlineDto {
+  title: string;
+}
+
 export interface EventPageDto {
   items: EventDto[];
   nextCursor?: string;
