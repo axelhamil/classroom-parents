@@ -65,6 +65,8 @@ describe("agenda IVisibleChildren bound to children", () => {
   const child = (id: string, status: ChildDto["status"]): ChildDto => ({
     id,
     label: id,
+    color: 1,
+    avatarUrl: null,
     googleEmail: `${id}@example.fr`,
     status,
     syncing: false,
@@ -116,7 +118,15 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
   const childrenAs = (status: ChildDto["status"]) => ({
     list: async () =>
       Result.ok<ChildDto[], ChildrenError>([
-        { id: LEA, label: "Léa", googleEmail: "lea@school.example", status, syncing: false },
+        {
+          id: LEA,
+          label: "Léa",
+          color: 1,
+          avatarUrl: null,
+          googleEmail: "lea@school.example",
+          status,
+          syncing: false,
+        },
       ]),
   });
   const connected = childrenAs("connected");
@@ -543,13 +553,12 @@ describe("sync IChildSyncState bound to children", () => {
 
 describe("sync IManualSyncGate bound to children", () => {
   const listed = (ids: string[]) =>
-    Result.ok<
-      { id: string; label: string; googleEmail: string; status: "connected"; syncing: boolean }[],
-      ChildrenError
-    >(
+    Result.ok<ChildDto[], ChildrenError>(
       ids.map((id) => ({
         id,
         label: "x",
+        color: 1,
+        avatarUrl: null,
         googleEmail: "x@y.fr",
         status: "connected",
         syncing: false,

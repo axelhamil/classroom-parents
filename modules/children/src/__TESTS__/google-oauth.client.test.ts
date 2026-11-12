@@ -105,15 +105,21 @@ describe("GoogleOAuthClient.revoke", () => {
 });
 
 describe("GoogleOAuthClient.profile", () => {
-  it("reads the account email and given name with the bearer token", async () => {
+  it("reads the account email, given name and picture with the bearer token", async () => {
     const { client, fetchImpl } = clientAnswering(() =>
-      Response.json({ sub: "1", email: "lea@school.example", given_name: "Léa" }),
+      Response.json({
+        sub: "1",
+        email: "lea@school.example",
+        given_name: "Léa",
+        picture: "https://lh3.googleusercontent.com/a/lea",
+      }),
     );
 
     const result = await client.profile("ya29.live");
 
     expect(result.getValue().email).toBe("lea@school.example");
     expect(result.getValue().givenName.unwrap()).toBe("Léa");
+    expect(result.getValue().picture.unwrap()).toBe("https://lh3.googleusercontent.com/a/lea");
     expect(new Headers(fetchImpl.mock.calls[0]?.[1]?.headers).get("authorization")).toBe(
       "Bearer ya29.live",
     );

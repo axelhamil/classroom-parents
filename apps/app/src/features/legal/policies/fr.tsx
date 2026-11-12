@@ -32,8 +32,8 @@ export function PrivacyPolicyBody(): ReactElement {
         <TypographyList>
           <li>Votre compte : nom, adresse e-mail, photo et identifiant de votre compte Google.</li>
           <li>
-            Le compte de chaque enfant lié : nom, adresse e-mail et identifiant Google, et les
-            jetons d'accès que Google nous remet, chiffrés en base.
+            Le compte de chaque enfant lié : nom, adresse e-mail, photo et identifiant Google, et
+            les jetons d'accès que Google nous remet, chiffrés en base.
           </li>
           <li>
             Google Classroom : la liste de ses cours ; le texte des annonces, lu le temps d'en

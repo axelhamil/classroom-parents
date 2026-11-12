@@ -35,6 +35,7 @@ import {
   child,
   childrenHarness,
   fail,
+  LEA_PICTURE,
   LINKED,
   linkedAccount,
   NOW,
@@ -109,6 +110,72 @@ describe("register", () => {
     expect(result.getValue().label).toBe("Tom");
   });
 
+  it("given the Google account has a picture, then the child shows it", async () => {
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().avatarUrl).toBe(LEA_PICTURE);
+    expect(repo.create.mock.calls[0]?.[0]?.get("avatarUrl").unwrap().value).toBe(LEA_PICTURE);
+  });
+
+  it("given the picture is not an https URL, then the child is linked without avatar", async () => {
+    google.profile.mockResolvedValue(
+      ok<GoogleProfile>({
+        email: "lea@school.example",
+        givenName: Option.some("Léa"),
+        picture: Option.some("javascript:alert(1)"),
+      }),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.isSuccess).toBe(true);
+    expect(result.getValue().avatarUrl).toBeNull();
+  });
+
+  it("given no color, then the child gets the first hue its siblings do not use", async () => {
+    repo.listForUser.mockResolvedValue(
+      ok([
+        child({ linkedAccountId: "a", color: 1 }),
+        child({ linkedAccountId: "b", color: 3 }),
+        child({ linkedAccountId: "c", color: 2 }),
+      ]),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().color).toBe(4);
+    expect(repo.create.mock.calls[0]?.[0]?.get("color").value).toBe(4);
+  });
+
+  it("given no color and every hue taken, then the hues cycle from the least used", async () => {
+    const siblings = [1, 2, 3, 4, 5, 6, 7, 8, 1] as const;
+    repo.listForUser.mockResolvedValue(
+      ok(siblings.map((color, index) => child({ linkedAccountId: `sibling-${index}`, color }))),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().color).toBe(2);
+  });
+
+  it("given no color, then a sibling being disconnected frees its hue", async () => {
+    repo.listForUser.mockResolvedValue(
+      ok([child({ color: 1, linkedAccountId: "gone", status: ChildStatus.disconnecting() })]),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().color).toBe(1);
+  });
+
+  it("given a chosen color, then the child keeps it even if a sibling already wears it", async () => {
+    repo.listForUser.mockResolvedValue(ok([child({ linkedAccountId: "a", color: 5 })]));
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED, color: 5 });
+
+    expect(result.getValue().color).toBe(5);
+  });
+
   it("given an account missing announcements.readonly, then CHILD_SCOPES_MISSING", async () => {
     linked.find.mockResolvedValue(
       ok(Option.some(linkedAccount({ grantedScopes: ["openid", CLASSROOM_SCOPES[0] ?? ""] }))),
@@ -178,7 +245,11 @@ describe("register", () => {
 
   it("given no label, then the default label is the given name only", async () => {
     google.profile.mockResolvedValue(
-      ok<GoogleProfile>({ email: "lea.martin@school.example", givenName: Option.some("Léa") }),
+      ok<GoogleProfile>({
+        email: "lea.martin@school.example",
+        givenName: Option.some("Léa"),
+        picture: Option.none(),
+      }),
     );
 
     const result = await connection.register(PARENT, { linkedAccountId: LINKED });
@@ -188,7 +259,11 @@ describe("register", () => {
 
   it("given no label and no given name, then the neutral label, never the email", async () => {
     google.profile.mockResolvedValue(
-      ok<GoogleProfile>({ email: "lea.martin@school.example", givenName: Option.none() }),
+      ok<GoogleProfile>({
+        email: "lea.martin@school.example",
+        givenName: Option.none(),
+        picture: Option.none(),
+      }),
     );
 
     const result = await connection.register(PARENT, { linkedAccountId: LINKED });
@@ -233,6 +308,29 @@ describe("reconnect", () => {
     expect(result.getValue().syncing).toBe(false);
     expect(repo.save).toHaveBeenCalledWith(blocked);
     expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.CHILD_CONNECTED]);
+  });
+
+  it("given the Google picture changed, then the reconnect refreshes the avatar", async () => {
+    const stale = child({ avatarUrl: "https://lh3.googleusercontent.com/a/old" });
+    repo.findOwned.mockResolvedValue(ok(Option.some(stale)));
+
+    const result = await connection.reconnect(PARENT, stale.id.value);
+
+    expect(result.getValue().avatarUrl).toBe(LEA_PICTURE);
+    expect(repo.save).toHaveBeenCalledWith(stale);
+  });
+
+  it("given Google does not answer the profile, then the reconnect succeeds and keeps the avatar", async () => {
+    const known = child({ avatarUrl: "https://lh3.googleusercontent.com/a/old" });
+    repo.findOwned.mockResolvedValue(ok(Option.some(known)));
+    google.profile.mockResolvedValue(fail<GoogleProfile>("CHILD_PROVIDER_FAILURE"));
+
+    const result = await connection.reconnect(PARENT, known.id.value);
+
+    expect(result.getValue()).toMatchObject({
+      status: "connected",
+      avatarUrl: "https://lh3.googleusercontent.com/a/old",
+    });
   });
 
   it("given a connected child whose sync lease is still running, then its lease is kept and a manual sync answers running", async () => {
@@ -283,12 +381,12 @@ describe("reconnect", () => {
   });
 });
 
-describe("rename", () => {
-  it("given the parent's child, then the new label is saved and CHILD_RENAMED is enqueued without the label", async () => {
+describe("edit", () => {
+  it("given a new label, then the label is saved and CHILD_RENAMED is enqueued without the label", async () => {
     const owned = child();
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
 
-    const result = await connection.rename(PARENT, owned.id.value, " Lili ");
+    const result = await connection.edit(PARENT, owned.id.value, { label: " Lili " });
 
     expect(result.getValue().label).toBe("Lili");
     expect(repo.save).toHaveBeenCalledWith(owned);
@@ -299,6 +397,58 @@ describe("rename", () => {
         payload: { userId: PARENT, childId: owned.id.value },
       },
     ]);
+  });
+
+  it("given a new color, then the color is saved and CHILD_COLOR_CHANGED names the parent as actor", async () => {
+    const owned = child({ color: 1 });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { color: 6 });
+
+    expect(result.getValue()).toMatchObject({ label: "Léa", color: 6 });
+    expect(repo.save).toHaveBeenCalledWith(owned);
+    expect(uow.outcome()).toBe("committed");
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.CHILD_COLOR_CHANGED,
+        aggregateId: owned.id.value,
+        payload: { userId: PARENT, actorUserId: PARENT, childId: owned.id.value, color: 6 },
+      },
+    ]);
+  });
+
+  it("given a label and a color, then both change in one save with both events", async () => {
+    const owned = child({ color: 1 });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { label: "Lili", color: 2 });
+
+    expect(result.getValue()).toMatchObject({ label: "Lili", color: 2 });
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(enqueuedEvents(outbox).map((event) => event.eventType)).toEqual([
+      EventTypes.CHILD_RENAMED,
+      EventTypes.CHILD_COLOR_CHANGED,
+    ]);
+  });
+
+  it("given a hue outside the 8 colors, then CHILD_COLOR_INVALID and nothing is saved", async () => {
+    const owned = child({ color: 1 });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { color: 9 });
+
+    expect(result.getError().code).toBe("CHILD_COLOR_INVALID");
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given another family's child, then CHILD_NOT_FOUND and nothing is emitted", async () => {
+    repo.findOwned.mockResolvedValue(ok(Option.none<ChildAccount>()));
+
+    const result = await connection.edit(PARENT, "child-of-b", { color: 3 });
+
+    expect(result.getError().code).toBe("CHILD_NOT_FOUND");
+    expect(enqueuedEvents(outbox)).toEqual([]);
   });
 });
 
@@ -350,7 +500,11 @@ describe("linkable", () => {
     google.profile
       .mockResolvedValueOnce(fail<GoogleProfile>("CHILD_PROVIDER_FAILURE"))
       .mockResolvedValueOnce(
-        ok<GoogleProfile>({ email: "tom@school.example", givenName: Option.none() }),
+        ok<GoogleProfile>({
+          email: "tom@school.example",
+          givenName: Option.none(),
+          picture: Option.none(),
+        }),
       );
 
     const result = await connection.linkable(PARENT);
