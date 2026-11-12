@@ -1,9 +1,9 @@
 export default {
   meta: {
-    title: "Échéances Classroom : les échéances scolaires de vos enfants",
+    title: "KeepUpKids : les échéances scolaires de vos enfants",
     description:
       "Contrôles, devoirs, sorties et papiers à signer de vos enfants, lus dans Google Classroom en lecture seule, rangés par semaine, avec une alerte avant chaque échéance.",
-    ogTitle: "Échéances Classroom : toutes les échéances scolaires de vos enfants",
+    ogTitle: "KeepUpKids : toutes les échéances scolaires de vos enfants",
     ogDescription:
       "L'application lit Google Classroom pour vous, en lecture seule, et vous prévient avant chaque contrôle, devoir ou sortie.",
     applicationDescription:

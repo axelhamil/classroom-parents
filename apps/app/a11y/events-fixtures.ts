@@ -71,6 +71,7 @@ interface ApiFixtures {
   children: unknown[];
   events: unknown[];
   detail?: unknown;
+  reminders?: number;
 }
 
 function apiPath(request: Request): string | undefined {
@@ -95,38 +96,7 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
       return route.fulfill({
         json: {
           customized: true,
-          reminders: [
-            {
-              reminder: { kind: "days_before", days: 3, time: "18:00" },
-              dueAt: new Date().toISOString(),
-              status: "sent",
-              fits: true,
-            },
-            {
-              reminder: { kind: "days_before", days: 1, time: "07:30" },
-              dueAt: new Date().toISOString(),
-              status: "skipped",
-              fits: true,
-            },
-            {
-              reminder: { kind: "days_before", days: 0, time: "07:00" },
-              dueAt: new Date().toISOString(),
-              status: "pending",
-              fits: true,
-            },
-            {
-              reminder: { kind: "hours_before", hours: 2 },
-              dueAt: null,
-              status: "unplanned",
-              fits: true,
-            },
-            {
-              reminder: { kind: "hours_before", hours: 1 },
-              dueAt: new Date().toISOString(),
-              status: "missed",
-              fits: true,
-            },
-          ],
+          reminders: REMINDERS.slice(0, fixtures.reminders),
         },
       });
 
@@ -135,3 +105,36 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
 
   return eventRequests;
 }
+
+const REMINDERS = [
+  {
+    reminder: { kind: "days_before", days: 3, time: "18:00" },
+    dueAt: new Date().toISOString(),
+    status: "sent",
+    fits: true,
+  },
+  {
+    reminder: { kind: "days_before", days: 1, time: "07:30" },
+    dueAt: new Date().toISOString(),
+    status: "skipped",
+    fits: true,
+  },
+  {
+    reminder: { kind: "days_before", days: 0, time: "07:00" },
+    dueAt: new Date().toISOString(),
+    status: "pending",
+    fits: true,
+  },
+  {
+    reminder: { kind: "hours_before", hours: 2 },
+    dueAt: null,
+    status: "unplanned",
+    fits: true,
+  },
+  {
+    reminder: { kind: "hours_before", hours: 1 },
+    dueAt: new Date().toISOString(),
+    status: "missed",
+    fits: true,
+  },
+];

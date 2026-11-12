@@ -35,7 +35,7 @@ const REVOKE_PATHS: ReadonlySet<string> = new Set([
 ]);
 
 const authOptions = {
-  appName: "classroom-parents",
+  appName: "KeepUpKids",
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   secrets: env.BETTER_AUTH_SECRETS,

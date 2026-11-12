@@ -69,7 +69,7 @@ export function SundayPanel({ days, family, now }: SundayPanelProps) {
             <h2 id={titleId}>{t("sunday.title")}</h2>
           </CardTitle>
           <CardDescription>{t("sunday.description")}</CardDescription>
-          <CardAction className="flex flex-wrap justify-end gap-2">
+          <CardAction>
             <PrintWeekButton />
             <WeekShareButton days={days} family={family} now={now} />
           </CardAction>

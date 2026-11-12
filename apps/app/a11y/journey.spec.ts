@@ -87,7 +87,17 @@ async function googleAnswersAs(page: Page, identity: Identity): Promise<void> {
   });
 }
 
+const appSyncs: Promise<unknown>[] = [];
+
+function trackAppSyncs(page: Page): void {
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url() === `${JOURNEY_API_URL}/sync`)
+      appSyncs.push(request.response().catch(() => null));
+  });
+}
+
 async function control(path: string, method = "POST"): Promise<unknown> {
+  await Promise.all(appSyncs);
   const response = await fetch(`${JOURNEY_CONTROL_URL}${path}`, { method });
   expect(response.ok, `${method} ${path}`).toBe(true);
 
@@ -163,6 +173,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
 }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
+  trackAppSyncs(page);
   await page.addLocatorHandler(page.locator(TOUR_SELECTOR), (tour) =>
     tour.getByRole("button", { name: "Passer" }).click(),
   );

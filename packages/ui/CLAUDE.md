@@ -22,7 +22,7 @@ components.json              shadcn config (style new-york, lucide, neutral base
 4. **Typography goes through `typography.tsx`** (named exports: `TypographyH1` with `variant="page"`, `TypographyInline`, ...). A new text style is a variant there, not a class string in a feature.
 5. **Page width is `pageContainerVariants({ width })`**: `app` (5xl, default), `prose` (3xl, legal and reference pages), `form` (md, lone-form pages). A new width is a new variant, never a hand-picked `max-w-*` at a call site.
 6. **Color tokens are measured, not eyeballed.** Foreground/background pairs must hold WCAG AA contrast (4.5:1 text) in light and dark; the tokens whose value was tuned carry the measurement in a comment in `globals.css`. **Why**: the accessibility gate fails the PR on a `serious` contrast violation, so a token change is verified before it ships.
-7. **An interactive primitive ships its keyboard contract**: focus order, trap and restore, Escape. The interaction spec in `apps/app/a11y/` is where it is asserted (`apps/app/CLAUDE.md`, "Accessibility gate").
+7. **An interactive primitive ships its keyboard contract**: focus order, trap and restore, Escape. The interaction spec in `apps/app/a11y/` is where it is asserted (`apps/app/CLAUDE.md`, "Accessibility gate"). The tour is the one non-modal overlay: it takes focus on its primary control, Tab past its last control lands on the highlighted element instead of looping, Escape closes it for good, and focus goes back to where it was before it opened (`apps/app/a11y/tour.spec.ts`). **Why**: a guide that traps focus blocks the very element it points at.
 8. **The package ships source**, like every private package (root rule 4): no build step, `exports` point at `src/`.
 
 ## Commands

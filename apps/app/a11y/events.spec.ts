@@ -20,6 +20,9 @@ test.describe("upcoming events on a phone", () => {
     test(`two children, a blocked one and an event to review (${colorScheme})`, async ({
       page,
     }) => {
+      const morning = new Date();
+      morning.setHours(9, 0, 0, 0);
+      await page.clock.setFixedTime(morning);
       await showColorScheme(page, colorScheme);
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
       await page.goto("/");
@@ -59,6 +62,30 @@ test.describe("upcoming events on a phone", () => {
     await expect
       .poll(() => requests.map((request) => new URL(request.url()).searchParams.get("category")))
       .toContain("swimming");
+  });
+});
+
+test.describe("Préparer la semaine on a phone", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
+
+  test("its actions sit under the description instead of squeezing it", async ({ page }) => {
+    const sunday = new Date();
+    sunday.setDate(sunday.getDate() + ((7 - sunday.getDay()) % 7));
+    sunday.setHours(18, 0, 0, 0);
+    await page.clock.setFixedTime(sunday);
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+    await page.goto("/");
+
+    const panel = page.getByRole("region", { name: "Préparer la semaine" });
+    const description = panel.locator("[data-slot=card-header] > [data-slot=card-description]");
+    const share = panel.getByRole("button", { name: "Partager la semaine" });
+    await expect(share).toBeVisible();
+
+    const text = await description.boundingBox();
+    const action = await share.boundingBox();
+    expect(text && action && action.y >= text.y + text.height).toBe(true);
+    expect(text && text.width >= 280).toBe(true);
+    await expectOnePageWithoutOverflow(page);
   });
 });
 

@@ -1,5 +1,5 @@
 const FALLBACK = {
-  title: "Échéances Classroom",
+  title: "KeepUpKids",
   body: "Une échéance approche. Ouvrez l'application pour la voir.",
   navigate: "/",
 };

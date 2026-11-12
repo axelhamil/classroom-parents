@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Échéances Classroom",
-  "short_name": "Échéances",
+  "name": "KeepUpKids",
+  "short_name": "KeepUpKids",
   "description": "Les échéances scolaires de vos enfants, lues dans Google Classroom.",
   "lang": "fr",
   "dir": "ltr",

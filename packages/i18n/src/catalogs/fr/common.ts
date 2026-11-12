@@ -1,5 +1,5 @@
 export default {
-  brand: "Échéances Classroom",
+  brand: "KeepUpKids",
   deadline: {
     today: "Aujourd'hui",
     tomorrow: "Demain",
