@@ -643,6 +643,92 @@ run(async () => {
     { tags: shownTags, topics: shownTopics, statuses: groupedRows.map(({ status }) => status) },
   );
 
+  const morning = new Date(Math.floor(NOW.getTime() / 60_000) * 60_000 - 60_000);
+  const crowd = await Promise.all(
+    [9, 9, 6].map(async (size, n) => {
+      const family = await seedFamily(`morning-${n}`);
+      const endpoint = `https://fcm.googleapis.com/fcm/send/${family.userId}`;
+      await pushService.subscribe(family.userId, {
+        endpoint,
+        keys: {
+          p256dh:
+            "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+          auth: "tBHItJI5svbpez7KI4CCXg",
+        },
+      });
+      const events = await seedEvents(family, size, `morning-${n}`, groupedDeadline);
+      const rows = await db
+        .insert(alert)
+        .values(
+          events.map((eventId) => ({
+            eventId,
+            userId: family.userId,
+            reminder: "d2@18:00",
+            dueAt: morning,
+            deadlineAt: groupedDeadline,
+            origin: "default" as const,
+            status: "pending" as const,
+          })),
+        )
+        .returning({ id: alert.id });
+      return { endpoint, alertIds: rows.map(({ id }) => id) };
+    }),
+  );
+  const visible = new Map<string, Map<string, string[]>>();
+  const morningDispatch = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    {
+      send: async (target, message) => {
+        const byTag = visible.get(target.endpoint) ?? new Map<string, string[]>();
+        byTag.set(message.tag, message.body.split(","));
+        visible.set(target.endpoint, byTag);
+        return Result.ok();
+      },
+    },
+    emailSender,
+    contexts,
+    {
+      forAlerts: async (shown) => ({
+        title: "",
+        body: shown.map(({ alertId }) => alertId).join(","),
+      }),
+      forWeek: async (count) => String(count),
+    },
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  for (let pass = 0; pass < 10; pass += 1) {
+    const run = await morningDispatch.runOnce(NOW);
+    if (run.isFailure || run.getValue().claimed === 0) break;
+  }
+  const lost = crowd.map(({ endpoint, alertIds }) => {
+    const shown = new Set([...(visible.get(endpoint)?.values() ?? [])].flat());
+    return alertIds.filter((id) => !shown.has(id)).length;
+  });
+  const morningRows = await db
+    .select({ status: alert.status })
+    .from(alert)
+    .where(
+      inArray(
+        alert.id,
+        crowd.flatMap(({ alertIds }) => alertIds),
+      ),
+    );
+  await step(
+    "24 alerts of three parents due the same minute leave every sent alert in a visible notification",
+    morningRows.length === 24 &&
+      morningRows.every(({ status }) => status === "sent") &&
+      lost.every((count) => count === 0),
+    {
+      lost,
+      notifications: crowd.map(({ endpoint }) => visible.get(endpoint)?.size ?? 0),
+      statuses: [...new Set(morningRows.map(({ status }) => status))],
+    },
+  );
+
   const hiddenByDefault = await pushService.lockScreen(d.userId);
   const shown = await pushService.setLockScreen(d.userId, true);
   const shownRead = await pushService.lockScreen(d.userId);

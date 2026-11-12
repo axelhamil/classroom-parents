@@ -16,6 +16,7 @@ type BatchRun = (now: Date) => Promise<Result<{ claimed: number }, AppError>>;
 
 async function drain(
   run: BatchRun,
+  drained: (claimed: number) => boolean,
   label: string,
   signal: AbortSignal,
   logger: ILogger,
@@ -33,7 +34,7 @@ async function drain(
 
     const { claimed } = tick.getValue();
     if (claimed > 0) logger.info(tick.getValue(), `${label} done`);
-    if (claimed < DISPATCH_BATCH) return;
+    if (drained(claimed)) return;
   }
 }
 
@@ -45,6 +46,7 @@ export function drainDueAlerts(
 ): Promise<void> {
   return drain(
     (now) => deps.AlertDispatchService.runOnce(now),
+    (claimed) => claimed === 0,
     "alert dispatch",
     signal,
     logger,
@@ -60,6 +62,7 @@ export function drainWeeklyDigests(
 ): Promise<void> {
   return drain(
     (now) => deps.WeeklyDigestService.runOnce(now),
+    (claimed) => claimed < DISPATCH_BATCH,
     "weekly digest",
     signal,
     logger,
