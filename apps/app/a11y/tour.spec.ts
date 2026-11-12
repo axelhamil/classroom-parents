@@ -78,7 +78,7 @@ async function controlsOverflow(page: Page): Promise<number> {
   });
 }
 
-async function settledDrift(page: Page): Promise<number> {
+async function holdStill(page: Page): Promise<void> {
   await page.evaluate(
     (selector) =>
       new Promise<void>((resolve) => {
@@ -87,7 +87,7 @@ async function settledDrift(page: Page): Promise<number> {
         const sample = () => {
           const rects = [selector, "[data-tour-active]"].map((query) => {
             const rect = document.querySelector(query)?.getBoundingClientRect();
-            return rect ? [rect.top, rect.left] : null;
+            return rect ? [rect.top, rect.left, rect.height] : null;
           });
           const next = JSON.stringify(rects);
           still = next === last ? still + 1 : 0;
@@ -99,9 +99,62 @@ async function settledDrift(page: Page): Promise<number> {
       }),
     TOUR_SELECTOR,
   );
-
-  return offsetDrift(page);
 }
+
+async function avoidableCover(page: Page): Promise<number> {
+  await holdStill(page);
+
+  return page.evaluate(
+    ({ selector, gap }) => {
+      const popover = document.querySelector(selector)?.getBoundingClientRect();
+      const target = document.querySelector<HTMLElement>("[data-tour-active]");
+      if (!popover || !target) return Number.POSITIVE_INFINITY;
+
+      const covered = (box: DOMRect) => {
+        const width = Math.min(popover.right, box.right) - Math.max(popover.left, box.left);
+        const height = Math.min(popover.bottom, box.bottom) - Math.max(popover.top, box.top);
+        return width > 0 && height > 0 ? width * height : 0;
+      };
+      const labelledBy = target.getAttribute("aria-labelledby");
+      const heading =
+        (labelledBy ? document.getElementById(labelledBy) : null) ??
+        target.querySelector("h1, h2, h3, h4") ??
+        target;
+      const box = target.getBoundingClientRect();
+      const fitsBeside =
+        box.height + popover.height + gap * 3 <= window.innerHeight ||
+        Math.max(box.left, window.innerWidth - box.right) >= popover.width + gap * 2;
+
+      return covered(heading.getBoundingClientRect()) + (fitsBeside ? covered(box) : 0);
+    },
+    { selector: TOUR_SELECTOR, gap: SIDE_OFFSET + 4 },
+  );
+}
+
+test.describe("guided tour on a page under a sticky header and tab bar", () => {
+  test.use({ storageState: STORAGE_STATE });
+
+  for (const [width, height] of [
+    [390, 664],
+    [390, 844],
+  ] as const) {
+    test(`never covers a step's heading, nor its target when both fit, on Réglages at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await forgetTours(page);
+      await page.goto("/settings");
+
+      const tour = page.locator(TOUR_SELECTOR);
+      for (const step of [1, 2, 3, 4]) {
+        await expect(tour.getByText(`Étape ${step} sur 4`)).toBeVisible();
+        await expect.poll(() => avoidableCover(page), { message: `step ${step}` }).toBe(0);
+        await expect(tour.getByRole("button", { name: /Suivant|C'est parti/ })).toBeInViewport();
+        if (step < 4) await tour.getByRole("button", { name: "Suivant" }).click();
+      }
+    });
+  }
+});
 
 test.describe("guided tour inside the event overlay", () => {
   test.use({ storageState: STORAGE_STATE });
@@ -131,26 +184,40 @@ test.describe("guided tour inside the event overlay", () => {
   }
 
   for (const [width, height] of [
-    [390, 844],
     [390, 664],
     [375, 548],
+    [390, 844],
     [844, 390],
+    [1440, 900],
   ] as const) {
-    test(`never covers a tall target at ${width}x${height}`, async ({ page }) => {
-      await page.setViewportSize({ width, height });
-      await forgetTours(page);
-      await serveFamily(page, { children: [LEA], events: EVENTS });
-      await page.goto(`/?event=${REVIEW_EVENT.id}`);
+    for (const [length, title, reminders] of [
+      ["short", "Piscine", 1],
+      ["long", REVIEW_EVENT.title, 5],
+    ] as const) {
+      test(`never covers a step's heading, nor its target when both fit, at ${width}x${height} with a ${length} title`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height });
+        await forgetTours(page);
+        await serveFamily(page, {
+          children: [LEA],
+          events: EVENTS,
+          detail: { ...REVIEW_EVENT, title, category: "swimming" },
+          reminders,
+        });
+        await page.goto(`/?event=${REVIEW_EVENT.id}`);
 
-      const tour = page.locator(TOUR_SELECTOR);
-      for (const step of [2, 3, 4]) {
-        await tour.getByRole("button", { name: "Suivant" }).click();
-        await expect(tour.getByText(`Étape ${step} sur 4`)).toBeVisible();
+        const tour = page.locator(TOUR_SELECTOR);
+        for (const step of [1, 2, 3, 4]) {
+          await expect(tour.getByText(`Étape ${step} sur 4`)).toBeVisible();
+          await expect.poll(() => avoidableCover(page), { message: `step ${step}` }).toBe(0);
 
-        await expect.poll(() => settledDrift(page)).toBeLessThanOrEqual(2);
-        await expect(tour.getByRole("button", { name: /Suivant|C'est parti/ })).toBeInViewport();
-        expect(await controlsOverflow(page)).toBe(0);
-      }
-    });
+          const primary = tour.getByRole("button", { name: /Suivant|C'est parti/ });
+          await expect(primary).toBeInViewport();
+          expect(await controlsOverflow(page)).toBe(0);
+          if (step < 4) await primary.click();
+        }
+      });
+    }
   }
 });

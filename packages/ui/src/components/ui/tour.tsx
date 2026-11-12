@@ -54,8 +54,10 @@ function focusableIn(element: HTMLElement): HTMLElement | null {
   return element.matches(FOCUSABLE) ? element : element.querySelector<HTMLElement>(FOCUSABLE);
 }
 
-const MIN_ROOM_REM = 12;
-const MIN_SIDE_REM = 15;
+const POPOVER_HEIGHT_REM = 12;
+const POPOVER_SIDE_WIDTH_REM = 15;
+const MIN_SHRUNK_HEIGHT_REM = 8;
+const HEADING_FALLBACK_REM = 3;
 const EDGE_GAP = 16;
 const SIDE_OFFSET = 12;
 
@@ -64,20 +66,9 @@ interface Band {
   bottom: number;
 }
 
-function scrollerIn(dialog: Element, element: HTMLElement): Element {
-  for (let node = element.parentElement; node && dialog.contains(node); node = node.parentElement) {
-    if (/auto|scroll/.test(getComputedStyle(node).overflowY)) return node;
-  }
-
-  return dialog;
-}
-
-function visibleBand(element: HTMLElement): Band {
-  const dialog = element.closest("[role=dialog], [role=alertdialog]");
-  if (dialog) {
-    const { top, bottom } = scrollerIn(dialog, element).getBoundingClientRect();
-    return { top: Math.max(top, 0), bottom: Math.min(bottom, window.innerHeight) };
-  }
+function freeBand(element: HTMLElement): Band {
+  if (element.closest("[role=dialog], [role=alertdialog]"))
+    return { top: 0, bottom: window.innerHeight };
 
   const page = getComputedStyle(document.documentElement);
 
@@ -91,22 +82,50 @@ function remToPx(rem: number): number {
   return rem * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
 }
 
-type TourSide = "bottom" | "top" | "left" | "right";
+function headingBottom(element: HTMLElement, rect: DOMRect): number {
+  const labelledBy = element.getAttribute("aria-labelledby");
+  const heading =
+    (labelledBy ? document.getElementById(labelledBy) : null) ??
+    element.querySelector("h1, h2, h3, h4");
+  const bottom = heading
+    ? heading.getBoundingClientRect().bottom
+    : rect.top + remToPx(HEADING_FALLBACK_REM);
 
-function popoverRoom(): number {
-  return remToPx(MIN_ROOM_REM) + SIDE_OFFSET + EDGE_GAP;
+  return Math.min(bottom, rect.bottom);
 }
 
-function sideFor(element: HTMLElement): TourSide {
-  const rect = element.getBoundingClientRect();
-  const band = visibleBand(element);
-  if (band.bottom - band.top - rect.height >= remToPx(MIN_ROOM_REM)) return "bottom";
+type TourSide = "bottom" | "top" | "left" | "right";
 
-  const sideRoom = remToPx(MIN_SIDE_REM) + SIDE_OFFSET + EDGE_GAP;
-  if (rect.left >= sideRoom) return "left";
-  if (window.innerWidth - rect.right >= sideRoom) return "right";
-  if (element.closest("[role=dialog], [role=alertdialog]") && band.top >= popoverRoom())
-    return "top";
+interface Room {
+  side: TourSide;
+  free: number;
+  needed: number;
+}
+
+function roomAround(element: HTMLElement): Room[] {
+  const rect = element.getBoundingClientRect();
+  const band = freeBand(element);
+  const gaps = SIDE_OFFSET + EDGE_GAP;
+  const height = remToPx(POPOVER_HEIGHT_REM);
+  const width = remToPx(POPOVER_SIDE_WIDTH_REM);
+
+  return [
+    { side: "bottom", free: band.bottom - rect.bottom - gaps, needed: height },
+    { side: "top", free: rect.top - band.top - gaps, needed: height },
+    { side: "right", free: window.innerWidth - rect.right - gaps, needed: width },
+    { side: "left", free: rect.left - gaps, needed: width },
+  ];
+}
+
+function placementFor(element: HTMLElement): TourSide {
+  const rooms = roomAround(element);
+  const fitting = rooms.find((room) => room.free >= room.needed);
+  if (fitting) return fitting.side;
+
+  const [below, above] = rooms;
+  const shrinkable = remToPx(MIN_SHRUNK_HEIGHT_REM);
+  if (above && below && above.free > below.free && above.free >= shrinkable) return "top";
+
   return "bottom";
 }
 
@@ -114,11 +133,13 @@ function anchorRect(element: HTMLElement, side: TourSide): DOMRect {
   const rect = element.getBoundingClientRect();
   if (side !== "bottom") return rect;
 
-  const band = visibleBand(element);
-  const room = popoverRoom();
-  if (rect.top - band.top >= room || band.bottom - rect.bottom >= room) return rect;
+  const band = freeBand(element);
+  const room = remToPx(MIN_SHRUNK_HEIGHT_REM) + SIDE_OFFSET + EDGE_GAP;
+  if (band.bottom - rect.bottom >= room) return rect;
 
-  return new DOMRect(rect.left, Math.max(band.bottom - room, band.top), rect.width, 0);
+  const line = Math.max(band.bottom - room, headingBottom(element, rect));
+
+  return new DOMRect(rect.left, Math.min(line, rect.bottom), rect.width, 0);
 }
 
 function prefersReducedMotion(): boolean {
@@ -182,7 +203,27 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
     });
   }, [current]);
 
-  const side = element ? sideFor(element) : "bottom";
+  const [side, setSide] = useState<TourSide>("bottom");
+
+  useEffect(() => {
+    if (!element) return;
+
+    let frame = 0;
+    const place = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setSide(placementFor(element)));
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [element]);
+
   const anchor = useMemo(
     () => ({
       current: element
@@ -195,7 +236,7 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
   if (!current) return null;
 
   const last = position === placed.length - 1;
-  const coveredBelow = window.innerHeight - visibleBand(current.element).bottom;
+  const band = freeBand(current.element);
 
   const back = () => {
     setIndex(position - 1);
@@ -221,9 +262,9 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         collisionPadding={{
-          top: EDGE_GAP,
+          top: EDGE_GAP + band.top,
           right: EDGE_GAP,
-          bottom: EDGE_GAP + coveredBelow,
+          bottom: EDGE_GAP + window.innerHeight - band.bottom,
           left: EDGE_GAP,
         }}
         side={side}
