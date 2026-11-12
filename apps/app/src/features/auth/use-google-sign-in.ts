@@ -6,6 +6,7 @@ import { resolveAuthError } from "./auth-error";
 
 export interface GoogleSignIn {
   pending: boolean;
+  failed: boolean;
   start: () => void;
 }
 
@@ -17,5 +18,9 @@ export function useGoogleSignIn(redirect?: string): GoogleSignIn {
     onError: (error) => toast.error(resolveAuthError(error, "login.failed", t, tErrors)),
   });
 
-  return { pending: signIn.isPending, start: () => signIn.mutate(redirect) };
+  return {
+    pending: signIn.isPending,
+    failed: signIn.isError,
+    start: () => signIn.mutate(redirect),
+  };
 }

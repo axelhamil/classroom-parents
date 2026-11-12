@@ -3,16 +3,18 @@ import { BrandMark } from "@packages/ui/components/ui/brand-link";
 import { LandingAction, LandingReassurance, SignInPanel } from "@packages/ui/components/ui/landing";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { TextLink } from "@packages/ui/components/ui/text-link";
-import { TypographyH1 } from "@packages/ui/components/ui/typography";
+import { TypographyH1, TypographyMuted } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { PencilOffIcon } from "lucide-react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { LegalFooter } from "../../shared/components/legal-footer";
 import { ThemeToggle } from "../../shared/components/theme-toggle";
 import { env } from "../../shared/env";
 import { loginSearchSchema } from "./auth.schema";
 import { GoogleSignInButton } from "./components/google-sign-in-button";
+import { useAutoGoogleSignIn } from "./use-auto-google-sign-in";
 import { useGoogleSignIn } from "./use-google-sign-in";
 
 export const Route = createFileRoute("/_guest/login")({
@@ -22,8 +24,14 @@ export const Route = createFileRoute("/_guest/login")({
 
 function LoginPage() {
   const { t } = useTranslation("auth");
-  const { redirect, error } = Route.useSearch();
+  const { redirect, error, start } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const signIn = useGoogleSignIn(redirect);
+  const forgetStart = useCallback(
+    () => void navigate({ search: (prev) => ({ ...prev, start: undefined }), replace: true }),
+    [navigate],
+  );
+  const redirecting = useAutoGoogleSignIn(start === "google" && !error, signIn, forgetStart);
 
   return (
     <>
@@ -49,7 +57,11 @@ function LoginPage() {
                 </AlertDescription>
               </Alert>
             )}
-            <GoogleSignInButton signIn={signIn} />
+            {redirecting ? (
+              <TypographyMuted role="status">{t("login.redirecting")}</TypographyMuted>
+            ) : (
+              <GoogleSignInButton signIn={signIn} />
+            )}
             <LandingReassurance>
               <PencilOffIcon aria-hidden />
               {t("login.readOnly")}

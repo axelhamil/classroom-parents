@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeApi, renderApp, resetApp } from "../../../__tests__/render-app";
 import { authClient } from "../../../shared/auth/auth-client";
 import { env } from "../../../shared/env";
+import { AUTO_START_FALLBACK_MS } from "../use-auto-google-sign-in";
 
 vi.mock("../../../shared/auth/auth-client", () => ({
   authClient: {
@@ -91,5 +92,61 @@ describe("the sign in page", () => {
     await renderApp("/login?error=state_mismatch", { signedIn: false });
 
     expect((await screen.findByRole("alert")).textContent).toBe(copy.callbackFailed);
+  });
+});
+
+describe("a sign in started from the public site", () => {
+  beforeEach(() => {
+    vi.mocked(authClient.signIn.social).mockClear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    resetApp();
+  });
+
+  it("given the site call to action, then Google opens without a second click and the page says it is redirecting", async () => {
+    fakeApi({});
+    await renderApp("/login?start=google&redirect=%2Fhistory", { signedIn: false });
+
+    expect((await screen.findByRole("status")).textContent).toBe(copy.redirecting);
+    expect(screen.queryByRole("button", { name: copy.google })).toBeNull();
+    await waitFor(() =>
+      expect(authClient.signIn.social).toHaveBeenCalledWith(
+        expect.objectContaining({
+          callbackURL: `${window.location.origin}/history`,
+          errorCallbackURL: `${window.location.origin}/login?redirect=%2Fhistory`,
+        }),
+      ),
+    );
+    expect(authClient.signIn.social).toHaveBeenCalledTimes(1);
+  });
+
+  it("given Google never takes over, then the button comes back after a few seconds", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fakeApi({});
+    await renderApp("/login?start=google", { signedIn: false });
+    await screen.findByRole("status");
+
+    vi.advanceTimersByTime(AUTO_START_FALLBACK_MS);
+
+    expect(await screen.findByRole("button", { name: copy.google })).toBeTruthy();
+    expect(authClient.signIn.social).toHaveBeenCalledTimes(1);
+  });
+
+  it("given the start fails, then the button comes back at once", async () => {
+    vi.mocked(authClient.signIn.social).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    fakeApi({});
+    await renderApp("/login?start=google", { signedIn: false });
+
+    expect(await screen.findByRole("button", { name: copy.google })).toBeTruthy();
+  });
+
+  it("given Google sent the parent back with an error, then nothing starts again on its own", async () => {
+    fakeApi({});
+    await renderApp("/login?start=google&error=access_denied", { signedIn: false });
+
+    expect((await screen.findByRole("alert")).textContent).toBe(copy.cancelled);
+    expect(screen.getByRole("button", { name: copy.google })).toBeTruthy();
+    expect(authClient.signIn.social).not.toHaveBeenCalled();
   });
 });

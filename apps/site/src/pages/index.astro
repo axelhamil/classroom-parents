@@ -13,7 +13,7 @@ import { env } from "../env";
 import SiteLayout from "../layouts/site-layout.astro";
 
 const { common, site } = frCatalog;
-const signInUrl = new URL("/login", env.PUBLIC_APP_URL).href;
+const signInUrl = new URL("/login?start=google", env.PUBLIC_APP_URL).href;
 const privacyUrl = new URL("/legal/privacy-policy", env.PUBLIC_APP_URL).href;
 const jsonLd = JSON.stringify(structuredData(env.PUBLIC_SITE_URL)).replaceAll("<", "\\u003c");
 ---
