@@ -1,7 +1,7 @@
 import { blockingViolations } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
-import { EVENTS, LEA, serveFamily } from "./events-fixtures";
+import { EVENTS, LEA, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 import { forgetTours, TOUR_SELECTOR } from "./tour";
 
@@ -50,4 +50,46 @@ test.describe("first-run guided tour on Accueil", () => {
     await expect(page.locator("main")).toBeVisible();
     await expect(tour).toBeHidden();
   });
+});
+
+const SIDE_OFFSET = 12;
+
+async function offsetDrift(page: Page): Promise<number> {
+  const gap = await page.evaluate((selector) => {
+    const popover = document.querySelector(selector)?.getBoundingClientRect();
+    const target = document.querySelector("[data-tour-active]")?.getBoundingClientRect();
+    if (!popover || !target) return null;
+
+    return popover.top >= target.bottom ? popover.top - target.bottom : target.top - popover.bottom;
+  }, TOUR_SELECTOR);
+
+  return gap === null ? Number.POSITIVE_INFINITY : Math.abs(gap - SIDE_OFFSET);
+}
+
+test.describe("guided tour inside the event overlay", () => {
+  test.use({ storageState: STORAGE_STATE });
+
+  for (const [width, height] of [
+    [390, 844],
+    [1440, 900],
+  ] as const) {
+    test(`stays next to its target while the dialog scrolls at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await forgetTours(page);
+      await serveFamily(page, { children: [LEA], events: EVENTS });
+      await page.goto(`/?event=${REVIEW_EVENT.id}`);
+
+      await expect(page.locator(TOUR_SELECTOR)).toBeVisible();
+      await expect.poll(() => offsetDrift(page)).toBeLessThanOrEqual(2);
+
+      await page.locator("[data-tour-active]").evaluate((target) => {
+        let scroller = target.parentElement;
+        while (scroller && scroller.scrollHeight <= scroller.clientHeight)
+          scroller = scroller.parentElement;
+        scroller?.scrollBy(0, 200);
+      });
+
+      await expect.poll(() => offsetDrift(page)).toBeLessThanOrEqual(2);
+    });
+  }
 });

@@ -145,7 +145,11 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
   }, [current]);
 
   const anchor = useMemo(
-    () => ({ current: element ? { getBoundingClientRect: () => anchorRect(element) } : null }),
+    () => ({
+      current: element
+        ? { getBoundingClientRect: () => anchorRect(element), contextElement: element }
+        : null,
+    }),
     [element],
   );
 
