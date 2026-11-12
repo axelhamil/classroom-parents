@@ -7,17 +7,15 @@ export interface ScreenProps {
   title: string;
   description?: string;
   actions?: ReactNode;
-  width?: "prose" | "wide";
+  width?: "prose" | "app" | "wide";
   children: ReactNode;
 }
-
-const CONTAINER_WIDTH = { prose: "prose", wide: "app" } as const;
 
 export function Screen({ title, description, actions, width = "prose", children }: ScreenProps) {
   return (
     <main
       className={cn(
-        pageContainerVariants({ width: CONTAINER_WIDTH[width] }),
+        pageContainerVariants({ width }),
         "@container flex flex-1 flex-col gap-6 pt-2 pb-10 md:gap-8 md:pt-4 md:pb-12",
       )}
     >

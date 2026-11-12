@@ -1,10 +1,18 @@
 import { agendaEvents } from "./contrib/agenda";
 import { alertsEvents } from "./contrib/alerts";
+import { calendarFeedEvents } from "./contrib/calendar-feed";
 import { childrenEvents } from "./contrib/children";
 import { rgpdEvents } from "./contrib/rgpd";
 import { syncEvents } from "./contrib/sync";
 
-export const CONTRIBUTIONS = [childrenEvents, agendaEvents, syncEvents, alertsEvents, rgpdEvents];
+export const CONTRIBUTIONS = [
+  childrenEvents,
+  agendaEvents,
+  syncEvents,
+  alertsEvents,
+  rgpdEvents,
+  calendarFeedEvents,
+];
 
 export const CONTRIBUTED_TYPES = {
   ...childrenEvents.types,
@@ -12,6 +20,7 @@ export const CONTRIBUTED_TYPES = {
   ...syncEvents.types,
   ...alertsEvents.types,
   ...rgpdEvents.types,
+  ...calendarFeedEvents.types,
 };
 
 export const CONTRIBUTED_PAYLOADS = {
@@ -20,6 +29,7 @@ export const CONTRIBUTED_PAYLOADS = {
   ...syncEvents.payloads,
   ...alertsEvents.payloads,
   ...rgpdEvents.payloads,
+  ...calendarFeedEvents.payloads,
 };
 
 export const CONTRIBUTED_RETENTION = {
@@ -28,6 +38,7 @@ export const CONTRIBUTED_RETENTION = {
   ...syncEvents.retention,
   ...alertsEvents.retention,
   ...rgpdEvents.retention,
+  ...calendarFeedEvents.retention,
 };
 
 export const CONTRIBUTED_VISIBILITY = {
@@ -36,6 +47,7 @@ export const CONTRIBUTED_VISIBILITY = {
   ...syncEvents.visibility,
   ...alertsEvents.visibility,
   ...rgpdEvents.visibility,
+  ...calendarFeedEvents.visibility,
 };
 
 export const CONTRIBUTED_DESCRIPTIONS = {
@@ -44,4 +56,5 @@ export const CONTRIBUTED_DESCRIPTIONS = {
   ...syncEvents.descriptions,
   ...alertsEvents.descriptions,
   ...rgpdEvents.descriptions,
+  ...calendarFeedEvents.descriptions,
 };

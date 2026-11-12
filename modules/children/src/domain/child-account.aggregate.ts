@@ -1,5 +1,7 @@
 import { Aggregate, Option, Result } from "@packages/ddd-kit";
 import { ChildAccountId } from "./child-account-id";
+import type { AvatarUrl } from "./value-objects/avatar-url.vo";
+import type { ChildColor } from "./value-objects/child-color.vo";
 import type { ChildLabel } from "./value-objects/child-label.vo";
 import { ChildStatus, type ReconnectCause } from "./value-objects/child-status.vo";
 import type { GoogleEmail } from "./value-objects/google-email.vo";
@@ -13,6 +15,8 @@ export interface ChildAccountProps {
   linkedAccountId: string;
   googleEmail: GoogleEmail;
   label: ChildLabel;
+  color: ChildColor;
+  avatarUrl: Option<AvatarUrl>;
   status: ChildStatus;
   connectedAt: Date;
   lastSyncedAt: Option<Date>;
@@ -29,6 +33,8 @@ export interface NewChildAccount {
   linkedAccountId: string;
   googleEmail: GoogleEmail;
   label: ChildLabel;
+  color: ChildColor;
+  avatarUrl: Option<AvatarUrl>;
   now: Date;
 }
 
@@ -44,6 +50,8 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
         linkedAccountId: input.linkedAccountId,
         googleEmail: input.googleEmail,
         label: input.label,
+        color: input.color,
+        avatarUrl: input.avatarUrl,
         status: ChildStatus.connected(),
         connectedAt: input.now,
         lastSyncedAt: Option.none(),
@@ -62,6 +70,14 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
 
   rename(label: ChildLabel): void {
     this._props.label = label;
+  }
+
+  recolor(color: ChildColor): void {
+    this._props.color = color;
+  }
+
+  showAvatar(avatarUrl: Option<AvatarUrl>): void {
+    this._props.avatarUrl = avatarUrl;
   }
 
   reconnect(now: Date): Result<void, "disconnecting"> {

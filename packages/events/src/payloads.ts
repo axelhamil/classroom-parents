@@ -40,6 +40,10 @@ export const UserDeletedPayload = UserRef.extend({
   deletedAt: z.coerce.date(),
 });
 
+export const UserDataExportRequestedPayload = UserRef.extend({
+  requestedAt: z.coerce.date(),
+});
+
 export const UserProfileUpdatedPayload = UserRef.extend({
   changes: z.record(z.string(), z.unknown()),
 });
@@ -95,6 +99,7 @@ export const PayloadByEventType = {
   [EventTypes.USER_DELETION_REQUESTED]: UserDeletionRequestedPayload,
   [EventTypes.USER_DELETION_CANCELLED]: UserDeletionCancelledPayload,
   [EventTypes.USER_DELETED]: UserDeletedPayload,
+  [EventTypes.USER_DATA_EXPORT_REQUESTED]: UserDataExportRequestedPayload,
   [EventTypes.USER_PROFILE_UPDATED]: UserProfileUpdatedPayload,
   [EventTypes.USER_SESSION_REVOKED]: UserSessionRevokedPayload,
   [EventTypes.EMAIL_DELIVERY_EXHAUSTED]: EmailDeliveryExhaustedPayload,

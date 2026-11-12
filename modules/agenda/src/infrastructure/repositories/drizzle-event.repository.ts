@@ -1,6 +1,5 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import {
-  alias,
   and,
   asc,
   dbOperationFailure,
@@ -11,16 +10,18 @@ import {
   isNull,
   lt,
   not,
-  notExists,
   notInArray,
   resolveExecutor,
   type SQL,
   sql,
 } from "@packages/drizzle";
 import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/http/time-id-cursor";
+import { alertableEvent, notShadowedByCoursework } from "../../../schemas/alertable-event";
 import { agendaEvent } from "../../../schemas/event.schema";
 import {
   type AgendaError,
+  type CalendarFilter,
+  type ConfirmedWindow,
   type CourseDay,
   type CourseworkCourses,
   type EventFilter,
@@ -31,6 +32,7 @@ import {
 import { AgendaEvent } from "../../domain/event.aggregate";
 import { EventId } from "../../domain/event-id";
 import { EventCategory } from "../../domain/value-objects/event-category.vo";
+import { EventChecklist } from "../../domain/value-objects/event-checklist.vo";
 import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventSource } from "../../domain/value-objects/event-source.vo";
@@ -45,6 +47,8 @@ type EventRow = typeof agendaEvent.$inferSelect;
 
 type Order = "asc" | "desc";
 
+type Read = "plain" | "locked" | "chronological" | "latest";
+
 function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const id = EventId.parse(row.id);
   const title = EventTitle.create(row.title);
@@ -56,6 +60,12 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   );
   const status = EventStatus.create(row.status);
   const source = EventSource.create(row.source);
+  const stored = row.checklist;
+  const checklist = EventChecklist.create({
+    ...stored,
+    written: stored.written ?? stored.done.length + stored.removed.length + stored.extra.length > 0,
+  });
+  if (checklist.isFailure) return Result.fail(checklist.getError());
   if (source.isFailure) return Result.fail(source.getError());
   if (id.isFailure) return Result.fail(id.getError());
   if (title.isFailure) return Result.fail(title.getError());
@@ -72,8 +82,8 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         source: source.getValue(),
         announcementId: row.announcementId,
         ordinal: row.ordinal,
-        courseId: row.courseId,
-        announcementUrl: row.announcementUrl,
+        courseId: Option.fromNullable(row.courseId),
+        announcementUrl: Option.fromNullable(row.announcementUrl),
         title: title.getValue(),
         description: description.getValue(),
         category: category.getValue(),
@@ -81,6 +91,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         receivedAt: row.receivedAt,
         status: status.getValue(),
         done: row.done,
+        checklist: checklist.getValue(),
         editedAt: Option.fromNullable(row.editedAt),
         editedFields: row.editedFields,
         deletedAt: Option.fromNullable(row.deletedAt),
@@ -104,6 +115,7 @@ function mutableColumns(event: AgendaEvent) {
     deadlineAt: deadline.at,
     status: event.get("status").value,
     done: event.get("done"),
+    checklist: event.get("checklist").value,
     editedAt: event.get("editedAt").toNull(),
     editedFields: event.get("editedFields"),
     deletedAt: event.get("deletedAt").toNull(),
@@ -119,32 +131,21 @@ function ownedAlive(userId: string): SQL | undefined {
   return and(ownedUndeleted(userId), isNull(agendaEvent.withdrawnAt));
 }
 
-const coursework = alias(agendaEvent, "coursework");
+function doneIs(done: boolean | undefined): SQL | undefined {
+  if (done === undefined) return undefined;
 
-function notShadowedByCoursework(exec: ReturnType<typeof resolveExecutor>): SQL {
-  return notExists(
-    exec
-      .select({ id: coursework.id })
-      .from(coursework)
-      .where(
-        and(
-          sql`${agendaEvent.source} = 'announcement'`,
-          sql`${coursework.source} = 'coursework'`,
-          isNull(coursework.deletedAt),
-          isNull(coursework.withdrawnAt),
-          eq(coursework.childId, agendaEvent.childId),
-          eq(coursework.courseId, agendaEvent.courseId),
-          eq(coursework.deadlineDate, agendaEvent.deadlineDate),
-        ),
-      ),
-  );
+  return done ? sql`${agendaEvent.done}` : not(agendaEvent.done);
 }
 
-function filtered(filter: EventFilter, order: Order): (SQL | undefined)[] {
+function filtered(
+  filter: Pick<EventFilter, "childIds" | "categories" | "statuses" | "done" | "cursor">,
+  order: Order,
+): (SQL | undefined)[] {
   return [
     filter.childIds?.length ? inArray(agendaEvent.childId, filter.childIds) : undefined,
     filter.categories?.length ? inArray(agendaEvent.category, filter.categories) : undefined,
     filter.statuses?.length ? inArray(agendaEvent.status, filter.statuses) : undefined,
+    doneIs(filter.done),
     filter.cursor
       ? afterTimeIdCursor(agendaEvent.deadlineAt, agendaEvent.id, filter.cursor, order)
       : undefined,
@@ -169,8 +170,8 @@ export class DrizzleEventRepository implements IEventRepository {
               source: event.get("source").value,
               announcementId: event.get("announcementId"),
               ordinal: event.get("ordinal"),
-              courseId: event.get("courseId"),
-              announcementUrl: event.get("announcementUrl"),
+              courseId: event.get("courseId").toNull(),
+              announcementUrl: event.get("announcementUrl").toNull(),
               receivedAt: event.get("receivedAt"),
               createdAt: event.get("createdAt"),
               ...mutableColumns(event),
@@ -281,7 +282,7 @@ export class DrizzleEventRepository implements IEventRepository {
         isNull(agendaEvent.deletedAt),
         isNull(agendaEvent.withdrawnAt),
       ),
-      true,
+      "locked",
     );
   }
 
@@ -300,22 +301,31 @@ export class DrizzleEventRepository implements IEventRepository {
         isNull(agendaEvent.deletedAt),
         isNull(agendaEvent.withdrawnAt),
       ),
-      false,
+      "plain",
     );
   }
 
   private async selectMany(
     method: string,
     where: SQL | undefined,
-    forUpdate: boolean,
+    read: Read,
+    limit?: number,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
       { name: `DrizzleEventRepository > ${method}` },
       async () => {
         try {
-          const select = exec.select().from(agendaEvent).where(where);
-          const query = forUpdate ? select.for("update") : select;
+          const select = exec.select().from(agendaEvent).where(where).$dynamic();
+          const ordered =
+            read === "locked"
+              ? select.for("update")
+              : read === "chronological"
+                ? select.orderBy(asc(agendaEvent.deadlineAt), asc(agendaEvent.id))
+                : read === "latest"
+                  ? select.orderBy(desc(agendaEvent.deadlineAt), desc(agendaEvent.id))
+                  : select;
+          const query = limit === undefined ? ordered : ordered.limit(limit);
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
             () => query.execute(),
@@ -327,6 +337,24 @@ export class DrizzleEventRepository implements IEventRepository {
           return Result.fail(repositoryFailure(method, err));
         }
       },
+    );
+  }
+
+  async listCalendar(
+    userId: string,
+    filter: CalendarFilter,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    const { startsAt, endsBefore } = filter.range.value;
+    return this.selectMany(
+      "listCalendar",
+      and(
+        ownedAlive(userId),
+        gte(agendaEvent.deadlineAt, startsAt),
+        lt(agendaEvent.deadlineAt, endsBefore),
+        notShadowedByCoursework(resolveExecutor()),
+        ...filtered(filter, "asc"),
+      ),
+      "chronological",
     );
   }
 
@@ -354,6 +382,7 @@ export class DrizzleEventRepository implements IEventRepository {
   async listAlertableUpcoming(
     userId: string,
     now: Date,
+    until?: Date,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -363,15 +392,7 @@ export class DrizzleEventRepository implements IEventRepository {
           const query = exec
             .select()
             .from(agendaEvent)
-            .where(
-              and(
-                ownedAlive(userId),
-                gte(agendaEvent.deadlineAt, now),
-                eq(agendaEvent.done, false),
-                eq(agendaEvent.status, "confirmed"),
-                notShadowedByCoursework(exec),
-              ),
-            )
+            .where(and(eq(agendaEvent.userId, userId), alertableEvent(exec, { from: now, until })))
             .orderBy(asc(agendaEvent.deadlineAt));
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
@@ -392,8 +413,7 @@ export class DrizzleEventRepository implements IEventRepository {
     filter: EventFilter,
     now: Date,
   ): Promise<Result<EventPage, AgendaError>> {
-    const window = [gte(agendaEvent.deadlineAt, now), not(agendaEvent.done)];
-    return this.page("listUpcoming", window, userId, filter, "asc");
+    return this.page("listUpcoming", [gte(agendaEvent.deadlineAt, now)], userId, filter, "asc");
   }
 
   async listHistory(
@@ -402,6 +422,43 @@ export class DrizzleEventRepository implements IEventRepository {
     now: Date,
   ): Promise<Result<EventPage, AgendaError>> {
     return this.page("listHistory", [lt(agendaEvent.deadlineAt, now)], userId, filter, "desc");
+  }
+
+  async listConfirmedSince(
+    userId: string,
+    childIds: string[],
+    window: ConfirmedWindow,
+    limit: number,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    const confirmed = () =>
+      and(
+        ownedAlive(userId),
+        inArray(agendaEvent.childId, childIds),
+        eq(agendaEvent.status, "confirmed"),
+        notShadowedByCoursework(resolveExecutor()),
+      );
+    const upcoming = await this.selectMany(
+      "listConfirmedSince",
+      and(confirmed(), gte(agendaEvent.deadlineAt, window.now)),
+      "chronological",
+      limit,
+    );
+    if (upcoming.isFailure) return upcoming;
+
+    const room = limit - upcoming.getValue().length;
+    if (room <= 0) return upcoming;
+
+    const history = await this.selectMany(
+      "listConfirmedSince",
+      and(
+        confirmed(),
+        gte(agendaEvent.deadlineAt, window.since),
+        lt(agendaEvent.deadlineAt, window.now),
+      ),
+      "latest",
+      room,
+    );
+    return history.map((past) => [...past.reverse(), ...upcoming.getValue()]);
   }
 
   private async page(

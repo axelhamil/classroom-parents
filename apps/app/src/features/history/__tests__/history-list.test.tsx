@@ -35,6 +35,7 @@ function givenHistory(items: unknown[]): ApiCall[] {
   return stubApi(({ method, url }) => {
     if (url.pathname === "/children") return json([CHILD]);
     if (url.pathname === "/events" && method === "GET") return json({ items });
+    if (url.pathname === "/events/calendar") return json({ items: [] });
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     return undefined;
   });
@@ -46,24 +47,27 @@ function historyRequests(calls: ApiCall[]): URLSearchParams[] {
     .map((call) => call.url.searchParams);
 }
 
-describe("Accueil, tab Passées", () => {
+describe("Accueil, past deadlines", () => {
   afterEach(() => {
     cleanup();
     resetApp();
   });
 
-  it("Accueil switches to Passées and shows past deadlines", async () => {
+  it("the calendar menu opens past deadlines", async () => {
     const calls = givenHistory([
       pastEvent(1, "2026-11-06", "Exposé sur les volcans"),
       pastEvent(2, "2026-10-14", "Sortie au musée"),
     ]);
     await renderAppAt("/");
 
-    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Passées" }));
+    fireEvent.pointerDown(await screen.findByRole("button", { name: "Plus d'actions" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Échéances passées" }));
 
-    const panel = await screen.findByRole("tabpanel", { name: "Passées" });
-    await within(panel).findByText("Exposé sur les volcans");
-    const list = within(panel).getByRole("list");
+    await screen.findByText("Exposé sur les volcans");
+    const list = await waitFor(() => within(screen.getByRole("main")).getByRole("list"));
     const titles = within(list)
       .getAllByRole("link")
       .map((link) => link.textContent ?? "");
@@ -80,15 +84,13 @@ describe("Accueil, tab Passées", () => {
     expect(await screen.findByText("Les échéances passées seront rangées ici.")).toBeDefined();
   });
 
-  it("/history redirects to Accueil tab Passées", async () => {
+  it("/history redirects to past deadlines on Accueil", async () => {
     givenHistory([pastEvent(1, "2026-11-06", "Exposé sur les volcans")]);
     const router = await renderAppAt("/history");
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
     expect(router.state.location.search).toEqual({ tab: "history" });
-    expect(
-      (await screen.findByRole("tab", { name: "Passées" })).getAttribute("aria-selected"),
-    ).toBe("true");
+    expect(await screen.findByRole("link", { name: "Retour au calendrier" })).toBeDefined();
   });
 
   it("an old /history link keeps its filters", async () => {

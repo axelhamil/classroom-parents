@@ -44,6 +44,9 @@ function PrivacyPage() {
       <SectionCard title={t("privacy.ai.title")}>
         <TypographyP>{t("privacy.ai.body")}</TypographyP>
       </SectionCard>
+      <SectionCard title={t("privacy.retention.title")}>
+        <TypographyP>{t("privacy.retention.body")}</TypographyP>
+      </SectionCard>
       <DataSourcesCard />
       <SectionCard title={t("privacy.rights.title")} description={t("privacy.rights.description")}>
         <TypographyP>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type {
   EventDeadlineDto,
+  TitledDeadlineDto,
   UpcomingDeadlineDto,
 } from "@modules/agenda/application/dto/event.dto";
 import type { AgendaError } from "@modules/agenda/application/ports/event-repository.port";
@@ -14,6 +15,7 @@ import {
   childConnectionsFor,
   childOwnershipFor,
   childSyncStateFor,
+  digestDeadlinesFor,
   dueChildrenFor,
   eventDeadlinesFor,
   eventIngestFor,
@@ -65,6 +67,8 @@ describe("agenda IVisibleChildren bound to children", () => {
   const child = (id: string, status: ChildDto["status"]): ChildDto => ({
     id,
     label: id,
+    color: 1,
+    avatarUrl: null,
     googleEmail: `${id}@example.fr`,
     status,
     syncing: false,
@@ -116,7 +120,15 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
   const childrenAs = (status: ChildDto["status"]) => ({
     list: async () =>
       Result.ok<ChildDto[], ChildrenError>([
-        { id: LEA, label: "Léa", googleEmail: "lea@school.example", status, syncing: false },
+        {
+          id: LEA,
+          label: "Léa",
+          color: 1,
+          avatarUrl: null,
+          googleEmail: "lea@school.example",
+          status,
+          syncing: false,
+        },
       ]),
   });
   const connected = childrenAs("connected");
@@ -172,6 +184,70 @@ describe("alerts IEventDeadlines bound to the agenda", () => {
     const result = await eventDeadlinesFor(agenda, connected).forUser(FAMILY_A, EXAM);
 
     expect(result.getError().code).toBe("EVENT_PROVIDER_FAILURE");
+  });
+});
+
+describe("alerts IDigestDeadlines bound to the agenda and children", () => {
+  const TOM = "0196a000-0000-7000-8000-00000000000b";
+  const from = new Date("2026-11-15T23:00:00.000Z");
+  const to = new Date("2026-11-22T23:00:00.000Z");
+  const titled = (eventId: string, childId: string, title: string): TitledDeadlineDto => ({
+    eventId,
+    childId,
+    title,
+    deadlineAt: new Date("2026-11-17T07:00:00.000Z"),
+    deadlineDate: "2026-11-17",
+    done: false,
+    needsReview: false,
+  });
+
+  it("names each deadline after its child and leaves out a child being disconnected", async () => {
+    let window: unknown;
+    const agenda = {
+      alertableWithin: async (_userId: string, start: Date, end: Date) => {
+        window = { start, end };
+        return Result.ok<TitledDeadlineDto[], AgendaError>([
+          titled("e1", LEA, "Piscine"),
+          titled("e2", TOM, "Dictée"),
+        ]);
+      },
+    };
+    const children = {
+      list: async () =>
+        Result.ok<ChildDto[], ChildrenError>([
+          {
+            id: LEA,
+            label: "Léa",
+            googleEmail: "lea@x.fr",
+            status: "connected",
+            syncing: false,
+            color: 1,
+            avatarUrl: null,
+          },
+          {
+            id: TOM,
+            label: "Tom",
+            googleEmail: "tom@x.fr",
+            status: "disconnecting",
+            syncing: false,
+            color: 2,
+            avatarUrl: null,
+          },
+        ]),
+    };
+
+    const result = await digestDeadlinesFor(agenda, children).within(FAMILY_A, from, to);
+
+    expect(window).toEqual({ start: from, end: to });
+    expect(result.getValue()).toEqual([
+      {
+        title: "Piscine",
+        childId: LEA,
+        childLabel: "Léa",
+        deadlineAt: new Date("2026-11-17T07:00:00.000Z"),
+        deadlineDate: "2026-11-17",
+      },
+    ]);
   });
 });
 
@@ -543,13 +619,12 @@ describe("sync IChildSyncState bound to children", () => {
 
 describe("sync IManualSyncGate bound to children", () => {
   const listed = (ids: string[]) =>
-    Result.ok<
-      { id: string; label: string; googleEmail: string; status: "connected"; syncing: boolean }[],
-      ChildrenError
-    >(
+    Result.ok<ChildDto[], ChildrenError>(
       ids.map((id) => ({
         id,
         label: "x",
+        color: 1,
+        avatarUrl: null,
         googleEmail: "x@y.fr",
         status: "connected",
         syncing: false,

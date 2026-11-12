@@ -2,6 +2,7 @@ import { COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { stubChildrenApi } from "./children-fixture";
 import { showColorScheme } from "./color-scheme";
+import { LEA, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
@@ -244,5 +245,39 @@ test.describe("signed in", () => {
       "aria-current",
       "page",
     );
+  });
+});
+
+test.describe("calendar month grid", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  test("walks the days with the arrows, Home, End and the page keys, Enter picks one", async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date(2026, 10, 11, 10));
+    await serveFamily(page, { children: [LEA], events: [] });
+    await page.goto("/?view=month&date=2026-11-11");
+
+    const day = (date: string) => page.locator(`[data-day="${date}"] button`);
+    await day("2026-11-11").focus();
+
+    await page.keyboard.press("ArrowRight");
+    await expect(day("2026-11-12")).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(day("2026-11-19")).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(day("2026-11-16")).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(day("2026-11-22")).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/[?&]date=2026-11-21/);
+    await expect(day("2026-11-21")).toBeFocused();
+
+    await page.keyboard.press("PageDown");
+    await expect(day("2026-12-21")).toBeFocused();
+    await expect(page.getByRole("heading", { level: 2, name: "décembre 2026" })).toBeVisible();
+    await page.keyboard.press("PageUp");
+    await expect(day("2026-11-21")).toBeFocused();
   });
 });

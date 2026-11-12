@@ -19,6 +19,8 @@ import type {
 } from "../../application/ports/child-repository.port";
 import { ChildAccount } from "../../domain/child-account.aggregate";
 import { ChildAccountId } from "../../domain/child-account-id";
+import { AvatarUrl } from "../../domain/value-objects/avatar-url.vo";
+import { ChildColor } from "../../domain/value-objects/child-color.vo";
 import { ChildLabel } from "../../domain/value-objects/child-label.vo";
 import { ChildStatus, type ChildStatusValue } from "../../domain/value-objects/child-status.vo";
 import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
@@ -47,10 +49,15 @@ function toDomain(row: ChildRow): Result<ChildAccount, string> {
   const id = ChildAccountId.parse(row.id);
   const googleEmail = GoogleEmail.create(row.googleEmail);
   const label = ChildLabel.create(row.label);
+  const color = ChildColor.fromHue(row.color);
+  const avatarUrl = Option.fromNullable(row.avatarUrl).map((url) => AvatarUrl.create(url));
   const status = ChildStatus.create(row.status);
   if (id.isFailure) return Result.fail(id.getError());
   if (googleEmail.isFailure) return Result.fail(googleEmail.getError());
   if (label.isFailure) return Result.fail(label.getError());
+  if (color.isFailure) return Result.fail(color.getError());
+  if (avatarUrl.isSome() && avatarUrl.unwrap().isFailure)
+    return Result.fail(avatarUrl.unwrap().getError());
   if (status.isFailure) return Result.fail(status.getError());
 
   return Result.ok(
@@ -60,6 +67,8 @@ function toDomain(row: ChildRow): Result<ChildAccount, string> {
         linkedAccountId: row.linkedAccountId,
         googleEmail: googleEmail.getValue(),
         label: label.getValue(),
+        color: color.getValue(),
+        avatarUrl: avatarUrl.map((parsed) => parsed.getValue()),
         status: status.getValue(),
         connectedAt: row.connectedAt,
         lastSyncedAt: Option.fromNullable(row.lastSyncedAt),
@@ -82,6 +91,11 @@ function mutableColumns(child: ChildAccount) {
 
   return {
     label: child.get("label").value,
+    color: child.get("color").value,
+    avatarUrl: child
+      .get("avatarUrl")
+      .map((avatar) => avatar.value)
+      .toNull(),
     status: status.value,
     cause: status.cause().toNull(),
     nextSyncAt: child.get("nextSyncAt"),

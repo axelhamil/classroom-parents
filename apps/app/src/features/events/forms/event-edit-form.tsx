@@ -1,25 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@packages/ui/components/ui/form";
-import { FormTextField } from "@packages/ui/components/ui/form-text-field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@packages/ui/components/ui/select";
-import { Textarea } from "@packages/ui/components/ui/textarea";
+import { Form } from "@packages/ui/components/ui/form";
 import { apiErrorFields } from "@packages/web-kit/api/errors/api-error";
 import { formatApiError } from "@packages/web-kit/api/errors/messages";
 import { toastError } from "@packages/web-kit/api/errors/toast";
@@ -30,11 +12,10 @@ import { useRef } from "react";
 import { type FieldNamesMarkedBoolean, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { CATEGORY_LABEL_KEYS } from "../../../shared/events/event-labels";
 import { type EventPatch, editEventMutationOptions } from "../api/events.mutations";
-import { DeadlineDatePicker } from "../components/deadline-date-picker";
 import { DeleteEventDialog } from "../components/delete-event-dialog";
 import { type EventEditInput, eventEditSchema } from "../events.schema";
+import { type EventFieldNote, EventFields, eventFieldOf } from "./event-fields";
 
 const CLEAR_TIME = "clear";
 
@@ -61,24 +42,6 @@ function patchOf(
   };
 }
 
-function fieldOf(
-  code: string | undefined,
-  dirty: Partial<Readonly<FieldNamesMarkedBoolean<EventEditInput>>>,
-): keyof EventEditInput | null {
-  switch (code) {
-    case "EVENT_TITLE_INVALID":
-      return "title";
-    case "EVENT_DESCRIPTION_INVALID":
-      return "description";
-    case "EVENT_CATEGORY_INVALID":
-      return "category";
-    case "EVENT_DEADLINE_INVALID":
-      return dirty.deadlineDate ? "deadlineDate" : "deadlineTime";
-    default:
-      return null;
-  }
-}
-
 export interface EventEditFormProps {
   event: EventItem;
   onSaved: (event: EventItem) => void;
@@ -88,14 +51,13 @@ export interface EventEditFormProps {
 
 export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEditFormProps) {
   const { t } = useTranslation("eventEdit");
-  const { t: tEvents } = useTranslation("events");
   const { t: tErrors } = useTranslation("errors");
   const form = useForm<EventEditInput>({
     resolver: zodResolver(eventEditSchema),
     defaultValues: valuesOf(event),
   });
   const { isDirty, dirtyFields } = form.formState;
-  const frozenNote = (field: EventItem["editedFields"][number]) =>
+  const frozenNote = (field: EventFieldNote) =>
     event.editedFields.includes(field) ? t("editedByYou") : undefined;
   const released = useRef(false);
   const leave = (next: () => void) => {
@@ -106,7 +68,10 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
     ...editEventMutationOptions,
     onSuccess: (saved) => leave(() => onSaved(saved)),
     onError: (error) => {
-      const field = fieldOf(apiErrorFields(error).code, form.formState.dirtyFields);
+      const field = eventFieldOf(
+        apiErrorFields(error).code,
+        form.formState.dirtyFields.deadlineDate === true,
+      );
       if (!field) return toastError(error, errorFallback("editEvent"));
 
       form.setError(field, { message: formatApiError(error, errorFallback("editEvent"), tErrors) });
@@ -128,78 +93,7 @@ export function EventEditForm({ event, onSaved, onCancel, onDeleted }: EventEdit
         className="flex flex-col gap-4"
         noValidate
       >
-        <FormTextField
-          control={form.control}
-          name="title"
-          label={t("fields.title")}
-          description={frozenNote("title")}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("fields.description")}</FormLabel>
-              <FormControl>
-                <Textarea {...field} />
-              </FormControl>
-              {frozenNote("description") && (
-                <FormDescription>{frozenNote("description")}</FormDescription>
-              )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("fields.category")}</FormLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {EVENT_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {tEvents(CATEGORY_LABEL_KEYS[category])}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {frozenNote("category") && (
-                <FormDescription>{frozenNote("category")}</FormDescription>
-              )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="flex flex-wrap gap-4">
-          <FormField
-            control={form.control}
-            name="deadlineDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("fields.deadlineDate")}</FormLabel>
-                <DeadlineDatePicker value={field.value} onChange={field.onChange} />
-                {frozenNote("deadline") && (
-                  <FormDescription>{frozenNote("deadline")}</FormDescription>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormTextField
-            control={form.control}
-            name="deadlineTime"
-            type="time"
-            label={t("fields.deadlineTime")}
-            description={frozenNote("deadline")}
-          />
-        </div>
+        <EventFields control={form.control} note={frozenNote} />
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={!isDirty || mutation.isPending}>
             {t("save")}

@@ -10,4 +10,5 @@ export const EVENT_BASE = {
   receivedAt: "2026-11-05T10:00:00.000Z",
   edited: false,
   editedFields: [],
+  checklist: { done: [], removed: [], extra: [] },
 };

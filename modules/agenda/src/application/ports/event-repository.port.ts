@@ -1,5 +1,6 @@
 import type { AppError, Option, Result } from "@packages/ddd-kit";
 import type { AgendaEvent } from "../../domain/event.aggregate";
+import type { CalendarRange } from "../../domain/value-objects/calendar-range.vo";
 import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
 import type { EventStatusValue } from "../../domain/value-objects/event-status.vo";
 
@@ -10,6 +11,8 @@ export type AgendaError = AppError<
   | "EVENT_TITLE_INVALID"
   | "EVENT_DESCRIPTION_INVALID"
   | "EVENT_CATEGORY_INVALID"
+  | "EVENT_CHECKLIST_INVALID"
+  | "EVENT_RANGE_INVALID"
   | "EVENT_PROVIDER_FAILURE"
 >;
 
@@ -18,17 +21,34 @@ export const eventNotFound: AgendaError = {
   message: "Cet événement n'existe pas ou a été supprimé.",
 };
 
+export const childNotFound: AgendaError = {
+  code: "EVENT_CHILD_NOT_FOUND",
+  message: "Cet enfant n'est pas relié à votre compte, ses événements ne sont pas enregistrés.",
+};
+
 export interface EventCursor {
   at: string;
   id: string;
+}
+
+export interface ConfirmedWindow {
+  since: Date;
+  now: Date;
 }
 
 export interface EventFilter {
   childIds?: string[];
   categories?: EventCategoryValue[];
   statuses?: EventStatusValue[];
+  done?: boolean;
   cursor?: EventCursor;
   limit: number;
+}
+
+export interface CalendarFilter {
+  childIds?: string[];
+  categories?: EventCategoryValue[];
+  range: CalendarRange;
 }
 
 export interface EventPage {
@@ -65,13 +85,19 @@ export interface IEventRepository {
 
   listAnnouncementsOn(userId: string, day: CourseDay): Promise<Result<AgendaEvent[], AgendaError>>;
 
+  listCalendar(userId: string, filter: CalendarFilter): Promise<Result<AgendaEvent[], AgendaError>>;
+
   findOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
   lockOwned(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
   findAlertable(userId: string, eventId: string): Promise<Result<Option<AgendaEvent>, AgendaError>>;
 
-  listAlertableUpcoming(userId: string, now: Date): Promise<Result<AgendaEvent[], AgendaError>>;
+  listAlertableUpcoming(
+    userId: string,
+    now: Date,
+    until?: Date,
+  ): Promise<Result<AgendaEvent[], AgendaError>>;
 
   listUpcoming(
     userId: string,
@@ -84,4 +110,11 @@ export interface IEventRepository {
     filter: EventFilter,
     now: Date,
   ): Promise<Result<EventPage, AgendaError>>;
+
+  listConfirmedSince(
+    userId: string,
+    childIds: string[],
+    window: ConfirmedWindow,
+    limit: number,
+  ): Promise<Result<AgendaEvent[], AgendaError>>;
 }

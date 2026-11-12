@@ -4,9 +4,9 @@ import { zV } from "@packages/http/validator";
 import { Hono } from "hono";
 import {
   childIdParamSchema,
+  editChildBodySchema,
   linkedAccountParamSchema,
   registerChildBodySchema,
-  renameChildBodySchema,
 } from "../../application/dto/child.dto";
 import type { ChildConnectionService } from "../../application/services/child-connection.service";
 
@@ -16,7 +16,7 @@ export interface ChildrenRoutesDeps {
     ChildConnectionService,
     | "list"
     | "register"
-    | "rename"
+    | "edit"
     | "disconnect"
     | "reconnect"
     | "linkable"
@@ -62,12 +62,12 @@ export function createChildrenRoutes(deps: ChildrenRoutesDeps) {
       "/:id",
       g.requireAuth,
       zV("param", childIdParamSchema),
-      zV("json", renameChildBodySchema),
+      zV("json", editChildBodySchema),
       async (c) => {
-        const result = await children.rename(
+        const result = await children.edit(
           g.currentUserId(c),
           c.req.valid("param").id,
-          c.req.valid("json").label,
+          c.req.valid("json"),
         );
         if (result.isFailure) throw new AppErrorException(result.getError());
         return c.json(result.getValue());

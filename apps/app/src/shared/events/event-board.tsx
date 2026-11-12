@@ -105,9 +105,7 @@ function ScopeEmpty({ scope, filtered, family, onResetFilters }: ScopeEmptyProps
         description={tHistory("empty.description")}
         action={
           <Button asChild size="sm" variant="outline">
-            <Link to="/" search={{ tab: "upcoming" }}>
-              {tHistory("empty.action")}
-            </Link>
+            <Link to="/">{tHistory("empty.action")}</Link>
           </Button>
         }
       />

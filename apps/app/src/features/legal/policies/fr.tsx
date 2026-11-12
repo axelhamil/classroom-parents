@@ -32,8 +32,8 @@ export function PrivacyPolicyBody(): ReactElement {
         <TypographyList>
           <li>Votre compte : nom, adresse e-mail, photo et identifiant de votre compte Google.</li>
           <li>
-            Le compte de chaque enfant lié : nom, adresse e-mail et identifiant Google, et les
-            jetons d'accès que Google nous remet, chiffrés en base.
+            Le compte de chaque enfant lié : nom, adresse e-mail, photo et identifiant Google, et
+            les jetons d'accès que Google nous remet, chiffrés en base.
           </li>
           <li>
             Google Classroom : la liste de ses cours ; le texte des annonces, lu le temps d'en
@@ -46,7 +46,14 @@ export function PrivacyPolicyBody(): ReactElement {
           </li>
           <li>
             Vos alertes : l'heure choisie pour chaque échéance, l'adresse technique d'abonnement aux
-            notifications de chacun de vos appareils et le type de navigateur.
+            notifications de chacun de vos appareils et le type de navigateur ; votre choix de
+            recevoir le résumé du dimanche et les semaines où il vous a été envoyé.
+          </li>
+          <li>
+            Votre lien d'agenda, si vous en créez un : une empreinte de son secret (jamais le lien
+            lui-même), les enfants qu'il inclut et l'heure de sa dernière lecture. L'agenda que vous
+            y abonnez (Google, Apple, Outlook) lit vos échéances par ce lien et en garde une copie
+            selon ses propres règles.
           </li>
           <li>
             Les sessions de connexion (adresse IP, navigateur) et les e-mails que nous vous
@@ -135,18 +142,27 @@ export function PrivacyPolicyBody(): ReactElement {
         <TypographyH2>Durées de conservation</TypographyH2>
         <TypographyList>
           <li>Texte des annonces : aucune conservation après l'extraction.</li>
+          <li>Compte et enfants liés : tant que votre compte existe.</li>
+          <li>Échéances : 12 mois après leur date, puis effacées avec leurs rappels et alertes.</li>
           <li>
-            Compte, enfants liés et échéances, passées comprises : tant que votre compte existe.
+            Échéance que vous supprimez ou que l'enseignant retire : effacée 30 jours plus tard ; un
+            devoir Classroom reste au moins 61 jours après sa date, pour qu'une synchronisation ne
+            le recrée pas.
           </li>
           <li>Enfant retiré : ses accès Google sont révoqués et ses données effacées aussitôt.</li>
           <li>
             Compte supprimé : effacement complet 7 jours après la demande, délai pendant lequel vous
             pouvez annuler.
           </li>
+          <li>Choix et envois du résumé du dimanche : tant que votre compte existe.</li>
           <li>E-mails envoyés : 7 jours au plus.</li>
           <li>
             Abonnement aux notifications d'un appareil : jusqu'à sa désactivation, votre déconnexion
             de cet appareil ou son expiration.
+          </li>
+          <li>
+            Lien d'agenda : jusqu'à sa révocation, son remplacement ou la suppression de votre
+            compte ; il cesse alors aussitôt de fonctionner.
           </li>
         </TypographyList>
       </section>

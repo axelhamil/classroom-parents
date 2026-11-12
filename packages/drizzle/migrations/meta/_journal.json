@@ -26,8 +26,57 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1794483297836,
-      "tag": "0003_push_subscription_session",
+      "when": 1794481184185,
+      "tag": "0003_child_color",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794483869361,
+      "tag": "0004_manual_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794483973716,
+      "tag": "0005_calendar_feed",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794484485586,
+      "tag": "0006_weekly_digest",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794485131246,
+      "tag": "0007_event_dismissed_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794485344496,
+      "tag": "0008_data_export",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794503485985,
+      "tag": "0009_push_subscription_session",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794505770496,
+      "tag": "0010_event_checklist",
       "breakpoints": true
     }
   ]

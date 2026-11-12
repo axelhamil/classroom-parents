@@ -1,7 +1,7 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
 import { z } from "zod";
 
-export const EVENT_SOURCES = ["announcement", "coursework"] as const;
+export const EVENT_SOURCES = ["announcement", "coursework", "manual"] as const;
 
 const eventSourceSchema = z.enum(EVENT_SOURCES);
 
@@ -14,6 +14,10 @@ export class EventSource extends ValueObject<EventSourceValue> {
 
   static coursework(): EventSource {
     return new EventSource("coursework");
+  }
+
+  static manual(): EventSource {
+    return new EventSource("manual");
   }
 
   protected validate(value: EventSourceValue): Result<EventSourceValue> {

@@ -3,6 +3,8 @@ import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { ChildAccount, DISCONNECT_LEASE_MS } from "../../domain/child-account.aggregate";
+import { AvatarUrl } from "../../domain/value-objects/avatar-url.vo";
+import { ChildColor } from "../../domain/value-objects/child-color.vo";
 import { CHILD_LABEL_MAX, ChildLabel } from "../../domain/value-objects/child-label.vo";
 import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 import { CHILD_PROVIDER_ID } from "../config/child-provider";
@@ -31,6 +33,17 @@ const DEFAULT_LABEL = "Enfant";
 export interface RegisterChildInput {
   linkedAccountId: string;
   label?: string;
+  color?: number;
+}
+
+export interface EditChildInput {
+  label?: string;
+  color?: number;
+}
+
+interface ChildChanges {
+  label: Option<ChildLabel>;
+  color: Option<ChildColor>;
 }
 
 export interface RevokeAllOutput {
@@ -76,6 +89,13 @@ const profileUnreadable: ChildrenError = {
   code: "CHILD_PROVIDER_FAILURE",
   message: "Google n'a pas renvoyé l'adresse du compte. Réessayez dans un instant.",
 };
+
+function avatarOf(profile: GoogleProfile): Option<AvatarUrl> {
+  return profile.picture.flatMap((url) => {
+    const avatar = AvatarUrl.create(url);
+    return avatar.isSuccess ? Option.some(avatar.getValue()) : Option.none();
+  });
+}
 
 export class ChildConnectionService {
   constructor(
@@ -200,11 +220,16 @@ export class ChildConnectionService {
       const label = this.labelFor(input.label, profile.getValue());
       if (label.isFailure) return Result.fail(label.getError());
 
+      const color = await this.colorFor(userId, input.color);
+      if (color.isFailure) return Result.fail(color.getError());
+
       const child = ChildAccount.create({
         userId,
         linkedAccountId: input.linkedAccountId,
         googleEmail: email.getValue(),
         label: label.getValue(),
+        color: color.getValue(),
+        avatarUrl: avatarOf(profile.getValue()),
         now: this.clock(),
       });
 
@@ -222,8 +247,10 @@ export class ChildConnectionService {
   }
 
   async reconnect(userId: string, childId: string): Promise<Result<ChildDto, ChildrenError>> {
-    return this.span("reconnect", () =>
-      this.transactions.run(async () => {
+    return this.span("reconnect", async () => {
+      const avatar = await this.currentAvatar(userId, childId);
+
+      return this.transactions.run(async () => {
         const found = await ownedChild(this.children, userId, childId);
         if (found.isFailure) return Result.fail(found.getError());
         const child = found.getValue();
@@ -233,37 +260,48 @@ export class ChildConnectionService {
         if (usable.isFailure) return Result.fail(usable.getError());
 
         if (child.reconnect(this.clock()).isFailure) return Result.fail(childNotFound);
+        if (avatar.isSome()) child.showAvatar(avatar.unwrap());
         const saved = await this.children.save(child);
         if (saved.isFailure) return Result.fail(saved.getError());
 
         await this.emitConnected(userId, childId);
         return Result.ok(toChildDto(child));
-      }),
-    );
+      });
+    });
   }
 
-  async rename(
+  async edit(
     userId: string,
     childId: string,
-    rawLabel: string,
+    input: EditChildInput,
   ): Promise<Result<ChildDto, ChildrenError>> {
-    return this.span("rename", () =>
+    return this.span("edit", () =>
       this.transactions.run(async () => {
-        const label = this.parseLabel(rawLabel);
-        if (label.isFailure) return Result.fail(label.getError());
+        const changes = this.parseChanges(input);
+        if (changes.isFailure) return Result.fail(changes.getError());
+        const { label, color } = changes.getValue();
 
         const found = await ownedChild(this.children, userId, childId);
         if (found.isFailure) return Result.fail(found.getError());
         const child = found.getValue();
 
-        child.rename(label.getValue());
+        if (label.isSome()) child.rename(label.unwrap());
+        if (color.isSome()) child.recolor(color.unwrap());
         const saved = await this.children.save(child);
         if (saved.isFailure) return Result.fail(saved.getError());
 
-        await emitEvent(this.outbox, EventTypes.CHILD_RENAMED, "child", childId, {
-          userId,
-          childId,
-        });
+        if (label.isSome())
+          await emitEvent(this.outbox, EventTypes.CHILD_RENAMED, "child", childId, {
+            userId,
+            childId,
+          });
+        if (color.isSome())
+          await emitEvent(this.outbox, EventTypes.CHILD_COLOR_CHANGED, "child", childId, {
+            userId,
+            actorUserId: userId,
+            childId,
+            color: child.get("color").value,
+          });
         return Result.ok(toChildDto(child));
       }),
     );
@@ -472,6 +510,63 @@ export class ChildConnectionService {
       .filter((name) => name.length > 0)
       .unwrapOr(DEFAULT_LABEL);
     return this.parseLabel(fallback);
+  }
+
+  private async currentAvatar(userId: string, childId: string): Promise<Option<Option<AvatarUrl>>> {
+    const found = await ownedChild(this.children, userId, childId);
+    if (found.isFailure || found.getValue().isDisconnecting()) return Option.none();
+
+    const profile = await this.googleAccess.profileOf(
+      userId,
+      found.getValue().get("linkedAccountId"),
+    );
+    if (profile.isFailure) {
+      this.instrumentation.capture(profile.getError(), { userId });
+      return Option.none();
+    }
+
+    return Option.some(avatarOf(profile.getValue()));
+  }
+
+  private parseChanges(input: EditChildInput): Result<ChildChanges, ChildrenError> {
+    const label =
+      input.label === undefined
+        ? Result.ok<Option<ChildLabel>, ChildrenError>(Option.none())
+        : this.parseLabel(input.label).map((parsed) => Option.some(parsed));
+    if (label.isFailure) return Result.fail(label.getError());
+
+    const color =
+      input.color === undefined
+        ? Result.ok<Option<ChildColor>, ChildrenError>(Option.none())
+        : this.parseColor(input.color).map((parsed) => Option.some(parsed));
+    if (color.isFailure) return Result.fail(color.getError());
+
+    return Result.ok({ label: label.getValue(), color: color.getValue() });
+  }
+
+  private async colorFor(
+    userId: string,
+    requested: number | undefined,
+  ): Promise<Result<ChildColor, ChildrenError>> {
+    if (requested !== undefined) return this.parseColor(requested);
+
+    const siblings = await this.children.listForUser(userId);
+    if (siblings.isFailure) return Result.fail(siblings.getError());
+
+    const taken = siblings
+      .getValue()
+      .filter((sibling) => !sibling.isDisconnecting())
+      .map((sibling) => sibling.get("color"));
+    return Result.ok(ChildColor.leastUsedAmong(taken));
+  }
+
+  private parseColor(hue: number): Result<ChildColor, ChildrenError> {
+    return ChildColor.fromHue(hue).mapError(
+      (): ChildrenError => ({
+        code: "CHILD_COLOR_INVALID",
+        message: "Choisissez l'une des 8 couleurs proposées.",
+      }),
+    );
   }
 
   private parseLabel(raw: string): Result<ChildLabel, ChildrenError> {

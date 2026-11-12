@@ -2,28 +2,48 @@ import {
   type AppError,
   type IInstrumentation,
   type IUnitOfWork,
+  type Option,
   Result,
   traced,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
+import { CHECKLIST_ITEM_MAX, CHECKLIST_ITEMS_MAX } from "@packages/events/agenda-contract";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import type { AgendaEvent, EventChanges, EventField } from "../../domain/event.aggregate";
-import { CLEAR_TIME, type EventDto, type EventPatch, toEventDto } from "../dto/event.dto";
+import {
+  AgendaEvent,
+  type EventChanges,
+  type EventField,
+  type ManualEvent,
+} from "../../domain/event.aggregate";
+import type { ChecklistChange } from "../../domain/value-objects/event-checklist.vo";
+import {
+  CLEAR_TIME,
+  type EventDto,
+  type EventPatch,
+  type NewEventBody,
+  toEventDto,
+} from "../dto/event.dto";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import {
   type AgendaError,
   type CourseDay,
+  childNotFound,
   eventNotFound,
   type IEventRepository,
 } from "../ports/event-repository.port";
 import type { IVisibleChildren } from "../ports/visible-children.port";
-import { alertAnnouncementsOn, courseDayOf, leftItsDay } from "./alert-planning";
+import { alertAnnouncementsOn, courseDayOf, dayLeftBy } from "./alert-planning";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
 import { visibleEvent } from "./visible-event";
 
 type EditError = AgendaError | AppError;
+
+const invalidChecklist: AgendaError = {
+  code: "EVENT_CHECKLIST_INVALID",
+  message: `Une liste à préparer compte au plus ${CHECKLIST_ITEMS_MAX} éléments de 1 à ${CHECKLIST_ITEM_MAX} caractères.`,
+};
 
 export class EventEditService {
   constructor(
@@ -35,6 +55,34 @@ export class EventEditService {
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
+
+  async add(userId: string, body: NewEventBody): Promise<Result<EventDto, EditError>> {
+    return traced(this.instrumentation, "EventEditService > add", () =>
+      this.transactions.run(async () => {
+        const visible = await this.children.idsOf(userId);
+        if (visible.isFailure) return Result.fail(visible.getError());
+        if (!visible.getValue().includes(body.childId)) return Result.fail(childNotFound);
+
+        const fields = this.manualFrom(userId, body);
+        if (fields.isFailure) return Result.fail(fields.getError());
+
+        const event = AgendaEvent.addByParent(fields.getValue());
+        const inserted = await this.events.insertIfAbsent(event);
+        if (inserted.isFailure) return Result.fail(inserted.getError());
+
+        const planned = await this.alerts.planDefault(plannedDeadline(event, userId));
+        if (planned.isFailure) return Result.fail(planned.getError());
+
+        await emitEvent(this.outbox, EventTypes.EVENT_ADDED, "event", event.id.value, {
+          userId,
+          childId: body.childId,
+          eventId: event.id.value,
+          actorUserId: userId,
+        });
+        return Result.ok(toEventDto(event));
+      }),
+    );
+  }
 
   async edit(
     userId: string,
@@ -93,6 +141,58 @@ export class EventEditService {
     );
   }
 
+  async markDone(
+    userId: string,
+    eventId: string,
+    done: boolean,
+  ): Promise<Result<EventDto, EditError>> {
+    return traced(this.instrumentation, "EventEditService > markDone", () =>
+      this.transactions.run(async () => {
+        const found = await this.owned(userId, eventId);
+        if (found.isFailure) return Result.fail(found.getError());
+        const event = found.getValue();
+
+        const marked = event.markDone(done);
+        if (marked.isFailure) return Result.fail(eventNotFound);
+        if (!marked.getValue()) return Result.ok(toEventDto(event));
+
+        const saved = await this.events.save(event);
+        if (saved.isFailure) return Result.fail(saved.getError());
+
+        const replanned = await this.alerts.replan(plannedDeadline(event, userId));
+        if (replanned.isFailure) return Result.fail(replanned.getError());
+
+        await this.emitUpdated(event, ["done"]);
+        return Result.ok(toEventDto(event));
+      }),
+    );
+  }
+
+  async changeChecklist(
+    userId: string,
+    eventId: string,
+    change: ChecklistChange,
+  ): Promise<Result<EventDto, EditError>> {
+    return traced(this.instrumentation, "EventEditService > changeChecklist", () =>
+      this.transactions.run(async () => {
+        const found = await this.owned(userId, eventId);
+        if (found.isFailure) return Result.fail(found.getError());
+        const event = found.getValue();
+
+        const changed = event.changeChecklist(change);
+        if (changed.isFailure)
+          return Result.fail(changed.getError() === "invalid" ? invalidChecklist : eventNotFound);
+        if (!changed.getValue()) return Result.ok(toEventDto(event));
+
+        const saved = await this.events.save(event);
+        if (saved.isFailure) return Result.fail(saved.getError());
+
+        await this.emitUpdated(event, ["checklist"]);
+        return Result.ok(toEventDto(event));
+      }),
+    );
+  }
+
   async remove(userId: string, eventId: string): Promise<Result<void, EditError>> {
     return traced(this.instrumentation, "EventEditService > remove", () =>
       this.transactions.run(async (): Promise<Result<void, EditError>> => {
@@ -122,12 +222,17 @@ export class EventEditService {
 
   private async unmask(
     event: AgendaEvent,
-    day: CourseDay,
+    day: Option<CourseDay>,
     userId: string,
   ): Promise<Result<void, AppError>> {
-    if (!leftItsDay(event, day)) return Result.ok();
+    const left = dayLeftBy(event, day);
+    if (left.isNone()) return Result.ok();
 
-    return alertAnnouncementsOn(this.events, this.alerts, { userId, day, actorUserId: userId });
+    return alertAnnouncementsOn(this.events, this.alerts, {
+      userId,
+      day: left.unwrap(),
+      actorUserId: userId,
+    });
   }
 
   private async owned(userId: string, eventId: string): Promise<Result<AgendaEvent, EditError>> {
@@ -138,6 +243,27 @@ export class EventEditService {
     if (visible.isFailure) return Result.fail(visible.getError());
 
     return visible.getValue().toResult(eventNotFound);
+  }
+
+  private manualFrom(userId: string, body: NewEventBody): Result<ManualEvent, AgendaError> {
+    const title = parseTitle(body.title);
+    if (title.isFailure) return Result.fail(title.getError());
+    const description = parseDescription(body.description ?? "");
+    if (description.isFailure) return Result.fail(description.getError());
+    const category = parseCategory(body.category);
+    if (category.isFailure) return Result.fail(category.getError());
+    const deadline = parseDeadline(body.deadlineDate, body.deadlineTime);
+    if (deadline.isFailure) return Result.fail(deadline.getError());
+
+    return Result.ok({
+      userId,
+      childId: body.childId,
+      title: title.getValue(),
+      description: description.getValue(),
+      category: category.getValue(),
+      deadline: deadline.getValue(),
+      now: this.clock(),
+    });
   }
 
   private changesFrom(event: AgendaEvent, patch: EventPatch): Result<EventChanges, AgendaError> {

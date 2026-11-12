@@ -8,6 +8,7 @@ export interface SeedChildInput {
   at: Date;
   syncLease?: number;
   label?: string;
+  color?: number;
 }
 
 export async function seedChild({
@@ -16,6 +17,7 @@ export async function seedChild({
   at,
   syncLease,
   label = name,
+  color = 1,
 }: SeedChildInput): Promise<string> {
   const linkedAccountId = `${userId}-${name}`;
   await db.insert(authSchema.account).values({
@@ -32,6 +34,7 @@ export async function seedChild({
       linkedAccountId,
       googleEmail: `${name}@school.example`,
       label,
+      color,
       status: "connected",
       connectedAt: at,
       nextSyncAt: at,

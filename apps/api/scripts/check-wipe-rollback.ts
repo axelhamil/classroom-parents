@@ -6,7 +6,9 @@
  *    enqueued, and the next sweep still picks the account up. The failure is forced by a
  *    temporary CHECK constraint on `email_message.to_address`, dropped again in cleanup.
  * 2. A completed wipe revokes the child tokens while the user still exists, deletes the user row
- *    (sessions and accounts follow by FK cascade), purges every outbox row whose payload names
+ *    (sessions, accounts, children with their color and picture, events hand-added ones included,
+ *    reminders, the calendar feed and the Sunday digest choice and history follow by FK
+ *    cascade), purges every outbox row whose payload names
  *    the user as `userId` or `actorUserId`, keeps other users' rows, and leaves exactly one
  *    `USER_DELETED` without any email.
  * 3. A pending deletion inside its grace period is not returned by the sweep query.
@@ -22,9 +24,19 @@ import { checkRecorder, exitUnlessLocalDatabase, sessionsOf } from "@packages/te
 
 exitUnlessLocalDatabase("check-wipe-rollback", process.env.DATABASE_URL);
 
+import { agendaEvent } from "@modules/agenda/schemas/event.schema";
+import { alertEventReminders } from "@modules/alerts/schemas/reminder-settings.schema";
+import {
+  alertDigestPreference,
+  alertWeeklyDigest,
+} from "@modules/alerts/schemas/weekly-digest.schema";
+import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
+import { childAccount } from "@modules/children/schemas/child.schema";
+import { seedChild } from "@modules/children/schemas/testing/seed-child";
 import { type IInstrumentation, Result } from "@packages/ddd-kit";
 import {
   authSchema,
+  count,
   db,
   emailSchema,
   eq,
@@ -116,6 +128,82 @@ async function seedUser(id: string, options: SeedOptions): Promise<void> {
     accountId: id,
     providerId: "google",
   });
+}
+
+async function seedFamilyData(id: string): Promise<void> {
+  const at = new Date();
+  const childId = await seedChild({ userId: id, name: "child", at, color: 4 });
+  await db
+    .update(childAccount)
+    .set({ avatarUrl: "https://lh3.googleusercontent.com/a/wipe-probe" })
+    .where(eq(childAccount.id, childId));
+  const [event] = await db
+    .insert(agendaEvent)
+    .values({
+      userId: id,
+      childId,
+      source: "manual",
+      announcementId: `manual-${id}`,
+      ordinal: 0,
+      courseId: null,
+      announcementUrl: null,
+      title: "Sortie",
+      description: "",
+      category: "other",
+      deadlineDate: "2030-03-14",
+      deadlineAt: at,
+      receivedAt: at,
+      status: "confirmed",
+    })
+    .returning({ id: agendaEvent.id });
+  if (!event) throw new Error("event not seeded");
+  await db.insert(alertEventReminders).values({
+    eventId: event.id,
+    userId: id,
+    reminders: [{ kind: "hours_before", hours: 2 }],
+    updatedAt: at,
+  });
+  await db.insert(calendarFeed).values({
+    userId: id,
+    secretHash: `wipe-${id}`,
+    childIds: [childId],
+    createdAt: at,
+  });
+  await db.insert(alertDigestPreference).values({ userId: id, enabled: false, updatedAt: at });
+  await db
+    .insert(alertWeeklyDigest)
+    .values({ userId: id, weekStart: "2030-03-04", expiresAt: at, status: "sent" });
+}
+
+async function familyRowsLeft(id: string): Promise<Record<string, number>> {
+  const tally = async (rows: Promise<{ total: number }[]>) => (await rows)[0]?.total ?? 0;
+
+  return {
+    children: await tally(
+      db.select({ total: count() }).from(childAccount).where(eq(childAccount.userId, id)),
+    ),
+    events: await tally(
+      db.select({ total: count() }).from(agendaEvent).where(eq(agendaEvent.userId, id)),
+    ),
+    reminders: await tally(
+      db
+        .select({ total: count() })
+        .from(alertEventReminders)
+        .where(eq(alertEventReminders.userId, id)),
+    ),
+    calendarFeeds: await tally(
+      db.select({ total: count() }).from(calendarFeed).where(eq(calendarFeed.userId, id)),
+    ),
+    digestChoices: await tally(
+      db
+        .select({ total: count() })
+        .from(alertDigestPreference)
+        .where(eq(alertDigestPreference.userId, id)),
+    ),
+    digestWeeks: await tally(
+      db.select({ total: count() }).from(alertWeeklyDigest).where(eq(alertWeeklyDigest.userId, id)),
+    ),
+  };
 }
 
 async function seedOutbox(id: string): Promise<void> {
@@ -282,6 +370,7 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
     pendingDeletionUntil: new Date(Date.now() - 1000),
     sessionAgeMs: HOUR,
   });
+  await seedFamilyData(erasedId);
   await seedOutbox(erasedId);
   await seedOutbox(bystanderId);
   await seedEmail(erasedId);
@@ -299,6 +388,12 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   check("the user row is deleted", (await userRow(erasedId)) === undefined);
   check("its sessions are deleted", (await sessionsOf(erasedId)) === 0);
   check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
+  const familyLeft = await familyRowsLeft(erasedId);
+  check(
+    "its children, events, reminders, calendar feed and Sunday digest rows are deleted",
+    Object.values(familyLeft).every((total) => total === 0),
+    familyLeft,
+  );
 
   const rows = await outboxRowsNaming(erasedId);
   check(
