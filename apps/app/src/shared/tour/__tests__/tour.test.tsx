@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { Button } from "@packages/ui/components/ui/button";
 import { Tour, type TourStep } from "@packages/ui/components/ui/tour";
-import { cleanup, screen } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -47,6 +47,26 @@ function Harness({ onDone }: HarnessProps) {
   );
 }
 
+function SwappingHarness() {
+  const [wide, setWide] = useState(false);
+
+  return (
+    <>
+      <Button onClick={() => setWide(true)}>Pivoter</Button>
+      {wide ? (
+        <p key="columns" data-tour="first">
+          Colonnes
+        </p>
+      ) : (
+        <p key="strip" data-tour="first">
+          Bandeau
+        </p>
+      )}
+      <Tour steps={STEPS} open labels={LABELS} onDone={vi.fn()} />
+    </>
+  );
+}
+
 describe("guided tour", () => {
   afterEach(() => {
     cleanup();
@@ -83,6 +103,44 @@ describe("guided tour", () => {
 
     expect(document.activeElement).toBe(trigger);
     expect(screen.getByRole("dialog", { name: "Premier repère" })).toBeTruthy();
+  });
+
+  it("the tour follows its target when a rotation swaps the layout", async () => {
+    await renderWithProviders(<SwappingHarness />);
+    await screen.findByRole("dialog", { name: "Premier repère" });
+    await waitFor(() =>
+      expect(screen.getByText("Bandeau").hasAttribute("data-tour-active")).toBe(true),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Pivoter" }));
+    act(() => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Colonnes").hasAttribute("data-tour-active")).toBe(true),
+    );
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+  });
+
+  it("a rotation scrolls the highlighted element back into view", async () => {
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    await renderWithProviders(<Harness onDone={vi.fn()} />);
+    const trigger = screen.getByRole("button", { name: "Lancer" });
+    await userEvent.click(trigger);
+    await screen.findByRole("dialog", { name: "Premier repère" });
+    scrollIntoView.mockClear();
+
+    act(() => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    await waitFor(() => expect(scrollIntoView.mock.contexts).toContain(trigger));
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+    Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
   });
 
   it("Escape closes the tour and returns focus", async () => {

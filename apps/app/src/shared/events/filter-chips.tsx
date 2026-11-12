@@ -47,19 +47,19 @@ export function FilterChips({
       className="scrollbar-none relative max-w-full overflow-x-auto"
     >
       {options.map((option) => {
-        const item = (
-          <ToggleGroupItem key={option.value ?? ALL} value={option.value ?? ALL}>
-            {option.label}
-          </ToggleGroupItem>
-        );
+        const value = option.value ?? ALL;
 
         return option.hint ? (
-          <Tooltip key={option.value ?? ALL}>
-            <TooltipTrigger asChild>{item}</TooltipTrigger>
+          <Tooltip key={value}>
+            <ToggleGroupItem value={value} asChild>
+              <TooltipTrigger>{option.label}</TooltipTrigger>
+            </ToggleGroupItem>
             <TooltipContent>{option.hint}</TooltipContent>
           </Tooltip>
         ) : (
-          item
+          <ToggleGroupItem key={value} value={value}>
+            {option.label}
+          </ToggleGroupItem>
         );
       })}
     </ToggleGroup>

@@ -101,6 +101,9 @@ describe("Accueil, the family week", () => {
 
     const family = await screen.findByRole("toolbar", { name: "Filtrer par enfant" });
     fireEvent.click(within(family).getByRole("button", { name: /Hugo/ }));
+    await waitFor(() =>
+      expect(within(family).getByRole("button", { name: /Hugo/ }).dataset.state).toBe("on"),
+    );
     fireEvent.click(screen.getByRole("radio", { name: "Demain, 1 échéance" }));
 
     expect(await screen.findByText("Dictée de Hugo")).toBeDefined();
@@ -262,5 +265,49 @@ describe("Accueil, the family week", () => {
     fireEvent.click(check);
     fireEvent.click(check);
     await waitFor(() => expect(screen.getAllByText(message)).toHaveLength(1));
+  });
+
+  it("celebration also shows on the event page a push alert opens", async () => {
+    at("2026-11-12T17:30:00.000Z");
+    const homework = deadline(1, "2026-11-13", "Lire le chapitre 2");
+    const path = `/events/${homework.id}`;
+    const calls = stubApi(({ method, url }) => {
+      if (method !== "GET") return undefined;
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname === "/events")
+        return json({ items: [homework, deadline(2, "2026-11-16", "Exposé")] });
+      if (url.pathname === path) return json(homework);
+      if (url.pathname === `${path}/reminders`) return json({ customized: false, reminders: [] });
+      return undefined;
+    });
+    await renderAppAt(path);
+    const check = await screen.findByRole("checkbox", { name: "Vérifier qu'il est fait" });
+    await waitFor(() => expect(eventRequests(calls)).toHaveLength(1));
+
+    fireEvent.click(check);
+
+    expect(await screen.findByText("Tout est prêt pour demain. Bien joué.")).toBeDefined();
+  });
+
+  it("week celebration never fires when only the clock moves", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(new Date("2026-11-12T22:59:30.000Z"));
+    givenFamily(
+      [CHILD],
+      [
+        deadline(1, "2026-11-12", "Lire le chapitre 2"),
+        deadline(2, "2026-11-14", "Exposé", { done: true }),
+      ],
+    );
+    await renderAppAt("/");
+    await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
+
+    act(() => {
+      vi.setSystemTime(new Date("2026-11-12T23:00:30.000Z"));
+      vi.advanceTimersByTime(60_000);
+    });
+
+    await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
+    expect(screen.queryByText("Toute la semaine est prête. Profitez de la soirée.")).toBeNull();
   });
 });

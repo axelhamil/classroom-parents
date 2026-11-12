@@ -345,6 +345,16 @@
     scrollbar-gutter: stable;
   }
 
+  html {
+    scroll-padding-top: calc(var(--app-bar-height) + env(safe-area-inset-top));
+  }
+
+  @media (width < 48rem) {
+    html {
+      scroll-padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
+    }
+  }
+
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -443,11 +453,15 @@
     }
 
     [data-slot="input"],
-    [data-slot="select-trigger"] {
+    [data-slot="select-trigger"],
+    [data-slot="select-item"],
+    [data-slot="dropdown-menu-item"],
+    [data-slot="dropdown-menu-checkbox-item"],
+    [data-slot="dropdown-menu-radio-item"] {
       min-height: var(--touch-target);
     }
 
-    [data-slot="tooltip-content"] {
+    [data-radix-popper-content-wrapper]:has(> [data-slot="tooltip-content"]) {
       pointer-events: none;
     }
 
@@ -819,6 +833,10 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
 @media (prefers-reduced-motion: reduce) {
   :root {
     --enter-distance: 0;
+  }
+
+  [data-slot="celebration-stamp"] {
+    animation-delay: 0s;
   }
 
   ::view-transition-group(*),

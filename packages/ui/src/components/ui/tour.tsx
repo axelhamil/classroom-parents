@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button } from "./button";
 import {
   Popover,
@@ -54,6 +54,35 @@ function focusableIn(element: HTMLElement): HTMLElement | null {
   return element.matches(FOCUSABLE) ? element : element.querySelector<HTMLElement>(FOCUSABLE);
 }
 
+const MIN_ROOM_REM = 12;
+const EDGE_GAP = 16;
+
+interface Band {
+  top: number;
+  bottom: number;
+}
+
+function visibleBand(): Band {
+  const page = getComputedStyle(document.documentElement);
+
+  return {
+    top: Number.parseFloat(page.scrollPaddingTop) || 0,
+    bottom: window.innerHeight - (Number.parseFloat(page.scrollPaddingBottom) || 0),
+  };
+}
+
+function anchorRect(element: HTMLElement): DOMRect {
+  const rect = element.getBoundingClientRect();
+  const band = visibleBand();
+  const room =
+    MIN_ROOM_REM * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+  if (rect.top - band.top >= room || band.bottom - rect.bottom >= room) return rect;
+
+  const top = Math.min(Math.max(rect.top, band.top), band.bottom - room);
+
+  return new DOMRect(rect.left, top, rect.width, 0);
+}
+
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
@@ -66,7 +95,9 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
   const titleId = useId();
   const bodyId = useId();
   const targets = steps.map((step) => step.target).join("\n");
-  const current = open ? placed[index] : undefined;
+  const position = Math.min(index, placed.length - 1);
+  const current = open ? placed[position] : undefined;
+  const element = current?.element;
 
   useEffect(() => {
     if (!open) {
@@ -80,30 +111,52 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
       setPlaced(placeSteps(steps));
     });
 
-    return () => cancelAnimationFrame(frame);
+    let width = window.innerWidth;
+    let relayout = 0;
+    const onResize = () => {
+      if (window.innerWidth === width) return;
+
+      width = window.innerWidth;
+      cancelAnimationFrame(relayout);
+      relayout = requestAnimationFrame(() => setPlaced(placeSteps(steps)));
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(relayout);
+      window.removeEventListener("resize", onResize);
+    };
   }, [open, targets]);
 
   useEffect(() => {
-    const element = current?.element;
     if (!element) return;
 
     element.setAttribute(ACTIVE_ATTRIBUTE, "");
-    element.scrollIntoView?.({
-      block: "nearest",
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
-    });
 
     return () => element.removeAttribute(ACTIVE_ATTRIBUTE);
-  }, [current?.element]);
+  }, [element]);
+
+  useEffect(() => {
+    current?.element.scrollIntoView?.({
+      block: "start",
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  }, [current]);
+
+  const anchor = useMemo(
+    () => ({ current: element ? { getBoundingClientRect: () => anchorRect(element) } : null }),
+    [element],
+  );
 
   if (!current) return null;
 
-  const last = index === placed.length - 1;
-  const anchor = { current: current.element };
+  const last = position === placed.length - 1;
+  const coveredBelow = window.innerHeight - visibleBand().bottom;
 
   const back = () => {
-    setIndex(index - 1);
-    if (index === 1) next.current?.focus();
+    setIndex(position - 1);
+    if (position === 1) next.current?.focus();
   };
 
   const finish = () => {
@@ -124,9 +177,14 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
         data-slot="tour"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        collisionPadding={16}
+        collisionPadding={{
+          top: EDGE_GAP,
+          right: EDGE_GAP,
+          bottom: EDGE_GAP + coveredBelow,
+          left: EDGE_GAP,
+        }}
         sideOffset={12}
-        className="flex max-h-(--radix-popover-content-available-height) flex-col gap-4 overflow-y-auto"
+        className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-(--radix-popover-content-available-width) flex-col gap-4"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           next.current?.focus();
@@ -145,19 +203,24 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <PopoverHeader key={current.target} data-slot="tour-step" aria-live="polite">
+        <PopoverHeader
+          key={current.target}
+          data-slot="tour-step"
+          aria-live="polite"
+          className="min-h-0 overflow-y-auto"
+        >
           <PopoverDescription data-slot="tour-progress">
-            {labels.progress(index + 1, placed.length)}
+            {labels.progress(position + 1, placed.length)}
           </PopoverDescription>
           <PopoverTitle id={titleId}>{current.title}</PopoverTitle>
           <PopoverDescription id={bodyId}>{current.body}</PopoverDescription>
         </PopoverHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={finish}>
             {labels.skip}
           </Button>
           <div className="flex gap-2">
-            {index > 0 && (
+            {position > 0 && (
               <Button type="button" variant="outline" size="sm" onClick={back}>
                 {labels.previous}
               </Button>
@@ -166,7 +229,7 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
               ref={next}
               type="button"
               size="sm"
-              onClick={() => (last ? finish() : setIndex(index + 1))}
+              onClick={() => (last ? finish() : setIndex(position + 1))}
             >
               {last ? labels.finish : labels.next}
             </Button>

@@ -13,8 +13,9 @@ import { Route as ProtectedRoute } from "../../../router/_protected";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { dayLabel } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
-import { mondayOf } from "../week";
+import { isInWeek, mondayOf } from "../week";
 import { type ChecklistEntry, useChecklists } from "./use-checklist";
+import { useWeekEvents } from "./use-week-events";
 
 const LOCALE = "fr-FR";
 
@@ -36,30 +37,43 @@ function completedDays(events: readonly EventItem[], ready: readonly boolean[]):
   );
 }
 
-export function useCelebrateProgress(events: readonly EventItem[] | undefined, now: Date): void {
+interface Progress {
+  scope: string;
+  completed: string;
+}
+
+export function useCelebrateProgress(now: Date): void {
   const { t } = useTranslation("events");
   const { user } = ProtectedRoute.useRouteContext();
-  const loaded = events ?? [];
+  const query = useWeekEvents(now);
+  const loaded = (query.data?.pages.flatMap((page) => page.items) ?? []).filter((event) =>
+    isInWeek(event.deadlineDate, now),
+  );
   const checklists = useChecklists(loaded);
   const ready = loaded.map((event, index) => isReady(event, checklists[index] ?? []));
   const week = mondayOf(now);
-  const completed = events
-    ? [
-        ...completedDays(loaded, ready),
-        ...(loaded.length > 0 && ready.every(Boolean) ? [`week:${week}`] : []),
-      ].join("\n")
+  const progress: Progress | null = query.isSuccess
+    ? {
+        scope: [week, ...loaded.map((event) => `${event.id}:${event.done}`)].join("\n"),
+        completed: [
+          ...completedDays(loaded, ready),
+          ...(loaded.length > 0 && ready.every(Boolean) ? [`week:${week}`] : []),
+        ].join("\n"),
+      }
     : null;
-  const previous = useRef<string | null>(null);
+  const previous = useRef<Progress | null>(null);
   const key = userStorageKey(user.id, "celebrations");
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a celebration answers a change of what is complete, nothing else
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a celebration answers a checklist the parent ticked, so only a change of what is complete within the same events counts
   useEffect(() => {
     const before = previous.current;
-    previous.current = completed;
-    if (before === null || completed === null) return;
+    previous.current = progress;
+    if (!before || !progress || before.scope !== progress.scope) return;
 
-    const known = new Set(before.split("\n"));
-    const fresh = completed.split("\n").filter((entry) => entry !== "" && !known.has(entry));
+    const known = new Set(before.completed.split("\n"));
+    const fresh = progress.completed
+      .split("\n")
+      .filter((entry) => entry !== "" && !known.has(entry));
     if (fresh.length === 0) return;
 
     const today = schoolToday(now);
@@ -81,7 +95,8 @@ export function useCelebrateProgress(events: readonly EventItem[] | undefined, n
       : t("celebration.day", { day: dayLabel(day ?? today, now).toLocaleLowerCase(LOCALE) });
 
     toast.success(message, {
+      id: weekDone ? `celebration:week:${week}` : `celebration:day:${day ?? today}`,
       icon: <CelebrationStamp>{weekDone ? <SparklesIcon /> : <CheckCheckIcon />}</CelebrationStamp>,
     });
-  }, [completed]);
+  }, [progress?.scope, progress?.completed]);
 }

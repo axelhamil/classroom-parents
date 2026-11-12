@@ -167,7 +167,7 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   const shown = childId ? weekEvents.filter((event) => event.childId === childId) : weekEvents;
   const days = weekOf(shown, now);
   const toReview = review.data ?? [];
-  useCelebrateProgress(week.isSuccess ? weekEvents : undefined, now);
+  useCelebrateProgress(now);
 
   const setSearch = (next: Partial<HomeSearch>) =>
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
