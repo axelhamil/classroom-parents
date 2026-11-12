@@ -370,6 +370,13 @@
     scrollbar-gutter: stable;
   }
 
+  html body[data-scroll-locked] {
+    /* biome-ignore lint/complexity/noImportantStyles: the scroll lock injects its own !important gap, which the stable gutter already reserves */
+    --removed-body-scroll-bar-size: 0px !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same injected !important margin */
+    margin-right: 0 !important;
+  }
+
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
