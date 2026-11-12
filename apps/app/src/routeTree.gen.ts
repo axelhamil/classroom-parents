@@ -28,6 +28,7 @@ import { Route as featuresChildrenLinkErrorDotrouteRouteImport } from './feature
 import { Route as featuresOnboardingNewChildDotrouteRouteImport } from './features/onboarding/new-child.route'
 import { Route as featuresEventsEventDetailDotrouteRouteImport } from './features/events/event-detail.route'
 import { Route as featuresPrivacyPrivacyDotrouteRouteImport } from './features/privacy/privacy.route'
+import { Route as featuresEventsPrintWeekDotrouteRouteImport } from './features/events/print-week.route'
 import { Route as featuresEventsEventEditDotrouteRouteImport } from './features/events/event-edit.route'
 
 const routerGuestRoute = routerGuestRouteImport.update({
@@ -138,6 +139,12 @@ const featuresPrivacyPrivacyDotrouteRoute =
     path: '/settings/privacy',
     getParentRoute: () => routerShellRoute,
   } as any)
+const featuresEventsPrintWeekDotrouteRoute =
+  featuresEventsPrintWeekDotrouteRouteImport.update({
+    id: '/week/print',
+    path: '/week/print',
+    getParentRoute: () => routerShellRoute,
+  } as any)
 const featuresEventsEventEditDotrouteRoute =
   featuresEventsEventEditDotrouteRouteImport.update({
     id: '/events/$eventId/edit',
@@ -162,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRoutesByTo {
@@ -181,6 +189,7 @@ export interface FileRoutesByTo {
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRoutesById {
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/_protected/_shell/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/_protected/_shell/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/_protected/_shell/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/_protected/_shell/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/_protected/_shell/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRouteTypes {
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/children/new'
     | '/events/$eventId'
     | '/settings/privacy'
+    | '/week/print'
     | '/events/$eventId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/children/new'
     | '/events/$eventId'
     | '/settings/privacy'
+    | '/week/print'
     | '/events/$eventId/edit'
   id:
     | '__root__'
@@ -266,6 +278,7 @@ export interface FileRouteTypes {
     | '/_protected/_shell/children/new'
     | '/_protected/_shell/events/$eventId'
     | '/_protected/_shell/settings/privacy'
+    | '/_protected/_shell/week/print'
     | '/_protected/_shell/events/$eventId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -415,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof featuresPrivacyPrivacyDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
+    '/_protected/_shell/week/print': {
+      id: '/_protected/_shell/week/print'
+      path: '/week/print'
+      fullPath: '/week/print'
+      preLoaderRoute: typeof featuresEventsPrintWeekDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
     '/_protected/_shell/events/$eventId/edit': {
       id: '/_protected/_shell/events/$eventId/edit'
       path: '/events/$eventId/edit'
@@ -446,6 +466,7 @@ interface routerShellRouteChildren {
   featuresOnboardingNewChildDotrouteRoute: typeof featuresOnboardingNewChildDotrouteRoute
   featuresEventsEventDetailDotrouteRoute: typeof featuresEventsEventDetailDotrouteRoute
   featuresPrivacyPrivacyDotrouteRoute: typeof featuresPrivacyPrivacyDotrouteRoute
+  featuresEventsPrintWeekDotrouteRoute: typeof featuresEventsPrintWeekDotrouteRoute
   featuresEventsEventEditDotrouteRoute: typeof featuresEventsEventEditDotrouteRoute
 }
 
@@ -461,6 +482,7 @@ const routerShellRouteChildren: routerShellRouteChildren = {
   featuresEventsEventDetailDotrouteRoute:
     featuresEventsEventDetailDotrouteRoute,
   featuresPrivacyPrivacyDotrouteRoute: featuresPrivacyPrivacyDotrouteRoute,
+  featuresEventsPrintWeekDotrouteRoute: featuresEventsPrintWeekDotrouteRoute,
   featuresEventsEventEditDotrouteRoute: featuresEventsEventEditDotrouteRoute,
 }
 

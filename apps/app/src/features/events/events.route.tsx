@@ -26,6 +26,7 @@ import { reviewEventsQueryOptions } from "./api/events.queries";
 import { BlockedChildrenNotice } from "./components/blocked-children-notice";
 import { EventOverlay } from "./components/event-overlay";
 import { FamilyRow } from "./components/family-row";
+import { PrintWeekButton } from "./components/print-week-button";
 import { ReviewCard } from "./components/review-card";
 import { SundayPanel } from "./components/sunday-panel";
 import { TonightCard } from "./components/tonight-card";
@@ -158,7 +159,7 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   const review = useQuery(
     reviewEventsQueryOptions(tab === "week" ? { category: null, childId } : filters),
   );
-  const week = useWeekEvents(now);
+  const week = useWeekEvents(weekDates(now).at(-1) ?? schoolToday(now));
   const weekEvents = (week.data?.pages.flatMap((page) => page.items) ?? []).filter((event) =>
     isInWeek(event.deadlineDate, now),
   );
@@ -222,7 +223,8 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
                 ) : (
                   <>
                     {tonight.length > 0 && <TonightCard events={tonight} family={family} />}
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <PrintWeekButton />
                       <WeekShareButton days={days} family={family} now={now} />
                     </div>
                   </>

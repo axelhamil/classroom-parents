@@ -25,6 +25,7 @@ import { childHue, childLabelOf } from "../../../shared/format/child-hue";
 import { deadlineLabel } from "../../../shared/format/deadline-label";
 import { SIGN_ITEMS, useChecklists } from "../hooks/use-checklist";
 import type { WeekDay } from "../week";
+import { PrintWeekButton } from "./print-week-button";
 import { WeekShareButton } from "./week-share-button";
 
 const LIST_FORMAT = new Intl.ListFormat("fr-FR", { type: "conjunction" });
@@ -68,7 +69,8 @@ export function SundayPanel({ days, family, now }: SundayPanelProps) {
             <h2 id={titleId}>{t("sunday.title")}</h2>
           </CardTitle>
           <CardDescription>{t("sunday.description")}</CardDescription>
-          <CardAction>
+          <CardAction className="flex flex-wrap justify-end gap-2">
+            <PrintWeekButton />
             <WeekShareButton days={days} family={family} now={now} />
           </CardAction>
         </CardHeader>

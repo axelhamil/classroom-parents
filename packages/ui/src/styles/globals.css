@@ -132,6 +132,11 @@
   --sidebar-width: 16rem;
   --sidebar-width-icon: 3.5rem;
   --sidebar-width-mobile: 18rem;
+  --print-paper: oklch(1 0 0);
+  --print-ink: oklch(0.2 0.01 60);
+  --print-ink-muted: oklch(0.4 0.01 60);
+  --print-rule: oklch(0.72 0.01 60);
+  --print-root-size: 10pt;
 }
 
 .dark {
@@ -778,4 +783,55 @@ html.theme-switching *::after {
     calc(var(--scroll-edge-size) / 2) no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, var(--scroll-edge-shadow), transparent) bottom / 100%
     calc(var(--scroll-edge-size) / 2) no-repeat scroll;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+/*
+ * Paper is light whatever the screen theme: ink on white, no filled surfaces but the child hues and initials.
+ * Print ink 16.9:1 on paper, muted ink 9.6:1.
+ */
+@media print {
+  :root,
+  .dark {
+    color-scheme: light;
+    --background: var(--print-paper);
+    --foreground: var(--print-ink);
+    --card: var(--print-paper);
+    --card-foreground: var(--print-ink);
+    --muted-foreground: var(--print-ink-muted);
+    --border: var(--print-rule);
+  }
+
+  html {
+    font-size: var(--print-root-size);
+    scrollbar-gutter: auto;
+  }
+
+  body {
+    min-height: 0;
+    padding: 0;
+  }
+
+  [data-slot="app-bar"],
+  [data-sonner-toaster] {
+    display: none;
+  }
+
+  [data-slot="print-sheet"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: paper has no time, an entrance caught mid-way would print faded */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: paper has no time, an entrance caught mid-way would print faded */
+    transition: none !important;
+  }
 }

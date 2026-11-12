@@ -2,8 +2,8 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
-import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
+import { at, deadline, givenFamily, HUGO } from "../../../__tests__/week-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({
@@ -13,42 +13,10 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
   }),
 }));
 
-const HUGO = { ...CHILD, id: "2b9e4c1a-7d3f-4b6e-9a8c-1f0e2d3c4b5a", label: "Hugo" };
-
-function deadline(index: number, date: string, title: string, extra: object = {}) {
-  return {
-    ...EVENT_BASE,
-    id: `7c1d2e3f-4a5b-4c6d-8e9f-${String(index).padStart(12, "0")}`,
-    title,
-    description: "",
-    category: "homework",
-    deadlineDate: date,
-    deadlineAt: `${date}T22:59:00.000Z`,
-    ...extra,
-  };
-}
-
-function givenFamily(children: unknown[], events: unknown[]): ApiCall[] {
-  return stubApi(({ method, url }) => {
-    if (url.pathname === "/children") return json(children);
-    if (url.pathname === "/events" && method === "GET") {
-      if (url.searchParams.get("status") === "needs_review") return json({ items: [] });
-      return json({ items: events });
-    }
-    if (url.pathname === "/sync") return json({ status: "requested" }, 202);
-    return undefined;
-  });
-}
-
 function eventRequests(calls: ApiCall[]): URLSearchParams[] {
   return calls
     .filter((call) => call.method === "GET" && call.url.pathname === "/events")
     .map((call) => call.url.searchParams);
-}
-
-function at(instant: string): void {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date(instant));
 }
 
 describe("Accueil, the family week", () => {
