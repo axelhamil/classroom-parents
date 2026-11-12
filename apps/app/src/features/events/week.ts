@@ -1,7 +1,6 @@
 import { DAY_MS } from "@packages/ddd-kit/days";
 import { utcDay } from "@packages/i18n";
-import type { EventItem } from "../../shared/api/queries/events";
-import { daysUntil, wallTimeNow } from "../../shared/format/deadline-label";
+import { wallTimeNow } from "../../shared/format/deadline-label";
 import { schoolToday } from "../../shared/format/school-today";
 
 export const WEEK_LENGTH = 7;
@@ -15,11 +14,6 @@ const SATURDAY = 6;
 export const PRINT_WEEKS = ["current", "next"] as const;
 
 export type PrintWeek = (typeof PRINT_WEEKS)[number];
-
-export interface WeekDay {
-  date: string;
-  events: EventItem[];
-}
 
 function datesFrom(start: number, length: number): string[] {
   return Array.from({ length }, (_, offset) =>
@@ -35,16 +29,6 @@ function mondayOfWeek(now: Date): number {
 
 export function mondayOf(now: Date): string {
   return new Date(mondayOfWeek(now)).toISOString().slice(0, 10);
-}
-
-export function weekDates(now: Date): string[] {
-  return datesFrom(utcDay(schoolToday(now)), WEEK_LENGTH);
-}
-
-export function upcomingWeekRange(now: Date): { from: string; to: string } {
-  const from = schoolToday(now);
-
-  return { from, to: weekDates(now).at(-1) ?? from };
 }
 
 function weekdayOf(now: Date): number {
@@ -65,25 +49,8 @@ export function printWeekDates(now: Date, week: PrintWeek): string[] {
   return datesFrom(week === "current" ? monday : monday + WEEK_LENGTH * DAY_MS, WEEK_LENGTH);
 }
 
-export function isInWeek(date: string, now: Date): boolean {
-  const days = daysUntil(date, now);
-
-  return days >= 0 && days < WEEK_LENGTH;
-}
-
-export function weekOf(events: readonly EventItem[], now: Date): WeekDay[] {
-  return weekDates(now).map((date) => ({
-    date,
-    events: events.filter((event) => event.deadlineDate === date),
-  }));
-}
-
 export function isEvening(now: Date): boolean {
   return wallTimeNow(now) >= EVENING_FROM;
-}
-
-export function isSundayEvening(now: Date): boolean {
-  return weekdayOf(now) === SUNDAY && isEvening(now);
 }
 
 export function greetingKind(now: Date): "morning" | "evening" {

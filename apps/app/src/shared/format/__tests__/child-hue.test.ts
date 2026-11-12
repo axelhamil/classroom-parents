@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ChildDto } from "../../api/queries/children";
 import { childHue } from "../child-hue";
 
-function child(id: string): ChildDto {
+function child(id: string, color: ChildDto["color"]): ChildDto {
   return {
     id,
     label: id,
-    color: 1,
+    color,
     avatarUrl: null,
     googleEmail: `${id}@example.com`,
     status: "connected",
@@ -15,18 +15,15 @@ function child(id: string): ChildDto {
   };
 }
 
-const FAMILY = Array.from({ length: 10 }, (_, index) => child(`child-${index}`));
-
 describe("childHue", () => {
-  it("childHue is stable for the same order", () => {
-    const first = FAMILY.map((member) => childHue(FAMILY, member.id));
-    const second = [...FAMILY].map((member) => childHue([...FAMILY], member.id));
+  it("draws each child in the color the family keeps for it, whatever its place in the list", () => {
+    const family = [child("lea", 5), child("hugo", 2), child("ines", 8)];
 
-    expect(first).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 1, 2]);
-    expect(second).toEqual(first);
+    expect(family.map((member) => childHue(family, member.id))).toEqual([5, 2, 8]);
+    expect(childHue([...family].reverse(), "lea")).toBe(5);
   });
 
   it("gives an unknown child the first hue instead of failing", () => {
-    expect(childHue(FAMILY, "gone")).toBe(1);
+    expect(childHue([child("lea", 5)], "gone")).toBe(1);
   });
 });

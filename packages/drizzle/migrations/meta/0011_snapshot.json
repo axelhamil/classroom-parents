@@ -1,6 +1,6 @@
 {
-  "id": "97516bee-6452-4c6d-b876-219b33d7c059",
-  "prevId": "a9c0caa0-ae3e-4463-b5b8-c4022c21b861",
+  "id": "a42043e1-ffd6-481b-9ded-aed1eb620666",
+  "prevId": "573dea76-1a5b-4cf6-a9c5-f837fba9cbdd",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1115,6 +1115,13 @@
           "notNull": true,
           "default": false
         },
+        "checklist": {
+          "name": "checklist",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"done\":[],\"removed\":[],\"extra\":[]}'::jsonb"
+        },
         "edited_at": {
           "name": "edited_at",
           "type": "timestamp with time zone",
@@ -1479,51 +1486,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.push_lock_screen": {
-      "name": "push_lock_screen",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "details": {
-          "name": "details",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "push_lock_screen_user_id_user_id_fk": {
-          "name": "push_lock_screen_user_id_user_id_fk",
-          "tableFrom": "push_lock_screen",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

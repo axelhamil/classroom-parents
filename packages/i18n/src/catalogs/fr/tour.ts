@@ -8,24 +8,24 @@ export default {
   },
   home: {
     week: {
-      title: "Votre semaine d'un coup d'œil",
-      body: "Chaque jour, les échéances de vos enfants. Touchez une carte pour voir le détail.",
+      title: "Votre calendrier",
+      body: "Les échéances de vos enfants jour par jour. Cochez ce qui est fait, touchez une échéance pour le détail.",
     },
     family: {
       title: "Un enfant à la fois",
-      body: "Choisissez un enfant pour ne voir que ses échéances, ou toute la famille.",
+      body: "Chaque enfant a sa couleur. Choisissez-en un pour ne voir que ses échéances.",
     },
     tabs: {
-      title: "Semaine, À venir, Passées",
-      body: "Passez de la semaine à toute la liste, ou retrouvez ce qui est déjà passé.",
+      title: "Agenda, Semaine, Mois",
+      body: "Changez de vue sans perdre le jour choisi. Glissez pour passer à la période suivante.",
     },
     share: {
-      title: "Partager la semaine",
-      body: "Envoyez le programme à l'autre parent ou aux grands-parents en un geste.",
+      title: "Ajouter, partager, s'abonner",
+      body: "Ajoutez ce que l'école n'a pas publié, partagez la semaine ou abonnez votre agenda.",
     },
     nav: {
       title: "Tout est ici",
-      body: "Accueil pour la semaine, Enfants pour les comptes, Réglages pour les alertes.",
+      body: "Accueil pour le calendrier, Enfants pour les comptes, Réglages pour les alertes.",
     },
   },
   "event-detail": {

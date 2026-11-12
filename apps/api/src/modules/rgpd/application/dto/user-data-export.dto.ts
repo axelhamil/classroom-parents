@@ -37,6 +37,7 @@ export interface ExportedEvent {
   receivedAt: string;
   status: string;
   done: boolean;
+  checklist: { done: string[]; removed: string[]; extra: { id: string; label: string }[] };
   editedAt: string | null;
   editedFields: string[];
   deletedAt: string | null;

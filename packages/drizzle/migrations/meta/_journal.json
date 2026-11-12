@@ -75,15 +75,22 @@
     {
       "idx": 10,
       "version": "7",
-      "when": 1794505730124,
-      "tag": "0010_quiet_hours",
+      "when": 1794505770496,
+      "tag": "0010_event_checklist",
       "breakpoints": true
     },
     {
       "idx": 11,
       "version": "7",
-      "when": 1794506305595,
-      "tag": "0011_push_lock_screen",
+      "when": 1794510676311,
+      "tag": "0011_quiet_hours",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794510676883,
+      "tag": "0012_push_lock_screen",
       "breakpoints": true
     }
   ]

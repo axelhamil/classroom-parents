@@ -14,6 +14,8 @@ export default {
     EVENT_TITLE_INVALID: "Le titre doit contenir entre 1 et 120 caractères.",
     EVENT_DESCRIPTION_INVALID: "La description doit contenir au plus 2 000 caractères.",
     EVENT_CATEGORY_INVALID: "Choisissez un type dans la liste.",
+    EVENT_CHECKLIST_INVALID:
+      "Une liste à préparer compte au plus 50 éléments de 1 à 80 caractères. Raccourcissez l'élément ou retirez-en un.",
     EVENT_DEADLINE_INVALID:
       "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59, hors de 02:00 à 02:59 le jour du passage à l'heure d'été.",
     ALERT_AFTER_DEADLINE: "Un rappel doit sonner avant l'échéance. Choisissez un délai plus long.",
@@ -305,6 +307,13 @@ export default {
     confirmEvent: "Échec de la confirmation de l'échéance",
     deleteEvent: "Échec de la suppression de l'échéance",
     editEvent: "Échec de l'enregistrement de l'échéance",
+    addEvent: "Échec de l'ajout de l'échéance",
+    markEventDone: "Échec de la mise à jour de l'échéance",
+    changeChecklist: "Échec de l'enregistrement de la liste à préparer",
+    loadCalendar: "Échec du chargement du calendrier",
+    loadCalendarFeed: "Échec du chargement de l'abonnement agenda",
+    issueCalendarFeed: "Échec de la création du lien d'abonnement",
+    revokeCalendarFeed: "Échec de la désactivation de l'abonnement",
     customizeEventReminders: "Échec de l'enregistrement des rappels",
     resetEventReminders: "Échec du retour aux rappels par défaut",
     loadDefaultReminders: "Échec du chargement des rappels par défaut",

@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import {
   addEventBodySchema,
+  checklistChangeBodySchema,
   editEventBodySchema,
   eventIdParamSchema,
 } from "../../application/dto/event.dto";
@@ -51,7 +52,10 @@ export interface EventsRoutesDeps {
     EventQueryService,
     "listUpcoming" | "listHistory" | "listCalendar" | "get"
   >;
-  EventEditService: Pick<EventEditService, "add" | "edit" | "confirm" | "markDone" | "remove">;
+  EventEditService: Pick<
+    EventEditService,
+    "add" | "edit" | "confirm" | "markDone" | "changeChecklist" | "remove"
+  >;
 }
 
 export function createEventsRoutes(deps: EventsRoutesDeps) {
@@ -129,6 +133,21 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })
+    .post(
+      "/:id/checklist",
+      g.requireAuth,
+      zV("param", eventIdParamSchema),
+      zV("json", checklistChangeBodySchema),
+      async (c) => {
+        const result = await edits.changeChecklist(
+          g.currentUserId(c),
+          c.req.valid("param").id,
+          c.req.valid("json"),
+        );
+        if (result.isFailure) throw new AppErrorException(result.getError());
+        return c.json(result.getValue());
+      },
+    )
     .delete("/:id", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
       const result = await edits.remove(g.currentUserId(c), c.req.valid("param").id);
       if (result.isFailure) throw new AppErrorException(result.getError());

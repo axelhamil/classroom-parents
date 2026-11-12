@@ -23,9 +23,9 @@ export interface ApiCall {
   body: unknown;
 }
 
-export type ApiHandler = (call: ApiCall) => Response | undefined;
+export type ApiHandler = (call: ApiCall) => Response | Promise<Response> | undefined;
 
-export type RouteReplies = Record<string, (call: ApiCall) => Response>;
+export type RouteReplies = Record<string, (call: ApiCall) => Response | Promise<Response>>;
 
 export function byRoute(routes: RouteReplies): ApiHandler {
   return (call) => routes[`${call.method} ${call.url.pathname}`]?.(call);

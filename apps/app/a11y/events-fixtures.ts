@@ -42,6 +42,7 @@ export const REVIEW_EVENT = {
   receivedAt: new Date().toISOString(),
   edited: false,
   editedFields: [],
+  checklist: { done: [], removed: [], extra: [] },
 };
 
 export const EVENTS = [
@@ -87,6 +88,10 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     if (path === "/children") return route.fulfill({ json: fixtures.children });
     if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
     if (path === "/events") {
+      eventRequests.push(request);
+      return route.fulfill({ json: { items: fixtures.events } });
+    }
+    if (path === "/events/calendar") {
       eventRequests.push(request);
       return route.fulfill({ json: { items: fixtures.events } });
     }

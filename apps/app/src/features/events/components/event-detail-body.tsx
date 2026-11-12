@@ -12,7 +12,7 @@ import { TypographyH2, TypographyP } from "@packages/ui/components/ui/typography
 import { toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CalendarPlusIcon, ExternalLink, Pencil } from "lucide-react";
+import { CalendarPlusIcon, CheckIcon, ExternalLink, Pencil } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Route as ProtectedRoute } from "../../../router/_protected";
@@ -25,6 +25,7 @@ import { childHue } from "../../../shared/format/child-hue";
 import { countdownOf, deadlineLabel } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
 import { ScreenTour } from "../../../shared/tour/screen-tour";
+import { useToggleDone } from "../hooks/use-toggle-done";
 import { DeleteEventDialog } from "./delete-event-dialog";
 import { EventReminders } from "./event-reminders";
 import { PrepareChecklist } from "./prepare-checklist";
@@ -58,6 +59,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
   const child = family.find((candidate) => candidate.id === event.childId);
   const label = deadlineLabel(event.deadlineDate, event.deadlineTime, now);
   const countdown = event.done ? null : countdownOf(event.deadlineDate, event.deadlineTime, now);
+  const toggle = useToggleDone();
 
   const addToAgenda = () => {
     downloadIcs(icsFileName(event.title), deadlineIcs(event, now));
@@ -103,7 +105,21 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
         )}
       </DescriptionList>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" data-tour="event-detail-agenda" onClick={addToAgenda}>
+        <Button
+          type="button"
+          variant={event.done ? "secondary" : "default"}
+          aria-pressed={event.done}
+          onClick={() => toggle.mutate({ eventId: event.id, done: !event.done })}
+        >
+          <CheckIcon aria-hidden />
+          {t("detail.done")}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          data-tour="event-detail-agenda"
+          onClick={addToAgenda}
+        >
           <CalendarPlusIcon aria-hidden />
           {t("agenda.add")}
         </Button>

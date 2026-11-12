@@ -56,7 +56,7 @@ function focusableIn(element: HTMLElement): HTMLElement | null {
 
 const POPOVER_HEIGHT_REM = 12;
 const POPOVER_SIDE_WIDTH_REM = 15;
-const MIN_SHRUNK_HEIGHT_REM = 8;
+const MIN_SHRUNK_HEIGHT_REM = 10;
 const HEADING_FALLBACK_REM = 3;
 const EDGE_GAP = 16;
 const SIDE_OFFSET = 12;
@@ -102,9 +102,13 @@ interface Room {
   needed: number;
 }
 
-function roomAround(element: HTMLElement): Room[] {
+interface Placement {
+  side: TourSide;
+  band: Band;
+}
+
+function roomAround(element: HTMLElement, band: Band): Room[] {
   const rect = element.getBoundingClientRect();
-  const band = freeBand(element);
   const gaps = SIDE_OFFSET + EDGE_GAP;
   const height = remToPx(POPOVER_HEIGHT_REM);
   const width = remToPx(POPOVER_SIDE_WIDTH_REM);
@@ -117,29 +121,59 @@ function roomAround(element: HTMLElement): Room[] {
   ];
 }
 
-function placementFor(element: HTMLElement): TourSide {
-  const rooms = roomAround(element);
-  const fitting = rooms.find((room) => room.free >= room.needed);
-  if (fitting) return fitting.side;
+function fittingSide(element: HTMLElement, band: Band): TourSide | undefined {
+  const rooms = roomAround(element, band);
+  const landscape = window.innerWidth > window.innerHeight;
+  const preferred = landscape ? [...rooms.slice(2), ...rooms.slice(0, 2)] : rooms;
 
-  const [below, above] = rooms;
-  const shrinkable = remToPx(MIN_SHRUNK_HEIGHT_REM);
-  if (above && below && above.free > below.free && above.free >= shrinkable) return "top";
-
-  return "bottom";
+  return preferred.find((room) => room.free >= room.needed)?.side;
 }
 
-function anchorRect(element: HTMLElement, side: TourSide): DOMRect {
-  const rect = element.getBoundingClientRect();
-  if (side !== "bottom") return rect;
-
+function placementFor(element: HTMLElement): Placement {
   const band = freeBand(element);
+  const viewport = { top: 0, bottom: window.innerHeight };
+  for (const candidate of [band, viewport]) {
+    const side = fittingSide(element, candidate);
+    if (side) return { side, band: candidate };
+  }
+
+  const [below, above] = roomAround(element, band);
+  const shrinkable = remToPx(MIN_SHRUNK_HEIGHT_REM);
+  if (above && below && above.free > below.free && above.free >= shrinkable)
+    return { side: "top", band };
+
+  return { side: "bottom", band };
+}
+
+function clampedBottom(element: HTMLElement, rect: DOMRect, band: Band): number {
   const room = remToPx(MIN_SHRUNK_HEIGHT_REM) + SIDE_OFFSET + EDGE_GAP;
-  if (band.bottom - rect.bottom >= room) return rect;
+  if (band.bottom - rect.bottom >= room) return rect.bottom;
 
   const line = Math.max(band.bottom - room, headingBottom(element, rect));
 
-  return new DOMRect(rect.left, Math.min(line, rect.bottom), rect.width, 0);
+  return Math.min(line, rect.bottom);
+}
+
+function anchorRect(element: HTMLElement, { side, band }: Placement): DOMRect {
+  const rect = element.getBoundingClientRect();
+  const screenLeft = Math.min(0, rect.left);
+  const screenRight = Math.max(window.innerWidth, rect.right);
+  const screenBottom = Math.max(window.innerHeight, rect.bottom);
+
+  switch (side) {
+    case "top":
+      return new DOMRect(rect.left, rect.top, rect.width, screenBottom - rect.top);
+    case "right":
+      return new DOMRect(screenLeft, rect.top, rect.right - screenLeft, rect.height);
+    case "left":
+      return new DOMRect(rect.left, rect.top, screenRight - rect.left, rect.height);
+    case "bottom": {
+      const bottom = clampedBottom(element, rect, band);
+      const screenTop = Math.min(0, bottom);
+
+      return new DOMRect(rect.left, screenTop, rect.width, bottom - screenTop);
+    }
+  }
 }
 
 function prefersReducedMotion(): boolean {
@@ -203,7 +237,11 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
     });
   }, [current]);
 
-  const [side, setSide] = useState<TourSide>("bottom");
+  const [placement, setPlacement] = useState<Placement>(() => ({
+    side: "bottom",
+    band: { top: 0, bottom: window.innerHeight },
+  }));
+  const { side, band } = placement;
 
   useEffect(() => {
     if (!element) return;
@@ -211,7 +249,16 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
     let frame = 0;
     const place = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setSide(placementFor(element)));
+      frame = requestAnimationFrame(() => {
+        const next = placementFor(element);
+        setPlacement((previous) =>
+          previous.side === next.side &&
+          previous.band.top === next.band.top &&
+          previous.band.bottom === next.band.bottom
+            ? previous
+            : next,
+        );
+      });
     };
     place();
     window.addEventListener("scroll", place, true);
@@ -227,16 +274,15 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
   const anchor = useMemo(
     () => ({
       current: element
-        ? { getBoundingClientRect: () => anchorRect(element, side), contextElement: element }
+        ? { getBoundingClientRect: () => anchorRect(element, placement), contextElement: element }
         : null,
     }),
-    [element, side],
+    [element, placement],
   );
 
   if (!current) return null;
 
   const last = position === placed.length - 1;
-  const band = freeBand(current.element);
 
   const back = () => {
     setIndex(position - 1);

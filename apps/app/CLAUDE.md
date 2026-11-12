@@ -117,7 +117,7 @@ Primitives, tokens and their authoring rules live in `packages/ui/CLAUDE.md`. As
 
 ## Accessibility gate
 
-**Exactly one `<main>` and one `<h1>` per rendered page.** `__root.tsx` and the pathless gates never wrap in landmarks: they are passthroughs (`component: Outlet`) or, when every child shares one page width, a plain container around the `Outlet`. Each `<feature>.route.tsx` owns its `<header>`/`<main>`/`<footer>`. This is a CI gate (`.github/workflows/ci.yml`): a new page needs one entry in `a11y/pages.ts` (axe in light and dark, exactly one `<main>` and one `<h1>`); a new interactive primitive puts its keyboard contract in the interaction spec of its family (`a11y/*.spec.ts`: `interaction.spec.ts` for dialogs, menus and tooltips, `tour.spec.ts` for the tour).
+**Exactly one `<main>` and one `<h1>` per rendered page.** `__root.tsx` and the pathless gates never wrap in landmarks: they are passthroughs (`component: Outlet`) or, when every child shares one page width, a plain container around the `Outlet`. Each `<feature>.route.tsx` owns its `<header>`/`<main>`/`<footer>`. This is a CI gate (`.github/workflows/ci.yml`): a new page needs one entry in `a11y/pages.ts` (axe in light and dark, exactly one `<main>` and one `<h1>`); a new interactive primitive puts its keyboard contract in the interaction spec of its family (`a11y/*.spec.ts`: `interaction.spec.ts` for dialogs, menus, tooltips and the calendar grid, `tour.spec.ts` for the tour).
 
 ## i18n
 

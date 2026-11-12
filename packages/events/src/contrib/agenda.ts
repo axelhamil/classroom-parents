@@ -24,7 +24,16 @@ export const agendaEvents = defineEventContribution({
     "agenda.event.updated": EventRef.extend({
       fields: z
         .array(
-          z.enum(["title", "description", "category", "deadline", "status", "done", "withdrawn"]),
+          z.enum([
+            "title",
+            "description",
+            "category",
+            "deadline",
+            "status",
+            "done",
+            "withdrawn",
+            "checklist",
+          ]),
         )
         .min(1),
       actorUserId: z.string().nullable(),
@@ -58,7 +67,7 @@ export const agendaEvents = defineEventContribution({
     "agenda.event.added":
       "A parent added a school event to their agenda by hand, which no sync ever changes.",
     "agenda.event.updated":
-      "A parent edited, confirmed or marked done or to do a school event of their agenda, or a sync followed the coursework it comes from.",
+      "A parent edited, confirmed, marked done or to do, or changed the preparation checklist of a school event of their agenda, or a sync followed the coursework it comes from.",
     "agenda.event.deleted":
       "A parent deleted a school event, which never comes back on a later sync.",
     "agenda.events_purged":

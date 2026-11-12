@@ -14,12 +14,12 @@ export interface ShareButtonProps {
   "data-tour"?: string;
 }
 
-export function ShareButton({ label, payload, "data-tour": tour }: ShareButtonProps) {
+export function useShare() {
   const { t } = useTranslation("events");
   const [copied, setCopied] = useState(false);
 
-  const share = async () => {
-    const outcome = await shareOrCopy(payload());
+  const share = async (text: SharedText) => {
+    const outcome = await shareOrCopy(text);
     if (outcome === "failed") {
       toast.error(t("share.failed"));
       return;
@@ -31,8 +31,14 @@ export function ShareButton({ label, payload, "data-tour": tour }: ShareButtonPr
     window.setTimeout(() => setCopied(false), FEEDBACK_MS);
   };
 
+  return { share, copied };
+}
+
+export function ShareButton({ label, payload, "data-tour": tour }: ShareButtonProps) {
+  const { share, copied } = useShare();
+
   return (
-    <Button type="button" variant="outline" data-tour={tour} onClick={() => void share()}>
+    <Button type="button" variant="outline" data-tour={tour} onClick={() => void share(payload())}>
       {copied ? (
         <CheckIcon key="copied" data-slot="feedback-icon" aria-hidden />
       ) : (

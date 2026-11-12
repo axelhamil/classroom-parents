@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AgendaEvent, EditableField } from "../../domain/event.aggregate";
 import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
+import type { ChecklistItems } from "../../domain/value-objects/event-checklist.vo";
 import type { EventSourceValue } from "../../domain/value-objects/event-source.vo";
 import type { EventStatusValue } from "../../domain/value-objects/event-status.vo";
 
@@ -20,6 +21,7 @@ export interface EventDto {
   receivedAt: string;
   edited: boolean;
   editedFields: EditableField[];
+  checklist: ChecklistItems;
 }
 
 export interface EventDeadlineDto {
@@ -73,6 +75,20 @@ export const addEventBodySchema = z.strictObject({
 
 export type NewEventBody = z.infer<typeof addEventBodySchema>;
 
+export const checklistChangeBodySchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("tick"), itemId: z.string(), done: z.boolean() }),
+  z.strictObject({ kind: z.literal("add"), id: z.string(), label: z.string() }),
+  z.strictObject({ kind: z.literal("remove"), itemId: z.string() }),
+  z.strictObject({
+    kind: z.literal("import"),
+    checklist: z.strictObject({
+      done: z.array(z.string()),
+      removed: z.array(z.string()),
+      extra: z.array(z.strictObject({ id: z.string(), label: z.string() })),
+    }),
+  }),
+]);
+
 export function toEventDto(event: AgendaEvent): EventDto {
   const deadline = event.get("deadline").value;
 
@@ -92,6 +108,7 @@ export function toEventDto(event: AgendaEvent): EventDto {
     receivedAt: event.get("receivedAt").toISOString(),
     edited: event.get("editedAt").isSome(),
     editedFields: event.get("editedFields"),
+    checklist: event.get("checklist").items(),
   };
 }
 

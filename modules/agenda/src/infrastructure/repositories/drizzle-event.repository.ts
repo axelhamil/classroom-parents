@@ -32,6 +32,7 @@ import {
 import { AgendaEvent } from "../../domain/event.aggregate";
 import { EventId } from "../../domain/event-id";
 import { EventCategory } from "../../domain/value-objects/event-category.vo";
+import { EventChecklist } from "../../domain/value-objects/event-checklist.vo";
 import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventSource } from "../../domain/value-objects/event-source.vo";
@@ -59,6 +60,12 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   );
   const status = EventStatus.create(row.status);
   const source = EventSource.create(row.source);
+  const stored = row.checklist;
+  const checklist = EventChecklist.create({
+    ...stored,
+    written: stored.written ?? stored.done.length + stored.removed.length + stored.extra.length > 0,
+  });
+  if (checklist.isFailure) return Result.fail(checklist.getError());
   if (source.isFailure) return Result.fail(source.getError());
   if (id.isFailure) return Result.fail(id.getError());
   if (title.isFailure) return Result.fail(title.getError());
@@ -84,6 +91,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         receivedAt: row.receivedAt,
         status: status.getValue(),
         done: row.done,
+        checklist: checklist.getValue(),
         editedAt: Option.fromNullable(row.editedAt),
         editedFields: row.editedFields,
         deletedAt: Option.fromNullable(row.deletedAt),
@@ -107,6 +115,7 @@ function mutableColumns(event: AgendaEvent) {
     deadlineAt: deadline.at,
     status: event.get("status").value,
     done: event.get("done"),
+    checklist: event.get("checklist").value,
     editedAt: event.get("editedAt").toNull(),
     editedFields: event.get("editedFields"),
     deletedAt: event.get("deletedAt").toNull(),

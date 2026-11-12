@@ -24,7 +24,7 @@ function SettingsPage() {
   const { reauth, error } = Route.useSearch();
 
   return (
-    <Screen title={t("home.title")} description={t("home.description")} width="wide">
+    <Screen title={t("home.title")} description={t("home.description")} width="app">
       <div className="grid items-start gap-6 @4xl:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           <PushCard userId={user.id} />

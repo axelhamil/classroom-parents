@@ -97,6 +97,7 @@ async function family(name: string): Promise<{ userId: string; childId: string }
         status: "confirmed" as const,
         withdrawnAt: state === "withdrawn" ? NOW : null,
         deletedAt: state === "deleted" ? NOW : null,
+        checklist: { done: [`bag-${state}`], removed: [], extra: [], written: true },
       })),
     )
     .returning({ id: agendaEvent.id });
@@ -224,6 +225,15 @@ run(async () => {
       document.events.some((e) => e.withdrawnAt !== null) &&
       document.events.some((e) => e.deletedAt !== null),
     document.events.map((e) => e.title),
+  );
+  await step(
+    "the preparation checklist is exported as the parent sees it, without bookkeeping",
+    document.events.some(
+      (e) =>
+        JSON.stringify(e.checklist) ===
+        JSON.stringify({ done: ["bag-kept"], removed: [], extra: [] }),
+    ),
+    document.events.map((e) => e.checklist),
   );
   await step(
     "a hand-added event is exported with no course nor Classroom link",

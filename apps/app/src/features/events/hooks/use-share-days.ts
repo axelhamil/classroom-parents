@@ -2,20 +2,14 @@ import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import { childLabelOf } from "../../../shared/format/child-hue";
 import { dayLabel } from "../../../shared/format/deadline-label";
-import type { WeekDay } from "../week";
-import { ShareButton } from "./share-button";
+import type { CalendarDay } from "../calendar";
+import { useShare } from "../components/share-button";
 
-export interface WeekShareButtonProps {
-  days: readonly WeekDay[];
-  family: readonly ChildDto[];
-  now: Date;
-  "data-tour"?: string;
-}
-
-export function WeekShareButton({ days, family, now, "data-tour": tour }: WeekShareButtonProps) {
+export function useShareDays(family: readonly ChildDto[], now: Date) {
   const { t } = useTranslation("events");
+  const { share } = useShare();
 
-  const payload = () => {
+  return (days: readonly CalendarDay[]) => {
     const title = t("week.shareTitle");
     const planned = days.filter((day) => day.events.length > 0);
     const body =
@@ -35,8 +29,6 @@ export function WeekShareButton({ days, family, now, "data-tour": tour }: WeekSh
             )
             .join("\n\n");
 
-    return { title, text: `${title}\n\n${body}` };
+    void share({ title, text: `${title}\n\n${body}` });
   };
-
-  return <ShareButton label={t("week.share")} payload={payload} data-tour={tour} />;
 }

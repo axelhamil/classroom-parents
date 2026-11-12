@@ -1,9 +1,11 @@
+import { shiftDate } from "@packages/ddd-kit/days";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import {
   readStoredValue,
   userStorageKey,
   writeStoredValue,
 } from "@packages/web-kit/storage/use-stored-value";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { CheckCheckIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,11 +15,10 @@ import { Route as ProtectedRoute } from "../../../router/_protected";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { dayLabel } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
-import { isInWeek, mondayOf, upcomingWeekRange } from "../week";
-import { type ChecklistEntry, useChecklists } from "./use-checklist";
-import { useWeekEvents } from "./use-week-events";
-
-const LOCALE = "fr-FR";
+import { useIntlLocale } from "../../../shared/i18n/use-intl-locale";
+import { markEventDoneMutationOptions } from "../api/events.mutations";
+import { calendarEventsQueryOptions } from "../api/events.queries";
+import { mondayOf, WEEK_LENGTH } from "../week";
 
 const celebratedSchema = z.object({ days: z.array(z.string()), weeks: z.array(z.string()) });
 
@@ -25,16 +26,10 @@ type Celebrated = z.infer<typeof celebratedSchema>;
 
 const NONE: Celebrated = { days: [], weeks: [] };
 
-function isReady(event: EventItem, items: readonly ChecklistEntry[]): boolean {
-  return event.done || (items.length > 0 && items.every((item) => item.done));
-}
-
-function completedDays(events: readonly EventItem[], ready: readonly boolean[]): string[] {
+function completedDays(events: readonly EventItem[]): string[] {
   const dates = [...new Set(events.map((event) => event.deadlineDate))];
 
-  return dates.filter((date) =>
-    events.every((event, index) => event.deadlineDate !== date || ready[index]),
-  );
+  return dates.filter((date) => events.every((event) => event.deadlineDate !== date || event.done));
 }
 
 interface Progress {
@@ -45,30 +40,34 @@ interface Progress {
 export function useCelebrateProgress(now: Date): void {
   const { t } = useTranslation("events");
   const { user } = ProtectedRoute.useRouteContext();
-  const query = useWeekEvents("upcoming", upcomingWeekRange(now));
-  const loaded = (query.data?.pages.flatMap((page) => page.items) ?? []).filter((event) =>
-    isInWeek(event.deadlineDate, now),
+  const locale = useIntlLocale();
+  const from = schoolToday(now);
+  const query = useQuery(
+    calendarEventsQueryOptions({ from, to: shiftDate(from, WEEK_LENGTH - 1) }),
   );
-  const checklists = useChecklists(loaded);
-  const ready = loaded.map((event, index) => isReady(event, checklists[index] ?? []));
+  const toggling = useIsMutating({ mutationKey: markEventDoneMutationOptions.mutationKey }) > 0;
+  const loaded = query.data ?? [];
   const week = mondayOf(now);
-  const progress: Progress | null = query.isSuccess
-    ? {
-        scope: [week, ...loaded.map((event) => `${event.id}:${event.done}`)].join("\n"),
-        completed: [
-          ...completedDays(loaded, ready),
-          ...(loaded.length > 0 && ready.every(Boolean) ? [`week:${week}`] : []),
-        ].join("\n"),
-      }
-    : null;
+  const progress: Progress | null =
+    query.isSuccess && !toggling
+      ? {
+          scope: [week, ...loaded.map((event) => event.id)].join("\n"),
+          completed: [
+            ...completedDays(loaded),
+            ...(loaded.length > 0 && loaded.every((event) => event.done) ? [`week:${week}`] : []),
+          ].join("\n"),
+        }
+      : null;
   const previous = useRef<Progress | null>(null);
   const key = userStorageKey(user.id, "celebrations");
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a celebration answers a checklist the parent ticked, so only a change of what is complete within the same events counts
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a celebration answers a deadline the parent marked done and the server confirmed, so only a settled change of what is complete within the same events counts
   useEffect(() => {
+    if (!progress) return;
+
     const before = previous.current;
     previous.current = progress;
-    if (!before || !progress || before.scope !== progress.scope) return;
+    if (!before || before.scope !== progress.scope) return;
 
     const known = new Set(before.completed.split("\n"));
     const fresh = progress.completed
@@ -92,7 +91,7 @@ export function useCelebrateProgress(now: Date): void {
     const day = days.at(-1);
     const message = weekDone
       ? t("celebration.week")
-      : t("celebration.day", { day: dayLabel(day ?? today, now).toLocaleLowerCase(LOCALE) });
+      : t("celebration.day", { day: dayLabel(day ?? today, now).toLocaleLowerCase(locale) });
 
     toast.success(message, {
       id: weekDone ? `celebration:week:${week}` : `celebration:day:${day ?? today}`,

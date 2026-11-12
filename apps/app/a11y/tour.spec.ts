@@ -121,8 +121,13 @@ async function avoidableCover(page: Page): Promise<number> {
         target.querySelector("h1, h2, h3, h4") ??
         target;
       const box = target.getBoundingClientRect();
+      const root = getComputedStyle(document.documentElement);
+      const bars = target.closest("[role=dialog]")
+        ? 0
+        : (Number.parseFloat(root.scrollPaddingTop) || 0) +
+          (Number.parseFloat(root.scrollPaddingBottom) || 0);
       const fitsBeside =
-        box.height + popover.height + gap * 3 <= window.innerHeight ||
+        box.height + popover.height + gap * 3 <= window.innerHeight - bars ||
         Math.max(box.left, window.innerWidth - box.right) >= popover.width + gap * 2;
 
       return covered(heading.getBoundingClientRect()) + (fitsBeside ? covered(box) : 0);
@@ -131,28 +136,74 @@ async function avoidableCover(page: Page): Promise<number> {
   );
 }
 
+async function hiddenCopy(page: Page): Promise<number> {
+  return page.locator(TOUR_SELECTOR).evaluate((popover) => {
+    const step = popover.querySelector('[data-slot="tour-step"]')?.getBoundingClientRect();
+    const title = document.getElementById(popover.getAttribute("aria-labelledby") ?? "");
+    const body = document.getElementById(popover.getAttribute("aria-describedby") ?? "");
+    if (!step || !title || !body) return Number.POSITIVE_INFINITY;
+
+    const firstLine = Number.parseFloat(getComputedStyle(body).lineHeight) || 20;
+    const titleBottom = title.getBoundingClientRect().bottom;
+    const bodyLine = body.getBoundingClientRect().top + firstLine / 2;
+
+    return Math.max(0, titleBottom - step.bottom) + Math.max(0, bodyLine - step.bottom);
+  });
+}
+
+async function walkTour(page: Page): Promise<void> {
+  const tour = page.locator(TOUR_SELECTOR);
+  const progress = tour.locator('[data-slot="tour-progress"]');
+  await expect(progress).toHaveText(/^Étape 1 sur \d+$/);
+  const total = Number((await progress.textContent())?.replace(/^.* sur /, ""));
+
+  for (let step = 1; step <= total; step++) {
+    await expect(progress).toHaveText(`Étape ${step} sur ${total}`);
+    await expect.poll(() => avoidableCover(page), { message: `step ${step}` }).toBe(0);
+    expect(await hiddenCopy(page), `step ${step} copy`).toBe(0);
+
+    const primary = tour.getByRole("button", { name: /Suivant|C'est parti/ });
+    await expect(primary).toBeInViewport();
+    expect(await controlsOverflow(page)).toBe(0);
+    if (step < total) await primary.click();
+  }
+}
+
+const SIZES = [
+  [390, 664],
+  [375, 548],
+  [390, 844],
+  [844, 390],
+  [1440, 900],
+] as const;
+
 test.describe("guided tour on a page under a sticky header and tab bar", () => {
   test.use({ storageState: STORAGE_STATE });
 
-  for (const [width, height] of [
-    [390, 664],
-    [390, 844],
+  for (const [path, name, sizes] of [
+    ["/", "Accueil", [[844, 390]]],
+    [
+      "/children",
+      "Enfants",
+      [
+        [390, 664],
+        [844, 390],
+      ],
+    ],
+    ["/settings", "Réglages", SIZES.slice(0, 4)],
   ] as const) {
-    test(`never covers a step's heading, nor its target when both fit, on Réglages at ${width}x${height}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width, height });
-      await forgetTours(page);
-      await page.goto("/settings");
+    for (const [width, height] of sizes) {
+      test(`never covers a step's heading, nor its target when both fit, on ${name} at ${width}x${height}`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height });
+        await forgetTours(page);
+        await serveFamily(page, { children: [LEA], events: EVENTS });
+        await page.goto(path);
 
-      const tour = page.locator(TOUR_SELECTOR);
-      for (const step of [1, 2, 3, 4]) {
-        await expect(tour.getByText(`Étape ${step} sur 4`)).toBeVisible();
-        await expect.poll(() => avoidableCover(page), { message: `step ${step}` }).toBe(0);
-        await expect(tour.getByRole("button", { name: /Suivant|C'est parti/ })).toBeInViewport();
-        if (step < 4) await tour.getByRole("button", { name: "Suivant" }).click();
-      }
-    });
+        await walkTour(page);
+      });
+    }
   }
 });
 
@@ -183,13 +234,7 @@ test.describe("guided tour inside the event overlay", () => {
     });
   }
 
-  for (const [width, height] of [
-    [390, 664],
-    [375, 548],
-    [390, 844],
-    [844, 390],
-    [1440, 900],
-  ] as const) {
+  for (const [width, height] of SIZES) {
     for (const [length, title, reminders] of [
       ["short", "Piscine", 1],
       ["long", REVIEW_EVENT.title, 5],
@@ -207,16 +252,7 @@ test.describe("guided tour inside the event overlay", () => {
         });
         await page.goto(`/?event=${REVIEW_EVENT.id}`);
 
-        const tour = page.locator(TOUR_SELECTOR);
-        for (const step of [1, 2, 3, 4]) {
-          await expect(tour.getByText(`Étape ${step} sur 4`)).toBeVisible();
-          await expect.poll(() => avoidableCover(page), { message: `step ${step}` }).toBe(0);
-
-          const primary = tour.getByRole("button", { name: /Suivant|C'est parti/ });
-          await expect(primary).toBeInViewport();
-          expect(await controlsOverflow(page)).toBe(0);
-          if (step < 4) await primary.click();
-        }
+        await walkTour(page);
       });
     }
   }

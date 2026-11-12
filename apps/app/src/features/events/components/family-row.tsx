@@ -7,12 +7,12 @@ import { childHue } from "../../../shared/format/child-hue";
 
 export interface FamilyRowProps {
   family: readonly ChildDto[];
-  weekCounts: ReadonlyMap<string, number>;
+  counts: ReadonlyMap<string, number>;
   value: string | null;
   onChange: (childId: string | null) => void;
 }
 
-export function FamilyRow({ family, weekCounts, value, onChange }: FamilyRowProps) {
+export function FamilyRow({ family, counts, value, onChange }: FamilyRowProps) {
   const { t } = useTranslation("events");
 
   return (
@@ -27,17 +27,17 @@ export function FamilyRow({ family, weekCounts, value, onChange }: FamilyRowProp
           value: child.id,
           hint: t("family.hint", {
             child: child.label,
-            count: weekCounts.get(child.id) ?? 0,
+            count: counts.get(child.id) ?? 0,
           }),
           label: (
             <>
               <ChildAvatar name={child.label} tone={childHue(family, child.id)} size="xs" />
               <span className="max-w-40 truncate">{child.label}</span>
               <Badge variant="soon" aria-hidden>
-                {weekCounts.get(child.id) ?? 0}
+                {counts.get(child.id) ?? 0}
               </Badge>
               <span className="sr-only">
-                {t("family.count", { count: weekCounts.get(child.id) ?? 0 })}
+                {t("family.count", { count: counts.get(child.id) ?? 0 })}
               </span>
             </>
           ),

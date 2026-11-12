@@ -326,6 +326,209 @@ describe("markDone", () => {
   });
 });
 
+describe("changeChecklist", () => {
+  const SWIMSUIT = "prepare.items.swimming.swimsuit";
+  const TOWEL = "prepare.items.swimming.towel";
+  const EXTRA = "5b0e7f3c-2d4a-4c1e-9f8b-1a2b3c4d5e6f";
+
+  function checklistUpdated() {
+    return [
+      {
+        eventType: EventTypes.EVENT_UPDATED,
+        aggregateId: event.id.value,
+        payload: {
+          userId: PARENT,
+          eventId: event.id.value,
+          fields: ["checklist"],
+          actorUserId: PARENT,
+        },
+      },
+    ];
+  }
+
+  it("given an item to prepare, when the parent ticks it, then the event keeps it done for every device and EVENT_UPDATED names the parent", async () => {
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: SWIMSUIT,
+      done: true,
+    });
+
+    expect(result.getValue().checklist).toEqual({ done: [SWIMSUIT], removed: [], extra: [] });
+    expect(repo.save.mock.calls[0]?.[0].get("checklist").value.done).toEqual([SWIMSUIT]);
+    expect(planner.replan).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual(checklistUpdated());
+  });
+
+  it("given a ticked item, when the parent unticks it, then it is to prepare again", async () => {
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: SWIMSUIT,
+      done: true,
+    });
+
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: SWIMSUIT,
+      done: false,
+    });
+
+    expect(result.getValue().checklist.done).toEqual([]);
+  });
+
+  it("given an item already ticked, when it is ticked again, then nothing is written", async () => {
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: SWIMSUIT,
+      done: true,
+    });
+    repo.save.mockClear();
+    outbox.enqueue.mockClear();
+
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: SWIMSUIT,
+      done: true,
+    });
+
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given an item of the parent's own, when it is added then removed, then it leaves no tick behind", async () => {
+    const added = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "add",
+      id: EXTRA,
+      label: "Bonnet de bain",
+    });
+    expect(added.getValue().checklist.extra).toEqual([{ id: EXTRA, label: "Bonnet de bain" }]);
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: EXTRA,
+      done: true,
+    });
+
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "remove",
+      itemId: EXTRA,
+    });
+
+    expect(result.getValue().checklist).toEqual({ done: [], removed: [], extra: [] });
+  });
+
+  it("given 60 items of the parent's own added then removed, then the next one can still be removed", async () => {
+    for (let cycle = 0; cycle < 60; cycle++) {
+      const id = `${EXTRA}-${cycle}`;
+      await service.changeChecklist(PARENT, event.id.value, { kind: "add", id, label: "Gourde" });
+      const removed = await service.changeChecklist(PARENT, event.id.value, {
+        kind: "remove",
+        itemId: id,
+      });
+
+      expect(removed.isSuccess).toBe(true);
+    }
+  });
+
+  it("given a label longer than 80 characters, then EVENT_CHECKLIST_INVALID and nothing is written", async () => {
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "add",
+      id: EXTRA,
+      label: "x".repeat(81),
+    });
+
+    expect(result.getError().code).toBe("EVENT_CHECKLIST_INVALID");
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it("given a checklist no device has changed yet, when a local one is imported, then the event adopts it", async () => {
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "import",
+      checklist: {
+        done: [SWIMSUIT, EXTRA],
+        removed: ["prepare.items.swimming.cap"],
+        extra: [{ id: EXTRA, label: "Bonnet de bain" }],
+      },
+    });
+
+    expect(result.getValue().checklist).toEqual({
+      done: [SWIMSUIT, EXTRA],
+      removed: ["prepare.items.swimming.cap"],
+      extra: [{ id: EXTRA, label: "Bonnet de bain" }],
+    });
+  });
+
+  it("given an item another device removed and unticked, when a stale local list is imported, then nothing comes back and nothing is written", async () => {
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "add",
+      id: EXTRA,
+      label: "Bonnet de bain",
+    });
+    await service.changeChecklist(PARENT, event.id.value, { kind: "remove", itemId: EXTRA });
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: TOWEL,
+      done: false,
+    });
+    repo.save.mockClear();
+    outbox.enqueue.mockClear();
+
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "import",
+      checklist: {
+        done: [EXTRA, TOWEL],
+        removed: [],
+        extra: [{ id: EXTRA, label: "Bonnet de bain" }],
+      },
+    });
+
+    expect(result.getValue().checklist).toEqual({ done: [], removed: [], extra: [] });
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given a checklist ticked then unticked back to empty, when a stale local list is imported, then it stays empty", async () => {
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: TOWEL,
+      done: true,
+    });
+    await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: TOWEL,
+      done: false,
+    });
+
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "import",
+      checklist: { done: [TOWEL], removed: [], extra: [] },
+    });
+
+    expect(result.getValue().checklist.done).toEqual([]);
+  });
+
+  it("given a local checklist already merged, when it is imported again, then nothing is written", async () => {
+    const local = { done: [SWIMSUIT], removed: [], extra: [] };
+    await service.changeChecklist(PARENT, event.id.value, { kind: "import", checklist: local });
+    repo.save.mockClear();
+
+    await service.changeChecklist(PARENT, event.id.value, { kind: "import", checklist: local });
+
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it("given an event the parent does not own, then EVENT_NOT_FOUND and nothing is written", async () => {
+    repo.lockOwned.mockResolvedValue(Result.ok(Option.none()));
+
+    const result = await service.changeChecklist(PARENT, event.id.value, {
+      kind: "tick",
+      itemId: SWIMSUIT,
+      done: true,
+    });
+
+    expect(result.getError().code).toBe("EVENT_NOT_FOUND");
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+});
+
 describe("remove", () => {
   it("given an owned event, then it is tombstoned, its alert cancelled and EVENT_DELETED enqueued", async () => {
     const result = await service.remove(PARENT, event.id.value);

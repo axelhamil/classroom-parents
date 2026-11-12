@@ -218,15 +218,10 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   if (!lea || !hugo || !alerted || !edited || !deleted)
     throw new Error("the fake Classroom dataset no longer offers the deadlines this journey needs");
 
-  await test.step("filters by category, then opens a deadline", async () => {
-    await page.goto("/?tab=upcoming");
-    await page
-      .getByRole("toolbar", { name: "Filtrer par type" })
-      .getByRole("button", { name: "Évaluation" })
-      .click();
-
-    await expect(page).toHaveURL(/category=assessment/);
-    await expect(page.getByRole("link").filter({ hasText: /./ }).first()).toBeVisible();
+  await test.step("finds a deadline on its day of the calendar, then opens it", async () => {
+    await page.goto(`/?view=agenda&date=${alerted.deadlineDate}`);
+    const row = page.getByRole("link").filter({ hasText: alerted.title }).first();
+    await expect(row).toBeVisible();
 
     await page.goto(`/events/${alerted.id}`);
     await expect(page.getByRole("heading", { level: 1, name: alerted.title })).toBeVisible();
@@ -302,7 +297,10 @@ test("a parent links two children, follows their deadlines and alerts, then eras
 
     await page.goto("/");
     await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
-    await expect(page.getByText(editedTitle)).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "En retard" }).getByRole("link", { name: editedTitle }),
+    ).toBeVisible();
+    await expect(page.getByText(editedTitle)).toHaveCount(1);
   });
 
   await test.step("a school block comes back from the sync as a failure", async () => {
