@@ -12,7 +12,9 @@
  * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx and
  * event_coursework_day_idx. A child being disconnected hides its events from lists, detail,
  * edit, confirm and delete. The calendar lists every event between the Paris midnights of its
- * range, done ones included, through event_user_deadline_idx.
+ * range, done ones included, through event_user_deadline_idx. A manual event has no Classroom
+ * course nor link and no sync withdraws, shadows or changes it; a parent never adds one to
+ * another family's child.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -519,6 +521,44 @@ run(async () => {
     "the past coursework of an archived course stays in the history",
     (await rowsOf(aNoe, "w-noe-past"))[0]?.withdrawnAt === null &&
       idsOf(await query.listHistory(a, { childIds: [aNoe], limit: 10 }, NOW)).includes(noePast.id),
+  );
+
+  const aIris = await createChild(a, "iris");
+  const added = await edits.add(a, {
+    childId: aIris,
+    title: "Réunion parents professeurs",
+    category: "document_due",
+    deadlineDate: "2030-01-27",
+  });
+  if (added.isFailure) throw new Error(`manual event refused: ${added.getError().code}`);
+  const manualId = added.getValue().id;
+  await ingestCoursework(a, aIris, [homework({ id: "w-iris-27", deadlineDate: "2030-01-27" })]);
+  await ingestCoursework(a, aIris, [], { complete: true, presentIds: [] });
+  await ingestService.withdrawCourseworkOutside({ userId: a, childId: aIris, activeCourseIds: [] });
+  const [manualRow] = await db.select().from(agendaEvent).where(eq(agendaEvent.id, manualId));
+  await step(
+    "a manual event has no Classroom course nor link, and no sync withdraws, shadows or changes it",
+    manualRow?.source === "manual" &&
+      manualRow.courseId === null &&
+      manualRow.announcementUrl === null &&
+      manualRow.withdrawnAt === null &&
+      manualRow.title === "Réunion parents professeurs" &&
+      idsOf(await query.listUpcoming(a, { childIds: [aIris], limit: 10 }, NOW)).includes(
+        manualId,
+      ) &&
+      (await alertable(a, manualId)) === "2030-01-27" &&
+      planned.some(({ eventId, actorUserId }) => eventId === manualId && actorUserId === a),
+  );
+  await step(
+    "A cannot add an event to B's child",
+    codeOf(
+      await edits.add(a, {
+        childId: bZoe,
+        title: "Pirate",
+        category: "homework",
+        deadlineDate: "2030-01-27",
+      }),
+    ) === "EVENT_CHILD_NOT_FOUND",
   );
 
   const [turnedIn] = await db

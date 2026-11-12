@@ -107,6 +107,12 @@ describe("edit", () => {
     expect(planner.replan).toHaveBeenCalledTimes(1);
   });
 
+  it("given the parent-only category other, then a Classroom event is recategorized", async () => {
+    const result = await service.edit(PARENT, event.id.value, { category: "other" });
+
+    expect(result.getValue()).toMatchObject({ category: "other", editedFields: ["category"] });
+  });
+
   it("given a new title only, then no alert is touched and EVENT_UPDATED names the title", async () => {
     await service.edit(PARENT, event.id.value, { title: "Contrôle de physique" });
 
@@ -147,6 +153,102 @@ describe("edit", () => {
     const result = await service.edit(PARENT, event.id.value, { title: "Pirate" });
 
     expect(result.getError().code).toBe("EVENT_NOT_FOUND");
+  });
+});
+
+describe("add", () => {
+  const body = {
+    childId: CHILD,
+    title: "Rendez-vous orthodontiste",
+    category: "document_due",
+    deadlineDate: "2026-11-24",
+    deadlineTime: "17:30",
+  };
+
+  beforeEach(() => {
+    repo.insertIfAbsent.mockResolvedValue(Result.ok(true));
+  });
+
+  it("given a child of the parent, then a confirmed manual event without Classroom link is stored, its default reminders planned and EVENT_ADDED names the parent", async () => {
+    const result = await service.add(PARENT, body);
+
+    const stored = repo.insertIfAbsent.mock.calls[0]?.[0];
+    if (!stored) throw new Error("manual event not stored");
+    expect(stored.get("source").value).toBe("manual");
+    expect(stored.get("courseId").isNone()).toBe(true);
+    expect(result.getValue()).toMatchObject({
+      childId: CHILD,
+      title: "Rendez-vous orthodontiste",
+      description: "",
+      category: "document_due",
+      deadlineDate: "2026-11-24",
+      deadlineTime: "17:30",
+      deadlineAt: "2026-11-24T16:30:00.000Z",
+      status: "confirmed",
+      source: "manual",
+      done: false,
+      announcementUrl: undefined,
+      receivedAt: NOW.toISOString(),
+      edited: false,
+    });
+    expect(planner.planDefault).toHaveBeenCalledWith({
+      eventId: stored.id.value,
+      userId: PARENT,
+      actorUserId: PARENT,
+    });
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.EVENT_ADDED,
+        aggregateId: stored.id.value,
+        payload: { userId: PARENT, childId: CHILD, eventId: stored.id.value, actorUserId: PARENT },
+      },
+    ]);
+  });
+
+  it("given the parent-only category other, then the manual event is stored with it", async () => {
+    const result = await service.add(PARENT, { ...body, category: "other" });
+
+    expect(result.getValue().category).toBe("other");
+  });
+
+  it("given no time, then the deadline falls at 23:59 Paris", async () => {
+    const result = await service.add(PARENT, { ...body, deadlineTime: undefined });
+
+    expect(result.getValue().deadlineAt).toBe("2026-11-24T22:59:00.000Z");
+  });
+
+  it("given a child that is not visible to the parent, then EVENT_CHILD_NOT_FOUND and nothing is stored", async () => {
+    children.idsOf.mockResolvedValue(Result.ok([]));
+
+    const result = await service.add(PARENT, body);
+
+    expect(result.getError().code).toBe("EVENT_CHILD_NOT_FOUND");
+    expect(repo.insertIfAbsent).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it.each([
+    ["an empty title", { title: " " }, "EVENT_TITLE_INVALID"],
+    ["an unknown category", { category: "party" }, "EVENT_CATEGORY_INVALID"],
+    ["a date that does not exist", { deadlineDate: "2026-11-31" }, "EVENT_DEADLINE_INVALID"],
+  ] as const)("given %s, then it is refused and nothing is stored", async (_label, patch, code) => {
+    const result = await service.add(PARENT, { ...body, ...patch });
+
+    expect(result.getError().code).toBe(code);
+    expect(repo.insertIfAbsent).not.toHaveBeenCalled();
+  });
+
+  it("given a manual event whose deadline moves, then its reminders are replanned and no announcement is read", async () => {
+    await service.add(PARENT, body);
+    const manual = repo.insertIfAbsent.mock.calls[0]?.[0];
+    if (!manual) throw new Error("manual event not stored");
+    repo.lockOwned.mockResolvedValue(Result.ok(Option.some(manual)));
+
+    const result = await service.edit(PARENT, manual.id.value, { deadlineDate: "2026-11-25" });
+
+    expect(result.getValue().deadlineDate).toBe("2026-11-25");
+    expect(planner.replan).toHaveBeenCalledTimes(1);
+    expect(repo.listAnnouncementsOn).not.toHaveBeenCalled();
   });
 });
 

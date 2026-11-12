@@ -54,10 +54,12 @@ export default {
     school_trip: "Sortie scolaire",
     swimming: "Piscine",
     document_due: "Document à rendre",
+    other: "Autre",
   },
   sources: {
     announcement: "Annonce",
     coursework: "Devoir",
+    manual: "Ajouté par vous",
   },
   detail: {
     title: "Échéance",

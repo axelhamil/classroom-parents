@@ -9,6 +9,7 @@ export const CATEGORY_LABEL_KEYS = {
   school_trip: "categories.school_trip",
   swimming: "categories.swimming",
   document_due: "categories.document_due",
+  other: "categories.other",
 } as const satisfies Record<EventCategory, string>;
 
 export const CATEGORY_BADGE_VARIANTS = {
@@ -17,9 +18,11 @@ export const CATEGORY_BADGE_VARIANTS = {
   school_trip: "schoolTrip",
   swimming: "swimming",
   document_due: "documentDue",
+  other: "secondary",
 } as const satisfies Record<EventCategory, string>;
 
 export const SOURCE_LABEL_KEYS = {
   announcement: "sources.announcement",
   coursework: "sources.coursework",
+  manual: "sources.manual",
 } as const satisfies Record<EventItem["source"], string>;

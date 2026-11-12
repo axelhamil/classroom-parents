@@ -107,12 +107,14 @@ function EventSheet({ event }: EventSheetProps) {
           </TypographyP>
         </section>
       )}
-      <Button asChild variant="outline" className="self-start">
-        <a href={event.announcementUrl} target="_blank" rel="noopener noreferrer">
-          <ExternalLink aria-hidden />
-          {t("detail.openInClassroom")}
-        </a>
-      </Button>
+      {event.announcementUrl && (
+        <Button asChild variant="outline" className="self-start">
+          <a href={event.announcementUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink aria-hidden />
+            {t("detail.openInClassroom")}
+          </a>
+        </Button>
+      )}
       <Separator />
       {!event.done && (
         <>

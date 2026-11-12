@@ -4,7 +4,11 @@ import { timeIdCursorSchema } from "@packages/http/time-id-cursor";
 import { zV } from "@packages/http/validator";
 import { Hono } from "hono";
 import { z } from "zod";
-import { editEventBodySchema, eventIdParamSchema } from "../../application/dto/event.dto";
+import {
+  addEventBodySchema,
+  editEventBodySchema,
+  eventIdParamSchema,
+} from "../../application/dto/event.dto";
 import { eventNotFound } from "../../application/ports/event-repository.port";
 import type { EventEditService } from "../../application/services/event-edit.service";
 import type { EventQueryService } from "../../application/services/event-query.service";
@@ -47,7 +51,7 @@ export interface EventsRoutesDeps {
     EventQueryService,
     "listUpcoming" | "listHistory" | "listCalendar" | "get"
   >;
-  EventEditService: Pick<EventEditService, "edit" | "confirm" | "markDone" | "remove">;
+  EventEditService: Pick<EventEditService, "add" | "edit" | "confirm" | "markDone" | "remove">;
 }
 
 export function createEventsRoutes(deps: EventsRoutesDeps) {
@@ -83,6 +87,11 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
       });
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
+    })
+    .post("/", g.requireAuth, zV("json", addEventBodySchema), async (c) => {
+      const result = await edits.add(g.currentUserId(c), c.req.valid("json"));
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue(), 201);
     })
     .get("/:id", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
       const result = await query.get(g.currentUserId(c), c.req.valid("param").id);

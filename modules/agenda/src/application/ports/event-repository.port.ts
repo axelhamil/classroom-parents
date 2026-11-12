@@ -20,6 +20,11 @@ export const eventNotFound: AgendaError = {
   message: "Cet événement n'existe pas ou a été supprimé.",
 };
 
+export const childNotFound: AgendaError = {
+  code: "EVENT_CHILD_NOT_FOUND",
+  message: "Cet enfant n'est pas relié à votre compte, ses événements ne sont pas enregistrés.",
+};
+
 export interface EventCursor {
   at: string;
   id: string;

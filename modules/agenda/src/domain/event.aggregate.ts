@@ -3,7 +3,7 @@ import { EventId } from "./event-id";
 import type { EventCategory } from "./value-objects/event-category.vo";
 import type { EventDeadline } from "./value-objects/event-deadline.vo";
 import type { EventDescription } from "./value-objects/event-description.vo";
-import type { EventSource } from "./value-objects/event-source.vo";
+import { EventSource } from "./value-objects/event-source.vo";
 import { EventStatus } from "./value-objects/event-status.vo";
 import type { EventTitle } from "./value-objects/event-title.vo";
 
@@ -21,8 +21,8 @@ export interface AgendaEventProps {
   source: EventSource;
   announcementId: string;
   ordinal: number;
-  courseId: string;
-  announcementUrl: string;
+  courseId: Option<string>;
+  announcementUrl: Option<string>;
   title: EventTitle;
   description: EventDescription;
   category: EventCategory;
@@ -43,8 +43,8 @@ export interface NewAgendaEvent {
   source: EventSource;
   announcementId: string;
   ordinal: number;
-  courseId: string;
-  announcementUrl: string;
+  courseId: Option<string>;
+  announcementUrl: Option<string>;
   title: EventTitle;
   description: EventDescription;
   category: EventCategory;
@@ -52,6 +52,16 @@ export interface NewAgendaEvent {
   receivedAt: Date;
   needsReview: boolean;
   done: boolean;
+  now: Date;
+}
+
+export interface ManualEvent {
+  userId: string;
+  childId: string;
+  title: EventTitle;
+  description: EventDescription;
+  category: EventCategory;
+  deadline: EventDeadline;
   now: Date;
 }
 
@@ -87,6 +97,30 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
         createdAt: now,
       },
       new EventId(),
+    );
+  }
+
+  static addByParent({ now, ...input }: ManualEvent): AgendaEvent {
+    const id = new EventId();
+
+    return new AgendaEvent(
+      {
+        ...input,
+        source: EventSource.manual(),
+        announcementId: id.value,
+        ordinal: 0,
+        courseId: Option.none(),
+        announcementUrl: Option.none(),
+        receivedAt: now,
+        status: EventStatus.confirmed(),
+        done: false,
+        editedAt: Option.none(),
+        editedFields: [],
+        deletedAt: Option.none(),
+        withdrawnAt: Option.none(),
+        createdAt: now,
+      },
+      id,
     );
   }
 

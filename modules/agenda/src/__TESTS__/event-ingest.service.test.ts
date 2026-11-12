@@ -88,8 +88,8 @@ beforeEach(() => {
         (event) =>
           event.get("childId") === childId &&
           ("courseId" in courses
-            ? event.get("courseId") === courses.courseId
-            : !courses.outsideCourseIds.includes(event.get("courseId")) &&
+            ? event.get("courseId").toUndefined() === courses.courseId
+            : !courses.outsideCourseIds.includes(event.get("courseId").unwrapOr("")) &&
               event.get("deadline").value.at >= courses.dueFrom) &&
           event.get("source").value === "coursework" &&
           event.get("deletedAt").isNone() &&
@@ -103,7 +103,7 @@ beforeEach(() => {
         (event) =>
           event.get("source").value === "announcement" &&
           event.get("childId") === day.childId &&
-          event.get("courseId") === day.courseId &&
+          event.get("courseId").toUndefined() === day.courseId &&
           event.get("deadline").value.date === day.deadlineDate &&
           event.get("deletedAt").isNone() &&
           event.get("withdrawnAt").isNone(),
@@ -211,11 +211,15 @@ describe("ingest", () => {
     expect(planner.planDefault).toHaveBeenCalledTimes(1);
   });
 
-  it("given an unknown category, then EVENT_CATEGORY_INVALID is returned", async () => {
-    const result = await ingest([extracted({ category: "party" })]);
+  it.each(["party", "other"])(
+    "given the category %s, which Classroom never gives, then EVENT_CATEGORY_INVALID and nothing is stored",
+    async (category) => {
+      const result = await ingest([extracted({ category })]);
 
-    expect(result.getError().code).toBe("EVENT_CATEGORY_INVALID");
-  });
+      expect(result.getError().code).toBe("EVENT_CATEGORY_INVALID");
+      expect(stored.size).toBe(0);
+    },
+  );
 
   it("given the alert planner fails, then the whole ingest rolls back and reports it", async () => {
     planner.planDefault.mockResolvedValue(
@@ -281,7 +285,7 @@ describe("ingestCoursework", () => {
     expect(row?.get("source").value).toBe("coursework");
     expect(row?.get("category").value).toBe("homework");
     expect(row?.get("status").value).toBe("confirmed");
-    expect(row?.get("courseId")).toBe("course-1");
+    expect(row?.get("courseId").toUndefined()).toBe("course-1");
     expect(row?.get("deadline").value.time).toBe("08:00");
     expect(planner.planDefault).toHaveBeenCalledTimes(1);
     expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
