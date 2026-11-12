@@ -94,7 +94,7 @@ describe("service worker", () => {
     });
 
     expect(worker.showNotification).toHaveBeenCalledWith(
-      "Échéances Classroom",
+      "KeepUpKids",
       expect.objectContaining({
         body: "Une échéance approche. Ouvrez l'application pour la voir.",
         data: { navigate: "/" },

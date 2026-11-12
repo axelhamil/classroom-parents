@@ -53,7 +53,7 @@ export default {
   },
   focus: {
     tonight: "Ce soir",
-    tonightHint: "Un coup d'œil au cartable pour demain.",
+    tonightHint: "Ce qui reste pour ce soir et le cartable de demain.",
   },
   sunday: {
     title: "Préparer la semaine",

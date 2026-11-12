@@ -60,6 +60,8 @@ async function offsetDrift(page: Page): Promise<number> {
     const target = document.querySelector("[data-tour-active]")?.getBoundingClientRect();
     if (!popover || !target) return null;
 
+    if (popover.right <= target.left) return target.left - popover.right;
+    if (popover.left >= target.right) return popover.left - target.right;
     return popover.top >= target.bottom ? popover.top - target.bottom : target.top - popover.bottom;
   }, TOUR_SELECTOR);
 
@@ -90,6 +92,27 @@ test.describe("guided tour inside the event overlay", () => {
       });
 
       await expect.poll(() => offsetDrift(page)).toBeLessThanOrEqual(2);
+    });
+  }
+
+  for (const [width, height] of [
+    [390, 844],
+    [844, 390],
+  ] as const) {
+    test(`never covers a tall target before the dialog scrolls at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await forgetTours(page);
+      await serveFamily(page, { children: [LEA], events: EVENTS });
+      await page.goto(`/?event=${REVIEW_EVENT.id}`);
+
+      const tour = page.locator(TOUR_SELECTOR);
+      await tour.getByRole("button", { name: "Suivant" }).click();
+      await expect(tour.getByText("Étape 2 sur 4")).toBeVisible();
+
+      await expect.poll(() => offsetDrift(page)).toBeLessThanOrEqual(2);
+      await expect(tour.getByRole("button", { name: "Suivant" })).toBeInViewport();
     });
   }
 });

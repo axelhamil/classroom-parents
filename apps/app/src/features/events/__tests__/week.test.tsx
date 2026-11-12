@@ -195,6 +195,40 @@ describe("Accueil, the family week", () => {
     expect(prepare.textContent).not.toContain("Signer le document");
   });
 
+  it("closing the detail gives focus to the section heading when its opener is gone", async () => {
+    at("2026-11-15T16:30:00.000Z");
+    const permission = deadline(1, "2026-11-16", "Autorisation de sortie", {
+      category: "document_due",
+    });
+    const path = `/events/${permission.id}`;
+    stubApi(({ method, url }) => {
+      if (method !== "GET") return undefined;
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname === "/events") return json({ items: [permission] });
+      if (url.pathname === path) return json(permission);
+      if (url.pathname === `${path}/reminders`) return json({ customized: false, reminders: [] });
+      return undefined;
+    });
+    await renderAppAt("/");
+
+    const sign = await screen.findByRole("region", { name: "À signer" });
+    const opener = within(sign).getByRole("link", { name: /Autorisation de sortie/ });
+    opener.focus();
+    fireEvent.click(opener);
+    const detail = await screen.findByRole("dialog");
+    fireEvent.click(await within(detail).findByRole("checkbox", { name: "Signer le document" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "À signer" })).toBeNull());
+
+    fireEvent.click(within(detail).getAllByRole("button", { name: "Fermer" })[0] as HTMLElement);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { level: 2, name: "Préparer la semaine" }),
+      ),
+    );
+  });
+
   it("Accueil switches to Préparer la semaine at 16:00 on Sunday without a reload", async () => {
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
     vi.setSystemTime(new Date("2026-11-15T14:59:30.000Z"));

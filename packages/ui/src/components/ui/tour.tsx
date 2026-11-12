@@ -55,14 +55,22 @@ function focusableIn(element: HTMLElement): HTMLElement | null {
 }
 
 const MIN_ROOM_REM = 12;
+const MIN_SIDE_REM = 15;
 const EDGE_GAP = 16;
+const SIDE_OFFSET = 12;
 
 interface Band {
   top: number;
   bottom: number;
 }
 
-function visibleBand(): Band {
+function visibleBand(element: HTMLElement): Band {
+  const dialog = element.closest("[role=dialog], [role=alertdialog]");
+  if (dialog) {
+    const { top, bottom } = dialog.getBoundingClientRect();
+    return { top: Math.max(top, 0), bottom: Math.min(bottom, window.innerHeight) };
+  }
+
   const page = getComputedStyle(document.documentElement);
 
   return {
@@ -71,11 +79,29 @@ function visibleBand(): Band {
   };
 }
 
-function anchorRect(element: HTMLElement): DOMRect {
+function remToPx(rem: number): number {
+  return rem * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+}
+
+type TourSide = "bottom" | "left" | "right";
+
+function sideFor(element: HTMLElement): TourSide {
   const rect = element.getBoundingClientRect();
-  const band = visibleBand();
-  const room =
-    MIN_ROOM_REM * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+  const band = visibleBand(element);
+  if (band.bottom - band.top - rect.height >= remToPx(MIN_ROOM_REM)) return "bottom";
+
+  const sideRoom = remToPx(MIN_SIDE_REM) + SIDE_OFFSET + EDGE_GAP;
+  if (rect.left >= sideRoom) return "left";
+  if (window.innerWidth - rect.right >= sideRoom) return "right";
+  return "bottom";
+}
+
+function anchorRect(element: HTMLElement, side: TourSide): DOMRect {
+  const rect = element.getBoundingClientRect();
+  if (side !== "bottom") return rect;
+
+  const band = visibleBand(element);
+  const room = remToPx(MIN_ROOM_REM);
   if (rect.top - band.top >= room || band.bottom - rect.bottom >= room) return rect;
 
   const top = Math.min(Math.max(rect.top, band.top), band.bottom - room);
@@ -144,19 +170,20 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
     });
   }, [current]);
 
+  const side = element ? sideFor(element) : "bottom";
   const anchor = useMemo(
     () => ({
       current: element
-        ? { getBoundingClientRect: () => anchorRect(element), contextElement: element }
+        ? { getBoundingClientRect: () => anchorRect(element, side), contextElement: element }
         : null,
     }),
-    [element],
+    [element, side],
   );
 
   if (!current) return null;
 
   const last = position === placed.length - 1;
-  const coveredBelow = window.innerHeight - visibleBand().bottom;
+  const coveredBelow = window.innerHeight - visibleBand(current.element).bottom;
 
   const back = () => {
     setIndex(position - 1);
@@ -187,7 +214,9 @@ function Tour({ steps, open, onDone, labels }: TourProps) {
           bottom: EDGE_GAP + coveredBelow,
           left: EDGE_GAP,
         }}
-        sideOffset={12}
+        side={side}
+        align={side === "bottom" ? "center" : "start"}
+        sideOffset={SIDE_OFFSET}
         className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-(--radix-popover-content-available-width) flex-col gap-4"
         onOpenAutoFocus={(event) => {
           event.preventDefault();

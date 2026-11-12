@@ -16,7 +16,7 @@ const PRODUCTION_ENV = {
   VAPID_PRIVATE_KEY: "p".repeat(43),
   VAPID_SUBJECT: "mailto:contact@example.com",
   RESEND_API_KEY: "re_dummy",
-  RESEND_FROM: "Échéances <alertes@example.com>",
+  RESEND_FROM: "KeepUpKids <alertes@example.com>",
 };
 
 const REQUIRED = [

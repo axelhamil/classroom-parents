@@ -28,7 +28,7 @@ function TonightItem({ event, family }: TonightItemProps) {
   const checklist = useChecklist(event);
 
   return (
-    <li className="flex flex-col gap-2">
+    <li className="flex flex-col gap-1">
       <EventCard
         event={event}
         childLabel={family.length > 1 ? childLabelOf(family, event.childId) : ""}
@@ -53,7 +53,7 @@ export function TonightCard({ events, family }: TonightCardProps) {
           <CardDescription>{t("focus.tonightHint")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <ul className="flex flex-col gap-4">
+          <ul className="flex flex-col gap-6">
             {events.map((event) => (
               <TonightItem key={event.id} event={event} family={family} />
             ))}

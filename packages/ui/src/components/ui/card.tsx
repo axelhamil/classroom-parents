@@ -23,7 +23,7 @@ const cardVariants = cva(
 
 interface CardProps extends React.ComponentProps<"div">, VariantProps<typeof cardVariants> {}
 
-const cardTitleVariants = cva("leading-none font-semibold", {
+const cardTitleVariants = cva("col-start-1 leading-none font-semibold", {
   variants: {
     variant: {
       default: "",
@@ -74,7 +74,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("col-start-1 text-sm text-muted-foreground", className)}
       {...props}
     />
   );
@@ -84,7 +84,10 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-action"
-      className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+      className={cn(
+        "col-span-2 flex flex-wrap gap-2 self-start @md/card-header:col-span-1 @md/card-header:col-start-2 @md/card-header:row-span-2 @md/card-header:row-start-1 @md/card-header:justify-end @md/card-header:justify-self-end",
+        className,
+      )}
       {...props}
     />
   );
