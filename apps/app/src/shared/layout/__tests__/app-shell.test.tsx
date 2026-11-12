@@ -3,6 +3,7 @@ import { frCatalog } from "@packages/i18n";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CHILD } from "../../../__tests__/family-fixtures";
 import { fakeApi, renderApp, resetApp } from "../../../__tests__/render-app";
 
 vi.mock("../../auth/auth-client", () => ({
@@ -29,7 +30,7 @@ describe("app shell", () => {
   ])(
     "app shell shows Accueil, Enfants, Réglages with aria-current on the active route (%s)",
     async (path, active) => {
-      fakeApi({ "GET /children": { body: [] }, "GET /events": { body: [] } });
+      fakeApi({ "GET /children": { body: [CHILD] }, "GET /events": { body: [] } });
 
       await renderApp(path);
 

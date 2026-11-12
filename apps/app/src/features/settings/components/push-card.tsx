@@ -7,11 +7,15 @@ import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typogra
 import { useQuery } from "@tanstack/react-query";
 import { BellOff, BellRing, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { defaultRemindersQueryOptions } from "../../../shared/api/queries/default-reminders";
+import { pushStatusQueryOptions } from "../../../shared/api/queries/push-status";
+import { InstallGuide } from "../../../shared/pwa/install-guide";
 import { useInstallState } from "../../../shared/pwa/use-install-state";
+import {
+  type PushSubscriptionState,
+  usePushSubscription,
+} from "../../../shared/pwa/use-push-subscription";
 import { useReminderLabel } from "../../../shared/reminders/use-reminder-label";
-import { defaultRemindersQueryOptions, pushStatusQueryOptions } from "../api/settings.queries";
-import { type PushSubscriptionState, usePushSubscription } from "../hooks/use-push-subscription";
-import { InstallGuide } from "./install-guide";
 
 interface PushCardProps {
   userId: string;

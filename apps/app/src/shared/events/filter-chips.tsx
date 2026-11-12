@@ -34,7 +34,7 @@ export function FilterChips({ label, options, value, onChange }: FilterChipsProp
       aria-label={label}
       value={[current]}
       onValueChange={pick}
-      className="scrollbar-none max-w-full overflow-x-auto"
+      className="scrollbar-none relative max-w-full overflow-x-auto"
     >
       {options.map((option) => (
         <ToggleGroupItem key={option.value ?? ALL} value={option.value ?? ALL}>

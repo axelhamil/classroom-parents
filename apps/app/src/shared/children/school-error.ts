@@ -1,4 +1,4 @@
-import type { ChildDto } from "../../shared/api/queries/children";
+import type { ChildDto } from "../api/queries/children";
 
 export const SCHOOL_BLOCK_KINDS = [
   "admin_blocked",

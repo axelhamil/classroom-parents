@@ -128,13 +128,33 @@ function childCard(page: Page, child: Identity) {
   return page.locator("[data-slot=card]").filter({ hasText: child.email });
 }
 
-async function linkChild(page: Page, child: Identity): Promise<void> {
-  await page.goto("/children/new");
+async function connectAndName(page: Page, child: Identity): Promise<void> {
+  await page.getByRole("button", { name: "J'ai tout, continuer" }).click();
   await googleAnswersAs(page, child);
   await page.getByRole("button", { name: "Ajouter le compte Google de mon enfant" }).click();
 
-  await expect(page.getByText("Compte relié")).toBeVisible();
-  await expect(page.getByText(/^Première échéance : /)).toBeVisible({ timeout: STREAM_WAIT_MS });
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Comment s'appelle votre enfant ?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await expect(page.getByText(/^Voici ce qui arrive pour /)).toBeVisible({
+    timeout: STREAM_WAIT_MS,
+  });
+}
+
+async function onboardFirstChild(page: Page, child: Identity): Promise<void> {
+  await page.getByRole("button", { name: "Commencer" }).click();
+  await connectAndName(page, child);
+
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await page.getByRole("button", { name: "Garder les rappels actuels" }).click();
+  await page.getByRole("button", { name: "Plus tard" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "C'est prêt" })).toBeVisible();
+}
+
+async function linkAnotherChild(page: Page, child: Identity): Promise<void> {
+  await page.goto("/children/new");
+  await connectAndName(page, child);
 }
 
 test("a parent links two children, follows their deadlines and alerts, then erases everything", async ({
@@ -154,13 +174,15 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     await googleAnswersAs(page, PARENT);
     await page.getByRole("button", { name: "Se connecter avec Google" }).click();
 
-    await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Ne ratez plus aucune échéance scolaire" }),
+    ).toBeVisible();
     userId = (await body(page, "/api/auth/get-session", Session)).user.id;
   });
 
-  await test.step("links two children, their first deadline arrives without a reload", async () => {
-    await linkChild(page, LEA);
-    await linkChild(page, HUGO);
+  await test.step("links two children, their first deadlines arrive without a reload", async () => {
+    await onboardFirstChild(page, LEA);
+    await linkAnotherChild(page, HUGO);
 
     const children = await body(page, "/children", z.array(Child));
     expect(children.map((child) => child.googleEmail).sort()).toEqual([HUGO.email, LEA.email]);
@@ -289,7 +311,10 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   });
 
   await test.step("disconnecting a child removes its deadlines", async () => {
-    await childCard(page, LEA).getByRole("button", { name: "Déconnecter" }).click();
+    await childCard(page, LEA)
+      .getByRole("button", { name: /^Actions pour / })
+      .click();
+    await page.getByRole("menuitem", { name: "Déconnecter" }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Déconnecter" }).click();
 
     await expect(childCard(page, LEA)).toHaveCount(0, { timeout: STREAM_WAIT_MS });

@@ -1,5 +1,6 @@
 import { COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { stubChildrenApi } from "./children-fixture";
 import { STORAGE_STATE } from "./playwright.config";
 
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
@@ -105,6 +106,7 @@ test("skips the theme view transition under reduced motion", async ({ page }) =>
 
 test.describe("signed in", () => {
   test.use({ storageState: STORAGE_STATE });
+  test.beforeEach(({ page }) => stubChildrenApi(page));
 
   for (const width of [390, 768, 1440]) {
     test(`keeps the shell and its navigation inside a ${width} px viewport`, async ({ page }) => {

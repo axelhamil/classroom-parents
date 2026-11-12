@@ -7,6 +7,7 @@ export default {
     emptyTitle: "Aucun enfant relié pour l'instant",
     emptyDescription:
       "Reliez le compte Google Classroom de votre enfant pour voir ses échéances ici.",
+    emptyAction: "Relier mon premier enfant",
     reconnecting: "Reconnexion du compte…",
     reconnected: "Le compte de {{label}} est de nouveau relié.",
   },
@@ -21,8 +22,15 @@ export default {
     neverSynced: "Pas encore lu",
     syncing: "Lecture de Classroom en cours…",
     disconnectingHint: "Nous retirons l'accès Google et supprimons ses données.",
+    actions: "Actions pour {{label}}",
     rename: "Renommer",
+    sync: "Synchroniser",
     disconnect: "Déconnecter",
+    toEvents: "Voir ses échéances",
+  },
+  sync: {
+    started: "Lecture de Classroom lancée pour {{label}}.",
+    failed: "La lecture de Classroom n'a pas pu être lancée. Réessayez.",
   },
   reconnect: {
     needsReconnectTitle: "Accès Google perdu",
@@ -53,38 +61,6 @@ export default {
     done: "Prénom enregistré.",
     failed: "Le prénom n'a pas pu être enregistré. Réessayez.",
   },
-  new: {
-    title: "Ajouter un enfant",
-    description: "Reliez le compte Google Classroom de votre enfant pour lire ses annonces.",
-    readOnlyTitle: "Ce que l'application lit",
-    readOnlyCourses: "La liste de ses cours.",
-    readOnlyAnnouncements: "Les annonces et les devoirs publiés par ses professeurs.",
-    readOnlyNever:
-      "Rien n'est jamais écrit dans Classroom : ni message, ni devoir rendu, ni modification.",
-    start: "Ajouter le compte Google de mon enfant",
-    starting: "Ouverture de Google…",
-    hint: "Sur la page Google, choisissez le compte de l'élève, pas le vôtre.",
-    checking: "Vérification du compte Google…",
-    registering: "Ajout de {{email}}…",
-    pickTitle: "Quel compte ajouter ?",
-    pickDescription: "Plusieurs comptes Google sont reliés. Choisissez celui de l'élève.",
-    noneTitle: "Aucun nouveau compte à ajouter",
-    noneDescription:
-      "Ce compte Google est peut-être déjà relié. Recommencez en choisissant le compte de l'élève.",
-    retry: "Recommencer avec un autre compte",
-    discard: "Retirer ce lien et recommencer",
-    toChildren: "Voir mes enfants",
-  },
-  firstSync: {
-    title: "Compte relié",
-    running: "Lecture des annonces de la classe. Cela prend en général moins de 3 minutes.",
-    done: "C'est prêt.",
-    firstEvent: "Première échéance : {{title}}",
-    noEvent:
-      "Aucune échéance à venir pour l'instant. Vous serez prévenu dès qu'une annonce en contient une.",
-    toEvents: "Voir les échéances",
-    addAnother: "Ajouter un autre enfant",
-  },
   linkError: {
     title: "Connexion refusée",
     description: "Le compte de votre enfant n'a pas pu être relié.",
@@ -94,9 +70,17 @@ export default {
         "Ce compte Google n'a pas pu être relié. Réessayez en choisissant le compte de l'élève.",
     },
     retry: "Réessayer",
+    toChildren: "Voir mes enfants",
   },
   school: {
     title: "Ce que l'école doit faire",
+    intro: "Transmettez ces étapes à l'administrateur informatique de l'école.",
+    stepTitles: {
+      console: "Ouvrir la console d'administration",
+      path: "Aller aux contrôles des API",
+      pending: "Retrouver l'application",
+      configure: "Autoriser l'accès en lecture",
+    },
     kinds: {
       admin_blocked:
         "L'administrateur de l'école a bloqué cette application. Contactez l'établissement avec ce guide.",

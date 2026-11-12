@@ -6,10 +6,10 @@ import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { setDefaultRemindersMutationOptions } from "../../../shared/api/mutations/set-default-reminders";
+import { defaultRemindersQueryOptions } from "../../../shared/api/queries/default-reminders";
 import { EVENTS_KEY } from "../../../shared/api/queries/events";
 import { RemindersForm } from "../../../shared/reminders/reminders-form";
-import { setDefaultRemindersMutationOptions } from "../api/settings.mutations";
-import { defaultRemindersQueryOptions } from "../api/settings.queries";
 
 export interface DefaultRemindersCardProps {
   userId: string;

@@ -12,8 +12,12 @@ const cardVariants = cva(
         default: "",
         destructive: "border-destructive/40 bg-destructive/5",
       },
+      flush: {
+        true: "gap-0 overflow-hidden pt-0",
+        false: "",
+      },
     },
-    defaultVariants: { variant: "default" },
+    defaultVariants: { variant: "default", flush: false },
   },
 );
 
@@ -29,8 +33,10 @@ const cardTitleVariants = cva("leading-none font-semibold", {
   defaultVariants: { variant: "default" },
 });
 
-function Card({ className, variant, ...props }: CardProps) {
-  return <div data-slot="card" className={cn(cardVariants({ variant }), className)} {...props} />;
+function Card({ className, variant, flush, ...props }: CardProps) {
+  return (
+    <div data-slot="card" className={cn(cardVariants({ variant, flush }), className)} {...props} />
+  );
 }
 
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {

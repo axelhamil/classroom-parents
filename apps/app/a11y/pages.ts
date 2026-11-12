@@ -17,12 +17,13 @@ export const PUBLIC_PAGES: readonly AuditedPage[] = [
  * signed-in destination is listed directly instead.
  */
 export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
-  { name: "events", path: "/" },
+  { name: "events", path: "/", prepare: stubChildrenApi },
   { name: "settings", path: "/settings" },
   { name: "history", path: "/?tab=history" },
   { name: "upcoming", path: "/?tab=upcoming" },
   { name: "privacy settings", path: "/settings/privacy" },
   { name: "children, every state", path: "/children", prepare: stubChildrenApi },
+  { name: "onboarding", path: "/onboarding" },
   { name: "add a child", path: "/children/new" },
   { name: "child link refused", path: "/children/link-error", prepare: stubChildrenApi },
   { name: "not found (signed in)", path: "/no-such-page" },

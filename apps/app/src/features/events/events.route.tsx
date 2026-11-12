@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { type ChildDto, childrenQueryOptions } from "../../shared/api/queries/children";
 import type { EventItem, EventScope } from "../../shared/api/queries/events";
+import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
 import { CategoryFilter } from "../../shared/events/category-filter";
 import {
   BoardEmpty,
@@ -45,6 +46,7 @@ import {
 
 export const Route = createFileRoute("/_protected/_shell/")({
   validateSearch: homeSearchSchema,
+  beforeLoad: redirectToOnboardingWithoutChild,
   component: HomePage,
 });
 
