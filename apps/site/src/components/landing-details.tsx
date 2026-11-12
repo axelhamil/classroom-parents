@@ -1,16 +1,15 @@
 import type { frCatalog } from "@packages/i18n";
 import {
   LandingAction,
+  LandingFaq,
+  LandingFaqAnswer,
+  LandingFaqItem,
+  LandingFaqQuestion,
   LandingList,
   LandingSection,
   LandingSectionTitle,
   LandingSheet,
 } from "@packages/ui/components/ui/landing";
-import {
-  StepListContent,
-  StepListDescription,
-  StepListTitle,
-} from "@packages/ui/components/ui/step-list";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { BellRingIcon, PencilOffIcon, UsersIcon } from "lucide-react";
 import { GoogleCta } from "./google-cta";
@@ -46,13 +45,19 @@ export function LandingDetails({ copy, signInUrl, privacyUrl }: LandingDetailsPr
 
       <LandingSection aria-labelledby="faq-title">
         <LandingSectionTitle id="faq-title">{copy.faq.title}</LandingSectionTitle>
-        {FAQ_QUESTIONS.map((question) => (
-          <StepListContent key={question}>
-            <StepListTitle>{copy.faq[question].question}</StepListTitle>
-            <StepListDescription>{copy.faq[question].answer}</StepListDescription>
-            {question === "data" && <TextLink href={privacyUrl}>{copy.faq.data.link}</TextLink>}
-          </StepListContent>
-        ))}
+        <LandingFaq>
+          {FAQ_QUESTIONS.map((question) => (
+            <LandingFaqItem key={question}>
+              <LandingFaqQuestion>{copy.faq[question].question}</LandingFaqQuestion>
+              <LandingFaqAnswer>{copy.faq[question].answer}</LandingFaqAnswer>
+              {question === "data" && (
+                <LandingFaqAnswer>
+                  <TextLink href={privacyUrl}>{copy.faq.data.link}</TextLink>
+                </LandingFaqAnswer>
+              )}
+            </LandingFaqItem>
+          ))}
+        </LandingFaq>
       </LandingSection>
 
       <LandingSection span="closing" aria-labelledby="closing-title">

@@ -22,6 +22,12 @@ function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase(LOCALE) + text.slice(1);
 }
 
+export function relativeDayLabel(daysAhead: number, time: string, copy: SampleDayCopy): string {
+  if (daysAhead !== 1) return time;
+
+  return copy.dateWithTime.replace("{{date}}", copy.tomorrow).replace("{{time}}", time);
+}
+
 export function sampleDay(
   today: string,
   daysAhead: number,

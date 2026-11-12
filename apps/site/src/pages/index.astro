@@ -7,7 +7,6 @@ import { HeroCopy } from "../components/hero-copy";
 import { LandingDetails } from "../components/landing-details";
 import { ProductSample } from "../components/product-sample";
 import { SAMPLE_DEADLINES } from "../components/sample-deadlines";
-import { schoolToday } from "../components/sample-week";
 import { structuredData } from "../components/structured-data";
 import { env } from "../env";
 import SiteLayout from "../layouts/site-layout.astro";
@@ -29,7 +28,6 @@ const jsonLd = JSON.stringify(structuredData(env.PUBLIC_SITE_URL)).replaceAll("<
         copy={site.sample}
         dayCopy={{ tomorrow: common.deadline.tomorrow, dateWithTime: common.deadline.dateWithTime }}
         deadlines={SAMPLE_DEADLINES}
-        builtOn={schoolToday(new Date())}
       />
     </LandingHero>
     <LandingDetails copy={site} signInUrl={signInUrl} privacyUrl={privacyUrl} />

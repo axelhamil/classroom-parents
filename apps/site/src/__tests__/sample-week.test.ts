@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleDay, schoolToday } from "../components/sample-week";
+import { relativeDayLabel, sampleDay, schoolToday } from "../components/sample-week";
 
 const COPY = { tomorrow: "Demain", dateWithTime: "{{date}}, {{time}}" };
 
@@ -24,5 +24,10 @@ describe("the sample week", () => {
 
     expect(day.date).toBe("2026-12-03");
     expect(day.label).toBe("Jeudi 3 décembre, 08:30");
+  });
+
+  it("labels the served sample relative to any reading day", () => {
+    expect(relativeDayLabel(1, "08:30", COPY)).toBe("Demain, 08:30");
+    expect(relativeDayLabel(3, "13:45", COPY)).toBe("13:45");
   });
 });

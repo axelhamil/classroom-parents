@@ -20,7 +20,7 @@ import {
 } from "@packages/ui/components/ui/planner-card";
 import { AlarmClockIcon, ClipboardCheckIcon, PenLineIcon, WavesIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { type SampleDayCopy, sampleDay, schoolToday } from "./sample-week";
+import { relativeDayLabel, type SampleDayCopy, sampleDay, schoolToday } from "./sample-week";
 
 const CATEGORY_ICONS = {
   assessment: ClipboardCheckIcon,
@@ -47,11 +47,10 @@ export interface ProductSampleProps {
   copy: (typeof frCatalog)["site"]["sample"];
   dayCopy: SampleDayCopy;
   deadlines: SampleDeadline[];
-  builtOn: string;
 }
 
-export function ProductSample({ brand, copy, dayCopy, deadlines, builtOn }: ProductSampleProps) {
-  const [today, setToday] = useState(builtOn);
+export function ProductSample({ brand, copy, dayCopy, deadlines }: ProductSampleProps) {
+  const [today, setToday] = useState<string | null>(null);
 
   useEffect(() => setToday(schoolToday(new Date())), []);
 
@@ -78,32 +77,36 @@ export function ProductSample({ brand, copy, dayCopy, deadlines, builtOn }: Prod
         </SampleFrameHeader>
         <SampleStack inert>
           {deadlines.map((deadline) => {
-            const day = sampleDay(today, deadline.daysAhead, deadline.time, dayCopy);
+            const day = today ? sampleDay(today, deadline.daysAhead, deadline.time, dayCopy) : null;
+            const label =
+              day?.label ?? relativeDayLabel(deadline.daysAhead, deadline.time, dayCopy);
             const CategoryIcon = CATEGORY_ICONS[deadline.category];
 
             return (
               <li key={deadline.id}>
                 <PlannerCard>
-                  <DateTab
-                    dateTime={day.date}
-                    hue={deadline.hue}
-                    day={day.day}
-                    month={day.month}
-                    weekday={day.weekday}
-                    aria-hidden
-                  />
+                  {day && (
+                    <DateTab
+                      dateTime={day.date}
+                      hue={deadline.hue}
+                      day={day.day}
+                      month={day.month}
+                      weekday={day.weekday}
+                      aria-hidden
+                    />
+                  )}
                   <PlannerCardBody>
                     <PlannerCardTitle>{deadline.title}</PlannerCardTitle>
                     <PlannerCardMeta>
                       {deadline.countdown ? (
                         <>
-                          {day.label}
+                          {label}
                           <Badge variant="soon">{deadline.countdown}</Badge>
                         </>
                       ) : (
                         <Badge variant="urgent">
                           <AlarmClockIcon aria-hidden />
-                          {day.label}
+                          {label}
                         </Badge>
                       )}
                     </PlannerCardMeta>

@@ -561,7 +561,6 @@
   from {
     opacity: 0;
     translate: 0 0.375rem;
-    filter: blur(2px);
   }
 }
 

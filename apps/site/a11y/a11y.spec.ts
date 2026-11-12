@@ -9,10 +9,16 @@ const PAGES: readonly AuditedPage[] = [
 for (const colorScheme of COLOR_SCHEMES) {
   test.describe(`site pages (${colorScheme})`, () => {
     test.use({ colorScheme, reducedMotion: "reduce" });
+    test.beforeEach(({ page }) =>
+      page.addInitScript((theme) => window.localStorage.setItem("theme", theme), colorScheme),
+    );
 
     for (const target of PAGES) {
       test(target.name, async ({ page }) => {
         await audit(page, target, "fr");
+        await expect(page.locator("html")).toHaveClass(
+          colorScheme === "dark" ? /\bdark\b/ : /^(?!.*\bdark\b)/,
+        );
       });
     }
   });
@@ -41,6 +47,28 @@ test.describe("without JavaScript", () => {
     await expect(page.locator("[data-slot=notification-preview]")).toHaveCSS("opacity", "1");
     await expect(page.locator("[data-slot=sample-stack] > li").first()).toHaveCSS("opacity", "1");
   });
+
+  test("dates the sample relative to the reader, never to the build day", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.locator("[data-slot=sample-stack] [data-slot=date-tab]")).toHaveCount(0);
+    await expect(page.locator("[data-slot=sample-stack]")).toContainText("Demain, 8 h 30");
+  });
+});
+
+test("moves the hero entrance with transform and opacity only", async ({ page }) => {
+  await page.goto("/");
+
+  const entrance = await page.evaluate(() =>
+    [...document.styleSheets]
+      .flatMap((sheet) => [...sheet.cssRules])
+      .filter((rule) => rule instanceof CSSKeyframesRule && rule.name === "landing-rise")
+      .map((rule) => rule.cssText)
+      .join(""),
+  );
+
+  expect(entrance).toContain("opacity");
+  expect(entrance).not.toContain("filter");
 });
 
 test("reveals the product sample once its island hydrates", async ({ page }) => {
@@ -48,4 +76,5 @@ test("reveals the product sample once its island hydrates", async ({ page }) => 
 
   await expect(page.locator("[data-slot=landing-visual]")).toHaveAttribute("data-reveal", "shown");
   await expect(page.locator("[data-slot=sample-frame]")).toHaveCSS("opacity", "1");
+  await expect(page.locator("[data-slot=sample-stack] [data-slot=date-tab]")).toHaveCount(3);
 });

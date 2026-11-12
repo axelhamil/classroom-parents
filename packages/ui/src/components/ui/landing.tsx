@@ -239,8 +239,46 @@ function LandingList({ className, ...props }: React.ComponentProps<"ul">) {
   );
 }
 
+function LandingFaq({ className, ...props }: React.ComponentProps<"dl">) {
+  return <dl data-slot="landing-faq" className={cn("flex flex-col gap-7", className)} {...props} />;
+}
+
+function LandingFaqItem({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="landing-faq-item"
+      className={cn("flex min-w-0 flex-col items-start gap-1", className)}
+      {...props}
+    />
+  );
+}
+
+function LandingFaqQuestion({ className, ...props }: React.ComponentProps<"dt">) {
+  return (
+    <dt
+      data-slot="landing-faq-question"
+      className={cn("font-display text-lg leading-snug font-semibold text-balance", className)}
+      {...props}
+    />
+  );
+}
+
+function LandingFaqAnswer({ className, ...props }: React.ComponentProps<"dd">) {
+  return (
+    <dd
+      data-slot="landing-faq-answer"
+      className={cn("text-muted-foreground text-pretty", className)}
+      {...props}
+    />
+  );
+}
+
 export {
   LandingAction,
+  LandingFaq,
+  LandingFaqAnswer,
+  LandingFaqItem,
+  LandingFaqQuestion,
   LandingHeadline,
   LandingHero,
   LandingHeroCopy,
