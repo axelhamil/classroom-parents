@@ -29,7 +29,7 @@ export function AppShell({ user, sessionId, children }: AppShellProps) {
   usePushEndpointSync(user.id, sessionId);
 
   return (
-    <div className="flex min-h-dvh flex-col pb-nav md:pb-0">
+    <div className="flex min-h-dvh flex-col pb-nav md:pb-0 print:min-h-0 print:pb-0">
       <AppBar className="justify-between lg:grid lg:grid-cols-[1fr_auto_1fr]">
         <BrandLink asChild className="lg:justify-self-start">
           <Link to="/">

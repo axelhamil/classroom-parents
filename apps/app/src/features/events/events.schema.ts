@@ -6,6 +6,7 @@ import {
 import { z } from "zod";
 import { eventFiltersSearchSchema } from "../../shared/events/event-filters.schema";
 import { CHECKLIST_ITEM_MAX } from "./hooks/use-checklist";
+import { PRINT_WEEKS } from "./week";
 
 export const eventEditSchema = z.object({
   title: z.string().trim().min(1).max(EVENT_TITLE_MAX),
@@ -27,6 +28,10 @@ export const homeSearchSchema = eventFiltersSearchSchema.extend({
 });
 
 export type HomeSearch = z.infer<typeof homeSearchSchema>;
+
+export const printWeekSearchSchema = z.object({
+  week: z.enum(PRINT_WEEKS).optional().catch(undefined),
+});
 
 export const checklistItemSchema = z.object({
   label: z.string().trim().min(1).max(CHECKLIST_ITEM_MAX),
