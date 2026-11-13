@@ -19,6 +19,7 @@ const run = randomUUID();
 const PARENT: Identity = { sub: `parent-${run}`, email: `journey-${run}@example.com` };
 const LEA: Identity = { sub: `lea-${run}`, email: "lea.demo@eleve.example" };
 const HUGO: Identity = { sub: `hugo-${run}`, email: "hugo.demo@eleve.example" };
+const PUSH_ENDPOINT = `https://fcm.googleapis.com/fcm/send/journey-${run}`;
 
 const Event = z.object({
   id: z.string(),
@@ -44,7 +45,10 @@ const Reminders = z.object({
   ),
 });
 const Session = z.object({ user: z.object({ id: z.string() }) });
-const Push = z.object({ endpoint: z.string(), message: z.object({ title: z.string() }) });
+const Push = z.object({
+  endpoint: z.string(),
+  message: z.object({ title: z.string(), body: z.string() }),
+});
 
 function parisDate(at: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(at);
@@ -128,9 +132,9 @@ async function body<T>(page: Page, path: string, schema: z.ZodType<T>): Promise<
   return schema.parse(reply.body);
 }
 
-async function pushesTitled(title: string): Promise<number> {
+async function journeyPushes(): Promise<z.infer<typeof Push>[]> {
   const pushes = z.array(Push).parse(await control("/pushes", "GET"));
-  return pushes.filter((push) => push.message.title === title).length;
+  return pushes.filter((push) => push.endpoint === PUSH_ENDPOINT);
 }
 
 function childCard(page: Page, child: Identity) {
@@ -213,7 +217,8 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   const [edited, deleted] = [...upcoming, ...past].filter(
     (event) => event.source === "coursework" && event.id !== alerted?.id,
   );
-  if (!lea || !hugo || !alerted || !edited || !deleted)
+  const alertedChild = children.find((child) => child.id === alerted?.childId);
+  if (!lea || !hugo || !alerted || !alertedChild || !edited || !deleted)
     throw new Error("the fake Classroom dataset no longer offers the deadlines this journey needs");
 
   await test.step("finds a deadline on its day of the calendar, then opens it", async () => {
@@ -245,7 +250,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        endpoint: `https://fcm.googleapis.com/fcm/send/journey-${run}`,
+        endpoint: PUSH_ENDPOINT,
         keys: {
           p256dh: keys.getPublicKey().toString("base64url"),
           auth: randomBytes(16).toString("base64url"),
@@ -255,10 +260,15 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     expect(subscribed).toMatchObject({ status: 204 });
 
     await control(`/alerts?at=${new Date(dueAt - MINUTE_MS).toISOString()}`);
-    expect(await pushesTitled(alerted.title)).toBe(0);
+    expect(await journeyPushes()).toHaveLength(0);
 
     await control(`/alerts?at=${new Date(dueAt).toISOString()}`);
-    expect(await pushesTitled(alerted.title)).toBe(1);
+    const [pushed, ...more] = await journeyPushes();
+    expect(more).toHaveLength(0);
+    const lockScreen = `${pushed?.message.title}\n${pushed?.message.body}`;
+    expect(lockScreen).toContain("KeepUpKids");
+    expect(lockScreen).not.toContain(alerted.title);
+    expect(lockScreen).not.toContain(alertedChild.label);
     await page.reload();
     await expect(page.getByText("Envoyé")).toBeVisible();
   });
