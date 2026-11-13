@@ -11,6 +11,7 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { Progress } from "@packages/ui/components/ui/progress";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -56,7 +57,8 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
       <QueryState
         query={query}
         skeleton={
-          <SkeletonGroup label={t("briefing.loading")}>
+          <SkeletonGroup label={t("briefing.loading")} className="gap-3">
+            <Skeleton shape="line" className="w-48" />
             <Skeleton className="h-16 w-full" />
           </SkeletonGroup>
         }
@@ -128,6 +130,12 @@ function BriefingBody({ events: loaded, family, childId, now, moment, day }: Bri
       ) : (
         <BriefingSummary>{t("briefing.open", { count: open })}</BriefingSummary>
       )}
+      <Progress
+        value={events.length - open}
+        max={events.length}
+        tone={allSet ? "success" : "primary"}
+        aria-label={t("briefing.progress", { count: events.length - open, total: events.length })}
+      />
       <ScrollRegion variant="panel" label={t("briefing.scroll", { day })}>
         <BriefingGroups>
           {family.map((child) => {

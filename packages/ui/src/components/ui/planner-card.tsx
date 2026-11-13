@@ -9,7 +9,7 @@ const plannerCardVariants = cva(
   {
     variants: {
       muted: {
-        false: "bg-card text-card-foreground shadow-xs hover:shadow-sm",
+        false: "bg-card text-card-foreground shadow-rest hover:shadow-raised",
         true: "border-dashed bg-surface-container text-muted-foreground",
       },
     },

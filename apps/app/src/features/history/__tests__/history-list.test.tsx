@@ -81,7 +81,7 @@ describe("Accueil, past deadlines", () => {
     givenHistory([]);
     await renderAppAt("/?tab=history");
 
-    expect(await screen.findByText("Les échéances passées seront rangées ici.")).toBeDefined();
+    expect(await screen.findByText("Les échéances passées viendront se ranger ici.")).toBeDefined();
   });
 
   it("/history redirects to past deadlines on Accueil", async () => {

@@ -56,6 +56,7 @@ export function CalendarEventRow({
   return (
     <CalendarEntry hue={hue} state={state} density={compact ? "compact" : "comfortable"}>
       <Checkbox
+        tone={hue}
         checked={event.done}
         onCheckedChange={(checked) => toggle.mutate({ eventId: event.id, done: checked === true })}
         aria-label={t("calendar.markDone", { title: event.title })}

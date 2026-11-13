@@ -29,7 +29,7 @@ export function NotFoundPage() {
     >
       <Empty>
         <EmptyHeader>
-          <EmptyMedia variant="icon">
+          <EmptyMedia variant="scene">
             <MapPinOff aria-hidden />
           </EmptyMedia>
           <TypographyH1 variant="hero">{t("notFound.title")}</TypographyH1>

@@ -59,7 +59,7 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-background shadow-lg data-[state=closed]:animate-out data-[state=closed]:duration-150 data-[state=open]:animate-in data-[state=open]:duration-200",
+          "fixed z-50 flex flex-col gap-4 bg-background shadow-float data-[state=closed]:animate-out data-[state=closed]:duration-150 data-[state=open]:animate-in data-[state=open]:duration-200",
           side === "right" &&
             "inset-y-0 right-0 h-full w-3/4 overflow-y-auto border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
           side === "left" &&
@@ -77,7 +77,7 @@ function SheetContent({
         {showCloseButton && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
+              <SheetPrimitive.Close className="absolute top-4 right-4 rounded-full opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-secondary">
                 <XIcon className="size-4" />
                 <span className="sr-only">{closeLabel}</span>
               </SheetPrimitive.Close>

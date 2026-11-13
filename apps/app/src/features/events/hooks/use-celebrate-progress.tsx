@@ -91,7 +91,11 @@ export function useCelebrateProgress(now: Date): void {
 
     toast.success(message, {
       id: weekDone ? `celebration:week:${week}` : `celebration:day:${day ?? today}`,
-      icon: <CelebrationStamp>{weekDone ? <SparklesIcon /> : <CheckCheckIcon />}</CelebrationStamp>,
+      icon: (
+        <CelebrationStamp burst>
+          {weekDone ? <SparklesIcon /> : <CheckCheckIcon />}
+        </CelebrationStamp>
+      ),
     });
   }, [progress?.scope, progress?.completed]);
 }

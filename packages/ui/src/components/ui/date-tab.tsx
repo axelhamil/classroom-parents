@@ -4,7 +4,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const dateTabVariants = cva(
-  "inline-flex w-14 shrink-0 flex-col overflow-hidden rounded-md border bg-card text-center leading-none text-card-foreground shadow-sm",
+  "inline-flex w-14 shrink-0 flex-col overflow-hidden rounded-md border bg-card text-center leading-none text-card-foreground shadow-raised",
   {
     variants: {
       tone: {

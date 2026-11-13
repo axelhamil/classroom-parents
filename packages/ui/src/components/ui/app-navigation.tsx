@@ -37,7 +37,7 @@ function AppNavigationItem({ className, asChild = false, ...props }: AppNavigati
       data-slot="app-navigation-item"
       className={cn(
         "group/app-navigation-item flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring focus-visible:ring-inset aria-[current=page]:text-foreground",
-        "md:h-touch md:flex-row md:gap-2 md:rounded-full md:px-4 md:text-sm md:hover:bg-surface-container-high md:aria-[current=page]:bg-card md:aria-[current=page]:shadow-sm",
+        "md:h-touch md:flex-row md:gap-2 md:rounded-full md:px-4 md:text-sm md:hover:bg-surface-container-high md:aria-[current=page]:bg-card md:aria-[current=page]:shadow-raised",
         className,
       )}
       {...props}

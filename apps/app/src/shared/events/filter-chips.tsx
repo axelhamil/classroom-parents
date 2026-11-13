@@ -1,6 +1,7 @@
 import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@packages/ui/components/ui/tooltip";
 import type { ReactNode } from "react";
+import type { ChildHue } from "../format/child-hue";
 
 const ALL = "all";
 
@@ -8,6 +9,7 @@ export interface FilterChipOption {
   value: string | null;
   label: ReactNode;
   hint?: string;
+  hue?: ChildHue;
 }
 
 export interface FilterChipsProps {
@@ -51,13 +53,13 @@ export function FilterChips({
 
         return option.hint ? (
           <Tooltip key={value}>
-            <ToggleGroupItem value={value} asChild>
+            <ToggleGroupItem value={value} hue={option.hue} asChild>
               <TooltipTrigger>{option.label}</TooltipTrigger>
             </ToggleGroupItem>
             <TooltipContent>{option.hint}</TooltipContent>
           </Tooltip>
         ) : (
-          <ToggleGroupItem key={value} value={value}>
+          <ToggleGroupItem key={value} value={value} hue={option.hue}>
             {option.label}
           </ToggleGroupItem>
         );

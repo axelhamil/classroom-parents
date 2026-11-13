@@ -292,7 +292,9 @@ describe("Accueil, the family calendar", () => {
     givenCalendar([CHILD], [deadline(1, "2027-01-15", "Sortie au musée")]);
     const router = await renderAppAt("/?view=week&date=2026-12-03");
 
-    expect(await screen.findByText("Rien de prévu sur cette période.")).toBeDefined();
+    expect(
+      await screen.findByText("Rien de prévu sur cette période. De quoi souffler un peu."),
+    ).toBeDefined();
     expect(screen.queryByText("Rien de prévu")).toBeNull();
     expect(screen.getByText(/^Dernière lecture de Classroom : /)).toBeDefined();
 
