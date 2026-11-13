@@ -1,3 +1,4 @@
+import { mondayOf } from "@packages/ddd-kit/days";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import {
   readStoredValue,
@@ -17,7 +18,7 @@ import { schoolToday } from "../../../shared/format/school-today";
 import { useIntlLocale } from "../../../shared/i18n/use-intl-locale";
 import { markEventDoneMutationOptions } from "../api/events.mutations";
 import { calendarEventsQueryOptions } from "../api/events.queries";
-import { mondayOf, weekAhead } from "../week";
+import { weekAhead } from "../week";
 
 const celebratedSchema = z.object({ days: z.array(z.string()), weeks: z.array(z.string()) });
 
@@ -43,7 +44,7 @@ export function useCelebrateProgress(now: Date): void {
   const query = useQuery(calendarEventsQueryOptions(weekAhead(schoolToday(now))));
   const toggling = useIsMutating({ mutationKey: markEventDoneMutationOptions.mutationKey }) > 0;
   const loaded = query.data ?? [];
-  const week = mondayOf(now);
+  const week = mondayOf(schoolToday(now));
   const progress: Progress | null =
     query.isSuccess && !toggling
       ? {

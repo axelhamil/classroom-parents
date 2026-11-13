@@ -1,5 +1,5 @@
 import { Option } from "@packages/ddd-kit";
-import { DAY_MS, shiftDate } from "@packages/ddd-kit/days";
+import { DAY_MS, isWeekday, shiftDate } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE, utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 
 const MINUTE_MS = 60_000;
@@ -62,7 +62,7 @@ function cadenceSlot(now: Date, jitterMs: number): Date {
   if (wall.isFailure) return offHours;
 
   const { date, time } = wall.getValue();
-  if (isSchoolDay(date) && time >= SCHOOL_DAY_OPENS && time < SCHOOL_DAY_CLOSES)
+  if (isWeekday(date) && time >= SCHOOL_DAY_OPENS && time < SCHOOL_DAY_CLOSES)
     return new Date(now.getTime() + SCHOOL_DAY_INTERVAL_MS + jitterMs);
 
   return nextOpening(date, time)
@@ -84,21 +84,16 @@ function spreadBefore(deadline: Date, jitterMs: number, now: Date): Date {
 }
 
 function nextOpening(date: string, time: string): Option<Date> {
-  const first = isSchoolDay(date) && time < SCHOOL_DAY_OPENS ? 0 : 1;
+  const first = isWeekday(date) && time < SCHOOL_DAY_OPENS ? 0 : 1;
   for (let offset = first; offset < first + WEEK_DAYS; offset++) {
     const day = shiftDate(date, offset);
-    if (!isSchoolDay(day)) continue;
+    if (!isWeekday(day)) continue;
 
     const opening = zonedWallTimeToUtc(day, SCHOOL_DAY_OPENS, PARIS_TIME_ZONE);
     return opening.isSuccess ? Option.some(opening.getValue()) : Option.none();
   }
 
   return Option.none();
-}
-
-function isSchoolDay(date: string): boolean {
-  const weekDay = new Date(`${date}T00:00:00Z`).getUTCDay();
-  return weekDay >= 1 && weekDay <= 5;
 }
 
 function earliest(left: Date, right: Date): Date {
