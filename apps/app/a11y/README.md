@@ -63,8 +63,8 @@ Three things bite when running repeatedly:
   so the bucket a full sweep fills is that parent's (`global:<userId>`); the
   **IP**-keyed one (`global:<ip>`) only takes `/api/auth/*` (the API nulls the
   user there, `sessionMiddleware`) and the public pages. Measured over a full
-  sweep at 4 workers: 337 requests in the parent's bucket in under a minute
-  against a then-300/min ceiling, and 131 in the IP bucket. Worker count bounds
+  sweep at 4 workers: 361 requests in the parent's bucket in about 30 s
+  (337 when it broke the then-300/min ceiling), and 135 in the IP bucket. Worker count bounds
   neither: the whole sweep fits in one window, so its request count is what
   matters. What fixed it was tuning the API's burst window to what opening the
   app costs, the signed-in home fires 9 calls in that bucket
