@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const calendarEntryVariants = cva(
-  "relative flex w-full min-w-0 items-start gap-3 rounded-xl border border-transparent text-sm text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox]]:size-5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
+  "relative flex w-full min-w-0 items-start gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox]]:size-5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
   {
     variants: {
       hue: {
@@ -18,10 +18,6 @@ const calendarEntryVariants = cva(
         7: "bg-child-7-container",
         8: "bg-child-8-container",
       },
-      density: {
-        row: "px-3 py-2.5",
-        sticker: "p-2.5",
-      },
       state: {
         open: "",
         overdue: "border-destructive/60",
@@ -29,7 +25,7 @@ const calendarEntryVariants = cva(
         done: "text-muted-foreground [&_[data-slot=calendar-entry-link]]:line-through",
       },
     },
-    defaultVariants: { density: "row", state: "open" },
+    defaultVariants: { state: "open" },
   },
 );
 
@@ -39,21 +35,14 @@ interface CalendarEntryProps
   asChild?: boolean;
 }
 
-function CalendarEntry({
-  className,
-  hue,
-  density,
-  state,
-  asChild = false,
-  ...props
-}: CalendarEntryProps) {
+function CalendarEntry({ className, hue, state, asChild = false, ...props }: CalendarEntryProps) {
   const Comp = asChild ? Slot.Root : "div";
 
   return (
     <Comp
       data-slot="calendar-entry"
       data-state={state ?? "open"}
-      className={cn(calendarEntryVariants({ hue, density, state }), className)}
+      className={cn(calendarEntryVariants({ hue, state }), className)}
       {...props}
     />
   );
@@ -80,7 +69,7 @@ function CalendarEntryLink({ className, asChild = false, ...props }: CalendarEnt
     <Comp
       data-slot="calendar-entry-link"
       className={cn(
-        "line-clamp-2 font-semibold leading-snug hyphens-auto wrap-anywhere outline-none after:absolute after:inset-0 after:rounded-xl after:content-['']",
+        "font-semibold leading-snug hyphens-auto wrap-anywhere outline-none after:absolute after:inset-0 after:rounded-xl after:content-['']",
         className,
       )}
       {...props}

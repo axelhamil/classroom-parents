@@ -8,7 +8,7 @@ function Briefing({ className, ...props }: React.ComponentProps<"section">) {
     <section
       data-slot="briefing"
       className={cn(
-        "@container/briefing flex min-w-0 flex-col gap-3 rounded-2xl bg-surface-container p-4 text-foreground [--scroll-fade-surface:var(--surface-container)]",
+        "@container/briefing flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-2xl bg-surface-container p-4 text-foreground outline-none [--scroll-fade-surface:var(--surface-container)] focus-visible:ring focus-visible:ring-ring",
         className,
       )}
       {...props}
@@ -74,10 +74,7 @@ function BriefingGroup({ className, ...props }: React.ComponentProps<"section">)
   return (
     <section
       data-slot="briefing-group"
-      className={cn(
-        "flex min-w-0 flex-col gap-2 rounded-xl border bg-card p-3 text-card-foreground",
-        className,
-      )}
+      className={cn("flex min-w-0 flex-col gap-2", className)}
       {...props}
     />
   );

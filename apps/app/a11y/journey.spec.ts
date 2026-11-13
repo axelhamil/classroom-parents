@@ -219,7 +219,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     throw new Error("the fake Classroom dataset no longer offers the deadlines this journey needs");
 
   await test.step("finds a deadline on its day of the calendar, then opens it", async () => {
-    await page.goto(`/?view=agenda&date=${alerted.deadlineDate}`);
+    await page.goto(`/?view=week&date=${alerted.deadlineDate}`);
     const row = page.getByRole("link").filter({ hasText: alerted.title }).first();
     await expect(row).toBeVisible();
 
@@ -297,9 +297,9 @@ test("a parent links two children, follows their deadlines and alerts, then eras
 
     await page.goto("/");
     await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "En retard" }).getByRole("link", { name: editedTitle }),
-    ).toBeVisible();
+    const late = page.getByRole("region", { name: /^En retard, / });
+    await late.getByRole("button", { name: /^En retard, / }).click();
+    await expect(late.getByRole("link", { name: editedTitle })).toBeVisible();
     await expect(page.getByText(editedTitle)).toHaveCount(1);
   });
 

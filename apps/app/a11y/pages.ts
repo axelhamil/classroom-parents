@@ -21,7 +21,6 @@ export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
   { name: "fridge planner", path: "/week/print", prepare: stubChildrenApi },
   { name: "settings", path: "/settings" },
   { name: "history", path: "/?tab=history", prepare: stubChildrenApi },
-  { name: "calendar, agenda", path: "/?view=agenda", prepare: stubChildrenApi },
   { name: "calendar, week", path: "/?view=week", prepare: stubChildrenApi },
   { name: "calendar, month", path: "/?view=month", prepare: stubChildrenApi },
   { name: "privacy settings", path: "/settings/privacy" },

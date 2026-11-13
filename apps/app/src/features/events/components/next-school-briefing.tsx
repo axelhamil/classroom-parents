@@ -48,7 +48,9 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
   return (
     <Briefing
       aria-labelledby={titleId}
-      className="max-h-briefing-phone md:max-h-briefing-compact xl:sticky xl:top-briefing-top xl:max-h-briefing-panel-height"
+      data-jump={moment.focus}
+      tabIndex={-1}
+      className="max-h-briefing-phone md:sticky md:top-briefing-top md:max-h-briefing-panel-height"
     >
       <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
       <QueryState

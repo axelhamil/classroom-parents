@@ -47,8 +47,10 @@ function usePeriodLabel(view: CalendarView, anchor: string, { from, to }: Calend
   if (view === "month")
     return format(`${anchor.slice(0, 7)}-01`, { month: "long", year: "numeric" });
 
+  const sameMonth = from.slice(0, 7) === to.slice(0, 7);
+
   return t("calendar.range", {
-    from: format(from, { day: "numeric", month: "long" }),
+    from: format(from, sameMonth ? { day: "numeric" } : { day: "numeric", month: "long" }),
     to: format(to, { day: "numeric", month: "long" }),
   });
 }
@@ -68,29 +70,27 @@ export function CalendarToolbar({
   const label = usePeriodLabel(view, anchor, period);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <TypographyH2 variant="section" aria-live="polite" className="min-w-0 flex-1">
-          {label}
-        </TypographyH2>
-        <div className="flex items-center gap-1">
-          <IconButton variant="outline" label={t("calendar.previous")} onClick={() => onStep(-1)}>
-            <ChevronLeftIcon aria-hidden />
-          </IconButton>
-          <Button variant="outline" disabled={todayInView} onClick={onToday}>
-            {t("calendar.today")}
-          </Button>
-          <IconButton variant="outline" label={t("calendar.next")} onClick={() => onStep(1)}>
-            <ChevronRightIcon aria-hidden />
-          </IconButton>
-        </div>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <TypographyH2 variant="section" aria-live="polite" className="min-w-0 flex-1 basis-32">
+        {label}
+      </TypographyH2>
+      <div className="flex items-center gap-1">
+        <IconButton variant="outline" label={t("calendar.previous")} onClick={() => onStep(-1)}>
+          <ChevronLeftIcon aria-hidden />
+        </IconButton>
+        <Button variant="outline" disabled={todayInView} onClick={onToday}>
+          {t("calendar.today")}
+        </Button>
+        <IconButton variant="outline" label={t("calendar.next")} onClick={() => onStep(1)}>
+          <ChevronRightIcon aria-hidden />
+        </IconButton>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex w-full items-center gap-2 @3xl:w-auto">
         <TabsList
           size="touch"
           aria-label={t("calendar.views.label")}
           data-tour="home-tabs"
-          className="flex-1 @md:flex-none"
+          className="flex-1 @3xl:flex-none"
         >
           {CALENDAR_VIEWS.map((candidate) => (
             <TabsTrigger key={candidate} value={candidate}>
@@ -98,7 +98,7 @@ export function CalendarToolbar({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div data-tour="home-share" className="ms-auto flex items-center gap-1">
+        <div data-tour="home-share" className="flex items-center gap-1">
           <Button onClick={onAdd}>
             <PlusIcon aria-hidden />
             {t("calendar.add")}

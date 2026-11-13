@@ -12,7 +12,6 @@ import {
   isFirstSyncRunning,
 } from "../../../../shared/events/event-board";
 import { schoolToday } from "../../../../shared/format/school-today";
-import { TABLET_QUERY, useMediaQuery } from "../../../../shared/layout/use-media-query";
 import { QueryState } from "../../../../shared/query/query-state";
 import { calendarEventsQueryOptions } from "../../api/events.queries";
 import {
@@ -25,14 +24,15 @@ import {
 } from "../../calendar";
 import { useShareDays } from "../../hooks/use-share-days";
 import { type SwipeStep, useSwipe } from "../../hooks/use-swipe";
+import { schoolMoment } from "../../week";
 import { FamilyRow } from "../family-row";
 import { AddEventDialog } from "./add-event-dialog";
-import { AgendaView } from "./agenda-view";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { MonthView } from "./month-view";
 import { OverdueStrip } from "./overdue-strip";
 import { PeriodEmpty } from "./period-empty";
+import { WeekStrip } from "./week-strip";
 import { WeekView } from "./week-view";
 
 export interface CalendarPlace {
@@ -47,6 +47,7 @@ export interface CalendarBoardProps {
   place: CalendarPlace;
   onPlaceChange: (place: CalendarPlace) => void;
   now: Date;
+  briefing: ReactNode;
   tour: ReactNode;
 }
 
@@ -77,11 +78,11 @@ export function CalendarBoard({
   place,
   onPlaceChange,
   now,
+  briefing,
   tour,
 }: CalendarBoardProps) {
   const { t } = useTranslation("events");
-  const tablet = useMediaQuery(TABLET_QUERY);
-  const view = place.view ?? (tablet ? "week" : "agenda");
+  const view = place.view ?? "week";
   const today = schoolToday(now);
   const anchor = place.date ?? today;
   const period = calendarPeriod(view, anchor);
@@ -122,7 +123,7 @@ export function CalendarBoard({
     onPlaceChange({ view: picked });
   };
 
-  const viewProps = { days, anchor, family, now, today, onSelect: select, onAdd: setAdding };
+  const viewProps = { days, family, now, today, onAdd: setAdding };
   const periodEmpty =
     shown.length === 0 ? (
       <PeriodEmpty
@@ -136,17 +137,6 @@ export function CalendarBoard({
 
   return (
     <Tabs value={view} onValueChange={changeView} className="gap-4">
-      <CalendarToolbar
-        view={view}
-        anchor={anchor}
-        period={period}
-        todayInView={periodHolds(view, anchor, today)}
-        onStep={step}
-        onToday={() => turnTo(today)}
-        onAdd={() => setAdding(anchor)}
-        onShare={() => shareDays(days)}
-        onSubscribe={() => setSubscribing(true)}
-      />
       {family.length > 1 && (
         <FamilyRow
           family={family}
@@ -155,45 +145,70 @@ export function CalendarBoard({
           onChange={onChildChange}
         />
       )}
-      <OverdueStrip
-        family={family}
-        childId={childId}
-        now={now}
-        today={today}
-        before={period.from}
-      />
-      {CALENDAR_VIEWS.map((candidate) => (
-        <TabsContent key={candidate} value={candidate}>
-          <QueryState query={query} skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}>
-            {() =>
-              loaded.length === 0 && isFirstSyncRunning(family) ? (
-                <BoardEmpty
-                  icon={HourglassIcon}
-                  title={t("empty.syncing.title")}
-                  description={t("empty.syncing.description")}
-                />
-              ) : (
-                <CalendarPeriod
-                  key={`${candidate}:${motion.turn}`}
-                  direction={motion.direction}
-                  data-tour="home-week"
-                  {...swipe}
-                >
-                  {candidate === "agenda" && (periodEmpty ?? <AgendaView {...viewProps} />)}
-                  {candidate === "week" &&
-                    (periodEmpty ?? (
-                      <WeekView
-                        {...viewProps}
-                        onOpenDay={(date) => onPlaceChange({ view: "agenda", date })}
-                      />
-                    ))}
-                  {candidate === "month" && <MonthView {...viewProps} emptyPeriod={periodEmpty} />}
-                </CalendarPeriod>
-              )
-            }
-          </QueryState>
-        </TabsContent>
-      ))}
+      {view === "week" && shown.length > 0 && (
+        <WeekStrip days={days} family={family} now={now} today={today} />
+      )}
+      <div className="flex flex-col gap-4 md:grid md:grid-cols-[var(--spacing-briefing-panel)_minmax(0,1fr)] md:items-start md:gap-6">
+        {briefing}
+        <div className="@container flex min-w-0 flex-col gap-4">
+          <CalendarToolbar
+            view={view}
+            anchor={anchor}
+            period={period}
+            todayInView={periodHolds(view, anchor, today)}
+            onStep={step}
+            onToday={() => turnTo(today)}
+            onAdd={() => setAdding(anchor)}
+            onShare={() => shareDays(days)}
+            onSubscribe={() => setSubscribing(true)}
+          />
+          <OverdueStrip
+            family={family}
+            childId={childId}
+            now={now}
+            today={today}
+            before={period.from}
+          />
+          {CALENDAR_VIEWS.map((candidate) => (
+            <TabsContent key={candidate} value={candidate}>
+              <QueryState
+                query={query}
+                skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
+              >
+                {() =>
+                  loaded.length === 0 && isFirstSyncRunning(family) ? (
+                    <BoardEmpty
+                      icon={HourglassIcon}
+                      title={t("empty.syncing.title")}
+                      description={t("empty.syncing.description")}
+                    />
+                  ) : (
+                    <CalendarPeriod
+                      key={`${candidate}:${motion.turn}`}
+                      direction={motion.direction}
+                      data-tour="home-week"
+                      {...swipe}
+                    >
+                      {candidate === "week" &&
+                        (periodEmpty ?? (
+                          <WeekView {...viewProps} briefed={schoolMoment(now).focus} />
+                        ))}
+                      {candidate === "month" && (
+                        <MonthView
+                          {...viewProps}
+                          anchor={anchor}
+                          onSelect={select}
+                          emptyPeriod={periodEmpty}
+                        />
+                      )}
+                    </CalendarPeriod>
+                  )
+                }
+              </QueryState>
+            </TabsContent>
+          ))}
+        </div>
+      </div>
       <AddEventDialog
         date={adding}
         family={family}
