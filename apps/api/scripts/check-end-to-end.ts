@@ -39,6 +39,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   or,
   outboxSchema,
   type SQL,
@@ -176,7 +177,15 @@ async function pendingAlertsOn(userId: string, where: SQL | undefined): Promise<
 }
 
 async function syncDue(at: Date): Promise<boolean> {
-  return (await di.SyncDueChildrenService.runOnce(at)).isSuccess;
+  await db
+    .update(childAccount)
+    .set({ nextSyncAt: at })
+    .where(
+      and(like(childAccount.linkedAccountId, `${probe}%`), eq(childAccount.status, "connected")),
+    );
+  const tick = await di.SyncDueChildrenService.runOnce(at);
+
+  return tick.isSuccess && tick.getValue().children > 0;
 }
 
 const { step, run } = stepRunner("check-end-to-end", async () => {

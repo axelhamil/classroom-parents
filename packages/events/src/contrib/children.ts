@@ -11,6 +11,7 @@ export const childrenEvents = defineEventContribution({
     CHILD_DISCONNECT_REQUESTED: "child.account.disconnect_requested",
     CHILD_DISCONNECTED: "child.account.disconnected",
     CHILD_NEEDS_RECONNECT: "child.account.reconnect_needed",
+    CHILD_SYNC_REQUESTED: "child.account.sync_requested",
   },
   payloads: {
     "child.account.connected": ChildRef,
@@ -25,6 +26,7 @@ export const childrenEvents = defineEventContribution({
       cause: z.enum(["invalid_grant", "school_blocked"]),
       actorUserId: z.null(),
     }),
+    "child.account.sync_requested": ChildRef.extend({ actorUserId: z.string() }),
   },
   retention: {
     "child.account.connected": "compliance",
@@ -33,6 +35,7 @@ export const childrenEvents = defineEventContribution({
     "child.account.disconnect_requested": "compliance",
     "child.account.disconnected": "compliance",
     "child.account.reconnect_needed": "operational",
+    "child.account.sync_requested": "operational",
   },
   visibility: {
     "child.account.connected": "public",
@@ -41,6 +44,7 @@ export const childrenEvents = defineEventContribution({
     "child.account.disconnect_requested": "public",
     "child.account.disconnected": "public",
     "child.account.reconnect_needed": "public",
+    "child.account.sync_requested": "public",
   },
   descriptions: {
     "child.account.connected":
@@ -53,5 +57,7 @@ export const childrenEvents = defineEventContribution({
       "A parent disconnected a child: Google access revoked, linked account and child data erased.",
     "child.account.reconnect_needed":
       "A child's Classroom access stopped working (token revoked or app blocked by the school).",
+    "child.account.sync_requested":
+      "A parent asked to refresh a child's Classroom data now, outside the regular sync cadence.",
   },
 });

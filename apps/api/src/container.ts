@@ -54,6 +54,7 @@ import { rgpdModule } from "./modules/rgpd/module";
 import { AlertContextQuery } from "./queries/alert-context.query";
 import { DigestAudienceQuery } from "./queries/digest-audience.query";
 import { FeedAlarmsQuery } from "./queries/feed-alarms.query";
+import { UpcomingAlertsQuery } from "./queries/upcoming-alerts.query";
 import { UserDataQuery } from "./queries/user-data.query";
 import { authSecretKey } from "./shared/auth/auth-secrets";
 import { googleTokenSealing } from "./shared/auth/token-sealing";
@@ -197,6 +198,7 @@ export const di = container()
   .add("IDueChildren", (c) => dueChildrenFor(c.ChildSyncService))
   .add("IChildSyncState", (c) => childSyncStateFor(c.ChildSyncService))
   .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService, c.ChildSyncService))
+  .add("IUpcomingAlerts", (c) => new UpcomingAlertsQuery(c.IInstrumentation))
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .add("IUserDataReader", (c): IUserDataReader => new UserDataQuery(c.IInstrumentation))

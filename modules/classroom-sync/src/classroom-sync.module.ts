@@ -11,6 +11,7 @@ import type { IDueChildren } from "./application/ports/due-children.port";
 import type { IEventIngest } from "./application/ports/event-ingest.port";
 import type { IManualSyncGate } from "./application/ports/manual-sync-gate.port";
 import type { ISeenAnnouncementRepository } from "./application/ports/seen-announcement-repository.port";
+import type { IUpcomingAlerts } from "./application/ports/upcoming-alerts.port";
 import { ClassroomReader } from "./application/services/classroom-reader.service";
 import { ManualSyncService } from "./application/services/manual-sync.service";
 import { SyncChildService } from "./application/services/sync-child.service";
@@ -29,6 +30,7 @@ export interface ClassroomSyncPrerequisites {
   IDueChildren: IDueChildren;
   IChildSyncState: IChildSyncState;
   IManualSyncGate: IManualSyncGate;
+  IUpcomingAlerts: IUpcomingAlerts;
 }
 
 export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b) =>
@@ -54,6 +56,7 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
           c.IChildAccessTokens,
           c.IAnnouncementExtractor,
           c.IEventIngest,
+          c.IUpcomingAlerts,
           c.IChildSyncState,
           c.ISeenAnnouncementRepository,
           c.ITransactionService,

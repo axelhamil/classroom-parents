@@ -2,9 +2,9 @@ import type { Result } from "@packages/ddd-kit";
 import type { SyncError } from "../sync-error";
 
 export type ManualSyncClaim =
-  | { outcome: "started"; lease: number; label: string }
-  | { outcome: "running" }
-  | { outcome: "throttled" };
+  | { outcome: "started"; lease: number; label: string; retryAt: Date }
+  | { outcome: "running"; retryAt: Date }
+  | { outcome: "throttled"; retryAt: Date };
 
 export interface IManualSyncGate {
   childIdsOf(userId: string): Promise<Result<string[], SyncError>>;
