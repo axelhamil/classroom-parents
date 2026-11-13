@@ -3,14 +3,15 @@ import {
   CalendarDay,
   CalendarDayHeader,
   CalendarDayList,
+  CalendarDayNote,
   CalendarDayTitle,
 } from "@packages/ui/components/ui/calendar-day";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
-import { overdueEventsQueryOptions } from "../../api/events.queries";
-import { isOverdue } from "../../calendar";
+import { calendarEventsQueryOptions } from "../../api/events.queries";
+import { isOverdue, OVERDUE_WINDOW_DAYS, overdueWindow } from "../../calendar";
 import { CalendarEventRow } from "./calendar-event-row";
 
 const SHOWN_AT_FIRST = 3;
@@ -27,9 +28,14 @@ export function OverdueStrip({ family, childId, now, today, before }: OverdueStr
   const { t } = useTranslation("events");
   const titleId = useId();
   const [open, setOpen] = useState(false);
-  const late = (useQuery(overdueEventsQueryOptions(childId)).data ?? []).filter(
-    (event) => isOverdue(event, today) && event.deadlineDate < before,
-  );
+  const late = (useQuery(calendarEventsQueryOptions(overdueWindow(today))).data ?? [])
+    .filter(
+      (event) =>
+        isOverdue(event, today) &&
+        event.deadlineDate < before &&
+        (childId === null || event.childId === childId),
+    )
+    .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate));
   if (late.length === 0) return null;
 
   const shown = open ? late : late.slice(0, SHOWN_AT_FIRST);
@@ -40,6 +46,9 @@ export function OverdueStrip({ family, childId, now, today, before }: OverdueStr
       <CalendarDayHeader>
         <CalendarDayTitle id={titleId}>{t("calendar.overdue")}</CalendarDayTitle>
       </CalendarDayHeader>
+      <CalendarDayNote>
+        {t("calendar.overdueWindow", { count: OVERDUE_WINDOW_DAYS })}
+      </CalendarDayNote>
       <CalendarDayList>
         {shown.map((event) => (
           <li key={event.id}>

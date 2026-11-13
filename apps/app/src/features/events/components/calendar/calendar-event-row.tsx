@@ -25,6 +25,7 @@ export interface CalendarEventRowProps {
   today: string;
   density?: "row" | "sticker";
   dated?: boolean;
+  withChild?: boolean;
 }
 
 function stateOf(event: EventItem, now: Date, today: string) {
@@ -42,12 +43,13 @@ export function CalendarEventRow({
   today,
   density = "row",
   dated = false,
+  withChild = true,
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
   const CategoryIcon = CATEGORY_ICONS[event.category];
   const hue = childHue(family, event.childId);
-  const childLabel = family.length > 1 ? childLabelOf(family, event.childId) : "";
+  const childLabel = withChild && family.length > 1 ? childLabelOf(family, event.childId) : "";
   const state = stateOf(event, now, today);
 
   return (

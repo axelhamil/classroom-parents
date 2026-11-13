@@ -20,6 +20,7 @@ import { reviewEventsQueryOptions } from "./api/events.queries";
 import { BlockedChildrenNotice } from "./components/blocked-children-notice";
 import { CalendarBoard, type CalendarPlace } from "./components/calendar/calendar-board";
 import { EventOverlay } from "./components/event-overlay";
+import { NextSchoolBriefing } from "./components/next-school-briefing";
 import { ReviewCard } from "./components/review-card";
 import { type HomeSearch, homeSearchSchema } from "./events.schema";
 import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
@@ -161,6 +162,7 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
+      <NextSchoolBriefing family={family} childId={childId} now={now} />
       <CalendarBoard
         family={family}
         childId={childId}

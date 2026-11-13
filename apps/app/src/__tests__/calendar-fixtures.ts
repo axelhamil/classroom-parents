@@ -24,6 +24,22 @@ function created(body: unknown, index: number): Fixture | undefined {
   return deadline(900 + index, deadlineDate, title, { ...fields, source: "manual" });
 }
 
+function ticked(event: Fixture, body: unknown): Response {
+  if (typeof body !== "object" || body === null) return json(event);
+  const change = Object.fromEntries(Object.entries(body));
+  if (change.kind !== "tick" || typeof change.itemId !== "string") return json(event);
+  const { done } = event.checklist;
+  Object.assign(event, {
+    checklist: {
+      ...event.checklist,
+      done:
+        change.done === true ? [...done, change.itemId] : done.filter((id) => id !== change.itemId),
+    },
+  });
+
+  return json(event);
+}
+
 export function givenCalendar(
   children: unknown[],
   events: Fixture[],
@@ -42,7 +58,8 @@ export function givenCalendar(
         return json({
           items: stub.events
             .filter((event) => event.deadlineDate < today && !event.done)
-            .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate)),
+            .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate))
+            .slice(0, Number(url.searchParams.get("limit") ?? stub.events.length)),
         });
       if (url.searchParams.get("status") !== "confirmed") return json({ items: [] });
       const next = stub.events
@@ -71,6 +88,13 @@ export function givenCalendar(
     if (detail && url.pathname === `/events/${detail.id}`) return json(detail);
     if (detail && url.pathname === `/events/${detail.id}/reminders`)
       return json({ customized: false, reminders: [] });
+    const checklist = url.pathname.match(/^\/events\/([^/]+)\/checklist$/);
+    if (checklist && method === "POST") {
+      const event = stub.events.find((candidate) => candidate.id === checklist[1]);
+      if (!event) return json({ code: "EVENT_NOT_FOUND" }, 404);
+
+      return ticked(event, body);
+    }
     const done = url.pathname.match(/^\/events\/([^/]+)\/done$/);
     if (done) {
       if (failDone) return failDone;

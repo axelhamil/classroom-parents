@@ -14,7 +14,6 @@ import type { ChildDto } from "../../../../shared/api/queries/children";
 import { dayLabel } from "../../../../shared/format/deadline-label";
 import { useIntlLocale } from "../../../../shared/i18n/use-intl-locale";
 import { type CalendarDay as Day, dayTone, isCrunchDay } from "../../calendar";
-import { isEvening } from "../../week";
 import { CalendarEventRow } from "./calendar-event-row";
 
 export interface CalendarDaySectionProps {
@@ -29,8 +28,7 @@ export function CalendarDaySection({ day, family, now, today, onAdd }: CalendarD
   const { t } = useTranslation("events");
   const locale = useIntlLocale();
   const titleId = useId();
-  const title =
-    day.date === today && isEvening(now) ? t("calendar.tonight") : dayLabel(day.date, now);
+  const title = dayLabel(day.date, now);
 
   return (
     <CalendarDay
