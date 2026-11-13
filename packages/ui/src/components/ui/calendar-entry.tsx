@@ -24,8 +24,12 @@ const calendarEntryVariants = cva(
         urgent: "border-warning",
         done: "text-muted-foreground [&_[data-slot=calendar-entry-link]]:line-through",
       },
+      density: {
+        comfortable: "",
+        compact: "py-1.5",
+      },
     },
-    defaultVariants: { state: "open" },
+    defaultVariants: { state: "open", density: "comfortable" },
   },
 );
 
@@ -35,14 +39,21 @@ interface CalendarEntryProps
   asChild?: boolean;
 }
 
-function CalendarEntry({ className, hue, state, asChild = false, ...props }: CalendarEntryProps) {
+function CalendarEntry({
+  className,
+  hue,
+  state,
+  density,
+  asChild = false,
+  ...props
+}: CalendarEntryProps) {
   const Comp = asChild ? Slot.Root : "div";
 
   return (
     <Comp
       data-slot="calendar-entry"
       data-state={state ?? "open"}
-      className={cn(calendarEntryVariants({ hue, state }), className)}
+      className={cn(calendarEntryVariants({ hue, state, density }), className)}
       {...props}
     />
   );

@@ -51,8 +51,6 @@ const calendarDayVariants = cva(
         today:
           "[&>[data-slot=calendar-day-header]]:border-warning [&>[data-slot=calendar-day-header]]:bg-warning/20",
         past: "[&>[data-slot=calendar-day-header]]:text-muted-foreground",
-        overdue:
-          "[&>[data-slot=calendar-day-header]]:border-destructive/40 [&>[data-slot=calendar-day-header]]:bg-destructive/10",
       },
       crunch: {
         true: "[&_[data-slot=calendar-day-crunch]]:inline-flex",
@@ -130,23 +128,12 @@ function CalendarDayEmpty({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
-function CalendarDayNote({ className, ...props }: React.ComponentProps<"p">) {
-  return (
-    <p
-      data-slot="calendar-day-note"
-      className={cn("px-3 text-xs text-muted-foreground", className)}
-      {...props}
-    />
-  );
-}
-
 export {
   CalendarDay,
   CalendarDayCrunch,
   CalendarDayEmpty,
   CalendarDayHeader,
   CalendarDayList,
-  CalendarDayNote,
   CalendarDayTitle,
   CalendarPeriod,
   CalendarWeek,

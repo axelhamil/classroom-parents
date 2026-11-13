@@ -9,6 +9,7 @@ const scrollRegionVariants = cva(
       variant: {
         region: "scroll-edges max-h-scroll-region overflow-y-auto",
         panel: "scroll-fade min-h-0",
+        list: "scroll-fade min-h-0 max-h-scroll-region",
       },
     },
     defaultVariants: { variant: "region" },
