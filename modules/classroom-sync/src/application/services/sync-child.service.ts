@@ -4,11 +4,12 @@ import {
   type ILogger,
   type IUnitOfWork,
   mapBounded,
+  Option,
   Result,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
-import { nextDelayMs } from "@packages/outbox/jitter";
+import { JITTER_MULTIPLIER, nextDelayMs } from "@packages/outbox/jitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import {
   extractedVerdict,
@@ -16,7 +17,7 @@ import {
   type LedgerVerdict,
   nextAttempt,
 } from "../../domain/announcement-ledger";
-import { nextSyncAt, retryAt } from "../../domain/sync-window";
+import { alertLookupFrom, nextSyncAt, retryAt, SYNC_JITTER_MAX_MS } from "../../domain/sync-window";
 import {
   type IAnnouncementExtractor,
   isExtractorOutage,
@@ -39,11 +40,12 @@ import type {
 } from "../ports/classroom-reader.port";
 import type { IEventIngest } from "../ports/event-ingest.port";
 import type { ISeenAnnouncementRepository } from "../ports/seen-announcement-repository.port";
+import type { IUpcomingAlerts } from "../ports/upcoming-alerts.port";
 import type { SyncError } from "../sync-error";
 
 const COURSE_CONCURRENCY = 4;
 const EXTRACTION_CONCURRENCY = 8;
-const SYNC_JITTER_BASE_MS = 60_000;
+const SYNC_JITTER_BASE_MS = SYNC_JITTER_MAX_MS / JITTER_MULTIPLIER;
 
 const SYNC_ERROR_CODES: readonly string[] = [
   "SYNC_CHILD_NOT_FOUND",
@@ -101,6 +103,7 @@ export class SyncChildService {
     private readonly tokens: IChildAccessTokens,
     private readonly extractor: IAnnouncementExtractor,
     private readonly events: IEventIngest,
+    private readonly alerts: IUpcomingAlerts,
     private readonly syncState: IChildSyncState,
     private readonly ledger: ISeenAnnouncementRepository,
     private readonly transactions: IUnitOfWork,
@@ -342,7 +345,7 @@ export class SyncChildService {
     now: Date,
     report: SyncReport,
   ): Promise<Result<SyncReport, SyncError>> {
-    const next = nextSyncAt(now, nextDelayMs(SYNC_JITTER_BASE_MS));
+    const next = await this.plannedNextSync(input, now);
     const done = await this.transactions.run(async (): Promise<Result<void, AppError>> => {
       const marked = await this.syncState.markSynced(lease, now, next);
       if (marked.isFailure) return marked;
@@ -362,6 +365,17 @@ export class SyncChildService {
     }
 
     return Result.ok(report);
+  }
+
+  private async plannedNextSync(input: SyncChildInput, now: Date): Promise<Date> {
+    const alert = await this.alerts.nextAlertAt(input.userId, input.childId, alertLookupFrom(now));
+    if (alert.isFailure)
+      this.instrumentation.capture(alert.getError(), { metadata: { childId: input.childId } });
+
+    return nextSyncAt(now, {
+      jitterMs: nextDelayMs(SYNC_JITTER_BASE_MS),
+      nextAlertAt: alert.isSuccess ? alert.getValue() : Option.none(),
+    });
   }
 
   private readScope(lease: SyncLease): ReadScope {

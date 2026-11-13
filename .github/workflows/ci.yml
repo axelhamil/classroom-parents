@@ -163,6 +163,11 @@ jobs:
         # alert forged onto another family's event reads nothing. Removes its probe rows.
         run: pnpm --filter api check:alert-context
 
+      - name: Check that a child's next sync reads only its own family's next alert
+        # The owner and child filters live in the joins of the host query; only Postgres
+        # proves a sibling's, a sent or a forged alert never pulls a sync earlier.
+        run: pnpm --filter api check:upcoming-alerts
+
       - name: Check the alert dispatch claim against a real database
         # Skip locked and the lease live in the claim query; only concurrent dispatchers
         # on Postgres prove each alert is sent once and the partial index is read.

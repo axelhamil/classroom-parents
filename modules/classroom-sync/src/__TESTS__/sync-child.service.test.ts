@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { type AppError, Result } from "@packages/ddd-kit";
+import { type AppError, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -448,7 +448,7 @@ describe("syncChild", () => {
     expect(h.state.markSyncFailed).toHaveBeenCalledTimes(1);
   });
 
-  it("succeeds with zeros for a child without any course, next sync in about 30 minutes", async () => {
+  it("succeeds with zeros for a child without any course, next sync in about an hour on a school day", async () => {
     const result = await h.service.syncChild(CHILD, NOW);
 
     expect(result.getValue()).toEqual({
@@ -463,8 +463,45 @@ describe("syncChild", () => {
     expect(lease).toEqual({ childId: CHILD.childId, lease: CHILD.lease });
     expect(at).toEqual(NOW);
     const delayMs = (next?.getTime() ?? 0) - NOW.getTime();
-    expect(delayMs).toBeGreaterThanOrEqual(30 * MINUTE_MS);
-    expect(delayMs).toBeLessThanOrEqual(35 * MINUTE_MS);
+    expect(delayMs).toBeGreaterThanOrEqual(60 * MINUTE_MS);
+    expect(delayMs).toBeLessThanOrEqual(63 * MINUTE_MS);
+  });
+
+  it("given a parent alert on this child in 40 min, then the next sync lands in the jitter window before its 30 min lead", async () => {
+    h.alerts.nextAlertAt.mockResolvedValue(
+      Result.ok<Option<Date>, AppError>(Option.some(new Date(NOW.getTime() + 40 * MINUTE_MS))),
+    );
+
+    await h.service.syncChild(CHILD, NOW);
+
+    const [, , next] = h.state.markSynced.mock.calls[0] ?? [];
+    const delayMs = (next?.getTime() ?? 0) - NOW.getTime();
+    expect(delayMs).toBeGreaterThanOrEqual(7 * MINUTE_MS);
+    expect(delayMs).toBeLessThan(10 * MINUTE_MS);
+  });
+
+  it("given an alert this sync already serves, then the next alert is looked up past its lead and served margin", async () => {
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.alerts.nextAlertAt).toHaveBeenCalledWith(
+      CHILD.userId,
+      CHILD.childId,
+      new Date(NOW.getTime() + 33 * MINUTE_MS),
+    );
+  });
+
+  it("given the next alert cannot be read, then the sync still lands on the cadence and the failure is surfaced", async () => {
+    const failure: AppError = { code: "ALERT_PROVIDER_FAILURE", message: "db down" };
+    h.alerts.nextAlertAt.mockResolvedValue(Result.fail<Option<Date>, AppError>(failure));
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.isSuccess).toBe(true);
+    const [, , next] = h.state.markSynced.mock.calls[0] ?? [];
+    expect((next?.getTime() ?? 0) - NOW.getTime()).toBeGreaterThanOrEqual(60 * MINUTE_MS);
+    expect(h.instrumentation.capture).toHaveBeenCalledWith(failure, {
+      metadata: { childId: CHILD.childId },
+    });
   });
 
   it("touches nothing for a child whose lease is gone, such as one being disconnected", async () => {

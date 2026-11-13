@@ -20,6 +20,9 @@ const connected = (payload: unknown) => ({
   payload,
 });
 
+const COOLDOWN_END = new Date(NOW.getTime() + 5 * 60_000);
+const LATER = new Date(NOW.getTime() + 3 * 60_000);
+
 const claims = (claim: ManualSyncClaim) =>
   gate.claim.mockResolvedValue(Result.ok<ManualSyncClaim, SyncError>(claim));
 
@@ -31,7 +34,7 @@ beforeEach(() => {
 
 describe("on child connected", () => {
   it("starts the child's first sync through the gate", async () => {
-    claims({ outcome: "started", lease: CHILD.lease, label: CHILD.label });
+    claims({ outcome: "started", lease: CHILD.lease, label: CHILD.label, retryAt: COOLDOWN_END });
     const handler = onChildConnected({ ManualSyncService: manual });
 
     await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
@@ -47,7 +50,7 @@ describe("on child connected", () => {
 
   for (const outcome of ["throttled", "running"] as const) {
     it(`starts no second sync when the gate answers ${outcome}`, async () => {
-      claims({ outcome });
+      claims({ outcome, retryAt: LATER });
       const handler = onChildConnected({ ManualSyncService: manual });
 
       await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
@@ -81,30 +84,76 @@ describe("on child connected", () => {
   });
 });
 
-describe("sync on app open", () => {
-  it("starts every child it may, skipping blocked ones", async () => {
+describe("manual refresh of every child", () => {
+  it("starts every child it may, skipping blocked ones, and tells when the next refresh is possible", async () => {
     gate.childIdsOf.mockResolvedValue(Result.ok<string[], SyncError>(["c1", "c2", "c3"]));
     gate.claim.mockImplementation(async (_userId, childId) => {
       if (childId === "c1")
         return Result.fail<ManualSyncClaim, SyncError>({ code: "SYNC_BLOCKED", message: "école" });
-      if (childId === "c2") return Result.ok<ManualSyncClaim, SyncError>({ outcome: "throttled" });
-      return Result.ok<ManualSyncClaim, SyncError>({ outcome: "started", lease: 1, label: "Tom" });
+      if (childId === "c2")
+        return Result.ok<ManualSyncClaim, SyncError>({ outcome: "throttled", retryAt: LATER });
+      return Result.ok<ManualSyncClaim, SyncError>({
+        outcome: "started",
+        lease: 1,
+        label: "Tom",
+        retryAt: COOLDOWN_END,
+      });
     });
 
     const result = await manual.requestAll(CHILD.userId);
     await manual.settled();
 
-    expect(result.getValue()).toBe("started");
+    expect(result.getValue()).toEqual({ status: "started", retryAt: LATER });
     expect(h.client.listCourses).toHaveBeenCalledTimes(1);
   });
 
-  it("answers throttled when no child was started", async () => {
+  it("given every child inside its cooldown, then a no-op that tells when the next refresh is possible", async () => {
     gate.childIdsOf.mockResolvedValue(Result.ok<string[], SyncError>(["c1"]));
-    claims({ outcome: "running" });
+    claims({ outcome: "running", retryAt: LATER });
 
     const result = await manual.requestAll(CHILD.userId);
 
-    expect(result.getValue()).toBe("throttled");
+    expect(result.getValue()).toEqual({ status: "throttled", retryAt: LATER });
+    expect(h.client.listCourses).not.toHaveBeenCalled();
+  });
+
+  it("given a parent without child, then a no-op the parent may retry now", async () => {
+    gate.childIdsOf.mockResolvedValue(Result.ok<string[], SyncError>([]));
+
+    const result = await manual.requestAll(CHILD.userId);
+
+    expect(result.getValue()).toEqual({ status: "throttled", retryAt: NOW });
+  });
+});
+
+describe("manual refresh of one child", () => {
+  it("given an idle child, then its sync starts now and the next refresh opens after the cooldown", async () => {
+    claims({ outcome: "started", lease: CHILD.lease, label: CHILD.label, retryAt: COOLDOWN_END });
+
+    const result = await manual.requestChild(CHILD.userId, CHILD.childId);
+    await manual.settled();
+
+    expect(result.getValue()).toEqual({ status: "started", retryAt: COOLDOWN_END });
+    expect(h.client.listCourses).toHaveBeenCalledTimes(1);
+  });
+
+  it("given a refresh inside the cooldown, then a no-op that tells when the next refresh is possible", async () => {
+    claims({ outcome: "throttled", retryAt: LATER });
+
+    const result = await manual.requestChild(CHILD.userId, CHILD.childId);
+
+    expect(result.getValue()).toEqual({ status: "throttled", retryAt: LATER });
+    expect(h.client.listCourses).not.toHaveBeenCalled();
+  });
+
+  it("given a child of another family, then not found", async () => {
+    gate.claim.mockResolvedValue(
+      Result.fail<ManualSyncClaim, SyncError>({ code: "SYNC_CHILD_NOT_FOUND", message: "absent" }),
+    );
+
+    const result = await manual.requestChild(CHILD.userId, "child-of-another-family");
+
+    expect(result.getError().code).toBe("SYNC_CHILD_NOT_FOUND");
   });
 
   it("refuses a manual sync of a blocked child with the reason", async () => {

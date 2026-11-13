@@ -49,6 +49,7 @@ import { DrizzleChildRepository } from "../src/infrastructure/repositories/drizz
 
 const SEAL = "sealed:";
 const LEASE_MS = 10 * 60_000;
+const COOLDOWN_MS = 5 * 60_000;
 const T0 = new Date("2030-01-01T08:00:00.000Z");
 const probe = `check-child-db-${crypto.randomUUID()}`;
 const { instrumentation } = spanRecorder();
@@ -148,6 +149,21 @@ async function childRow(childId: string) {
 async function accountRow(id: string) {
   const [row] = await db.select().from(authSchema.account).where(eq(authSchema.account.id, id));
   return row;
+}
+
+async function syncRequestsOf(childId: string): Promise<unknown[]> {
+  const rows = await db
+    .select({ payload: outboxSchema.outboxEvent.payload })
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        eq(outboxSchema.outboxEvent.aggregateId, childId),
+        eq(outboxSchema.outboxEvent.eventType, "child.account.sync_requested"),
+      ),
+    )
+    .orderBy(outboxSchema.outboxEvent.id);
+
+  return rows.map(({ payload }) => payload);
 }
 
 const codeOf = (result: Result<unknown, ChildrenError>) =>
@@ -354,7 +370,8 @@ run(async () => {
       afterFailure.syncStartedAt === null,
   );
 
-  const racedAt = new Date(afterCrash.getTime() + 61_000);
+  const racedAt = new Date(afterCrash.getTime() + COOLDOWN_MS + 1_000);
+  const requestedBefore = await syncRequestsOf(aChild);
   const manual = await Promise.all([
     sync.claimManualSync(a, aChild, racedAt),
     sync.claimManualSync(a, aChild, racedAt),
@@ -369,11 +386,21 @@ run(async () => {
     .map((r) => (r.isSuccess ? r.getValue() : undefined))
     .find((c) => c?.outcome === "started");
   if (started?.outcome !== "started") throw new Error("no started manual sync");
-  await sync.markSynced(started.lease, racedAt, new Date(T0.getTime() + 20 * 60_000));
-  const soon = await sync.claimManualSync(a, aChild, new Date(racedAt.getTime() + 30_000));
+  const requestedAfter = await syncRequestsOf(aChild);
   await step(
-    "a manual sync requested 30 s after the last one is throttled",
-    soon.isSuccess && soon.getValue().outcome === "throttled",
+    "the started manual sync is announced once, in its transaction, with the parent as actor",
+    requestedAfter.length === requestedBefore.length + 1 &&
+      JSON.stringify(requestedAfter.at(-1)) ===
+        JSON.stringify({ userId: a, childId: aChild, actorUserId: a }),
+    requestedAfter,
+  );
+  await sync.markSynced(started.lease, racedAt, new Date(T0.getTime() + 20 * 60_000));
+  const soon = await sync.claimManualSync(a, aChild, new Date(racedAt.getTime() + 4 * 60_000));
+  await step(
+    "a manual sync requested 4 min after the last one is a no-op that tells when the next is possible",
+    soon.isSuccess &&
+      soon.getValue().outcome === "throttled" &&
+      soon.getValue().retryAt.getTime() === racedAt.getTime() + COOLDOWN_MS,
   );
 
   const extra = [];

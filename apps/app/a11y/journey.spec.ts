@@ -6,9 +6,7 @@ import { JOURNEY_API_URL, JOURNEY_CONTROL_URL } from "./journey.config";
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 const STREAM_WAIT_MS = 30_000;
-const SYNC_INTERVAL_MS = 30 * MINUTE_MS;
-const SYNC_JITTER_MAX_MS = 3 * MINUTE_MS;
-const EVERY_CHILD_DUE_MS = SYNC_INTERVAL_MS + SYNC_JITTER_MAX_MS + MINUTE_MS;
+const RESYNC_STEP_MS = 15 * MINUTE_MS;
 const GOOGLE = "https://accounts.google.com/**";
 
 interface Identity {
@@ -227,9 +225,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   });
 
   await test.step("a resync neither resurrects the deleted deadline nor undoes the edit", async () => {
-    const resync = await control(
-      `/sync?at=${new Date(startedAt + EVERY_CHILD_DUE_MS).toISOString()}`,
-    );
+    const resync = await control(`/sync?at=${new Date(startedAt + RESYNC_STEP_MS).toISOString()}`);
 
     expect(resync).toEqual({ children: 2, failures: 0 });
 
@@ -251,7 +247,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   await test.step("a school block comes back from the sync as a failure", async () => {
     await control("/schools/hugo/block");
     const blocked = await control(
-      `/sync?at=${new Date(startedAt + 2 * EVERY_CHILD_DUE_MS).toISOString()}`,
+      `/sync?at=${new Date(startedAt + 2 * RESYNC_STEP_MS).toISOString()}`,
     );
 
     expect(blocked).toEqual({ children: 2, failures: 1 });

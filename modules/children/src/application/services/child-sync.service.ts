@@ -18,9 +18,9 @@ import type {
 import { ownedChild } from "./owned-child";
 
 export type ManualSyncClaim =
-  | { outcome: "started"; lease: SyncLease; label: string }
-  | { outcome: "running" }
-  | { outcome: "throttled" };
+  | { outcome: "started"; lease: SyncLease; label: string; retryAt: Date }
+  | { outcome: "running"; retryAt: Date }
+  | { outcome: "throttled"; retryAt: Date };
 
 const SYNC_BLOCKED_MESSAGES: Record<Exclude<ChildStatusValue, "connected">, string> = {
   disconnecting: "Cet enfant est en cours de déconnexion.",
@@ -61,15 +61,21 @@ export class ChildSyncService {
         const child = found.getValue();
 
         const requested = child.requestManualSync(now);
-        if (requested.isFailure) return this.refusedManualSync(child, requested.getError());
+        if (requested.isFailure) return this.refusedManualSync(child, requested.getError(), now);
 
         const saved = await this.children.save(child);
         if (saved.isFailure) return Result.fail(saved.getError());
 
+        await emitEvent(this.outbox, EventTypes.CHILD_SYNC_REQUESTED, "child", childId, {
+          userId,
+          childId,
+          actorUserId: userId,
+        });
         return Result.ok<ManualSyncClaim, ChildrenError>({
           outcome: "started",
           lease: { childId, lease: child.get("syncLease") },
           label: child.get("label").value,
+          retryAt: child.manualSyncCooldownEndsAt(now),
         });
       }),
     );
@@ -128,12 +134,15 @@ export class ChildSyncService {
   private refusedManualSync(
     child: ChildAccount,
     refusal: ManualSyncRefusal,
+    now: Date,
   ): Result<ManualSyncClaim, ChildrenError> {
     const status = child.get("status").value;
     if (refusal === "unavailable" && status !== "connected")
       return Result.fail({ code: "CHILD_SYNC_BLOCKED", message: SYNC_BLOCKED_MESSAGES[status] });
-    if (refusal === "running") return Result.ok({ outcome: "running" });
 
-    return Result.ok({ outcome: "throttled" });
+    const retryAt = child.manualSyncAvailableAt(now);
+    if (refusal === "running") return Result.ok({ outcome: "running", retryAt });
+
+    return Result.ok({ outcome: "throttled", retryAt });
   }
 }

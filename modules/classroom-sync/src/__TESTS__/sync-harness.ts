@@ -30,6 +30,7 @@ import type {
   LedgerEntry,
   SeenAnnouncement,
 } from "../application/ports/seen-announcement-repository.port";
+import type { IUpcomingAlerts } from "../application/ports/upcoming-alerts.port";
 import { ClassroomReader } from "../application/services/classroom-reader.service";
 import { SyncChildService } from "../application/services/sync-child.service";
 import type { SyncError } from "../application/sync-error";
@@ -82,6 +83,7 @@ export interface SyncHarness {
   tokens: PortMock<IChildAccessTokens>;
   extractor: PortMock<IAnnouncementExtractor>;
   ingest: PortMock<IEventIngest>;
+  alerts: PortMock<IUpcomingAlerts>;
   state: PortMock<IChildSyncState>;
   ledger: PortMock<ISeenAnnouncementRepository>;
   outbox: PortMock<IOutboxRepository>;
@@ -100,6 +102,7 @@ export function syncHarness(): SyncHarness {
   const tokens = mockPort<IChildAccessTokens>();
   const extractor = mockPort<IAnnouncementExtractor>();
   const ingest = mockPort<IEventIngest>();
+  const alerts = mockPort<IUpcomingAlerts>();
   const state = mockPort<IChildSyncState>();
   const ledger = mockPort<ISeenAnnouncementRepository>();
   const outbox = mockPort<IOutboxRepository>();
@@ -124,6 +127,7 @@ export function syncHarness(): SyncHarness {
   ingest.withdrawCourseworkOutside.mockResolvedValue(
     Result.ok<{ withdrawn: number }, AppError>({ withdrawn: 0 }),
   );
+  alerts.nextAlertAt.mockResolvedValue(Result.ok<Option<Date>, AppError>(Option.none()));
   state.holdsLease.mockResolvedValue(Result.ok<boolean, AppError>(true));
   state.markSynced.mockResolvedValue(Result.ok<AppError>());
   state.markSyncFailed.mockResolvedValue(Result.ok<AppError>());
@@ -140,6 +144,7 @@ export function syncHarness(): SyncHarness {
     tokens,
     extractor,
     ingest,
+    alerts,
     state,
     ledger,
     uow.unitOfWork,
@@ -153,6 +158,7 @@ export function syncHarness(): SyncHarness {
     tokens,
     extractor,
     ingest,
+    alerts,
     state,
     ledger,
     outbox,

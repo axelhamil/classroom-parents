@@ -7,7 +7,12 @@
  * server on 127.0.0.1:JOURNEY_CONTROL_PORT:
  *
  * - POST /schools/<child>/block | /schools/<child>/unblock: the fake school's switch
- * - POST /sync?at=<iso>, /alerts?at=<iso>: one sync or alert dispatch tick at that instant
+ * - POST /sync?at=<iso>: makes every connected child of a journey parent due at that instant,
+ *   then runs sync ticks there until none is left due and answers their summed report. A
+ *   page load requests a manual sync whose claim locks the child row for a moment, and the
+ *   tick skips a locked row the way the worker does until its next tick, so one tick alone
+ *   would sometimes leave a child unsynced
+ * - POST /alerts?at=<iso>: one alert dispatch tick at that instant
  * - POST /wipe?userId=<id>&at=<iso>: the account wipe of that parent at that instant
  * - GET /pushes: what the fake push sink received
  * - GET /leftovers?userId=<id>&email=<address>: the rows still naming that parent
@@ -32,19 +37,23 @@ import {
 import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { DATASET_CHILDREN, type DatasetChildKey } from "@modules/extraction/eval/classroom-dataset";
+import { Result } from "@packages/ddd-kit";
 import {
   type AnyPgTable,
+  and,
   authSchema,
   count,
   db,
   emailSchema,
   eq,
+  inArray,
   like,
+  lte,
   outboxSchema,
   type SQL,
   sql,
 } from "@packages/drizzle";
-import { serve } from "bun";
+import { serve, sleep } from "bun";
 import { di } from "../src/container";
 import { demoAccessToken, demoRefreshToken } from "../src/dev/demo-dataset";
 import { GOOGLE_IDENTITY_SCOPES } from "../src/shared/auth/google-scopes";
@@ -82,6 +91,8 @@ const fakes = di.FakeProviders.unwrap();
 globalThis.apiPeriodicWorkers?.abort();
 
 const JOURNEY_PARENTS = "journey-%@example.com";
+const SYNC_ROUND_TICKS = 20;
+const SYNC_TICK_PAUSE_MS = 50;
 
 function childOf(email: string): DatasetChildKey | undefined {
   return DATASET_CHILDREN.find((child) => child.googleEmail === email)?.key;
@@ -103,7 +114,7 @@ stubGoogleTokenEndpoint((identity: GoogleIdentity) => {
   };
 });
 
-async function rowsIn(table: AnyPgTable, where: SQL): Promise<number> {
+async function rowsIn(table: AnyPgTable, where: SQL | undefined): Promise<number> {
   const [row] = await db.select({ total: count() }).from(table).where(where);
   return row?.total ?? 0;
 }
@@ -137,6 +148,39 @@ function answer(result: { isFailure: boolean; getError: () => unknown; getValue:
   return Response.json(result.getValue() ?? null);
 }
 
+function connectedJourneyChildren(): SQL | undefined {
+  const journeyParents = db
+    .select({ id: authSchema.user.id })
+    .from(authSchema.user)
+    .where(like(authSchema.user.email, JOURNEY_PARENTS));
+
+  return and(inArray(childAccount.userId, journeyParents), eq(childAccount.status, "connected"));
+}
+
+async function makeJourneyChildrenDue(at: Date): Promise<void> {
+  await db.update(childAccount).set({ nextSyncAt: at }).where(connectedJourneyChildren());
+}
+
+async function journeyChildrenDue(at: Date): Promise<number> {
+  return rowsIn(childAccount, and(connectedJourneyChildren(), lte(childAccount.nextSyncAt, at)));
+}
+
+async function syncRound(at: Date) {
+  await makeJourneyChildrenDue(at);
+  const round = { children: 0, failures: 0 };
+  for (let tick = 0; tick < SYNC_ROUND_TICKS; tick++) {
+    const ran = await di.SyncDueChildrenService.runOnce(at);
+    if (ran.isFailure) return ran;
+
+    round.children += ran.getValue().children;
+    round.failures += ran.getValue().failures;
+    if ((await journeyChildrenDue(at)) === 0) break;
+    await sleep(SYNC_TICK_PAUSE_MS);
+  }
+
+  return Result.ok(round);
+}
+
 async function control(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const [, action = "", key = "", toggle = ""] = url.pathname.split("/");
@@ -164,7 +208,7 @@ async function control(request: Request): Promise<Response> {
       .returning({ id: authSchema.user.id });
     return Response.json({ parents: removed.length });
   }
-  if (action === "sync") return answer(await di.SyncDueChildrenService.runOnce(instantOf(url)));
+  if (action === "sync") return answer(await syncRound(instantOf(url)));
   if (action === "alerts") return answer(await di.AlertDispatchService.runOnce(instantOf(url)));
   if (action === "wipe")
     return answer(

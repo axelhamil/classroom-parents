@@ -248,7 +248,10 @@ describe("reconnect", () => {
     expect(result.getValue()).toMatchObject({ status: "connected", syncing: true });
     expect(syncing.get("syncLease")).toBe(4);
     expect(syncing.get("nextSyncAt")).toEqual(new Date(NOW.getTime() + 9 * 60_000));
-    expect(manual.getValue()).toEqual({ outcome: "running" });
+    expect(manual.getValue()).toEqual({
+      outcome: "running",
+      retryAt: new Date(NOW.getTime() + 9 * 60_000),
+    });
   });
 
   it("given still no refresh token, then CHILD_REFRESH_TOKEN_MISSING and status unchanged", async () => {

@@ -557,10 +557,11 @@ describe("sync IManualSyncGate bound to children", () => {
     );
 
   type GateParts = Parameters<typeof manualSyncGateFor>;
+  const RETRY_AT = new Date(PUBLISHED_AT.getTime() + 5 * 60_000);
 
   const gate = ({
     list = async () => listed([]),
-    claimManualSync = async () => Result.ok({ outcome: "throttled" as const }),
+    claimManualSync = async () => Result.ok({ outcome: "throttled" as const, retryAt: RETRY_AT }),
   }: Partial<GateParts[0] & GateParts[1]> = {}) => manualSyncGateFor({ list }, { claimManualSync });
 
   it("lists the parent's child ids", async () => {
@@ -585,22 +586,28 @@ describe("sync IManualSyncGate bound to children", () => {
           outcome: "started" as const,
           lease: { childId: LEA, lease: 9 },
           label: "Léa",
+          retryAt: RETRY_AT,
         });
       },
     }).claim(FAMILY_A, LEA, PUBLISHED_AT);
 
     expect(asked).toEqual({ userId: FAMILY_A, childId: LEA, now: PUBLISHED_AT });
-    expect(result.getValue()).toEqual({ outcome: "started", lease: 9, label: "Léa" });
+    expect(result.getValue()).toEqual({
+      outcome: "started",
+      lease: 9,
+      label: "Léa",
+      retryAt: RETRY_AT,
+    });
   });
 
-  it("keeps running and throttled outcomes", async () => {
+  it("keeps running and throttled outcomes with the time the next refresh is possible", async () => {
     const running = await gate({
-      claimManualSync: async () => Result.ok({ outcome: "running" as const }),
+      claimManualSync: async () => Result.ok({ outcome: "running" as const, retryAt: RETRY_AT }),
     }).claim(FAMILY_A, LEA, PUBLISHED_AT);
     const throttled = await gate().claim(FAMILY_A, LEA, PUBLISHED_AT);
 
-    expect(running.getValue()).toEqual({ outcome: "running" });
-    expect(throttled.getValue()).toEqual({ outcome: "throttled" });
+    expect(running.getValue()).toEqual({ outcome: "running", retryAt: RETRY_AT });
+    expect(throttled.getValue()).toEqual({ outcome: "throttled", retryAt: RETRY_AT });
   });
 
   it("maps children codes to the sync's codes and keeps the parent-facing message", async () => {
