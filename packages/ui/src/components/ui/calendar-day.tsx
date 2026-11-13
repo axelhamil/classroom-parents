@@ -113,12 +113,23 @@ function CalendarDayEmpty({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
+function CalendarDayNote({ className, ...props }: React.ComponentProps<"p">) {
+  return (
+    <p
+      data-slot="calendar-day-note"
+      className={cn("px-3 text-xs text-muted-foreground", className)}
+      {...props}
+    />
+  );
+}
+
 export {
   CalendarDay,
   CalendarDayCrunch,
   CalendarDayEmpty,
   CalendarDayHeader,
   CalendarDayList,
+  CalendarDayNote,
   CalendarDayTitle,
   CalendarPeriod,
 };

@@ -15,7 +15,7 @@ import { Route as ProtectedRoute } from "../../../router/_protected";
 import { EVENTS_KEY, type EventItem } from "../../../shared/api/queries/events";
 import type { EventCategory } from "../../../shared/events/event-labels";
 import { type ChecklistChange, changeChecklistMutationOptions } from "../api/events.mutations";
-import { eventQueryOptions } from "../api/events.queries";
+import { CALENDAR_KEY, eventQueryOptions } from "../api/events.queries";
 
 const CHECKLIST_DEFAULTS = {
   swimming: [
@@ -110,16 +110,24 @@ function useChangeChecklist(eventId: string) {
     ...changeChecklistMutationOptions,
     onMutate: async ({ change }) => {
       await queryClient.cancelQueries({ queryKey: detailKey });
+      await queryClient.cancelQueries({ queryKey: CALENDAR_KEY });
       const detail = queryClient.getQueryData(detailKey);
+      const calendars = queryClient.getQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY });
       queryClient.setQueryData(
         detailKey,
         (event) => event && { ...event, checklist: applied(event.checklist, change) },
       );
+      queryClient.setQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY }, (items) =>
+        items?.map((event) =>
+          event.id === eventId ? { ...event, checklist: applied(event.checklist, change) } : event,
+        ),
+      );
 
-      return { detail };
+      return { detail, calendars };
     },
     onError: (error, _change, context) => {
       queryClient.setQueryData(detailKey, context?.detail);
+      for (const [key, items] of context?.calendars ?? []) queryClient.setQueryData(key, items);
       toastError(error, errorFallback("changeChecklist"));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: EVENTS_KEY }),

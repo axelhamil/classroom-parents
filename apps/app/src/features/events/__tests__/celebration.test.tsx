@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { userStorageKey } from "@packages/web-kit/storage/use-stored-value";
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderAppAt, resetApp } from "../../../__tests__/app-harness";
 import { givenCalendar } from "../../../__tests__/calendar-fixtures";
@@ -35,7 +35,8 @@ describe("celebrating a day made ready", () => {
     );
     await renderAppAt("/");
 
-    const check = await screen.findByRole("checkbox", {
+    const briefing = await screen.findByRole("region", { name: "Pour demain" });
+    const check = await within(briefing).findByRole("checkbox", {
       name: "Marquer comme fait : Lire le chapitre 2",
     });
     expect(screen.queryByText(DAY_DONE)).toBeNull();
@@ -76,7 +77,8 @@ describe("celebrating a day made ready", () => {
       { refuseFirstDone: true },
     );
     await renderAppAt("/");
-    const check = await screen.findByRole("checkbox", {
+    const briefing = await screen.findByRole("region", { name: "Pour demain" });
+    const check = await within(briefing).findByRole("checkbox", {
       name: "Marquer comme fait : Lire le chapitre 2",
     });
 

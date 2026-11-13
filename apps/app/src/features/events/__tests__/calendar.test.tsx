@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { shiftDate } from "@packages/ddd-kit/days";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, renderAppAt, resetApp } from "../../../__tests__/app-harness";
@@ -55,13 +56,14 @@ describe("Accueil, the family calendar", () => {
     expect(screen.getByRole("button", { name: "Aujourd'hui" }).hasAttribute("disabled")).toBe(true);
   });
 
-  it("calls today Ce soir after 16:00, the old Ce soir card folded into the calendar", async () => {
+  it("after 16:00 the briefing frames the evening and the calendar keeps calling today Aujourd'hui", async () => {
     at("2026-11-12T17:00:00.000Z");
     givenCalendar([CHILD], [deadline(1, "2026-11-13", "Piscine", { category: "swimming" })]);
     await renderAppAt("/");
 
-    expect(await screen.findByRole("heading", { level: 3, name: "Ce soir" })).toBeDefined();
-    expect(screen.getAllByRole("heading", { name: "Ce soir" })).toHaveLength(1);
+    expect(await screen.findByRole("region", { name: "Pour demain" })).toBeDefined();
+    expect(await screen.findByRole("heading", { level: 3, name: "Aujourd'hui" })).toBeDefined();
+    expect(screen.queryByRole("heading", { name: "Ce soir" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Préparer la semaine" })).toBeNull();
   });
 
@@ -322,6 +324,35 @@ describe("Accueil, the family calendar", () => {
       within(overdue).getByRole("button", { name: "Voir les 2 autres échéances en retard" }),
     );
     expect(within(overdue).getAllByRole("link")).toHaveLength(5);
+  });
+
+  it("the strip counts every late deadline of the last 14 days, past a page of 50", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenCalendar(
+      [CHILD],
+      Array.from({ length: 60 }, (_, index) =>
+        deadline(index + 1, shiftDate("2026-11-11", -(index % 11)), `Retard ${index + 1}`),
+      ),
+    );
+    await renderAppAt("/");
+
+    const overdue = await screen.findByRole("region", { name: "En retard" });
+    expect(within(overdue).getByText("Sur les 14 derniers jours")).toBeDefined();
+    expect(
+      await within(overdue).findByRole("button", {
+        name: "Voir les 57 autres échéances en retard",
+      }),
+    ).toBeDefined();
+  });
+
+  it("a deadline late by more than 14 days leaves the strip for past deadlines", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenCalendar([CHILD], [deadline(1, "2026-10-28", "Autorisation de septembre")]);
+    await renderAppAt("/");
+
+    await screen.findByRole("tablist", { name: "Vue des échéances" });
+    await waitFor(() => expect(screen.queryByText("Autorisation de septembre")).toBeNull());
+    expect(screen.queryByRole("region", { name: "En retard" })).toBeNull();
   });
 
   it("no strip when nothing is late, and a late day the week shows stays on its day", async () => {

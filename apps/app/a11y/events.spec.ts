@@ -5,6 +5,12 @@ import { EVENTS, inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./ev
 import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
 
+const TOM = {
+  id: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+  label: "Tom",
+  googleEmail: "tom@example.com",
+};
+
 async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
   await expect(page.locator("main")).toHaveCount(1);
   await expect(page.locator("h1")).toHaveCount(1);
@@ -59,6 +65,40 @@ test.describe("the calendar on a phone", () => {
 
       const strip = page.getByRole("region", { name: "En retard" });
       await expect(strip.getByRole("link", { name: late.title })).toBeVisible();
+      await expectOnePageWithoutOverflow(page);
+      expect(await blockingViolations(page)).toEqual([]);
+    });
+
+    test(`the next school moment, per child with what to prepare (${colorScheme})`, async ({
+      page,
+    }) => {
+      const evening = new Date();
+      evening.setHours(19, 0, 0, 0);
+      await page.clock.setFixedTime(evening);
+      await showColorScheme(page, colorScheme);
+      const tonight = {
+        ...REVIEW_EVENT,
+        id: "6f7a8b9c-0d1e-4f2a-8b3c-4d5e6f7a8b91",
+        title: "Exercices en ligne à terminer",
+        category: "homework",
+        status: "confirmed",
+        deadlineDate: inDays(0),
+        deadlineAt: `${inDays(0)}T21:59:00.000Z`,
+      };
+      const swimming = {
+        ...tonight,
+        id: "6f7a8b9c-0d1e-4f2a-8b3c-4d5e6f7a8b92",
+        title: "Piscine",
+        category: "swimming",
+        deadlineDate: inDays(1),
+        deadlineAt: `${inDays(1)}T07:00:00.000Z`,
+      };
+      await serveFamily(page, { children: [LEA, { ...LEA, ...TOM }], events: [tonight, swimming] });
+      await page.goto("/");
+
+      const briefing = page.getByRole("region", { name: /^Pour / });
+      await expect(briefing.getByRole("region", { name: LEA.label })).toBeVisible();
+      await expect(briefing.getByRole("link", { name: tonight.title })).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
     });

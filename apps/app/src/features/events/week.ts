@@ -1,15 +1,16 @@
-import { DAY_MS } from "@packages/ddd-kit/days";
+import { DAY_MS, shiftDate } from "@packages/ddd-kit/days";
 import { utcDay } from "@packages/i18n";
 import { wallTimeNow } from "../../shared/format/deadline-label";
 import { schoolToday } from "../../shared/format/school-today";
+import type { CalendarRange } from "./api/events.queries";
 
 export const WEEK_LENGTH = 7;
 
 const EVENING_FROM = "16:00";
 const GREETING_EVENING_FROM = "18:00";
 const SUNDAY = 0;
-const FRIDAY = 5;
 const SATURDAY = 6;
+const DAYS_TO_NEXT_SCHOOL_DAY = [1, 2, 3] as const;
 
 export const PRINT_WEEKS = ["current", "next"] as const;
 
@@ -36,11 +37,9 @@ function weekdayOf(now: Date): number {
 }
 
 export function defaultPrintWeek(now: Date): PrintWeek {
-  const weekday = weekdayOf(now);
-  const weekIsOver =
-    weekday === SATURDAY || weekday === SUNDAY || (weekday === FRIDAY && isEvening(now));
+  const nextMonday = shiftDate(mondayOf(now), WEEK_LENGTH);
 
-  return weekIsOver ? "next" : "current";
+  return schoolMoment(now).focus >= nextMonday ? "next" : "current";
 }
 
 export function printWeekDates(now: Date, week: PrintWeek): string[] {
@@ -49,8 +48,34 @@ export function printWeekDates(now: Date, week: PrintWeek): string[] {
   return datesFrom(week === "current" ? monday : monday + WEEK_LENGTH * DAY_MS, WEEK_LENGTH);
 }
 
-export function isEvening(now: Date): boolean {
+function isEvening(now: Date): boolean {
   return wallTimeNow(now) >= EVENING_FROM;
+}
+
+function isSchoolDay(date: string): boolean {
+  const weekday = new Date(utcDay(date)).getUTCDay();
+
+  return weekday !== SATURDAY && weekday !== SUNDAY;
+}
+
+export interface SchoolMoment {
+  today: string;
+  focus: string;
+}
+
+export function schoolMoment(now: Date): SchoolMoment {
+  const today = schoolToday(now);
+  if (isSchoolDay(today) && !isEvening(now)) return { today, focus: today };
+
+  const focus =
+    DAYS_TO_NEXT_SCHOOL_DAY.map((offset) => shiftDate(today, offset)).find(isSchoolDay) ??
+    shiftDate(today, 1);
+
+  return { today, focus };
+}
+
+export function weekAhead(today: string): CalendarRange {
+  return { from: today, to: shiftDate(today, WEEK_LENGTH - 1) };
 }
 
 export function greetingKind(now: Date): "morning" | "evening" {
