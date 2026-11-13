@@ -80,7 +80,7 @@ interface ApiFailureResponse {
  * ("Thu, 12 Jun 2026 10:30:00 GMT"). Anything else is ignored rather than
  * turned into a bogus countdown.
  */
-function retryAfterSeconds(header: string): number | undefined {
+export function retryAfterSeconds(header: string): number | undefined {
   const numeric = Number(header);
   if (!Number.isNaN(numeric)) return numeric;
 

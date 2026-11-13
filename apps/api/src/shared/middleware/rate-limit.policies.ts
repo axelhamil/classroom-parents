@@ -23,13 +23,15 @@ function ipKeyFn(name: string): (c: Context) => string {
 }
 
 // Two windows with two different jobs: the minute window bounds a BURST, the hour
-// window is the sustained anti-abuse ceiling. They must be tuned against what one
-// page view actually costs, measured here, a signed-in page view fires up to 8 API
-// calls, so a 60/min burst window meant ~7 navigations per minute
-// before a legitimate user got a 429. 300/min tolerates ~35 navigations in a burst
-// while the hour window (1800 = 30/min sustained) still caps real abuse, unchanged.
-// Loosening the burst window costs nothing at the surfaces that matter: every
-// credential path carries its own far tighter, fail-closed policy below.
+// window is the sustained anti-abuse ceiling (1800 = 30/min, unchanged). The burst window
+// is tuned against what opening the app costs, measured: the signed-in home fires 9 calls
+// in this bucket (the calendar period and its two neighbours, the week's progress, the
+// review, overdue and next-deadline lists, the stream, the sync on open), the settings
+// page 6. Four browsers of one parent opening the app back to back (the accessibility
+// gate) spend 337 in under a minute, so 300 refused that parent mid-burst. 600 leaves
+// that burst near half its room, and at a third of the hour window a runaway client is
+// still stopped within three minutes. Every credential path carries its own far tighter,
+// fail-closed policy below.
 //
 // `sessionMiddleware` deliberately nulls the user for `/api/auth/*`, so BetterAuth
 // traffic, including a signed-in user's session query, keys on
@@ -42,7 +44,7 @@ export const GLOBAL_POLICY: PolicyConfig = {
     return `global:${user?.id ?? resolveClientIp(c)}`;
   },
   windows: [
-    { policyName: "global", windowSec: 60, maxRequests: 300 },
+    { policyName: "global", windowSec: 60, maxRequests: 600 },
     { policyName: "global", windowSec: 3600, maxRequests: 1800 },
   ],
 };

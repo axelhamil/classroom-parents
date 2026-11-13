@@ -124,6 +124,9 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
+    // Not CORS-safelisted: without this the app, on another origin, cannot see when a
+    // refusal reopens and its stream reconnects into the rate limit on its own backoff.
+    exposeHeaders: ["Retry-After"],
   }),
 );
 
