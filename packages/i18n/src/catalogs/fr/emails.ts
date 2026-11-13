@@ -91,7 +91,6 @@ export default {
     cta: "Voir l'échéance",
   },
   alertGroup: {
-    line: "{{eventTitle}} ({{childLabel}}), {{deadlineLabel}}",
     cta: "Voir mes échéances",
   },
   weeklyDigest: {

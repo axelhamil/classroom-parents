@@ -1,4 +1,4 @@
-import { createI18n, DEFAULT_LOCALE, type Locale, loadCatalog } from "@packages/i18n";
+import { DEFAULT_LOCALE, i18nFor, type Locale } from "@packages/i18n";
 import { render } from "@react-email/render";
 import type { TFunction } from "i18next";
 import type { ComponentType } from "react";
@@ -68,8 +68,7 @@ export async function renderTemplate<K extends EmailTemplateKey>(
   variables: EmailTemplates[K],
   locale: Locale = DEFAULT_LOCALE,
 ): Promise<RenderedEmail> {
-  const resources = await loadCatalog(locale);
-  const i18n = await createI18n({ locale, resources });
+  const i18n = await i18nFor(locale);
   const t = i18n.getFixedT(locale, "emails");
 
   const entry: TemplateEntry<K> = TEMPLATES[key];

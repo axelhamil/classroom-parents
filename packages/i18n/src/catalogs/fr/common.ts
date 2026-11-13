@@ -7,6 +7,10 @@ export default {
     hours: "{{hours}} h",
     hoursMinutes: "{{hours}} h {{minutes}}",
   },
+  alertLine: {
+    short: "{{eventTitle}}, {{deadline}}",
+    withChild: "{{childLabel}} : {{eventTitle}}, {{deadline}}",
+  },
   reminders: {
     sameDay: "Le jour même, à {{time}}",
     dayBefore: "La veille, à {{time}}",

@@ -2,7 +2,6 @@ import { type IInstrumentation, type ILogger, Option, Result } from "@packages/d
 import type { IEmailService } from "@packages/email/email.port";
 import type { BatchSender } from "@packages/email/email-delivery-worker";
 import { type RenderedEmail, renderTemplate } from "@packages/emails";
-import { DEFAULT_LOCALE } from "@packages/i18n";
 import type {
   AlertEmailContent,
   AlertGroupEmailContent,
@@ -10,7 +9,7 @@ import type {
   IAlertEmailSender,
 } from "../../application/ports/alert-email-sender.port";
 import type { AlertsError } from "../../application/ports/alert-repository.port";
-import { frenchCatalog } from "./french-catalog";
+import { alertLines } from "./alert-lines";
 
 function alertEmail(content: AlertEmailContent) {
   return renderTemplate("alert_reminder", {
@@ -57,8 +56,7 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
     return this.instrumentation.startSpan(
       { name: "ResendAlertEmailSender > sendGroup" },
       async () => {
-        const t = (await frenchCatalog()).getFixedT(DEFAULT_LOCALE, "emails");
-        const lines = items.map((item) => t("alertGroup.line", { ...item }));
+        const lines = await alertLines(items, { withChild: true });
         const queued = await this.queue.sendTemplate(
           "alert_group",
           to,

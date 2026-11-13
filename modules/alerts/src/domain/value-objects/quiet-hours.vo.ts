@@ -1,8 +1,6 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
 import { z } from "zod";
-import { AlertTime } from "./alert-time.vo";
-
-const WALL_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+import { AlertTime, WALL_TIME } from "./alert-time.vo";
 
 export const quietHoursSchema = z
   .strictObject({
