@@ -78,6 +78,26 @@ describe("Accueil, the family calendar", () => {
     expect(screen.getByRole("button", { name: "Aujourd'hui" }).hasAttribute("disabled")).toBe(true);
   });
 
+  it("beside the briefing on a tablet, the week keeps its seven rows, Friday evening included", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(min-width: 48rem)",
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    at("2026-11-13T16:00:00.000Z");
+    givenCalendar([CHILD], [deadline(1, "2026-11-16", "Cahier de liaison signé")]);
+    await renderAppAt("/?date=2026-11-16");
+
+    await screen.findByRole("region", { name: "Pour lundi 16 novembre" });
+    await waitFor(() =>
+      expect(
+        document.querySelectorAll("[data-slot=calendar-week] > [data-slot=calendar-day]"),
+      ).toHaveLength(7),
+    );
+    expect(within(day("Lundi 16 novembre")).getByText("Cahier de liaison signé")).toBeDefined();
+  });
+
   it("a week across two months names both in its title", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenCalendar([CHILD], []);

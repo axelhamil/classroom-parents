@@ -1,9 +1,12 @@
+import { shiftDate } from "@packages/ddd-kit/days";
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { expect, type Page, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
 import { EVENTS, inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
+
+const FRIDAY = 5;
 
 const TOM = {
   id: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
@@ -45,6 +48,29 @@ async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void>
   const week = await page.locator("[data-slot=calendar-week]").boundingBox();
   expect(briefing && week && briefing.x + briefing.width < week.x).toBe(true);
   expect(week && week.y < fold / 2).toBe(true);
+}
+
+function morningToday(): Date {
+  const morning = new Date();
+  morning.setHours(9, 0, 0, 0);
+
+  return morning;
+}
+
+function comingFriday(): string {
+  return inDays((FRIDAY - new Date().getDay() + 7) % 7);
+}
+
+async function expectSevenRowsOnFridayEvening(page: Page): Promise<void> {
+  const friday = comingFriday();
+  await page.clock.setFixedTime(new Date(`${friday}T17:00:00`));
+  await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+  await page.goto(`/?view=week&date=${friday}`);
+
+  const rows = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]");
+  await expect(rows).toHaveCount(7);
+  await expect(rows.and(page.locator(`[data-jump="${shiftDate(friday, 3)}"]`))).toHaveCount(1);
+  await expect(page.locator("[data-slot=briefing]")).toBeVisible();
 }
 
 async function expectOverdueOverlay(
@@ -288,12 +314,17 @@ test.describe("the week on a tablet", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 768, height: 1024 } });
 
   test("puts the briefing beside the week, whose rows replace the day strip", async ({ page }) => {
+    await page.clock.setFixedTime(morningToday());
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
     await expectWeekBesideBriefing(page, 1024);
     await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeHidden();
     await expectOnePageWithoutOverflow(page);
+  });
+
+  test("keeps its seven rows on Friday evening, Monday briefed beside them", async ({ page }) => {
+    await expectSevenRowsOnFridayEvening(page);
   });
 });
 
@@ -303,6 +334,7 @@ test.describe("the week on a desktop", () => {
   test("shows the week as rows of whole titles beside the briefing, and only the home widens", async ({
     page,
   }) => {
+    await page.clock.setFixedTime(morningToday());
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
@@ -312,6 +344,10 @@ test.describe("the week on a desktop", () => {
     await page.goto("/settings");
     const settings = await page.locator("main").evaluate((main) => main.clientWidth);
     expect(settings).toBeLessThanOrEqual(1024);
+  });
+
+  test("keeps its seven rows on Friday evening, Monday briefed beside them", async ({ page }) => {
+    await expectSevenRowsOnFridayEvening(page);
   });
 });
 
