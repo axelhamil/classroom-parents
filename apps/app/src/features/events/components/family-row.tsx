@@ -25,6 +25,7 @@ export function FamilyRow({ family, counts, value, onChange }: FamilyRowProps) {
         { value: null, label: t("family.all") },
         ...family.map((child) => ({
           value: child.id,
+          hue: childHue(family, child.id),
           hint: t("family.hint", {
             child: child.label,
             count: counts.get(child.id) ?? 0,

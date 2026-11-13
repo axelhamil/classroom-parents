@@ -73,7 +73,7 @@ function ChildBannerAvatar({ className, ...props }: React.ComponentProps<"div">)
     <div
       data-slot="child-banner-avatar"
       className={cn(
-        "absolute right-6 -bottom-8 rounded-full bg-card p-1 shadow-md [&>[data-slot=child-avatar]]:ring-0 [&>[data-slot=child-avatar]]:ring-offset-0",
+        "absolute right-6 -bottom-8 rounded-full bg-card p-1 shadow-raised [&>[data-slot=child-avatar]]:ring-0 [&>[data-slot=child-avatar]]:ring-offset-0",
         className,
       )}
       {...props}

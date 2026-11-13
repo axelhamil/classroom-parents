@@ -28,7 +28,7 @@ export default {
     overdueWindow_other: "Sur les {{count}} derniers jours",
     crunch: "Journée chargée",
     dayEmpty: "Rien de prévu",
-    periodEmpty: "Rien de prévu sur cette période.",
+    periodEmpty: "Rien de prévu sur cette période. De quoi souffler un peu.",
     nextEvent: "Prochaine échéance : {{title}}, {{day}}",
     addEvent: "Ajouter une échéance",
     hidden_one: "+{{count}}",
@@ -72,6 +72,8 @@ export default {
     scroll: "Échéances à préparer pour {{day}}",
     open_one: "Encore {{count}} échéance à boucler",
     open_other: "Encore {{count}} échéances à boucler",
+    progress_one: "{{count}} échéance prête sur {{total}}",
+    progress_other: "{{count}} échéances prêtes sur {{total}}",
     empty: "Rien à préparer pour {{day}}.",
     emptyThenNext: "Rien à préparer pour {{day}}. Prochaine échéance : {{title}}, {{next}}.",
     allSet: "Tout est prêt pour {{day}}.",
@@ -135,8 +137,9 @@ export default {
         "L'analyse en cours des annonces peut prendre quelques minutes. Les échéances apparaîtront ici d'elles-mêmes.",
     },
     nothing: {
-      title: "Rien à préparer",
-      description: "Aucune échéance à venir. Les nouvelles annonces de Classroom arriveront ici.",
+      title: "Rien à l'horizon",
+      description:
+        "Aucune échéance à venir. Les prochaines annonces de Classroom arriveront ici d'elles-mêmes.",
       action: "Voir mes enfants",
     },
     filtered: {

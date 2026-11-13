@@ -32,9 +32,11 @@ export interface EventBoardSkeletonProps {
 export function EventBoardSkeleton({ label }: EventBoardSkeletonProps) {
   return (
     <SkeletonGroup label={label} className="gap-3">
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-24 w-full" />
+      <Skeleton shape="line" className="w-32" />
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-16 w-full" />
+      <Skeleton shape="line" className="w-40" />
+      <Skeleton className="h-16 w-full" />
     </SkeletonGroup>
   );
 }
@@ -50,7 +52,7 @@ export function BoardEmpty({ icon: Icon, title, description, action }: BoardEmpt
   return (
     <Empty>
       <EmptyHeader>
-        <EmptyMedia variant="icon">
+        <EmptyMedia variant="scene">
           <Icon aria-hidden />
         </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>

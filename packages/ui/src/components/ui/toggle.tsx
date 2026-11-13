@@ -12,9 +12,9 @@ const toggleVariants = cva(
       variant: {
         default: "bg-transparent",
         outline:
-          "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+          "border border-input bg-transparent shadow-rest hover:bg-accent hover:text-accent-foreground",
         chip: "rounded-full border border-input bg-card hover:bg-accent hover:text-accent-foreground data-[state=on]:border-transparent data-[state=on]:bg-secondary data-[state=on]:text-secondary-foreground",
-        day: "flex-col gap-1 rounded-2xl border border-transparent bg-card text-foreground shadow-xs transition-[color,background-color,box-shadow,transform] hover:bg-accent hover:text-accent-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm [&>[data-part=day]]:text-lg [&>[data-part=day]]:leading-none [&>[data-part=day]]:font-semibold [&>[data-part=day]]:tabular-nums [&>[data-part=dots]]:flex [&>[data-part=dots]]:h-1.5 [&>[data-part=dots]]:gap-0.5 data-[state=on]:[&>[data-part=dots]>*]:ring-1 data-[state=on]:[&>[data-part=dots]>*]:ring-primary-foreground [&>[data-part=weekday]]:text-xs [&>[data-part=weekday]]:capitalize data-[today=true]:border-warning data-[crunch=true]:not-data-[state=on]:bg-warning/30",
+        day: "flex-col gap-1 rounded-2xl border border-transparent bg-card text-foreground shadow-rest transition-[color,background-color,box-shadow,transform] hover:bg-accent hover:text-accent-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-raised [&>[data-part=day]]:text-lg [&>[data-part=day]]:leading-none [&>[data-part=day]]:font-semibold [&>[data-part=day]]:tabular-nums [&>[data-part=dots]]:flex [&>[data-part=dots]]:h-1.5 [&>[data-part=dots]]:gap-0.5 data-[state=on]:[&>[data-part=dots]>*]:ring-1 data-[state=on]:[&>[data-part=dots]>*]:ring-primary-foreground [&>[data-part=weekday]]:text-xs [&>[data-part=weekday]]:capitalize data-[today=true]:border-warning data-[crunch=true]:not-data-[state=on]:bg-warning/30",
       },
       size: {
         default: "h-9 min-w-9 px-2",

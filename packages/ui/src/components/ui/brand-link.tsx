@@ -40,7 +40,7 @@ function BrandMark({ className, ...props }: React.ComponentProps<"svg">) {
       viewBox="0 0 64 64"
       aria-hidden
       className={cn(
-        "size-9 shrink-0 rounded-xl bg-primary p-1.5 text-primary-foreground shadow-sm",
+        "size-9 shrink-0 rounded-xl bg-primary p-1.5 text-primary-foreground shadow-raised",
         className,
       )}
       {...props}

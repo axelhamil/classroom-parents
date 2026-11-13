@@ -228,6 +228,35 @@ describe("Accueil briefs the next school moment", () => {
     );
   });
 
+  it("shows how much of what is due is already ready, and moves with each tick", async () => {
+    at(THURSDAY_EVENING);
+    givenCalendar(
+      [CHILD],
+      [
+        deadline(1, "2026-11-13", "Fiche à signer", { done: true }),
+        deadline(2, "2026-11-13", "Sac de piscine", { category: "swimming" }),
+        deadline(3, "2026-11-13", "Exposé"),
+        deadline(4, "2026-11-16", "Dictée"),
+      ],
+    );
+    await renderAppAt("/");
+
+    const tomorrow = await briefing("Pour demain");
+    const progress = await within(tomorrow).findByRole("progressbar", {
+      name: "1 échéance prête sur 3",
+    });
+    expect(progress.getAttribute("aria-valuenow")).toBe("1");
+    expect(progress.getAttribute("aria-valuemax")).toBe("3");
+
+    fireEvent.click(
+      within(tomorrow).getByRole("checkbox", { name: "Marquer comme fait : Exposé" }),
+    );
+
+    expect(
+      await within(tomorrow).findByRole("progressbar", { name: "2 échéances prêtes sur 3" }),
+    ).toBeDefined();
+  });
+
   it("nothing due reads calm and names the next deadline", async () => {
     at(THURSDAY_EVENING);
     givenCalendar([CHILD], [deadline(1, "2026-11-20", "Sortie au musée")]);

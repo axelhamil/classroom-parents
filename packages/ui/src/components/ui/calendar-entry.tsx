@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const calendarEntryVariants = cva(
-  "relative flex w-full min-w-0 items-start gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox]]:size-5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
+  "relative flex w-full min-w-0 items-start gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
   {
     variants: {
       hue: {

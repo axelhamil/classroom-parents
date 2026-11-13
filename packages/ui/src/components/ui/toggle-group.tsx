@@ -36,7 +36,7 @@ function ToggleGroup({
       data-spacing={spacing}
       style={{ "--gap": spacing } as React.CSSProperties}
       className={cn(
-        "group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs",
+        "group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-rest",
         className,
       )}
       {...props}
@@ -48,13 +48,26 @@ function ToggleGroup({
   );
 }
 
+const toggleGroupItemHues = {
+  1: "data-[state=on]:border-child-1-mark data-[state=on]:bg-child-1-container data-[state=on]:text-foreground",
+  2: "data-[state=on]:border-child-2-mark data-[state=on]:bg-child-2-container data-[state=on]:text-foreground",
+  3: "data-[state=on]:border-child-3-mark data-[state=on]:bg-child-3-container data-[state=on]:text-foreground",
+  4: "data-[state=on]:border-child-4-mark data-[state=on]:bg-child-4-container data-[state=on]:text-foreground",
+  5: "data-[state=on]:border-child-5-mark data-[state=on]:bg-child-5-container data-[state=on]:text-foreground",
+  6: "data-[state=on]:border-child-6-mark data-[state=on]:bg-child-6-container data-[state=on]:text-foreground",
+  7: "data-[state=on]:border-child-7-mark data-[state=on]:bg-child-7-container data-[state=on]:text-foreground",
+  8: "data-[state=on]:border-child-8-mark data-[state=on]:bg-child-8-container data-[state=on]:text-foreground",
+} as const;
+
 function ToggleGroupItem({
   className,
   children,
   variant,
   size,
+  hue,
   ...props
-}: React.ComponentProps<typeof ToggleGroupPrimitive.Item> & VariantProps<typeof toggleVariants>) {
+}: React.ComponentProps<typeof ToggleGroupPrimitive.Item> &
+  VariantProps<typeof toggleVariants> & { hue?: keyof typeof toggleGroupItemHues }) {
   const context = React.useContext(ToggleGroupContext);
 
   return (
@@ -68,6 +81,7 @@ function ToggleGroupItem({
           size: context.size || size,
         }),
         "w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10 data-[variant=day]:px-1",
+        hue && toggleGroupItemHues[hue],
         "data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-l-md data-[spacing=0]:last:rounded-r-md data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l",
         className,
       )}

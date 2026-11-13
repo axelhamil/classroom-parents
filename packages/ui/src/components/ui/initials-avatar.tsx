@@ -7,7 +7,7 @@ const initialsAvatarVariants = cva("", {
   variants: {
     size: {
       sm: "size-6 rounded-md",
-      xs: "size-5 rounded",
+      xs: "size-5 rounded-xs",
     },
   },
   defaultVariants: { size: "sm" },
@@ -17,7 +17,7 @@ const initialsTextVariants = cva("", {
   variants: {
     size: {
       sm: "rounded-md text-[10px] font-medium",
-      xs: "rounded text-[9px]",
+      xs: "rounded-xs text-[9px]",
     },
   },
   defaultVariants: { size: "sm" },

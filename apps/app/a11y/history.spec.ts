@@ -46,7 +46,7 @@ test.describe("history on a phone", () => {
       await serveFamily(page, { children: [LEA], events: [] });
       await page.goto("/?tab=history");
 
-      await expect(page.getByText("Les échéances passées seront rangées ici.")).toBeVisible();
+      await expect(page.getByText("Les échéances passées viendront se ranger ici.")).toBeVisible();
       expect(await blockingViolations(page)).toEqual([]);
     });
   }

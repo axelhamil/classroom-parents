@@ -4,14 +4,29 @@ import { cn } from "../../libs/utils";
 
 interface ProgressProps extends React.ComponentProps<typeof ProgressPrimitive.Root> {
   indeterminate?: boolean;
+  tone?: "primary" | "success";
 }
 
-function Progress({ className, value, indeterminate = false, ...props }: ProgressProps) {
+function Progress({
+  className,
+  value,
+  max = 100,
+  indeterminate = false,
+  tone = "primary",
+  ...props
+}: ProgressProps) {
+  const remaining = 100 - ((value || 0) / max) * 100;
+
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
+      data-tone={tone}
       value={indeterminate ? null : value}
-      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-primary/20", className)}
+      max={max}
+      className={cn(
+        "group/progress relative h-2 w-full shrink-0 overflow-hidden rounded-full bg-primary/20 data-[tone=success]:bg-success/20",
+        className,
+      )}
       {...props}
     >
       {indeterminate ? (
@@ -22,8 +37,8 @@ function Progress({ className, value, indeterminate = false, ...props }: Progres
       ) : (
         <ProgressPrimitive.Indicator
           data-slot="progress-indicator"
-          className="h-full w-full flex-1 bg-primary transition-transform duration-(--duration-slow) ease-(--ease-out-soft)"
-          style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+          className="h-full w-full flex-1 rounded-full bg-primary transition-[transform,background-color] duration-(--duration-slower) ease-(--ease-out-soft) group-data-[tone=success]/progress:bg-success"
+          style={{ transform: `translateX(-${remaining}%)` }}
         />
       )}
     </ProgressPrimitive.Root>

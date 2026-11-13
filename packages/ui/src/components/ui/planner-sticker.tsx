@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const plannerStickerVariants = cva(
-  "flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-transparent p-2.5 text-sm text-foreground outline-none hover:shadow-sm focus-visible:ring focus-visible:ring-ring",
+  "flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-transparent p-2.5 text-sm text-foreground outline-none hover:shadow-raised focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       hue: {

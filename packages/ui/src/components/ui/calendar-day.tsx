@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
 import { cn } from "../../libs/utils";
+import { badgeVariants } from "./badge";
 
 const calendarPeriodVariants = cva("flex min-w-0 flex-col gap-6 touch-pan-y", {
   variants: {
@@ -105,10 +106,7 @@ function CalendarDayCrunch({ className, ...props }: React.ComponentProps<"span">
   return (
     <span
       data-slot="calendar-day-crunch"
-      className={cn(
-        "hidden shrink-0 items-center gap-1 rounded-full bg-warning px-2 py-0.5 text-xs font-medium whitespace-nowrap text-warning-foreground [&_svg]:size-3.5",
-        className,
-      )}
+      className={cn(badgeVariants({ variant: "urgent" }), "hidden", className)}
       {...props}
     />
   );

@@ -124,17 +124,52 @@
   --shadow-lg: 0 2px 3px 0 oklch(0.3 0.03 60 / 0.08), 0 6px 12px 4px oklch(0.3 0.03 60 / 0.07);
   --shadow-xl: 0 4px 4px 0 oklch(0.3 0.03 60 / 0.08), 0 8px 16px 6px oklch(0.3 0.03 60 / 0.08);
   --shadow-2xl: 0 12px 32px -4px oklch(0.3 0.03 60 / 0.16);
+  /* One elevation scale, three floors: a sheet resting on the paper, a sheet lifted (hover, selected, stamp), a surface floating above the page (menu, popover, dialog, sheet). */
+  --shadow-rest: var(--shadow-xs);
+  --shadow-raised: var(--shadow-sm);
+  --shadow-float: var(--shadow-lg);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  /* A light spring (bounce 0.2): 94% of the way at 17% of the time, one overshoot to 1.16, settled by 70%. */
+  --ease-spring: linear(
+    0,
+    0.009,
+    0.035 2.1%,
+    0.141 4.4%,
+    0.723 12.9%,
+    0.938 16.7%,
+    1.017,
+    1.077,
+    1.121,
+    1.149 24.3%,
+    1.159,
+    1.163,
+    1.161,
+    1.154 29.9%,
+    1.129 32.8%,
+    1.051 39.6%,
+    1.017 43.1%,
+    0.991,
+    0.977 51%,
+    0.974 53.8%,
+    0.975 57.1%,
+    0.997 69.8%,
+    1.003 76.9%,
+    1.004 83.8%,
+    1
+  );
   --press-scale: 0.97;
+  --press-scale-small: 0.9;
+  --press-scale-large: 0.985;
   --press-duration: 120ms;
   --duration-fast: 150ms;
   --duration-base: 220ms;
   --duration-slow: 280ms;
   --duration-slower: 450ms;
+  --duration-spring: 520ms;
   --duration-reveal: 640ms;
   --duration-loop: 1400ms;
   --duration-float: 2800ms;
@@ -159,6 +194,8 @@
   /* The title of an empty day stops where the add button of a full day starts. */
   --day-gutter-title: calc(var(--day-gutter) - var(--touch-target) - 1.5rem);
   --tour-halo: color-mix(in oklch, var(--primary) 22%, transparent);
+  --skeleton-shine: color-mix(in oklch, var(--card) 75%, transparent);
+  --confetti-reach: 1.5rem;
   --sidebar-width: 16rem;
   --sidebar-width-icon: 3.5rem;
   --sidebar-width-mobile: 18rem;
@@ -248,6 +285,7 @@
   --sidebar-accent-foreground: oklch(0.9 0.04 165);
   --sidebar-border: oklch(0.35 0.014 62);
   --sidebar-ring: oklch(0.8 0.1 165);
+  --skeleton-shine: color-mix(in oklch, var(--foreground) 7%, transparent);
   --shadow-2xs: 0 1px 0 0 oklch(0.06 0.01 60 / 0.3);
   --shadow-xs: 0 1px 2px 0 oklch(0.06 0.01 60 / 0.32);
   --shadow-sm: 0 1px 2px 0 oklch(0.06 0.01 60 / 0.36), 0 1px 3px 1px oklch(0.06 0.01 60 / 0.2);
@@ -357,6 +395,7 @@
   --spacing-briefing-phone: var(--briefing-phone-height);
   --spacing-print-item: var(--print-item-space);
 
+  --radius-xs: calc(var(--radius) * 0.4);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -369,6 +408,7 @@
   --default-transition-duration: 150ms;
   --default-transition-timing-function: var(--ease-out-soft);
   --ease-emphasized: var(--ease-emphasized);
+  --ease-spring: var(--ease-spring);
 
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -378,6 +418,9 @@
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
+  --shadow-rest: var(--shadow-rest);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-float: var(--shadow-float);
 
   --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
   --tracking-tight: calc(var(--tracking-normal) - 0.025em);
@@ -782,6 +825,15 @@ html.theme-switching *::after {
   --error-text: var(--destructive);
 }
 
+[data-sonner-toaster].toaster {
+  font-family: var(--font-sans);
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-icon]:has(> [data-slot="celebration-stamp"]) {
+  width: 2rem;
+  height: 2rem;
+}
+
 [data-sonner-toaster][data-sonner-theme="light"].toaster {
   /* Sonner's defaults measured 4.29:1 (success), 4.35:1 (info), 3.07:1 (warning) on their tints; dark holds AA as shipped. */
   --success-text: hsl(140, 100%, 22%); /* 5.96:1 */
@@ -882,12 +934,130 @@ html.theme-switching *::after {
     transition-duration: var(--press-duration);
   }
 
-  [data-slot="checkbox-indicator"] > svg {
-    transition: transform var(--duration-fast) var(--ease-out);
+  [data-slot="checkbox"] {
+    transition-property: background-color, border-color, box-shadow, scale;
+    transition-duration: var(--press-duration);
+    transition-timing-function: var(--ease-out);
+  }
 
-    @starting-style {
-      transform: scale(0.6);
+  [data-slot="checkbox"]:active:not(:disabled) {
+    scale: var(--press-scale-small);
+  }
+
+  [data-slot="checkbox-indicator"] > svg {
+    transition:
+      scale var(--duration-spring) var(--ease-spring),
+      opacity var(--duration-fast) var(--ease-out);
+  }
+
+  [data-slot="checkbox-indicator"] > svg > path {
+    stroke-dasharray: 1;
+    transition: stroke-dashoffset var(--duration-base) var(--ease-out);
+  }
+
+  [data-slot="checkbox-indicator"]:where([data-state="unchecked"]) > svg {
+    opacity: 0;
+    scale: 0.5;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+
+  [data-slot="checkbox-indicator"]:where([data-state="unchecked"]) > svg > path {
+    stroke-dashoffset: 1;
+  }
+
+  [data-slot="calendar-entry"] {
+    transition-property: scale, filter, border-color, box-shadow;
+    transition-duration:
+      var(--duration-spring), var(--duration-slow), var(--duration-fast), var(--duration-fast);
+    transition-timing-function:
+      var(--ease-spring), var(--ease-out), var(--ease-out), var(--ease-out);
+  }
+
+  [data-slot="calendar-entry"]:has([data-slot="checkbox"]:active),
+  [data-slot="calendar-entry"]:has([data-slot="calendar-entry-link"]:active) {
+    scale: var(--press-scale-large);
+    transition-duration: var(--press-duration);
+    transition-timing-function: var(--ease-out);
+  }
+
+  [data-slot="calendar-entry"][data-state="done"] {
+    filter: saturate(0.55);
+  }
+
+  [data-slot="calendar-entry-link"],
+  [data-slot="checklist-item"] > label {
+    text-decoration-line: line-through;
+    text-decoration-color: transparent;
+    transition:
+      color var(--duration-base) var(--ease-out),
+      text-decoration-color var(--duration-base) var(--ease-out);
+  }
+
+  [data-slot="calendar-entry"][data-state="done"] [data-slot="calendar-entry-link"],
+  [data-slot="checklist-item"]:has([data-state="checked"]) > label {
+    text-decoration-color: currentColor;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    [data-slot="calendar-entry"]:hover {
+      box-shadow: var(--shadow-raised);
     }
+  }
+
+  [data-slot="month-planner-day"]:active {
+    scale: var(--press-scale);
+  }
+
+  [data-slot="month-planner-day"] {
+    transition-property: color, background-color, border-color, box-shadow, scale;
+    transition-duration: var(--press-duration);
+    transition-timing-function: var(--ease-out);
+  }
+
+  [data-slot="toggle-group-item"][data-variant="day"] > [data-part="day"] {
+    transition: scale var(--duration-base) var(--ease-out);
+  }
+
+  [data-slot="toggle-group-item"][data-variant="day"][data-state="on"] > [data-part="day"] {
+    scale: 1.12;
+  }
+
+  [data-slot="skeleton"] {
+    position: relative;
+    overflow: hidden;
+  }
+
+  [data-slot="skeleton"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    translate: -100% 0;
+    background: linear-gradient(90deg, transparent, var(--skeleton-shine), transparent);
+    animation: skeleton-sweep var(--duration-loop) var(--ease-out-soft) infinite;
+  }
+
+  [data-slot="skeleton"]:nth-child(2)::after {
+    animation-delay: calc(var(--stagger-step) * 2);
+  }
+
+  [data-slot="skeleton"]:nth-child(3)::after {
+    animation-delay: calc(var(--stagger-step) * 4);
+  }
+
+  [data-slot="skeleton"]:nth-child(n + 4)::after {
+    animation-delay: calc(var(--stagger-step) * 6);
+  }
+
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="popover-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="select-content"],
+  [data-slot="tooltip-content"] {
+    animation-timing-function: var(--ease-out);
   }
 
   [data-slot="badge"][data-variant="urgent"],
@@ -952,10 +1122,84 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
   }
 }
 
+@keyframes stamp-ring {
+  from {
+    opacity: 0.7;
+    scale: 1;
+  }
+
+  to {
+    opacity: 0;
+    scale: 2.2;
+  }
+}
+
+@keyframes stamp-confetti {
+  from {
+    opacity: 0;
+    scale: 0.25;
+    rotate: -24deg;
+  }
+
+  25% {
+    opacity: 1;
+  }
+
+  70% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    scale: 1;
+    rotate: 10deg;
+  }
+}
+
+@keyframes skeleton-sweep {
+  to {
+    translate: 100% 0;
+  }
+}
+
 @layer base {
   [data-slot="celebration-stamp"] {
     transform: rotate(-8deg);
     animation: stamp-in var(--duration-slow) var(--ease-emphasized) var(--duration-fast) both;
+  }
+
+  [data-slot="celebration-stamp"][data-burst]::before,
+  [data-slot="celebration-stamp"][data-burst]::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    border-radius: 9999px;
+    opacity: 0;
+  }
+
+  [data-slot="celebration-stamp"][data-burst]::before {
+    inset: 0;
+    border: 2px solid var(--success);
+    animation: stamp-ring var(--duration-reveal) var(--ease-out) var(--duration-slow) both;
+  }
+
+  /* Eight confetti, one per child hue plus the amber of today, thrown once around the stamp. */
+  [data-slot="celebration-stamp"][data-burst]::after {
+    top: 50%;
+    left: 50%;
+    width: 0.3rem;
+    height: 0.3rem;
+    margin: -0.15rem;
+    box-shadow:
+      0 calc(-1 * var(--confetti-reach)) 0 var(--child-1-mark),
+      calc(0.7 * var(--confetti-reach)) calc(-0.7 * var(--confetti-reach)) 0 var(--warning),
+      var(--confetti-reach) 0 0 var(--child-4-mark),
+      calc(0.7 * var(--confetti-reach)) calc(0.7 * var(--confetti-reach)) 0 var(--child-2-mark),
+      0 var(--confetti-reach) 0 var(--warning),
+      calc(-0.7 * var(--confetti-reach)) calc(0.7 * var(--confetti-reach)) 0 var(--child-5-mark),
+      calc(-1 * var(--confetti-reach)) 0 0 var(--child-3-mark),
+      calc(-0.7 * var(--confetti-reach)) calc(-0.7 * var(--confetti-reach)) 0 var(--child-7-mark);
+    animation: stamp-confetti var(--duration-reveal) var(--ease-out) var(--duration-slow) both;
   }
 
   [data-tour-active] {
@@ -994,6 +1238,27 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
 
   [data-slot="celebration-stamp"] {
     animation-delay: 0s;
+  }
+
+  [data-slot="celebration-stamp"][data-burst]::before,
+  [data-slot="celebration-stamp"][data-burst]::after {
+    animation: none;
+  }
+
+  [data-slot="skeleton"]::after {
+    animation: none;
+  }
+
+  [data-slot="toggle-group-item"][data-variant="day"][data-state="on"] > [data-part="day"],
+  [data-slot="calendar-entry"]:has([data-slot="checkbox"]:active),
+  [data-slot="calendar-entry"]:has([data-slot="calendar-entry-link"]:active),
+  [data-slot="checkbox"]:active:not(:disabled),
+  [data-slot="month-planner-day"]:active {
+    scale: 1;
+  }
+
+  [data-slot="checkbox-indicator"]:where([data-state="unchecked"]) > svg {
+    scale: 1;
   }
 
   ::view-transition-group(*),
