@@ -1,6 +1,10 @@
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
-import type { SyncDueChildrenService } from "@modules/classroom-sync/application/services/sync-due-children.service";
+import {
+  DEFAULT_SYNC_CADENCE,
+  type SyncDueChildrenService,
+} from "@modules/classroom-sync/application/services/sync-due-children.service";
 import type { IInstrumentation, ILogger } from "@packages/ddd-kit";
+import { drain } from "./drain";
 import { startPeriodic } from "./periodic";
 
 export const SYNC_TICK_MS = 60_000;
@@ -13,6 +17,29 @@ export interface SyncWorkerDeps {
   IInstrumentation: IInstrumentation;
 }
 
+export function drainDueChildren(
+  deps: Pick<SyncWorkerDeps, "SyncDueChildrenService">,
+  signal: AbortSignal,
+  logger: ILogger,
+  clock: () => number = Date.now,
+): Promise<void> {
+  return drain(
+    {
+      run: async (now) =>
+        (await deps.SyncDueChildrenService.runOnce(now)).map(({ children, failures }) => ({
+          claimed: children,
+          failures,
+        })),
+      drained: (claimed) => claimed < DEFAULT_SYNC_CADENCE.claimSize,
+      label: "sync tick",
+      budgetMs: SYNC_TICK_MS,
+    },
+    signal,
+    logger,
+    clock,
+  );
+}
+
 export function startSyncWorkers(
   deps: SyncWorkerDeps,
   signal: AbortSignal,
@@ -20,13 +47,7 @@ export function startSyncWorkers(
 ): Promise<void> {
   const onError = (err: unknown) => deps.IInstrumentation.capture(err);
 
-  const syncDue = async () => {
-    const tick = await deps.SyncDueChildrenService.runOnce(new Date());
-    if (tick.isFailure) {
-      const { code, cause } = tick.getError();
-      logger.warn({ code, err: cause }, "sync tick failed");
-    } else if (tick.getValue().children > 0) logger.info(tick.getValue(), "sync tick done");
-  };
+  const syncDue = () => drainDueChildren(deps, signal, logger);
 
   const resumeDisconnections = async () => {
     const resumed = await deps.ChildConnectionService.resumeDisconnections(

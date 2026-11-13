@@ -1,7 +1,8 @@
 import { DISPATCH_BATCH } from "@modules/alerts/application/config/dispatch-budget";
 import type { AlertDispatchService } from "@modules/alerts/application/services/alert-dispatch.service";
 import type { WeeklyDigestService } from "@modules/alerts/application/services/weekly-digest.service";
-import type { AppError, IInstrumentation, ILogger, Result } from "@packages/ddd-kit";
+import type { IInstrumentation, ILogger } from "@packages/ddd-kit";
+import { drain } from "./drain";
 import { startPeriodic } from "./periodic";
 
 export const ALERT_TICK_MS = 30_000;
@@ -12,32 +13,6 @@ export interface AlertWorkerDeps {
   IInstrumentation: IInstrumentation;
 }
 
-type BatchRun = (now: Date) => Promise<Result<{ claimed: number }, AppError>>;
-
-async function drain(
-  run: BatchRun,
-  drained: (claimed: number) => boolean,
-  label: string,
-  signal: AbortSignal,
-  logger: ILogger,
-  clock: () => number,
-): Promise<void> {
-  const startedAt = clock();
-
-  while (!signal.aborted && clock() - startedAt < ALERT_TICK_MS) {
-    const tick = await run(new Date(clock()));
-    if (tick.isFailure) {
-      const { code, cause } = tick.getError();
-      logger.warn({ code, err: cause }, `${label} failed`);
-      return;
-    }
-
-    const { claimed } = tick.getValue();
-    if (claimed > 0) logger.info(tick.getValue(), `${label} done`);
-    if (drained(claimed)) return;
-  }
-}
-
 export function drainDueAlerts(
   deps: Pick<AlertWorkerDeps, "AlertDispatchService">,
   signal: AbortSignal,
@@ -45,9 +20,12 @@ export function drainDueAlerts(
   clock: () => number = Date.now,
 ): Promise<void> {
   return drain(
-    (now) => deps.AlertDispatchService.runOnce(now),
-    (claimed) => claimed === 0,
-    "alert dispatch",
+    {
+      run: (now) => deps.AlertDispatchService.runOnce(now),
+      drained: (claimed) => claimed === 0,
+      label: "alert dispatch",
+      budgetMs: ALERT_TICK_MS,
+    },
     signal,
     logger,
     clock,
@@ -61,9 +39,12 @@ export function drainWeeklyDigests(
   clock: () => number = Date.now,
 ): Promise<void> {
   return drain(
-    (now) => deps.WeeklyDigestService.runOnce(now),
-    (claimed) => claimed < DISPATCH_BATCH,
-    "weekly digest",
+    {
+      run: (now) => deps.WeeklyDigestService.runOnce(now),
+      drained: (claimed) => claimed < DISPATCH_BATCH,
+      label: "weekly digest",
+      budgetMs: ALERT_TICK_MS,
+    },
     signal,
     logger,
     clock,
