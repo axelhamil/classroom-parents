@@ -25,6 +25,7 @@ export interface CalendarEventRowProps {
   today: string;
   dated?: boolean;
   withChild?: boolean;
+  compact?: boolean;
 }
 
 function stateOf(event: EventItem, now: Date, today: string) {
@@ -42,16 +43,18 @@ export function CalendarEventRow({
   today,
   dated = false,
   withChild = true,
+  compact = false,
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
   const CategoryIcon = CATEGORY_ICONS[event.category];
   const hue = childHue(family, event.childId);
   const childLabel = withChild && family.length > 1 ? childLabelOf(family, event.childId) : "";
-  const state = stateOf(event, now, today);
+  const status = stateOf(event, now, today);
+  const state = compact && status === "overdue" ? "open" : status;
 
   return (
-    <CalendarEntry hue={hue} state={state}>
+    <CalendarEntry hue={hue} state={state} density={compact ? "compact" : "comfortable"}>
       <Checkbox
         checked={event.done}
         onCheckedChange={(checked) => toggle.mutate({ eventId: event.id, done: checked === true })}
@@ -63,7 +66,9 @@ export function CalendarEventRow({
         </CalendarEntryLink>
         <CalendarEntryMeta>
           <CategoryIcon aria-hidden />
-          <span>{t(CATEGORY_LABEL_KEYS[event.category])}</span>
+          <span className={compact ? "sr-only" : undefined}>
+            {t(CATEGORY_LABEL_KEYS[event.category])}
+          </span>
           {dated && <span>{dayLabel(event.deadlineDate, now)}</span>}
           {event.deadlineTime && <span>{wallTimeLabel(event.deadlineTime)}</span>}
           {childLabel && (

@@ -303,8 +303,8 @@ test("a parent links two children, follows their deadlines and alerts, then eras
 
     await page.goto("/");
     await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
-    const late = page.getByRole("region", { name: /^En retard, / });
-    await late.getByRole("button", { name: /^En retard, / }).click();
+    await page.getByRole("button", { name: /^En retard, / }).click();
+    const late = page.getByRole("dialog", { name: /^En retard, / });
     await expect(late.getByRole("link", { name: editedTitle })).toBeVisible();
     await expect(page.getByText(editedTitle)).toHaveCount(1);
   });

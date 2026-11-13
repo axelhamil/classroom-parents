@@ -47,6 +47,48 @@ async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void>
   expect(week && week.y < fold / 2).toBe(true);
 }
 
+async function expectOverdueOverlay(
+  page: Page,
+  colorScheme: (typeof COLOR_SCHEMES)[number],
+): Promise<void> {
+  const morning = new Date();
+  morning.setHours(9, 0, 0, 0);
+  await page.clock.setFixedTime(morning);
+  await showColorScheme(page, colorScheme);
+  const late = {
+    ...REVIEW_EVENT,
+    id: "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a80",
+    childId: MAXIMILIEN.id,
+    title: "Cahier de liaison à signer",
+    status: "confirmed",
+    done: false,
+    deadlineDate: inDays(-3),
+    deadlineAt: `${inDays(-3)}T07:00:00.000Z`,
+  };
+  await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [late] });
+  await page.goto("/");
+
+  const line = page.getByRole("button", { name: "En retard, 1 échéance" });
+  await expect(line).toHaveAttribute("aria-haspopup", "dialog");
+  await line.focus();
+  await page.keyboard.press("Enter");
+  const overlay = page.getByRole("dialog", { name: "En retard, 1 échéance" });
+  await expect(overlay.getByRole("link", { name: late.title })).toBeVisible();
+  await expect(page.locator("main").getByRole("link", { name: late.title })).toHaveCount(0);
+  for (const key of ["Tab", "Tab", "Tab", "Tab", "Shift+Tab"]) {
+    await page.keyboard.press(key);
+    expect(await overlay.evaluate((element) => element.contains(document.activeElement))).toBe(
+      true,
+    );
+  }
+  expect(await blockingViolations(page)).toEqual([]);
+
+  await page.keyboard.press("Escape");
+  await expect(overlay).toBeHidden();
+  await expect(line).toBeFocused();
+  await expectOnePageWithoutOverflow(page);
+}
+
 test.describe("the calendar on a phone", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
 
@@ -68,35 +110,10 @@ test.describe("the calendar on a phone", () => {
       expect(await blockingViolations(page)).toEqual([]);
     });
 
-    test(`a late deadline waits folded above the week and opens in place (${colorScheme})`, async ({
+    test(`a late deadline waits folded above the week and opens in a drawer (${colorScheme})`, async ({
       page,
     }) => {
-      const morning = new Date();
-      morning.setHours(9, 0, 0, 0);
-      await page.clock.setFixedTime(morning);
-      await showColorScheme(page, colorScheme);
-      const late = {
-        ...REVIEW_EVENT,
-        id: "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a80",
-        childId: MAXIMILIEN.id,
-        title: "Cahier de liaison à signer",
-        status: "confirmed",
-        done: false,
-        deadlineDate: inDays(-3),
-        deadlineAt: `${inDays(-3)}T07:00:00.000Z`,
-      };
-      await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [late] });
-      await page.goto("/");
-
-      const strip = page.getByRole("region", { name: "En retard, 1 échéance" });
-      const line = strip.getByRole("button", { name: "En retard, 1 échéance" });
-      await expect(line).toHaveAttribute("aria-expanded", "false");
-      await line.focus();
-      await page.keyboard.press("Enter");
-      await expect(strip.getByRole("link", { name: late.title })).toBeVisible();
-      await expect(line).toBeFocused();
-      await expectOnePageWithoutOverflow(page);
-      expect(await blockingViolations(page)).toEqual([]);
+      await expectOverdueOverlay(page, colorScheme);
     });
 
     test(`the next school moment, per child with what to prepare (${colorScheme})`, async ({
@@ -296,6 +313,17 @@ test.describe("the week on a desktop", () => {
     const settings = await page.locator("main").evaluate((main) => main.clientWidth);
     expect(settings).toBeLessThanOrEqual(1024);
   });
+});
+
+test.describe("the late deadlines on a desktop", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  for (const colorScheme of COLOR_SCHEMES)
+    test(`open in a dialog that gives focus back to their line (${colorScheme})`, async ({
+      page,
+    }) => {
+      await expectOverdueOverlay(page, colorScheme);
+    });
 });
 
 test.describe("the child dots of the month", () => {

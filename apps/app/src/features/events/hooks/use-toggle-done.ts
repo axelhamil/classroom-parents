@@ -1,14 +1,16 @@
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { EVENTS_KEY, type EventItem } from "../../../shared/api/queries/events";
 import { markEventDoneMutationOptions } from "../api/events.mutations";
 import { CALENDAR_KEY, eventQueryOptions } from "../api/events.queries";
 
 export function useToggleDone() {
+  const { t } = useTranslation("events");
   const queryClient = useQueryClient();
-
-  return useMutation({
+  const toggle = useMutation({
     ...markEventDoneMutationOptions,
     onMutate: async ({ eventId, done }) => {
       const detailKey = eventQueryOptions(eventId).queryKey;
@@ -28,6 +30,19 @@ export function useToggleDone() {
       if (context) queryClient.setQueryData(context.detailKey, context.detail);
       toastError(error, errorFallback("markEventDone"));
     },
+    onSuccess: (_result, { eventId, done }) => {
+      if (!done) return;
+
+      toast(t("calendar.doneToast"), {
+        id: `done:${eventId}`,
+        action: {
+          label: t("calendar.undo"),
+          onClick: () => toggle.mutate({ eventId, done: false }),
+        },
+      });
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: EVENTS_KEY }),
   });
+
+  return toggle;
 }

@@ -310,9 +310,9 @@ describe("Accueil, the family calendar", () => {
     expect(await screen.findByText("Sortie au musée")).toBeDefined();
   });
 
-  it("late deadlines wait folded in one line, open in place and leave once done", async () => {
+  it("late deadlines wait folded in one line that opens them in an overlay, never in place", async () => {
     at("2026-11-12T09:00:00.000Z");
-    const stub = givenCalendar(
+    givenCalendar(
       [CHILD, HUGO],
       [
         deadline(1, "2026-11-10", "Cahier de liaison à signer", { childId: HUGO.id }),
@@ -322,28 +322,71 @@ describe("Accueil, the family calendar", () => {
     );
     await renderAppAt("/");
 
-    const overdue = await screen.findByRole("region", { name: "En retard, 1 échéance" });
-    expect(within(overdue).queryByRole("link")).toBeNull();
+    const line = await screen.findByRole("button", { name: "En retard, 1 échéance" });
+    expect(line.getAttribute("aria-haspopup")).toBe("dialog");
+    line.focus();
+    fireEvent.click(line);
 
-    fireEvent.click(within(overdue).getByRole("button", { name: "En retard, 1 échéance" }));
-
+    const overdue = await screen.findByRole("dialog", { name: "En retard, 1 échéance" });
+    expect(document.querySelector("main")?.contains(overdue)).toBe(false);
+    expect(within(overdue).getByText("Sur les 14 derniers jours")).toBeDefined();
+    expect(within(overdue).getByRole("heading", { name: "Mardi 10 novembre" })).toBeDefined();
     expect(within(overdue).getByRole("link", { name: "Cahier de liaison à signer" })).toBeDefined();
     expect(within(overdue).getByText("Hugo")).toBeDefined();
-    expect(within(overdue).getByText("Mardi 10 novembre")).toBeDefined();
+    expect(within(overdue).queryByText("En retard")).toBeNull();
     expect(within(overdue).queryByText("Fiche déjà rendue")).toBeNull();
     expect(within(overdue).queryByText("Piscine")).toBeNull();
 
-    fireEvent.click(
-      within(overdue).getByRole("checkbox", {
-        name: "Marquer comme fait : Cahier de liaison à signer",
-      }),
-    );
+    fireEvent.click(within(overdue).getByRole("button", { name: "Fermer" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(line));
+  });
+
+  it("a late deadline ticked in the overlay stays there, done and focused, until it closes", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const stub = givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
+    await renderAppAt("/");
+
+    fireEvent.click(await screen.findByRole("button", { name: "En retard, 1 échéance" }));
+    const overdue = await screen.findByRole("dialog", { name: "En retard, 1 échéance" });
+    const tick = within(overdue).getByRole("checkbox", {
+      name: "Marquer comme fait : Cahier de liaison à signer",
+    });
+    tick.focus();
+    fireEvent.click(tick);
+
     await waitFor(() =>
       expect(
         stub.calls.some((call) => call.method === "POST" && call.url.pathname.endsWith("/done")),
       ).toBe(true),
     );
-    await waitFor(() => expect(screen.queryByRole("region", { name: /^En retard/ })).toBeNull());
+    await waitFor(() => expect(tick.getAttribute("aria-checked")).toBe("true"));
+    expect(tick.isConnected).toBe(true);
+    expect(document.activeElement).toBe(tick);
+    expect(within(overdue).getByRole("link", { name: "Cahier de liaison à signer" })).toBeDefined();
+
+    fireEvent.click(within(overdue).getByRole("button", { name: "Fermer" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByRole("button", { name: /^En retard/ })).toBeNull();
+  });
+
+  it("a done tick says so in a toast that undoes it", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const stub = givenCalendar([CHILD], [deadline(1, "2026-11-14", "Sac de piscine")]);
+    await renderAppAt("/");
+
+    const tick = await screen.findByRole("checkbox", {
+      name: "Marquer comme fait : Sac de piscine",
+    });
+    fireEvent.click(tick);
+    fireEvent.click(await screen.findByRole("button", { name: "Annuler" }));
+
+    await waitFor(() =>
+      expect(
+        stub.calls.some((call) => call.method === "DELETE" && call.url.pathname.endsWith("/done")),
+      ).toBe(true),
+    );
+    await waitFor(() => expect(tick.getAttribute("aria-checked")).toBe("false"));
   });
 
   it("the line counts every late deadline of the last 14 days, past a page of 50", async () => {
@@ -356,11 +399,11 @@ describe("Accueil, the family calendar", () => {
     );
     await renderAppAt("/");
 
-    const overdue = await screen.findByRole("region", { name: "En retard, 60 échéances" });
-    fireEvent.click(within(overdue).getByRole("button", { name: "En retard, 60 échéances" }));
+    fireEvent.click(await screen.findByRole("button", { name: "En retard, 60 échéances" }));
 
-    expect(within(overdue).getByText("Sur les 14 derniers jours")).toBeDefined();
+    const overdue = await screen.findByRole("dialog", { name: "En retard, 60 échéances" });
     expect(within(overdue).getAllByRole("link")).toHaveLength(60);
+    expect(within(overdue).getAllByRole("heading", { level: 3 })).toHaveLength(11);
   });
 
   it("a deadline late by more than 14 days leaves the line for past deadlines", async () => {
@@ -370,7 +413,7 @@ describe("Accueil, the family calendar", () => {
 
     await screen.findByRole("tablist", { name: "Vue des échéances" });
     await waitFor(() => expect(screen.queryByText("Autorisation de septembre")).toBeNull());
-    expect(screen.queryByRole("region", { name: /^En retard/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^En retard/ })).toBeNull();
   });
 
   it("a late deadline of a past week the parent goes back to stays on its day, not in the line", async () => {
@@ -383,7 +426,7 @@ describe("Accueil, the family calendar", () => {
       await within(tuesday).findByRole("link", { name: "Cahier de liaison à signer" }),
     ).toBeDefined();
     expect(within(tuesday).getByText("En retard")).toBeDefined();
-    expect(screen.queryByRole("region", { name: /^En retard/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^En retard/ })).toBeNull();
   });
 
   it("closing a deadline opened from the calendar gives focus back to its row", async () => {
