@@ -13,6 +13,7 @@ export const user = pgTable("user", {
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
   pendingDeletionUntil: timestamp("pending_deletion_until"),
+  lastDataExportAt: timestamp("last_data_export_at"),
   deletedAt: timestamp("deleted_at"),
 });
 

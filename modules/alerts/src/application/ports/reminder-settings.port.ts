@@ -1,4 +1,5 @@
 import type { Option, Result } from "@packages/ddd-kit";
+import type { QuietHours } from "../../domain/value-objects/quiet-hours.vo";
 import type { ReminderList } from "../../domain/value-objects/reminder-list.vo";
 import type { AlertsError } from "./alert-repository.port";
 
@@ -26,4 +27,8 @@ export interface IReminderSettingsRepository {
   ): Promise<Result<void, AlertsError>>;
 
   clearEventPlan(userId: string, eventId: string): Promise<Result<boolean, AlertsError>>;
+
+  quietHoursFor(userId: string): Promise<Result<Option<QuietHours>, AlertsError>>;
+
+  saveQuietHours(userId: string, quiet: QuietHours, at: Date): Promise<Result<void, AlertsError>>;
 }

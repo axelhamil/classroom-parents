@@ -1,8 +1,11 @@
 import { type AppError, type IInstrumentation, Option, Result, traced } from "@packages/ddd-kit";
+import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
 import {
   type EventDeadlineDto,
   type EventDto,
+  type EventListDto,
   type EventPageDto,
+  type TitledDeadlineDto,
   toEventDeadlineDto,
   toEventDto,
   type UpcomingDeadlineDto,
@@ -14,10 +17,25 @@ import type {
   IEventRepository,
 } from "../ports/event-repository.port";
 import type { IVisibleChildren } from "../ports/visible-children.port";
+import { parseRange } from "./event-fields";
 import { visibleEvent } from "./visible-event";
 
 type ListError = AgendaError | AppError;
+export interface ConfirmedSinceRequest {
+  childIds?: string[];
+  since: Date;
+  now: Date;
+  limit: number;
+}
+
 type PageReader = (filter: EventFilter) => Promise<Result<EventPage, AgendaError>>;
+
+export interface CalendarQuery {
+  from: string;
+  to: string;
+  childIds?: string[];
+  categories?: EventCategoryValue[];
+}
 
 const emptyPage: EventPageDto = { items: [], nextCursor: undefined };
 
@@ -38,7 +56,9 @@ export class EventQueryService {
     now: Date,
   ): Promise<Result<EventPageDto, ListError>> {
     return traced(this.instrumentation, "EventQueryService > listUpcoming", () =>
-      this.listVisible(userId, filter, (visible) => this.events.listUpcoming(userId, visible, now)),
+      this.listVisible(userId, { ...filter, done: filter.done ?? false }, (visible) =>
+        this.events.listUpcoming(userId, visible, now),
+      ),
     );
   }
 
@@ -50,6 +70,25 @@ export class EventQueryService {
     return traced(this.instrumentation, "EventQueryService > listHistory", () =>
       this.listVisible(userId, filter, (visible) => this.events.listHistory(userId, visible, now)),
     );
+  }
+
+  async listCalendar(
+    userId: string,
+    { from, to, ...filter }: CalendarQuery,
+  ): Promise<Result<EventListDto, ListError>> {
+    return traced(this.instrumentation, "EventQueryService > listCalendar", async () => {
+      const range = parseRange(from, to);
+      if (range.isFailure) return Result.fail(range.getError());
+
+      const visible = await this.visibleFilter(userId, filter);
+      if (visible.isFailure) return Result.fail(visible.getError());
+      if (visible.getValue().isNone()) return Result.ok({ items: [] });
+
+      const calendar = { ...visible.getValue().unwrap(), range: range.getValue() };
+      return (await this.events.listCalendar(userId, calendar)).map((events) => ({
+        items: events.map(toEventDto),
+      }));
+    });
   }
 
   async get(userId: string, eventId: string): Promise<Result<Option<EventDto>, ListError>> {
@@ -74,6 +113,22 @@ export class EventQueryService {
     );
   }
 
+  async alertableWithin(
+    userId: string,
+    from: Date,
+    to: Date,
+  ): Promise<Result<TitledDeadlineDto[], AgendaError>> {
+    return traced(this.instrumentation, "EventQueryService > alertableWithin", async () =>
+      (await this.events.listAlertableUpcoming(userId, from, to)).map((events) =>
+        events.map((event) => ({
+          eventId: event.id.value,
+          title: event.get("title").value,
+          ...toEventDeadlineDto(event),
+        })),
+      ),
+    );
+  }
+
   async alertDeadline(
     userId: string,
     eventId: string,
@@ -83,6 +138,30 @@ export class EventQueryService {
         found.map(toEventDeadlineDto),
       ),
     );
+  }
+
+  async confirmedSince(
+    userId: string,
+    request: ConfirmedSinceRequest,
+  ): Promise<Result<EventDto[], ListError>> {
+    return traced(this.instrumentation, "EventQueryService > confirmedSince", async () => {
+      const visible = await this.visibleFilter(userId, {
+        childIds: request.childIds,
+        limit: request.limit,
+      });
+      if (visible.isFailure) return Result.fail(visible.getError());
+      if (visible.getValue().isNone()) return Result.ok([]);
+
+      const childIds = visible.getValue().unwrap().childIds ?? [];
+      return (
+        await this.events.listConfirmedSince(
+          userId,
+          childIds,
+          { since: request.since, now: request.now },
+          request.limit,
+        )
+      ).map((events) => events.map(toEventDto));
+    });
   }
 
   private async listVisible(
@@ -97,10 +176,10 @@ export class EventQueryService {
     return (await read(visible.getValue().unwrap())).map(toPageDto);
   }
 
-  private async visibleFilter(
+  private async visibleFilter<F extends { childIds?: string[] }>(
     userId: string,
-    filter: EventFilter,
-  ): Promise<Result<Option<EventFilter>, AppError>> {
+    filter: F,
+  ): Promise<Result<Option<F>, AppError>> {
     const ids = await this.children.idsOf(userId);
     if (ids.isFailure) return Result.fail(ids.getError());
 

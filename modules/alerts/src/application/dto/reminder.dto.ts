@@ -21,6 +21,18 @@ export interface EventRemindersDto {
   reminders: PlannedReminderDto[];
 }
 
+export interface QuietHoursDto {
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+export const quietHoursBodySchema = z.strictObject({
+  enabled: z.boolean(),
+  start: z.string(),
+  end: z.string(),
+});
+
 export interface DefaultRemindersDto {
   reminders: ReminderValue[];
 }
@@ -36,13 +48,24 @@ export const remindersBodySchema = z.strictObject({
   reminders: z.array(reminderInputSchema).max(REMINDERS_BODY_MAX),
 });
 
-function alertOf(alerts: Alert[], { reminder, time }: ResolvedReminder): Option<Alert> {
-  return time.flatMap((at) => {
-    const current = alerts.filter((alert) => alert.get("time").equals(at));
-    return Option.fromNullable(
-      current.find((alert) => alert.key() === reminder.key()) ?? current[0],
+function alertOf(
+  alerts: Alert[],
+  { reminder, time }: ResolvedReminder,
+  deadlineAt: Date,
+): Option<Alert> {
+  const own = alerts.filter((alert) => alert.key() === reminder.key());
+  const planned =
+    own.find((alert) => alert.isPending()) ??
+    own.find(
+      (alert) =>
+        alert.get("status").value !== "skipped" &&
+        alert.get("deadlineAt").getTime() === deadlineAt.getTime(),
     );
-  });
+  if (planned) return Option.some(planned);
+
+  return time.flatMap((at) =>
+    Option.fromNullable(alerts.find((alert) => alert.get("time").equals(at))),
+  );
 }
 
 export interface FittingReminder extends ResolvedReminder {
@@ -53,16 +76,24 @@ export function toEventRemindersDto(
   resolved: FittingReminder[],
   customized: boolean,
   alerts: Alert[],
+  deadlineAt: Date,
 ): EventRemindersDto {
   return {
     customized,
-    reminders: resolved.map((item) => ({
-      reminder: item.reminder.value,
-      dueAt: item.time.map((at) => at.value.at.toISOString()).toNull(),
-      status: alertOf(alerts, item)
-        .map((alert): ReminderStatus => alert.get("status").value)
-        .unwrapOr("unplanned"),
-      fits: item.fits,
-    })),
+    reminders: resolved.map((item) => {
+      const alert = alertOf(alerts, item, deadlineAt);
+      return {
+        reminder: item.reminder.value,
+        dueAt: alert
+          .map((found) => found.get("time"))
+          .orElse(() => item.time)
+          .map((at) => at.value.at.toISOString())
+          .toNull(),
+        status: alert
+          .map((found): ReminderStatus => found.get("status").value)
+          .unwrapOr("unplanned"),
+        fits: item.fits,
+      };
+    }),
   };
 }

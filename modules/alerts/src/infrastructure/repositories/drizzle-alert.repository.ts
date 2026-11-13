@@ -12,6 +12,7 @@ import {
   leasedBy,
   lockAllForTransaction,
   lte,
+  or,
   resolveExecutor,
   type SQL,
   sql,
@@ -96,6 +97,8 @@ function fencedBy(lease: AlertLease): SQL | undefined {
   );
 }
 
+const CLAIM_LOCK = "alert-claim:";
+
 export function alertClaimQuery(
   exec: ReturnType<typeof resolveExecutor>,
   now: Date,
@@ -103,14 +106,49 @@ export function alertClaimQuery(
   leaseSeconds: number,
   scope?: SQL,
 ) {
+  const ready = and(
+    eq(alert.status, "pending"),
+    lte(alert.dueAt, now),
+    isDue(alert.nextAttemptAt),
+    scope,
+  );
+  const parents = db
+    .select({
+      userId: alert.userId,
+      due: sql<number>`count(*)::int`.as("due"),
+      firstDue: sql<Date>`min(${alert.dueAt})`.as("first_due"),
+    })
+    .from(alert)
+    .where(ready)
+    .groupBy(alert.userId)
+    .orderBy(sql`min(${alert.dueAt})`, alert.userId)
+    .limit(limit)
+    .as("parents");
+  const queued = db
+    .select({
+      userId: parents.userId,
+      place: sql<number>`row_number() over (order by ${parents.firstDue}, ${parents.userId})`.as(
+        "place",
+      ),
+      upTo: sql<number>`sum(${parents.due}) over (order by ${parents.firstDue}, ${parents.userId})`.as(
+        "up_to",
+      ),
+    })
+    .from(parents)
+    .as("queued");
+  const whole = db
+    .select({ userId: queued.userId })
+    .from(queued)
+    .where(
+      and(
+        or(eq(queued.place, 1), lte(queued.upTo, limit)),
+        sql`pg_try_advisory_xact_lock(hashtextextended(${CLAIM_LOCK} || ${queued.userId}, 0))`,
+      ),
+    );
   const due = db
     .select({ id: alert.id })
     .from(alert)
-    .where(
-      and(eq(alert.status, "pending"), lte(alert.dueAt, now), isDue(alert.nextAttemptAt), scope),
-    )
-    .orderBy(asc(alert.dueAt))
-    .limit(limit)
+    .where(and(ready, inArray(alert.userId, whole)))
     .for("update", { skipLocked: true });
 
   return exec

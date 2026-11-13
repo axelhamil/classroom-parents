@@ -12,6 +12,7 @@ import type { IReminderSettingsRepository } from "../application/ports/reminder-
 import { AlertPlanningService } from "../application/services/alert-planning.service";
 import { ReminderSettingsService } from "../application/services/reminder-settings.service";
 import type { Alert } from "../domain/alert.aggregate";
+import { QuietHours } from "../domain/value-objects/quiet-hours.vo";
 import type { ReminderValue } from "../domain/value-objects/reminder.vo";
 import { ReminderList } from "../domain/value-objects/reminder-list.vo";
 import { ALERT_EVENT, existingAlert, PARENT, paris } from "../testing/alert.fixture";
@@ -87,6 +88,11 @@ beforeEach(() => {
   settings.saveDefaults.mockResolvedValue(Result.ok());
   settings.saveEventPlan.mockResolvedValue(Result.ok());
   settings.clearEventPlan.mockResolvedValue(Result.ok(true));
+  settings.quietHoursFor.mockResolvedValue(Result.ok(Option.none()));
+  settings.saveQuietHours.mockImplementation(async (_user, quiet) => {
+    settings.quietHoursFor.mockResolvedValue(Result.ok(Option.some(quiet)));
+    return Result.ok();
+  });
   deadlines.upcomingFor.mockResolvedValue(Result.ok([]));
   givenEvent(deadlineOn("2026-11-15"));
 
@@ -351,7 +357,7 @@ describe("reminders of one event", () => {
     expect(savedAlerts().map((alert) => alert.get("origin").value)).toEqual(["user", "user"]);
   });
 
-  it("given a reminder already past for this event, then it is accepted but not planned", async () => {
+  it("given the only reminder of this event already past while the deadline is still ahead, then it rings once in the next minute", async () => {
     givenEvent(deadlineOn("2026-11-11"));
     settings.saveEventPlan.mockImplementation(async (_user, _event, reminders) => {
       settings.eventPlanFor.mockResolvedValue(Result.ok(Option.some(reminders)));
@@ -363,12 +369,11 @@ describe("reminders of one event", () => {
     expect(result.getValue().reminders).toEqual([
       {
         reminder: days(3, "18:00"),
-        dueAt: "2026-11-08T17:00:00.000Z",
-        status: "unplanned",
+        dueAt: "2026-11-10T09:01:00.000Z",
+        status: "pending",
         fits: true,
       },
     ]);
-    expect(alerts.saveMany).not.toHaveBeenCalled();
   });
 
   it("given a customized event, when the parent goes back to the defaults, then ALERT_REMINDERS_RESET is emitted and the defaults replace its reminders", async () => {
@@ -419,6 +424,35 @@ describe("reminders of one event", () => {
     ]);
   });
 
+  it("given a reminder moved out of the quiet hours and then sent, then reading it shows the send at its real time", async () => {
+    settings.defaultsFor.mockResolvedValue(
+      Result.ok(Option.some(ReminderList.from([days(1, "22:00")]).getValue())),
+    );
+    givenEvent(deadlineOn("2026-11-16", "08:00"));
+    alerts.listOwned.mockResolvedValue(
+      Result.ok([
+        existingAlert({
+          reminder: "d1@22:00",
+          status: "sent",
+          date: "2026-11-16",
+          time: "07:00",
+          deadlineAt: paris("2026-11-16", "08:00"),
+        }),
+      ]),
+    );
+
+    const result = await service.eventReminders(PARENT, ALERT_EVENT);
+
+    expect(result.getValue().reminders).toEqual([
+      {
+        reminder: days(1, "22:00"),
+        dueAt: "2026-11-16T06:00:00.000Z",
+        status: "sent",
+        fits: true,
+      },
+    ]);
+  });
+
   it("given an event that follows the defaults, then reading it shows each default reminder and its state", async () => {
     alerts.listOwned.mockResolvedValue(Result.ok([existingAlert({ status: "sent" })]));
 
@@ -435,5 +469,57 @@ describe("reminders of one event", () => {
         },
       ],
     });
+  });
+});
+
+describe("quiet hours", () => {
+  it("given a parent who never set them, then no alert rings from 21:00 to 07:00", async () => {
+    const result = await service.quietHours(PARENT);
+
+    expect(result.getValue()).toEqual({ enabled: true, start: "21:00", end: "07:00" });
+  });
+
+  it("given new quiet hours covering an upcoming alert, then they are stored, announced with the parent as actor and the alert rings when they end", async () => {
+    givenUpcoming(ALERT_EVENT);
+    const quiet = { enabled: true, start: "17:00", end: "19:00" };
+
+    const result = await service.setQuietHours(PARENT, quiet);
+
+    expect(result.getValue()).toEqual(quiet);
+    expect(settings.saveQuietHours).toHaveBeenCalledWith(
+      PARENT,
+      QuietHours.from(quiet).getValue(),
+      NOW,
+    );
+    expect(enqueuedEvents(outbox)[0]).toEqual({
+      eventType: EventTypes.ALERT_QUIET_HOURS_CHANGED,
+      aggregateId: PARENT,
+      payload: { userId: PARENT, ...quiet },
+    });
+    expect(savedAlerts().map((alert) => alert.get("time").value.at)).toEqual([
+      paris("2026-11-13", "19:00"),
+    ]);
+  });
+
+  it("given the quiet hours already in force, then nothing is written nor announced", async () => {
+    const result = await service.setQuietHours(PARENT, {
+      enabled: true,
+      start: "21:00",
+      end: "07:00",
+    });
+
+    expect(result.isSuccess).toBe(true);
+    expect(settings.saveQuietHours).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it.each([
+    ["the same start and end", { enabled: true, start: "08:00", end: "08:00" }],
+    ["a time that does not exist", { enabled: true, start: "24:00", end: "07:00" }],
+  ])("given %s, then ALERT_QUIET_HOURS_INVALID and nothing is written", async (_, quiet) => {
+    const result = await service.setQuietHours(PARENT, quiet);
+
+    expect(result.getError().code).toBe("ALERT_QUIET_HOURS_INVALID");
+    expect(settings.saveQuietHours).not.toHaveBeenCalled();
   });
 });

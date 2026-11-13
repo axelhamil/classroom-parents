@@ -1,10 +1,60 @@
 export default {
   home: {
     title: "Réglages",
-    description: "Rappels, installation sur le téléphone et données personnelles.",
+    description: "Vos alertes, vos appareils et les données de votre famille.",
+  },
+  appearance: {
+    title: "Apparence",
+    description:
+      "Le thème de l'application sur cet appareil. Automatique suit le réglage clair ou sombre de l'appareil.",
+  },
+  tour: {
+    title: "Visite guidée",
+    description: "Les repères de chaque écran, montrés une fois. Relancez-les à tout moment.",
+    action: "Revoir la visite guidée",
+  },
+  devices: {
+    title: "Appareils connectés",
+    description: "Les téléphones et ordinateurs où votre compte est ouvert.",
+    loading: "Chargement de vos appareils",
+    loadError: "Impossible de charger vos appareils.",
+    label: "{{browser}} sur {{device}}",
+    unknown: "Appareil inconnu",
+    kind: {
+      ios: "iPhone ou iPad",
+      android: "Android",
+      mac: "Mac",
+      windows: "Windows",
+      linux: "Linux",
+      unknown: "un appareil inconnu",
+    },
+    browser: {
+      chrome: "Chrome",
+      safari: "Safari",
+      firefox: "Firefox",
+      edge: "Edge",
+      samsung: "Samsung Internet",
+      unknown: "Navigateur",
+    },
+    current: "Cet appareil",
+    currentActivity: "Celui que vous utilisez en ce moment.",
+    lastActive: "Dernière activité le {{date}}.",
+    others: "Vos autres appareils",
+    alone: "Aucun autre appareil n'est connecté à votre compte.",
+    revoke: "Déconnecter",
+    revoked: "Appareil déconnecté. Il ne reçoit plus vos alertes.",
+    revokeFailed: "L'appareil n'a pas pu être déconnecté. Réessayez dans un instant.",
+    revokeOthers: "Se déconnecter partout ailleurs",
+    revokeOthersTitle: "Déconnecter les autres appareils ?",
+    revokeOthersDescription:
+      "Vos autres appareils ne recevront plus vos alertes et devront se reconnecter avec Google pour revoir les échéances de vos enfants. Cet appareil reste connecté.",
+    revokeOthersConfirm: "Oui, les déconnecter",
+    revokedOthers: "Vos autres appareils sont déconnectés et ne reçoivent plus vos alertes.",
+    revokeOthersFailed:
+      "Vos autres appareils n'ont pas pu être déconnectés. Réessayez dans un instant.",
   },
   push: {
-    title: "Alertes sur ce téléphone",
+    title: "Notifications sur ce téléphone",
     description: "Une notification à chaque rappel de vos échéances, même application fermée.",
     defaults: "Rappels par défaut : {{reminders}}.",
     noDefaults:
@@ -22,19 +72,43 @@ export default {
     unsupported:
       "Ce navigateur ne sait pas recevoir de notifications. Ouvrez l'application dans Chrome, Edge, Firefox ou Safari récent.",
     deniedTitle: "Notifications bloquées",
-    denied:
-      "Vous avez refusé les notifications pour cette application. Pour les autoriser : sur Android, touchez le cadenas à gauche de l'adresse, puis Autorisations, puis Notifications. Sur iPhone, ouvrez Réglages, puis Notifications, puis cette application. Revenez ensuite sur cette page.",
+    denied: {
+      androidBrowser:
+        "Vous avez refusé les notifications. Pour les autoriser : touchez le cadenas à gauche de l'adresse, puis Autorisations, puis Notifications. Revenez ensuite sur cette page.",
+      androidApp:
+        "Vous avez refusé les notifications. Pour les autoriser : ouvrez les Paramètres du téléphone, puis Applications, puis KeepUpKids, puis Notifications. Revenez ensuite dans l'application.",
+      ios: "Vous avez refusé les notifications. Pour les autoriser : ouvrez Réglages, puis Notifications, puis KeepUpKids, et activez Autoriser les notifications. Revenez ensuite dans l'application.",
+      desktop:
+        "Vous avez refusé les notifications. Pour les autoriser : cliquez sur l'icône à gauche de l'adresse, autorisez les notifications pour ce site, puis rechargez la page.",
+    },
+    install: "Installer l'application",
+    installHint:
+      "Installée, l'application s'ouvre comme les autres et reçoit les alertes plus fiablement.",
     emailFallback:
       "Aucun appareil ne reçoit vos alertes pour l'instant : elles vous sont envoyées par e-mail, à l'adresse de votre compte Google.",
     installFirst: "Ajoutez d'abord l'application à l'écran d'accueil.",
+    lockScreen: "Afficher les détails sur l'écran verrouillé",
+    lockScreenHidden:
+      "Les notifications disent seulement « KeepUpKids » et le nombre d'échéances, sans prénom ni titre de devoir.",
+    lockScreenShown:
+      "Les notifications montrent le prénom de l'enfant et le titre de l'échéance, même téléphone verrouillé.",
   },
   reminders: {
     title: "Rappels par défaut",
     description:
       "De 0 à 5 rappels pour chaque échéance. Une échéance dont vous avez choisi les rappels garde les siens.",
     loading: "Chargement des rappels par défaut",
-    loadError: "Impossible de charger les rappels par défaut.",
     saved: "Rappels par défaut enregistrés",
+  },
+  quietHours: {
+    title: "Heures calmes",
+    description:
+      "Aucune alerte ne sonne pendant ces heures : elle arrive à leur fin, ou juste avant si l'échéance tombe pendant la nuit.",
+    enabled: "Respecter les heures calmes",
+    start: "Début",
+    end: "Fin",
+    loading: "Chargement des heures calmes",
+    saved: "Heures calmes enregistrées",
   },
   install: {
     title: "Installer sur l'iPhone",
@@ -48,15 +122,19 @@ export default {
     },
   },
   links: {
-    title: "Vos données",
-    description: "Ce que nous conservons, pourquoi, et vos droits.",
+    title: "Confidentialité",
+    description: "Ce que l'application lit, ce qu'elle garde, et vos droits.",
     privacy: "Confidentialité et données",
     policy: "Politique de confidentialité",
     dataRights: "Vos droits sur vos données",
   },
+  account: {
+    title: "Compte",
+    description: "Votre compte Google sert à vous connecter, rien de plus.",
+  },
   signOut: {
     title: "Se déconnecter",
-    description: "Ce téléphone ne recevra plus vos alertes.",
+    description: "Cet appareil ne recevra plus vos alertes.",
     action: "Se déconnecter",
     dialogTitle: "Se déconnecter de ce téléphone ?",
     dialogDescription:
@@ -117,6 +195,10 @@ export default {
       title: "Sous-traitants",
       description: "Les prestataires qui font fonctionner le service.",
       viewAll: "Voir le registre des sous-traitants",
+    },
+    retention: {
+      title: "Combien de temps nous gardons vos échéances",
+      body: "Une échéance reste 12 mois après sa date, puis elle est effacée avec ses rappels. Une échéance que vous supprimez ou que l'enseignant retire est effacée 30 jours plus tard ; un devoir Classroom reste au moins 61 jours après sa date, pour qu'une synchronisation ne le recrée pas.",
     },
     rights: {
       title: "Vos droits",

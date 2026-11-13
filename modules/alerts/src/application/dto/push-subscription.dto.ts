@@ -14,6 +14,7 @@ export const pushSubscriptionSchema = z.object({
     .refine(isKnownPushService),
   keys: z.object({ p256dh: base64Url, auth: base64Url }),
   userAgent: z.string().optional(),
+  sessionId: z.string().optional(),
 });
 
 export type PushSubscriptionInput = z.input<typeof pushSubscriptionSchema>;
@@ -32,3 +33,9 @@ export interface PushStatusDto {
 export interface PushConfigDto {
   vapidPublicKey: string;
 }
+
+export interface LockScreenDto {
+  details: boolean;
+}
+
+export const lockScreenBodySchema = z.object({ details: z.boolean() });

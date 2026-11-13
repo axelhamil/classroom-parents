@@ -32,6 +32,19 @@ const CONNECTED = child("3a7c2f4e-1d2b-4c3a-9e8f-0a1b2c3d4e5f", "Inès", "connec
 
 const copy = frCatalog.children;
 
+async function openMenu(label: string) {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const trigger = await screen.findByRole("button", { name: `Actions pour ${label}` });
+  await userEvent.click(trigger);
+}
+
 describe("children list", () => {
   afterEach(resetApp);
 
@@ -68,6 +81,30 @@ describe("children list", () => {
     expect(shared).toContain(copy.school.steps.path);
   });
 
+  it("child card exposes rename, sync and disconnect in its menu", async () => {
+    const calls = fakeApi({
+      "GET /children": { body: [CONNECTED] },
+      [`POST /sync/${CONNECTED.id}`]: { status: 202, body: { status: "started" } },
+    });
+
+    await renderApp("/children");
+    await openMenu(CONNECTED.label);
+
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      copy.card.rename,
+      copy.card.sync,
+      copy.card.disconnect,
+    ]);
+    await userEvent.click(screen.getByRole("menuitem", { name: copy.card.sync }));
+
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.method === "POST" && call.path === `/sync/${CONNECTED.id}`),
+      ).toHaveLength(1),
+    );
+  });
+
   it("given a child being disconnected, then it says so and offers no reconnection", async () => {
     fakeApi({ "GET /children": { body: [LEAVING] } });
 
@@ -84,7 +121,8 @@ describe("children list", () => {
     });
 
     await renderApp("/children");
-    await userEvent.click(await screen.findByRole("button", { name: copy.card.disconnect }));
+    await openMenu(CONNECTED.label);
+    await userEvent.click(await screen.findByRole("menuitem", { name: copy.card.disconnect }));
 
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText(copy.disconnect.description)).toBeTruthy();

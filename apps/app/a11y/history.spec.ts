@@ -1,5 +1,6 @@
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { expect, test } from "@playwright/test";
+import { showColorScheme } from "./color-scheme";
 import { inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
@@ -18,12 +19,12 @@ test.describe("history on a phone", () => {
 
   for (const colorScheme of COLOR_SCHEMES) {
     test(`100 past events, two children (${colorScheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       const requests = await serveFamily(page, {
         children: [LEA, MAXIMILIEN],
         events: PAST_EVENTS,
       });
-      await page.goto("/history");
+      await page.goto("/?tab=history");
 
       await expect(
         page.getByRole("link", { name: new RegExp(REVIEW_EVENT.title.slice(0, 30)) }),
@@ -41,11 +42,11 @@ test.describe("history on a phone", () => {
     });
 
     test(`empty history (${colorScheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       await serveFamily(page, { children: [LEA], events: [] });
-      await page.goto("/history");
+      await page.goto("/?tab=history");
 
-      await expect(page.getByText("Les échéances passées seront rangées ici.")).toBeVisible();
+      await expect(page.getByText("Les échéances passées viendront se ranger ici.")).toBeVisible();
       expect(await blockingViolations(page)).toEqual([]);
     });
   }

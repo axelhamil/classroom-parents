@@ -1,13 +1,12 @@
 export default {
-  title: "Historique",
   loading: "Chargement de l'historique",
   empty: {
-    title: "Rien dans l'historique",
-    description: "Les échéances passées seront rangées ici.",
+    title: "L'historique est encore vide",
+    description: "Les échéances passées viendront se ranger ici.",
+    action: "Voir les échéances à venir",
   },
   filtered: {
     title: "Rien pour ce filtre",
     description: "Aucune échéance passée ne correspond à ce choix.",
-    action: "Tout afficher",
   },
 } as const;

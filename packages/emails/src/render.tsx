@@ -1,8 +1,9 @@
-import { createI18n, DEFAULT_LOCALE, type Locale, loadCatalog } from "@packages/i18n";
+import { DEFAULT_LOCALE, i18nFor, type Locale } from "@packages/i18n";
 import { render } from "@react-email/render";
 import type { TFunction } from "i18next";
 import type { ComponentType } from "react";
 import { I18nextProvider } from "react-i18next";
+import { AlertGroup, alertGroupSubject } from "./components/alert-group";
 import { AlertReminder } from "./components/alert-reminder";
 import { ApiTokenLeaked } from "./components/api-token-leaked";
 import { BackupCodeUsed } from "./components/backup-code-used";
@@ -17,6 +18,7 @@ import { NotificationDigest, notificationDigestSubject } from "./components/noti
 import { OrgInvitation } from "./components/org-invitation";
 import { ResetPassword } from "./components/reset-password";
 import { VerifyEmail } from "./components/verify-email";
+import { WeeklyDigest } from "./components/weekly-digest";
 import type { EmailTemplateKey, EmailTemplates } from "./templates";
 
 export interface RenderedEmail {
@@ -55,6 +57,8 @@ const TEMPLATES: { [K in EmailTemplateKey]: TemplateEntry<K> } = {
     subject: (t, v) =>
       t("subjects.alertReminder", { eventTitle: v.eventTitle, childLabel: v.childLabel }),
   },
+  alert_group: { component: AlertGroup, subject: alertGroupSubject },
+  weekly_digest: { component: WeeklyDigest, subject: (t) => t("subjects.weeklyDigest") },
 };
 
 export const EMAIL_TEMPLATE_KEYS = Object.keys(TEMPLATES) as EmailTemplateKey[];
@@ -64,8 +68,7 @@ export async function renderTemplate<K extends EmailTemplateKey>(
   variables: EmailTemplates[K],
   locale: Locale = DEFAULT_LOCALE,
 ): Promise<RenderedEmail> {
-  const resources = await loadCatalog(locale);
-  const i18n = await createI18n({ locale, resources });
+  const i18n = await i18nFor(locale);
   const t = i18n.getFixedT(locale, "emails");
 
   const entry: TemplateEntry<K> = TEMPLATES[key];

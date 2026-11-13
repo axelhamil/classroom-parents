@@ -5,7 +5,7 @@ import { cn } from "../../libs/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 const truncatedTextVariants = cva(
-  "block max-w-full rounded-xs break-all whitespace-normal outline-none focus-visible:ring-[3px] focus-visible:ring-ring sm:pointer-fine:truncate",
+  "block max-w-full rounded-xs break-all whitespace-normal outline-none focus-visible:ring focus-visible:ring-ring sm:pointer-fine:truncate",
   {
     variants: {
       font: {

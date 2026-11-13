@@ -26,9 +26,10 @@ export function eventFilterQuery(filters: EventFilters) {
   };
 }
 
-export function eventPagesQueryOptions(scope: EventScope, filters: EventFilters) {
+export function eventPagesQueryOptions(scope: EventScope, filters: EventFilters, enabled = true) {
   return infiniteQueryOptions({
     queryKey: [...EVENTS_KEY, scope, filters] as const,
+    enabled,
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam, signal }) => {
       const res = await $list(

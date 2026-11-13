@@ -29,14 +29,26 @@ describe("theme-init script", () => {
     expect(toggle).toHaveBeenCalledWith("dark", false);
   });
 
-  it("follows the system preference when nothing is stored or storage throws", () => {
+  it("applies light when no stored choice even if prefers-color-scheme is dark", () => {
     const unset = runThemeInit(() => null, true);
     const blocked = runThemeInit(() => {
       throw new Error("denied");
     }, true);
 
-    expect(unset).toHaveBeenCalledWith("dark", true);
-    expect(blocked).toHaveBeenCalledWith("dark", true);
+    expect(unset).toHaveBeenCalledWith("dark", false);
+    expect(blocked).toHaveBeenCalledWith("dark", false);
+  });
+
+  it("applies dark before paint when stored choice is dark", () => {
+    const toggle = runThemeInit(() => "dark", false);
+
+    expect(toggle).toHaveBeenCalledWith("dark", true);
+  });
+
+  it("follows the system preference only when the stored choice is system", () => {
+    const toggle = runThemeInit(() => "system", true);
+
+    expect(toggle).toHaveBeenCalledWith("dark", true);
   });
 
   it("paints the browser chrome with the chosen theme on both color metas", () => {
@@ -44,5 +56,11 @@ describe("theme-init script", () => {
 
     expect(setAttribute).toHaveBeenCalledTimes(2);
     expect(setAttribute).toHaveBeenCalledWith("content", THEME_COLORS.dark);
+  });
+
+  it("paints the browser chrome light with the same hex the running app uses", () => {
+    const { setAttribute } = runThemeInit(() => null, true);
+
+    expect(setAttribute).toHaveBeenCalledWith("content", THEME_COLORS.light);
   });
 });

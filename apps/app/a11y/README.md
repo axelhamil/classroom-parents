@@ -59,20 +59,20 @@ Three things bite when running repeatedly:
   the final URL for that reason; if a session or policy gate fires, the failure
   names the redirect instead of silently auditing the wrong page.
 - **`workers` is pinned to `4`, but that is not what keeps the rate limiter
-  off this suite.** The bucket a full sweep fills is the **IP**-keyed one
-  (`global:<ip>`), not the per-user one: the API nulls the user for
-  `/api/auth/*` (`sessionMiddleware`), so a signed-in page's session
-  queries are counted against the IP, next to every
-  unauthenticated page load. Measured over a full sweep: 61 requests in
-  `global:60:global:::1` against a then-60/min ceiling, one over, twice in a
-  row, while the per-user bucket sat at 39. Worker count bounds neither: the
-  ceiling is per minute across the whole run and the IP is identical from every
-  worker. What fixed it was tuning the API's burst window to what a page view
-  actually costs, a signed-in view fires up to 8 API calls, so 60/min allowed
-  ~7 navigations per minute (`GLOBAL_POLICY` in
-  `apps/api/src/shared/middleware/rate-limit.policies.ts`, now 300/min burst
-  with the 1800/hour sustained ceiling unchanged). The pin to `4` stays as a
-  courtesy cap on host load.
+  off this suite.** Every authenticated test signs in as the one seeded parent,
+  so the bucket a full sweep fills is that parent's (`global:<userId>`); the
+  **IP**-keyed one (`global:<ip>`) only takes `/api/auth/*` (the API nulls the
+  user there, `sessionMiddleware`) and the public pages. Measured over a full
+  sweep at 4 workers: 361 requests in the parent's bucket in about 30 s
+  (337 when it broke the then-300/min ceiling), and 135 in the IP bucket. Worker count bounds
+  neither: the whole sweep fits in one window, so its request count is what
+  matters. What fixed it was tuning the API's burst window to what opening the
+  app costs, the signed-in home fires 9 calls in that bucket
+  (`GLOBAL_POLICY` in
+  `apps/api/src/shared/middleware/rate-limit.policies.ts`, now 600/min burst
+  with the 1800/hour sustained ceiling unchanged). The hour window still holds:
+  about five full sweeps per hour on one API process before it refuses the
+  parent. The pin to `4` stays as a courtesy cap on host load.
 - **Resetting the limiter takes two steps.** `DELETE FROM rate_limit` on the
   dev database *and* a restart of the API process, `inMemoryBlockOnConsumed`
   caches the block in-process, so clearing the table alone leaves it in place.

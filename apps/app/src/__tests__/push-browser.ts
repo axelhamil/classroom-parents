@@ -45,6 +45,8 @@ export function givenPushBrowser({
     value: {
       ready: Promise.resolve({ pushManager }),
       getRegistration: async () => ({ pushManager }),
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
     },
   });
 

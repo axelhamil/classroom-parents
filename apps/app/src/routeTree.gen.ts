@@ -13,6 +13,7 @@ import { Route as routerGuestRouteImport } from './router/_guest'
 import { Route as routerProtectedRouteImport } from './router/_protected'
 import { Route as featuresAuthLoginDotrouteRouteImport } from './features/auth/login.route'
 import { Route as routerShellRouteImport } from './router/_shell'
+import { Route as featuresOnboardingOnboardingDotrouteRouteImport } from './features/onboarding/onboarding.route'
 import { Route as featuresLegalAccessibilityDotrouteRouteImport } from './features/legal/accessibility.route'
 import { Route as featuresLegalCookiesDotrouteRouteImport } from './features/legal/cookies.route'
 import { Route as featuresLegalDataRightsDotrouteRouteImport } from './features/legal/data-rights.route'
@@ -24,9 +25,10 @@ import { Route as featuresChildrenChildrenDotrouteRouteImport } from './features
 import { Route as featuresHistoryHistoryDotrouteRouteImport } from './features/history/history.route'
 import { Route as featuresSettingsSettingsDotrouteRouteImport } from './features/settings/settings.route'
 import { Route as featuresChildrenLinkErrorDotrouteRouteImport } from './features/children/link-error.route'
-import { Route as featuresChildrenNewChildDotrouteRouteImport } from './features/children/new-child.route'
+import { Route as featuresOnboardingNewChildDotrouteRouteImport } from './features/onboarding/new-child.route'
 import { Route as featuresEventsEventDetailDotrouteRouteImport } from './features/events/event-detail.route'
 import { Route as featuresPrivacyPrivacyDotrouteRouteImport } from './features/privacy/privacy.route'
+import { Route as featuresEventsPrintWeekDotrouteRouteImport } from './features/events/print-week.route'
 import { Route as featuresEventsEventEditDotrouteRouteImport } from './features/events/event-edit.route'
 
 const routerGuestRoute = routerGuestRouteImport.update({
@@ -47,6 +49,12 @@ const routerShellRoute = routerShellRouteImport.update({
   id: '/_shell',
   getParentRoute: () => routerProtectedRoute,
 } as any)
+const featuresOnboardingOnboardingDotrouteRoute =
+  featuresOnboardingOnboardingDotrouteRouteImport.update({
+    id: '/onboarding',
+    path: '/onboarding',
+    getParentRoute: () => routerProtectedRoute,
+  } as any)
 const featuresLegalAccessibilityDotrouteRoute =
   featuresLegalAccessibilityDotrouteRouteImport.update({
     id: '/legal/accessibility',
@@ -113,8 +121,8 @@ const featuresChildrenLinkErrorDotrouteRoute =
     path: '/children/link-error',
     getParentRoute: () => routerShellRoute,
   } as any)
-const featuresChildrenNewChildDotrouteRoute =
-  featuresChildrenNewChildDotrouteRouteImport.update({
+const featuresOnboardingNewChildDotrouteRoute =
+  featuresOnboardingNewChildDotrouteRouteImport.update({
     id: '/children/new',
     path: '/children/new',
     getParentRoute: () => routerShellRoute,
@@ -131,6 +139,12 @@ const featuresPrivacyPrivacyDotrouteRoute =
     path: '/settings/privacy',
     getParentRoute: () => routerShellRoute,
   } as any)
+const featuresEventsPrintWeekDotrouteRoute =
+  featuresEventsPrintWeekDotrouteRouteImport.update({
+    id: '/week/print',
+    path: '/week/print',
+    getParentRoute: () => routerShellRoute,
+  } as any)
 const featuresEventsEventEditDotrouteRoute =
   featuresEventsEventEditDotrouteRouteImport.update({
     id: '/events/$eventId/edit',
@@ -141,6 +155,7 @@ const featuresEventsEventEditDotrouteRoute =
 export interface FileRoutesByFullPath {
   '/': typeof featuresEventsEventsDotrouteRoute
   '/login': typeof featuresAuthLoginDotrouteRoute
+  '/onboarding': typeof featuresOnboardingOnboardingDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -151,14 +166,16 @@ export interface FileRoutesByFullPath {
   '/history': typeof featuresHistoryHistoryDotrouteRoute
   '/settings': typeof featuresSettingsSettingsDotrouteRoute
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
-  '/children/new': typeof featuresChildrenNewChildDotrouteRoute
+  '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof featuresEventsEventsDotrouteRoute
   '/login': typeof featuresAuthLoginDotrouteRoute
+  '/onboarding': typeof featuresOnboardingOnboardingDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -169,9 +186,10 @@ export interface FileRoutesByTo {
   '/history': typeof featuresHistoryHistoryDotrouteRoute
   '/settings': typeof featuresSettingsSettingsDotrouteRoute
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
-  '/children/new': typeof featuresChildrenNewChildDotrouteRoute
+  '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRoutesById {
@@ -179,6 +197,7 @@ export interface FileRoutesById {
   '/_guest': typeof routerGuestRouteWithChildren
   '/_protected': typeof routerProtectedRouteWithChildren
   '/_guest/login': typeof featuresAuthLoginDotrouteRoute
+  '/_protected/onboarding': typeof featuresOnboardingOnboardingDotrouteRoute
   '/legal/accessibility': typeof featuresLegalAccessibilityDotrouteRoute
   '/legal/cookies': typeof featuresLegalCookiesDotrouteRoute
   '/legal/data-rights': typeof featuresLegalDataRightsDotrouteRoute
@@ -191,9 +210,10 @@ export interface FileRoutesById {
   '/_protected/_shell/history': typeof featuresHistoryHistoryDotrouteRoute
   '/_protected/_shell/settings': typeof featuresSettingsSettingsDotrouteRoute
   '/_protected/_shell/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
-  '/_protected/_shell/children/new': typeof featuresChildrenNewChildDotrouteRoute
+  '/_protected/_shell/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/_protected/_shell/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/_protected/_shell/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/_protected/_shell/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/_protected/_shell/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
 export interface FileRouteTypes {
@@ -201,6 +221,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/onboarding'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -214,11 +235,13 @@ export interface FileRouteTypes {
     | '/children/new'
     | '/events/$eventId'
     | '/settings/privacy'
+    | '/week/print'
     | '/events/$eventId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/onboarding'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -232,12 +255,14 @@ export interface FileRouteTypes {
     | '/children/new'
     | '/events/$eventId'
     | '/settings/privacy'
+    | '/week/print'
     | '/events/$eventId/edit'
   id:
     | '__root__'
     | '/_guest'
     | '/_protected'
     | '/_guest/login'
+    | '/_protected/onboarding'
     | '/legal/accessibility'
     | '/legal/cookies'
     | '/legal/data-rights'
@@ -253,6 +278,7 @@ export interface FileRouteTypes {
     | '/_protected/_shell/children/new'
     | '/_protected/_shell/events/$eventId'
     | '/_protected/_shell/settings/privacy'
+    | '/_protected/_shell/week/print'
     | '/_protected/_shell/events/$eventId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -295,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof routerShellRouteImport
+      parentRoute: typeof routerProtectedRoute
+    }
+    '/_protected/onboarding': {
+      id: '/_protected/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof featuresOnboardingOnboardingDotrouteRouteImport
       parentRoute: typeof routerProtectedRoute
     }
     '/legal/accessibility': {
@@ -378,7 +411,7 @@ declare module '@tanstack/react-router' {
       id: '/_protected/_shell/children/new'
       path: '/children/new'
       fullPath: '/children/new'
-      preLoaderRoute: typeof featuresChildrenNewChildDotrouteRouteImport
+      preLoaderRoute: typeof featuresOnboardingNewChildDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
     '/_protected/_shell/events/$eventId': {
@@ -393,6 +426,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/privacy'
       fullPath: '/settings/privacy'
       preLoaderRoute: typeof featuresPrivacyPrivacyDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
+    '/_protected/_shell/week/print': {
+      id: '/_protected/_shell/week/print'
+      path: '/week/print'
+      fullPath: '/week/print'
+      preLoaderRoute: typeof featuresEventsPrintWeekDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
     '/_protected/_shell/events/$eventId/edit': {
@@ -423,9 +463,10 @@ interface routerShellRouteChildren {
   featuresHistoryHistoryDotrouteRoute: typeof featuresHistoryHistoryDotrouteRoute
   featuresSettingsSettingsDotrouteRoute: typeof featuresSettingsSettingsDotrouteRoute
   featuresChildrenLinkErrorDotrouteRoute: typeof featuresChildrenLinkErrorDotrouteRoute
-  featuresChildrenNewChildDotrouteRoute: typeof featuresChildrenNewChildDotrouteRoute
+  featuresOnboardingNewChildDotrouteRoute: typeof featuresOnboardingNewChildDotrouteRoute
   featuresEventsEventDetailDotrouteRoute: typeof featuresEventsEventDetailDotrouteRoute
   featuresPrivacyPrivacyDotrouteRoute: typeof featuresPrivacyPrivacyDotrouteRoute
+  featuresEventsPrintWeekDotrouteRoute: typeof featuresEventsPrintWeekDotrouteRoute
   featuresEventsEventEditDotrouteRoute: typeof featuresEventsEventEditDotrouteRoute
 }
 
@@ -436,10 +477,12 @@ const routerShellRouteChildren: routerShellRouteChildren = {
   featuresSettingsSettingsDotrouteRoute: featuresSettingsSettingsDotrouteRoute,
   featuresChildrenLinkErrorDotrouteRoute:
     featuresChildrenLinkErrorDotrouteRoute,
-  featuresChildrenNewChildDotrouteRoute: featuresChildrenNewChildDotrouteRoute,
+  featuresOnboardingNewChildDotrouteRoute:
+    featuresOnboardingNewChildDotrouteRoute,
   featuresEventsEventDetailDotrouteRoute:
     featuresEventsEventDetailDotrouteRoute,
   featuresPrivacyPrivacyDotrouteRoute: featuresPrivacyPrivacyDotrouteRoute,
+  featuresEventsPrintWeekDotrouteRoute: featuresEventsPrintWeekDotrouteRoute,
   featuresEventsEventEditDotrouteRoute: featuresEventsEventEditDotrouteRoute,
 }
 
@@ -448,10 +491,13 @@ const routerShellRouteWithChildren = routerShellRoute._addFileChildren(
 )
 
 interface routerProtectedRouteChildren {
+  featuresOnboardingOnboardingDotrouteRoute: typeof featuresOnboardingOnboardingDotrouteRoute
   routerShellRoute: typeof routerShellRouteWithChildren
 }
 
 const routerProtectedRouteChildren: routerProtectedRouteChildren = {
+  featuresOnboardingOnboardingDotrouteRoute:
+    featuresOnboardingOnboardingDotrouteRoute,
   routerShellRoute: routerShellRouteWithChildren,
 }
 

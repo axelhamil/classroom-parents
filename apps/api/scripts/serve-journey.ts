@@ -4,7 +4,9 @@
  * OAuth callbacks finish with a code `<sub>|<email>`: a dataset child's email is granted the
  * fake Classroom tokens and scopes, any other email signs in as a parent. The periodic
  * workers are stopped so time only moves when the journey says so, through a control
- * server on 127.0.0.1:JOURNEY_CONTROL_PORT:
+ * server on 127.0.0.1:JOURNEY_CONTROL_PORT. Every POST first waits for the manual syncs
+ * the app started (the open-time sync of each page load): one still running holds its
+ * child's row and its school read, so a tick or a school switch would race it.
  *
  * - POST /schools/<child>/block | /schools/<child>/unblock: the fake school's switch
  * - POST /sync?at=<iso>: makes every connected child of a journey parent due at that instant,
@@ -192,6 +194,8 @@ async function control(request: Request): Promise<Response> {
       await leftovers(url.searchParams.get("userId") ?? "", url.searchParams.get("email") ?? ""),
     );
   if (request.method !== "POST") return new Response("not found", { status: 404 });
+
+  await di.ManualSyncService.settled();
 
   if (action === "schools" && school && toggle === "block") {
     fakes.blockSchool(school);

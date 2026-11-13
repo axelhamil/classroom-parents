@@ -1,8 +1,15 @@
-import { Button } from "@packages/ui/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@packages/ui/components/ui/tooltip";
+import type { ReactNode } from "react";
+import type { ChildHue } from "../format/child-hue";
+
+const ALL = "all";
 
 export interface FilterChipOption {
   value: string | null;
-  label: string;
+  label: ReactNode;
+  hint?: string;
+  hue?: ChildHue;
 }
 
 export interface FilterChipsProps {
@@ -10,23 +17,53 @@ export interface FilterChipsProps {
   options: readonly FilterChipOption[];
   value: string | null;
   onChange: (value: string | null) => void;
+  "data-tour"?: string;
 }
 
-export function FilterChips({ label, options, value, onChange }: FilterChipsProps) {
+export function FilterChips({
+  label,
+  options,
+  value,
+  onChange,
+  "data-tour": tourTarget,
+}: FilterChipsProps) {
+  const current = value ?? ALL;
+
+  const pick = (next: string[]) => {
+    const picked = next.find((option) => option !== current);
+    if (picked === undefined) return;
+
+    onChange(picked === ALL ? null : picked);
+  };
+
   return (
-    <fieldset aria-label={label} className="scrollbar-none flex min-w-0 gap-2 overflow-x-auto">
-      {options.map((option) => (
-        <Button
-          key={option.value ?? "all"}
-          type="button"
-          size="sm"
-          variant={option.value === value ? "default" : "outline"}
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </fieldset>
+    <ToggleGroup
+      type="multiple"
+      variant="chip"
+      size="touch"
+      spacing={2}
+      aria-label={label}
+      data-tour={tourTarget}
+      value={[current]}
+      onValueChange={pick}
+      className="scrollbar-none relative max-w-full overflow-x-auto"
+    >
+      {options.map((option) => {
+        const value = option.value ?? ALL;
+
+        return option.hint ? (
+          <Tooltip key={value}>
+            <ToggleGroupItem value={value} hue={option.hue} asChild>
+              <TooltipTrigger>{option.label}</TooltipTrigger>
+            </ToggleGroupItem>
+            <TooltipContent>{option.hint}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <ToggleGroupItem key={value} value={value} hue={option.hue}>
+            {option.label}
+          </ToggleGroupItem>
+        );
+      })}
+    </ToggleGroup>
   );
 }

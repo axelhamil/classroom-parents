@@ -38,6 +38,23 @@ export function captureInstallPrompt(target: Window = window): () => void {
   };
 }
 
+interface InstallPromptEvent extends Event {
+  prompt(): Promise<unknown>;
+}
+
+function isInstallPrompt(event: Event | undefined): event is InstallPromptEvent {
+  return event !== undefined && "prompt" in event && typeof event.prompt === "function";
+}
+
+export async function promptInstall(): Promise<void> {
+  const event = installPrompt;
+  if (!isInstallPrompt(event)) return;
+
+  installPrompt = undefined;
+  notifyPromptChange();
+  await event.prompt();
+}
+
 function subscribePrompt(listener: () => void): () => void {
   promptListeners.add(listener);
   return () => promptListeners.delete(listener);

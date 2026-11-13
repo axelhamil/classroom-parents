@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Context } from "hono";
 import type { WindowConfig } from "../ports/rate-limiter.port";
 import { resolveClientIp } from "./rate-limit.ip";
@@ -22,13 +23,15 @@ function ipKeyFn(name: string): (c: Context) => string {
 }
 
 // Two windows with two different jobs: the minute window bounds a BURST, the hour
-// window is the sustained anti-abuse ceiling. They must be tuned against what one
-// page view actually costs, measured here, a signed-in page view fires up to 8 API
-// calls, so a 60/min burst window meant ~7 navigations per minute
-// before a legitimate user got a 429. 300/min tolerates ~35 navigations in a burst
-// while the hour window (1800 = 30/min sustained) still caps real abuse, unchanged.
-// Loosening the burst window costs nothing at the surfaces that matter: every
-// credential path carries its own far tighter, fail-closed policy below.
+// window is the sustained anti-abuse ceiling (1800 = 30/min, unchanged). The burst window
+// is tuned against what opening the app costs, measured: the signed-in home fires 9 calls
+// in this bucket (the calendar period and its two neighbours, the week's progress, the
+// review, overdue and next-deadline lists, the stream, the sync on open), the settings
+// page 6. Four browsers of one parent opening the app back to back (the accessibility
+// gate) spend 337 in under a minute, so 300 refused that parent mid-burst. 600 leaves
+// that burst near half its room, and at a third of the hour window a runaway client is
+// still stopped within three minutes. Every credential path carries its own far tighter,
+// fail-closed policy below.
 //
 // `sessionMiddleware` deliberately nulls the user for `/api/auth/*`, so BetterAuth
 // traffic, including a signed-in user's session query, keys on
@@ -41,7 +44,7 @@ export const GLOBAL_POLICY: PolicyConfig = {
     return `global:${user?.id ?? resolveClientIp(c)}`;
   },
   windows: [
-    { policyName: "global", windowSec: 60, maxRequests: 300 },
+    { policyName: "global", windowSec: 60, maxRequests: 600 },
     { policyName: "global", windowSec: 3600, maxRequests: 1800 },
   ],
 };
@@ -94,6 +97,38 @@ export const AUTH_VERIFY_EMAIL_POLICY: PolicyConfig = {
     return `auth-verify-email:${token ?? resolveClientIp(c)}`;
   },
   windows: [{ policyName: "auth-verify-email", windowSec: 900, maxRequests: 5 }],
+  emitSecurityEvent: true,
+  failClosed: true,
+  advertiseBudget: false,
+};
+
+// GET /calendar/<secret>.ics: public, no session, polled by calendar clients from shared
+// server pools, so it keys on the feed and not on the IP. A client asks about once per hour;
+// 60 per hour leaves room for retries while bounding a leaked link hammered from many
+// addresses. The key is a digest of the secret, so the limiter store never holds a usable link.
+export const CALENDAR_FEED_POLICY: PolicyConfig = {
+  name: "calendar-feed",
+  keyFn: (c) => {
+    const digest = createHash("sha256")
+      .update(c.req.param("file") ?? resolveClientIp(c))
+      .digest("hex")
+      .slice(0, 32);
+    return `calendar-feed:${digest}`;
+  },
+  windows: [{ policyName: "calendar-feed", windowSec: 3600, maxRequests: 60 }],
+  emitSecurityEvent: true,
+  failClosed: true,
+  advertiseBudget: false,
+};
+
+// The feed route is exempt from GLOBAL_POLICY: one calendar server polls the links of
+// many parents from one address. Only unknown links spend this per-IP budget, so link
+// guessing stays bounded while a shared poller serving real links never is. 300 leaves
+// room for a poller still asking for links its parents revoked.
+export const CALENDAR_FEED_MISS_POLICY: PolicyConfig = {
+  name: "calendar-feed-miss",
+  keyFn: ipKeyFn("calendar-feed-miss"),
+  windows: [{ policyName: "calendar-feed-miss", windowSec: 3600, maxRequests: 300 }],
   emitSecurityEvent: true,
   failClosed: true,
   advertiseBudget: false,

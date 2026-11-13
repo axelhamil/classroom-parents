@@ -1,7 +1,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
-import { SettingsSection } from "@packages/ui/components/ui/settings-section";
+import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldAlert, Trash2 } from "lucide-react";
@@ -35,13 +35,11 @@ function ScheduledDeletion({ until }: ScheduledDeletionProps) {
   const formatDateTime = useFormatDateTime();
 
   return (
-    <SettingsSection
+    <SectionCard
       tone="destructive"
       title={t("deletion.scheduledTitle")}
       description={t("deletion.scheduledDescription", { date: formatDateTime(until) })}
-    >
-      {null}
-    </SettingsSection>
+    />
   );
 }
 
@@ -59,7 +57,7 @@ function RequestDeletion({ reauthError }: DeleteAccountCardProps) {
   const reauthRequired = deletion.reauthRequired || reauthError !== undefined;
 
   return (
-    <SettingsSection
+    <SectionCard
       tone="destructive"
       title={t("deletion.title")}
       description={t("deletion.description")}
@@ -101,6 +99,6 @@ function RequestDeletion({ reauthError }: DeleteAccountCardProps) {
           onConfirm={deletion.request}
         />
       )}
-    </SettingsSection>
+    </SectionCard>
   );
 }

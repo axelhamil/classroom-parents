@@ -13,8 +13,10 @@ export interface IUserStreamPublisher {
 
 const AGENDA_TYPES: ReadonlySet<string> = new Set([
   EventTypes.EVENT_CREATED,
+  EventTypes.EVENT_ADDED,
   EventTypes.EVENT_UPDATED,
   EventTypes.EVENT_DELETED,
+  EventTypes.EVENTS_PURGED,
 ]);
 
 const CHILDREN_TYPES: ReadonlySet<string> = new Set([

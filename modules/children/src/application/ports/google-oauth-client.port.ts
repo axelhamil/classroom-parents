@@ -10,6 +10,7 @@ export interface GoogleAccess {
 export interface GoogleProfile {
   email: string;
   givenName: Option<string>;
+  picture: Option<string>;
 }
 
 export interface IGoogleOAuthClient {

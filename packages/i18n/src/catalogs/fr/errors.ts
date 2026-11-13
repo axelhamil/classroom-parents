@@ -14,6 +14,8 @@ export default {
     EVENT_TITLE_INVALID: "Le titre doit contenir entre 1 et 120 caractères.",
     EVENT_DESCRIPTION_INVALID: "La description doit contenir au plus 2 000 caractères.",
     EVENT_CATEGORY_INVALID: "Choisissez un type dans la liste.",
+    EVENT_CHECKLIST_INVALID:
+      "Une liste à préparer compte au plus 50 éléments de 1 à 80 caractères. Raccourcissez l'élément ou retirez-en un.",
     EVENT_DEADLINE_INVALID:
       "Cette date ou cette heure n'existe pas. Choisissez une date réelle et une heure entre 00:00 et 23:59, hors de 02:00 à 02:59 le jour du passage à l'heure d'été.",
     ALERT_AFTER_DEADLINE: "Un rappel doit sonner avant l'échéance. Choisissez un délai plus long.",
@@ -23,6 +25,8 @@ export default {
       "Un rappel sonne de 0 à 14 jours avant l'échéance à une heure précise, ou de 1 à 48 heures avant. Corrigez le délai.",
     ALERT_REMINDER_HOURS_INVALID:
       "Cette échéance n'a pas d'heure : choisissez un rappel en jours avant, à une heure précise.",
+    ALERT_QUIET_HOURS_INVALID:
+      "Les heures calmes vont d'une heure à une autre, différente. Choisissez deux heures distinctes.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",
     ACCOUNT_REAUTH_REQUIRED:
       "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
@@ -283,6 +287,7 @@ export default {
     invalidEventSelection: "Contient un événement inconnu ou non abonnable.",
     reminderDays: "Choisissez de 0 à 14 jours.",
     reminderHours: "Choisissez de 1 à 48 heures.",
+    quietHoursSame: "Choisissez une fin différente du début.",
   },
   fallback: {
     signInWithGoogle: "La connexion avec Google n'a pas pu démarrer",
@@ -302,10 +307,21 @@ export default {
     confirmEvent: "Échec de la confirmation de l'échéance",
     deleteEvent: "Échec de la suppression de l'échéance",
     editEvent: "Échec de l'enregistrement de l'échéance",
+    addEvent: "Échec de l'ajout de l'échéance",
+    markEventDone: "Échec de la mise à jour de l'échéance",
+    changeChecklist: "Échec de l'enregistrement de la liste à préparer",
+    loadCalendar: "Échec du chargement du calendrier",
+    loadCalendarFeed: "Échec du chargement de l'abonnement agenda",
+    issueCalendarFeed: "Échec de la création du lien d'abonnement",
+    revokeCalendarFeed: "Échec de la désactivation de l'abonnement",
     customizeEventReminders: "Échec de l'enregistrement des rappels",
     resetEventReminders: "Échec du retour aux rappels par défaut",
     loadDefaultReminders: "Échec du chargement des rappels par défaut",
     setDefaultReminders: "Échec de l'enregistrement des rappels par défaut",
+    loadQuietHours: "Échec du chargement des heures calmes",
+    loadLockScreen: "Échec du chargement du choix d'écran verrouillé",
+    setLockScreen: "Échec de l'enregistrement du choix d'écran verrouillé",
+    setQuietHours: "Échec de l'enregistrement des heures calmes",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",
     cancelAccountDeletion: "Échec de l'annulation",

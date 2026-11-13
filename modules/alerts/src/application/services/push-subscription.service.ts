@@ -3,12 +3,16 @@ import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import {
+  type LockScreenDto,
   type PushStatusDto,
   type PushSubscriptionInput,
   pushSubscriptionSchema,
 } from "../dto/push-subscription.dto";
 import type { AlertsError } from "../ports/alert-repository.port";
-import type { IPushSubscriptionRepository } from "../ports/push-subscription-repository.port";
+import {
+  type IPushSubscriptionRepository,
+  LOCK_SCREEN_DETAILS_BY_DEFAULT,
+} from "../ports/push-subscription-repository.port";
 
 const subscriptionInvalid: AlertsError = {
   code: "PUSH_SUBSCRIPTION_INVALID",
@@ -33,7 +37,7 @@ export class PushSubscriptionService {
       const parsed = pushSubscriptionSchema.safeParse(input);
       if (!parsed.success) return Result.fail(subscriptionInvalid);
 
-      const { endpoint, keys, userAgent } = parsed.data;
+      const { endpoint, keys, userAgent, sessionId } = parsed.data;
       return this.transactions.run(async (): Promise<Result<void, AlertsError>> => {
         const stored = await this.subscriptions.upsert({
           userId,
@@ -41,6 +45,7 @@ export class PushSubscriptionService {
           p256dh: keys.p256dh,
           auth: keys.auth,
           userAgent: Option.fromNullable(userAgent),
+          sessionId: Option.fromNullable(sessionId),
           now: this.clock(),
         });
         if (stored.isFailure) return Result.fail(stored.getError());
@@ -92,9 +97,60 @@ export class PushSubscriptionService {
     );
   }
 
+  async forgetSession(userId: string, sessionId: string): Promise<Result<void, AlertsError>> {
+    return this.span("forgetSession", () =>
+      this.transactions.run(async (): Promise<Result<void, AlertsError>> => {
+        const deleted = await this.subscriptions.deleteForSession(userId, sessionId);
+        if (deleted.isFailure) return Result.fail(deleted.getError());
+
+        for (const subscriptionId of deleted.getValue()) {
+          await emitEvent(
+            this.outbox,
+            EventTypes.PUSH_UNSUBSCRIBED,
+            "push_subscription",
+            subscriptionId,
+            { userId, subscriptionId, actorUserId: userId },
+          );
+        }
+        return Result.ok();
+      }),
+    );
+  }
+
   async status(userId: string): Promise<Result<PushStatusDto, AlertsError>> {
     return this.span("status", async () =>
       (await this.subscriptions.countForUser(userId)).map((live) => ({ live })),
+    );
+  }
+
+  async lockScreen(userId: string): Promise<Result<LockScreenDto, AlertsError>> {
+    return this.span("lockScreen", async () =>
+      (await this.subscriptions.lockScreenDetailsFor(userId)).map((details) => ({
+        details: details.unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT),
+      })),
+    );
+  }
+
+  async setLockScreen(
+    userId: string,
+    details: boolean,
+  ): Promise<Result<LockScreenDto, AlertsError>> {
+    return this.span("setLockScreen", () =>
+      this.transactions.run(async (): Promise<Result<LockScreenDto, AlertsError>> => {
+        const current = await this.subscriptions.lockScreenDetailsFor(userId);
+        if (current.isFailure) return Result.fail(current.getError());
+        if (current.getValue().unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT) === details)
+          return Result.ok({ details });
+
+        const saved = await this.subscriptions.saveLockScreenDetails(userId, details, this.clock());
+        if (saved.isFailure) return Result.fail(saved.getError());
+
+        await emitEvent(this.outbox, EventTypes.ALERT_LOCK_SCREEN_CHANGED, "user", userId, {
+          userId,
+          details,
+        });
+        return Result.ok({ details });
+      }),
     );
   }
 

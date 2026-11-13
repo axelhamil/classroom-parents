@@ -4,6 +4,9 @@ import { type BatchedEvent, emitEvents } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { Alert } from "../../domain/alert.aggregate";
 import { AlertOrigin } from "../../domain/value-objects/alert-origin.vo";
+import { AlertTime } from "../../domain/value-objects/alert-time.vo";
+import { QuietHours } from "../../domain/value-objects/quiet-hours.vo";
+import type { PlannedReminder } from "../../domain/value-objects/reminder-list.vo";
 import type { AlertsError, IAlertRepository } from "../ports/alert-repository.port";
 import type {
   EventDeadline,
@@ -16,8 +19,11 @@ import {
   applicableReminders,
   fromDefaults,
   fromEventPlan,
+  type ReminderTarget,
   reminderTarget,
 } from "./applicable-reminders";
+
+export const LATE_ALERT_MIN_LEAD_MS = 30 * 60_000;
 
 export interface PlannedEvent {
   eventId: string;
@@ -36,6 +42,21 @@ interface Changes {
 }
 
 const NO_OCCURRENCE: Occurrence = { pending: false, version: 0 };
+
+const MINUTE_MS = 60_000;
+
+function nextMinute(now: Date): Result<AlertTime> {
+  return AlertTime.fromInstant(
+    new Date(Math.floor(now.getTime() / MINUTE_MS) * MINUTE_MS + MINUTE_MS),
+  );
+}
+
+function latest(planned: PlannedReminder[]): PlannedReminder | undefined {
+  return planned.reduce<PlannedReminder | undefined>(
+    (last, item) => (!last || item.time.value.at > last.time.value.at ? item : last),
+    undefined,
+  );
+}
 
 function occurrenceOf(alert: Alert): Occurrence {
   return { pending: alert.isPending(), version: alert.get("version") };
@@ -84,6 +105,8 @@ export class AlertPlanningService {
         if (plans.isFailure) return Result.fail(plans.getError());
         const found = await this.alerts.lockOwnedMany(userId, eventIds);
         if (found.isFailure) return Result.fail(found.getError());
+        const quiet = await this.quietHoursOf(userId);
+        if (quiet.isFailure) return Result.fail(quiet.getError());
 
         const changes = noChanges();
         const now = this.clock();
@@ -94,6 +117,7 @@ export class AlertPlanningService {
             { eventId: deadline.eventId, userId, actorUserId },
             deadline,
             own ? fromEventPlan(own) : fromDefaults(defaults.getValue()),
+            quiet.getValue(),
             found.getValue().filter((alert) => alert.get("eventId") === deadline.eventId),
             now,
           );
@@ -132,12 +156,15 @@ export class AlertPlanningService {
 
       const applicable = await applicableReminders(this.settings, event.userId, event.eventId);
       if (applicable.isFailure) return Result.fail(applicable.getError());
+      const quiet = await this.quietHoursOf(event.userId);
+      if (quiet.isFailure) return Result.fail(quiet.getError());
 
       const planned = this.plan(
         changes,
         event,
         deadline.getValue().unwrap(),
         applicable.getValue(),
+        quiet.getValue(),
         found.getValue(),
         this.clock(),
       );
@@ -151,6 +178,7 @@ export class AlertPlanningService {
     event: PlannedEvent,
     deadline: EventDeadline,
     { reminders, origin }: ApplicableReminders,
+    quiet: QuietHours,
     existing: Alert[],
     now: Date,
   ): Result<void, AlertsError> {
@@ -160,7 +188,9 @@ export class AlertPlanningService {
     }
 
     const target = reminderTarget(deadline);
-    const planned = reminders.plan(target);
+    const planned = reminders
+      .plan(target)
+      .flatMap((items) => this.timed(items, quiet, existing, target, now));
     if (planned.isFailure) return Result.fail(corrupted(planned.getError()));
 
     const kept = new Set(planned.getValue().map(({ reminder }) => reminder.key()));
@@ -174,7 +204,7 @@ export class AlertPlanningService {
       const alert = existing.find((candidate) => candidate.key() === reminder.key());
       if (alert) {
         const before = occurrenceOf(alert);
-        alert.follow({ time, origin }, target, now);
+        alert.follow({ time, origin }, target, quiet, now);
         this.record(changes, alert, before, event.actorUserId);
         continue;
       }
@@ -183,6 +213,62 @@ export class AlertPlanningService {
       if (scheduled.isPending()) this.record(changes, scheduled, NO_OCCURRENCE, event.actorUserId);
     }
     return Result.ok();
+  }
+
+  private timed(
+    planned: PlannedReminder[],
+    quiet: QuietHours,
+    existing: Alert[],
+    target: ReminderTarget,
+    now: Date,
+  ): Result<PlannedReminder[]> {
+    const timed: PlannedReminder[] = [];
+    for (const { reminder, time } of planned) {
+      const shifted = quiet.shift(time, target.at, now);
+      if (shifted.isFailure) return Result.fail(shifted.getError());
+      if (timed.some((kept) => kept.time.equals(shifted.getValue()))) continue;
+      timed.push({ reminder, time: shifted.getValue() });
+    }
+    return this.withLateAlert(timed, quiet, existing, target, now);
+  }
+
+  private withLateAlert(
+    planned: PlannedReminder[],
+    quiet: QuietHours,
+    existing: Alert[],
+    target: ReminderTarget,
+    now: Date,
+  ): Result<PlannedReminder[]> {
+    const last = latest(planned);
+    if (!last) return Result.ok(planned);
+    if (target.at.getTime() - now.getTime() < LATE_ALERT_MIN_LEAD_MS) return Result.ok(planned);
+    if (planned.some(({ time }) => time.isAfter(now))) return Result.ok(planned);
+    const alerted = existing.some((alert) => {
+      if (alert.get("status").value === "sent") return true;
+      const time = alert.get("time");
+      return (
+        alert.isPending() && !time.isAfter(now) && planned.some((item) => item.time.equals(time))
+      );
+    });
+    if (alerted) return Result.ok(planned);
+
+    const already = existing.find(
+      (alert) =>
+        alert.isPending() &&
+        alert.key() === last.reminder.key() &&
+        alert.get("time").value.at > last.time.value.at,
+    );
+    const time = already
+      ? Result.ok<AlertTime>(already.get("time"))
+      : nextMinute(now).flatMap((soon) => quiet.shift(soon, target.at, now));
+    return time.map((late) =>
+      planned.map((item) => (item === last ? { ...item, time: late } : item)),
+    );
+  }
+
+  private async quietHoursOf(userId: string): Promise<Result<QuietHours, AlertsError>> {
+    const quiet = await this.settings.quietHoursFor(userId);
+    return quiet.map((found) => found.unwrapOr(QuietHours.defaults()));
   }
 
   private cancelAll(changes: Changes, alerts: Alert[], actorUserId: string | null): void {

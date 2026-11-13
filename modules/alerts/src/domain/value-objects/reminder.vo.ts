@@ -1,6 +1,6 @@
 import { Option, Result, ValueObject } from "@packages/ddd-kit";
 import { z } from "zod";
-import { AlertTime } from "./alert-time.vo";
+import { AlertTime, WALL_TIME } from "./alert-time.vo";
 
 export const REMINDER_DAYS_MAX = 14;
 export const REMINDER_HOURS_MIN = 1;
@@ -13,7 +13,7 @@ export const reminderSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("days_before"),
     days: z.int().min(0).max(REMINDER_DAYS_MAX),
-    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    time: z.string().regex(WALL_TIME),
   }),
   z.strictObject({
     kind: z.literal("hours_before"),

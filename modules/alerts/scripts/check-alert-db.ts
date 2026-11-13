@@ -5,7 +5,8 @@
  * replans only the events that follow them, a family never reads, sets or resets another family's
  * reminders nor deletes its push subscription, the claim query reads alert_pending_due_idx among
  * thousands of settled alerts, the reminders migration turns legacy alerts into reminders, and a
- * phone shared by two parents belongs to the last one who subscribed it: A's alerts stop reaching it.
+ * phone shared by two parents belongs to the last one who subscribed it: A's alerts stop reaching it,
+ * and revoking a device's session removes that device's push alerts while an expired session keeps them.
  * The dispatchers claim only the alerts of the parents this run creates, so another writer on the
  * same database (a demo seed, a second run) neither fails the counts nor gets its alerts sent.
  */
@@ -17,13 +18,14 @@ exitUnlessLocalDatabase("check-alert-db", process.env.DATABASE_URL);
 
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
-import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE, utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import {
   and,
   authSchema,
   db,
+  emailSchema,
   eq,
   gte,
   inArray,
@@ -33,6 +35,8 @@ import {
   sql,
   TransactionService,
 } from "@packages/drizzle";
+import { DrizzleEmailQueue } from "@packages/email/drizzle-email-queue";
+import { QueuedEmailService } from "@packages/email/email.service";
 import { EventTypes } from "@packages/events";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { alert } from "../schemas/alert.schema";
@@ -49,12 +53,15 @@ import type {
   IEventDeadlines,
   UpcomingDeadline,
 } from "../src/application/ports/event-deadlines.port";
+import type { IPushCopy } from "../src/application/ports/push-copy.port";
 import type { IPushSender } from "../src/application/ports/push-sender.port";
 import { AlertDispatchService } from "../src/application/services/alert-dispatch.service";
 import { AlertPlanningService } from "../src/application/services/alert-planning.service";
 import { PushSubscriptionService } from "../src/application/services/push-subscription.service";
 import { ReminderSettingsService } from "../src/application/services/reminder-settings.service";
 import { ReminderList } from "../src/domain/value-objects/reminder-list.vo";
+import { I18nPushCopy } from "../src/infrastructure/adapters/i18n-push.copy";
+import { ResendAlertEmailSender } from "../src/infrastructure/adapters/resend-alert-email.sender";
 import {
   alertClaimQuery,
   DrizzleAlertRepository,
@@ -70,12 +77,28 @@ const NOW = new Date();
 const probe = `check-alert-db-${crypto.randomUUID()}`;
 const { instrumentation, spans } = spanRecorder();
 
-const pushes = new Map<string, number>();
+let pushes = 0;
 const pushSender: IPushSender = {
-  send: async (_target, _payload, options) => {
-    pushes.set(options.topic, (pushes.get(options.topic) ?? 0) + 1);
+  send: async () => {
+    pushes += 1;
     return Result.ok();
   },
+};
+const pushedAlerts = new Map<string, number>();
+const i18nCopy = new I18nPushCopy();
+const countingCopy: IPushCopy = {
+  forAlerts: async (shown, options) => {
+    for (const { alertId } of shown)
+      pushedAlerts.set(alertId, (pushedAlerts.get(alertId) ?? 0) + 1);
+    return i18nCopy.forAlerts(shown, options);
+  },
+  forWeek: (count) => i18nCopy.forWeek(count),
+};
+const silentLogger: ILogger = {
+  debug: () => undefined,
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
 };
 let emails = 0;
 const emailSender: IAlertEmailSender = {
@@ -83,6 +106,11 @@ const emailSender: IAlertEmailSender = {
     emails += 1;
     return Result.ok<AppError>();
   },
+  sendGroup: async (_to, { items }) => {
+    emails += items.length;
+    return Result.ok<AppError>();
+  },
+  sendDigest: async () => Result.ok<AppError>(),
 };
 
 const alive = (userId: string) =>
@@ -158,6 +186,7 @@ const dispatch = new AlertDispatchService(
   pushSender,
   emailSender,
   contexts,
+  countingCopy,
   deadlines,
   transactions,
   outbox,
@@ -300,6 +329,9 @@ async function explainClaim(): Promise<string> {
 
 async function cleanup(): Promise<void> {
   await db.delete(authSchema.user).where(like(authSchema.user.id, `${probe}-%`));
+  await db
+    .delete(emailSchema.emailMessage)
+    .where(like(emailSchema.emailMessage.toAddress, `${probe}@%`));
 }
 
 const codeOf = (result: Result<unknown, AppError>) =>
@@ -320,6 +352,7 @@ run(async () => {
       p256dh: "p256dh",
       auth: "auth",
       userAgent: Option.none(),
+      sessionId: Option.none(),
       now: NOW,
     });
     await step(`subscription of ${family.userId} stored`, stored.isSuccess);
@@ -362,9 +395,11 @@ run(async () => {
     sentRows.length === dueReminders && sentRows.every((row) => row.status === "sent"),
   );
   await step(
-    "each reminder was pushed exactly once, each with its own topic",
-    pushes.size === dueReminders && [...pushes.values()].every((count) => count === 1),
-    { distinct: pushes.size, max: Math.max(...pushes.values()) },
+    "each reminder was pushed exactly once, grouped per parent into fewer notifications",
+    pushedAlerts.size === dueReminders &&
+      [...pushedAlerts.values()].every((count) => count === 1) &&
+      pushes < dueReminders,
+    { distinct: pushedAlerts.size, max: Math.max(...pushedAlerts.values()), pushes },
   );
   await step("no email fallback while a push got through", emails === 0, { emails });
 
@@ -409,6 +444,7 @@ run(async () => {
     racingPush,
     emailSender,
     contexts,
+    new I18nPushCopy(),
     deadlines,
     transactions,
     outbox,
@@ -500,6 +536,413 @@ run(async () => {
       plannedOfD.length === 2 * (fewEvents.length + manyEvents.length) &&
       plannedOfD.every(({ status }) => status === "pending"),
     { queriesOnFew, queriesOnMany, alerts: plannedOfD.length },
+  );
+
+  const quiet = { enabled: true, start: "17:00", end: "19:00" };
+  const quietSet = await settings.setQuietHours(d.userId, quiet);
+  const quietRead = await settings.quietHours(d.userId);
+  const eveningOfD = await db
+    .select({ dueAt: alert.dueAt })
+    .from(alert)
+    .where(
+      and(eq(alert.userId, d.userId), eq(alert.reminder, "d2@18:00"), eq(alert.status, "pending")),
+    );
+  const ringsAt = eveningOfD.map(
+    ({ dueAt }) => utcToZonedWall(dueAt, PARIS_TIME_ZONE).unwrapOr({ date: "", time: "" }).time,
+  );
+  await step(
+    "quiet hours are stored and every upcoming reminder inside them rings when they end",
+    quietSet.isSuccess &&
+      isDeepStrictEqual(quietRead.isSuccess && quietRead.getValue(), quiet) &&
+      ringsAt.length === fewEvents.length + manyEvents.length &&
+      ringsAt.every((time) => time === "19:00"),
+    { quiet: quietRead.isSuccess && quietRead.getValue(), ringsAt: [...new Set(ringsAt)] },
+  );
+
+  const e = await seedFamily("e");
+  const minute = new Date(Math.floor(NOW.getTime() / 60_000) * 60_000);
+  const wallOf = (at: Date) => utcToZonedWall(at, PARIS_TIME_ZONE).unwrapOr({ date: "", time: "" });
+  const quietStart = new Date(minute.getTime() - 30 * 60_000);
+  await settings.setDefaults(e.userId, [{ kind: "hours_before", hours: 1 }]);
+  await settings.setQuietHours(e.userId, {
+    enabled: true,
+    start: wallOf(quietStart).time,
+    end: wallOf(new Date(minute.getTime() + 3 * 3_600_000)).time,
+  });
+  const lateDeadline = new Date(minute.getTime() + 2 * 3_600_000);
+  const [sentEvent = ""] = await seedEvents(e, 1, "sent-in-quiet", lateDeadline);
+  await db
+    .update(agendaEvent)
+    .set({ deadlineTime: wallOf(lateDeadline).time })
+    .where(eq(agendaEvent.id, sentEvent));
+  await db.insert(alert).values({
+    eventId: sentEvent,
+    userId: e.userId,
+    reminder: "h1",
+    dueAt: quietStart,
+    deadlineAt: lateDeadline,
+    origin: "default",
+    status: "sent",
+    sentAt: quietStart,
+  });
+  const replanned = await planning.replan({
+    eventId: sentEvent,
+    userId: e.userId,
+    actorUserId: e.userId,
+  });
+  const [kept] = await alertsOn(sentEvent);
+  await step(
+    "a reminder sent when quiet hours began stays sent when its event is replanned inside them",
+    replanned.isSuccess &&
+      kept?.status === "sent" &&
+      kept.dueAt.getTime() === quietStart.getTime() &&
+      (await scheduledFor(sentEvent)) === 0,
+    { status: kept?.status, dueAt: kept?.dueAt, scheduled: await scheduledFor(sentEvent) },
+  );
+
+  const f = await seedFamily("f");
+  const groupedEndpoint = `https://fcm.googleapis.com/fcm/send/${f.userId}`;
+  await pushService.subscribe(f.userId, {
+    endpoint: groupedEndpoint,
+    keys: {
+      p256dh:
+        "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+      auth: "tBHItJI5svbpez7KI4CCXg",
+    },
+  });
+  const groupedDeadline = shiftInstant(NOW, 3);
+  const groupedEvents = await seedEvents(f, 4, "two-groups", groupedDeadline);
+  await db.insert(alert).values(
+    groupedEvents.map((eventId, i) => ({
+      eventId,
+      userId: f.userId,
+      reminder: "d2@18:00",
+      dueAt: new Date(NOW.getTime() - (i < 2 ? 50 : 5) * 60_000 - i * 1000),
+      deadlineAt: groupedDeadline,
+      origin: "default" as const,
+      status: "pending" as const,
+    })),
+  );
+  const shownTags: string[] = [];
+  const shownTopics: string[] = [];
+  const grouping = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    {
+      send: async (target, message, options) => {
+        if (target.endpoint === groupedEndpoint) {
+          shownTags.push(message.tag);
+          shownTopics.push(options.topic);
+        }
+        return Result.ok();
+      },
+    },
+    emailSender,
+    contexts,
+    new I18nPushCopy(),
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  await grouping.runOnce(NOW);
+  const groupedRows = await db
+    .select({ status: alert.status })
+    .from(alert)
+    .where(inArray(alert.eventId, groupedEvents));
+  await step(
+    "two groups of one parent sent the same day keep their own tag and topic, so every sent alert stays visible",
+    groupedRows.length === 4 &&
+      groupedRows.every(({ status }) => status === "sent") &&
+      shownTags.length === 2 &&
+      new Set(shownTags).size === 2 &&
+      new Set(shownTopics).size === 2,
+    { tags: shownTags, topics: shownTopics, statuses: groupedRows.map(({ status }) => status) },
+  );
+
+  const morning = new Date(Math.floor(NOW.getTime() / 60_000) * 60_000 - 60_000);
+  const crowd = await Promise.all(
+    [9, 9, 6].map(async (size, n) => {
+      const family = await seedFamily(`morning-${n}`);
+      const endpoint = `https://fcm.googleapis.com/fcm/send/${family.userId}`;
+      await pushService.subscribe(family.userId, {
+        endpoint,
+        keys: {
+          p256dh:
+            "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+          auth: "tBHItJI5svbpez7KI4CCXg",
+        },
+      });
+      const events = await seedEvents(family, size, `morning-${n}`, groupedDeadline);
+      const rows = await db
+        .insert(alert)
+        .values(
+          events.map((eventId) => ({
+            eventId,
+            userId: family.userId,
+            reminder: "d2@18:00",
+            dueAt: morning,
+            deadlineAt: groupedDeadline,
+            origin: "default" as const,
+            status: "pending" as const,
+          })),
+        )
+        .returning({ id: alert.id });
+      return { endpoint, alertIds: rows.map(({ id }) => id) };
+    }),
+  );
+  const visible = new Map<string, Map<string, string[]>>();
+  const morningDispatch = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    {
+      send: async (target, message) => {
+        const byTag = visible.get(target.endpoint) ?? new Map<string, string[]>();
+        byTag.set(message.tag, message.body.split(","));
+        visible.set(target.endpoint, byTag);
+        return Result.ok();
+      },
+    },
+    emailSender,
+    contexts,
+    {
+      forAlerts: async (shown) => ({
+        title: "",
+        body: shown.map(({ alertId }) => alertId).join(","),
+      }),
+      forWeek: async (count) => String(count),
+    },
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  for (let pass = 0; pass < 10; pass += 1) {
+    const run = await morningDispatch.runOnce(NOW);
+    if (run.isFailure || run.getValue().claimed === 0) break;
+  }
+  const lost = crowd.map(({ endpoint, alertIds }) => {
+    const shown = new Set([...(visible.get(endpoint)?.values() ?? [])].flat());
+    return alertIds.filter((id) => !shown.has(id)).length;
+  });
+  const morningRows = await db
+    .select({ status: alert.status })
+    .from(alert)
+    .where(
+      inArray(
+        alert.id,
+        crowd.flatMap(({ alertIds }) => alertIds),
+      ),
+    );
+  await step(
+    "24 alerts of three parents due the same minute leave every sent alert in a visible notification",
+    morningRows.length === 24 &&
+      morningRows.every(({ status }) => status === "sent") &&
+      lost.every((count) => count === 0),
+    {
+      lost,
+      notifications: crowd.map(({ endpoint }) => visible.get(endpoint)?.size ?? 0),
+      statuses: [...new Set(morningRows.map(({ status }) => status))],
+    },
+  );
+
+  const offline = await seedFamily("offline");
+  const offlineEvents = await seedEvents(offline, 25, "offline", groupedDeadline);
+  const offlineAlerts = await db
+    .insert(alert)
+    .values(
+      offlineEvents.map((eventId) => ({
+        eventId,
+        userId: offline.userId,
+        reminder: "d2@18:00",
+        dueAt: morning,
+        deadlineAt: groupedDeadline,
+        origin: "default" as const,
+        status: "pending" as const,
+      })),
+    )
+    .returning({ id: alert.id });
+  let directSends = 0;
+  const queuedSender = new ResendAlertEmailSender(
+    {
+      batchSend: async () => {
+        directSends += 1;
+        return { data: null, error: null };
+      },
+    },
+    "alerts@example.com",
+    instrumentation,
+    silentLogger,
+    new QueuedEmailService(new DrizzleEmailQueue(instrumentation, silentLogger), instrumentation),
+  );
+  const offlineDispatch = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    pushSender,
+    queuedSender,
+    contexts,
+    countingCopy,
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  const drainOffline = async () => {
+    for (let pass = 0; pass < 10; pass += 1) {
+      const outcome = await offlineDispatch.runOnce(NOW);
+      if (outcome.isFailure || outcome.getValue().claimed === 0) return;
+    }
+  };
+  const queuedFor = (userId: string) =>
+    db
+      .select({ payload: emailSchema.emailMessage.payload })
+      .from(emailSchema.emailMessage)
+      .where(like(emailSchema.emailMessage.idempotencyKey, `%${userId}%`));
+  const statusesOf = async (ids: string[]) =>
+    (await db.select({ status: alert.status }).from(alert).where(inArray(alert.id, ids))).map(
+      ({ status }) => status,
+    );
+  await drainOffline();
+  const firstPass = await queuedFor(offline.userId);
+  await db
+    .update(alert)
+    .set({ status: "pending", sentAt: null, nextAttemptAt: null })
+    .where(
+      inArray(
+        alert.id,
+        offlineAlerts.map(({ id }) => id),
+      ),
+    );
+  await drainOffline();
+  const secondPass = await queuedFor(offline.userId);
+  const offlineStatuses = await statusesOf(offlineAlerts.map(({ id }) => id));
+  const listed = (rows: { payload: unknown }[]) =>
+    rows.map(({ payload }) => {
+      const items =
+        typeof payload === "object" && payload !== null && "items" in payload
+          ? String(payload.items)
+          : "";
+      return items.split("\n").filter(Boolean).length;
+    });
+  await step(
+    "a parent with 25 due alerts and no device gets one queued email listing all 25, and a second pass over the same group adds none and counts it sent",
+    firstPass.length === 1 &&
+      listed(firstPass)[0] === 25 &&
+      secondPass.length === 1 &&
+      offlineStatuses.length === 25 &&
+      offlineStatuses.every((status) => status === "sent") &&
+      directSends === 0,
+    {
+      firstPass: firstPass.length,
+      secondPass: secondPass.length,
+      listed: listed(firstPass),
+      statuses: [...new Set(offlineStatuses)],
+      directSends,
+    },
+  );
+
+  const taken = await seedFamily("taken");
+  const takenEvents = await seedEvents(taken, 3, "taken", groupedDeadline);
+  const takenAlert = (eventId: string) => ({
+    eventId,
+    userId: taken.userId,
+    reminder: "d2@18:00",
+    dueAt: morning,
+    deadlineAt: groupedDeadline,
+    origin: "default" as const,
+    status: "pending" as const,
+  });
+  const firstTaken = await db
+    .insert(alert)
+    .values(takenEvents.slice(0, 2).map(takenAlert))
+    .returning({ id: alert.id });
+  const takeover: IPushCopy = {
+    forAlerts: async (shown, options) => {
+      await db
+        .update(alert)
+        .set({ attempts: sql`${alert.attempts} + 1` })
+        .where(
+          inArray(
+            alert.id,
+            shown.map(({ alertId }) => alertId),
+          ),
+        );
+      return countingCopy.forAlerts(shown, options);
+    },
+    forWeek: (count) => countingCopy.forWeek(count),
+  };
+  const outrun = new AlertDispatchService(
+    alerts,
+    subscriptions,
+    pushSender,
+    queuedSender,
+    contexts,
+    takeover,
+    deadlines,
+    transactions,
+    outbox,
+    instrumentation,
+  );
+  await outrun.runOnce(NOW);
+  const afterLostLease = await queuedFor(taken.userId);
+  const lateTaken = await db
+    .insert(alert)
+    .values(takenEvents.slice(2).map(takenAlert))
+    .returning({ id: alert.id });
+  const takenIds = [...firstTaken, ...lateTaken].map(({ id }) => id);
+  for (let pass = 0; pass < 8; pass += 1) {
+    await db
+      .update(alert)
+      .set({ nextAttemptAt: null })
+      .where(and(inArray(alert.id, takenIds), eq(alert.status, "pending")));
+    const outcome = await offlineDispatch.runOnce(NOW);
+    if (outcome.isFailure || outcome.getValue().claimed === 0) break;
+  }
+  const takenQueued = await queuedFor(taken.userId);
+  const takenStatuses = await statusesOf(takenIds);
+  const takenTrouble = await db
+    .select({ type: outboxSchema.outboxEvent.eventType })
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        inArray(outboxSchema.outboxEvent.aggregateId, takenIds),
+        inArray(outboxSchema.outboxEvent.eventType, [
+          EventTypes.ALERT_MISSED,
+          EventTypes.ALERT_DELIVERY_FAILED,
+        ]),
+      ),
+    );
+  await step(
+    "a dispatcher that lost its lease queues no grouped email, and the worker that took over sends one email listing the group and the deadline added since, every alert sent",
+    afterLostLease.length === 0 &&
+      takenQueued.length === 1 &&
+      listed(takenQueued)[0] === 3 &&
+      takenStatuses.length === 3 &&
+      takenStatuses.every((status) => status === "sent") &&
+      takenTrouble.length === 0,
+    {
+      afterLostLease: afterLostLease.length,
+      queued: takenQueued.length,
+      listed: listed(takenQueued),
+      statuses: takenStatuses,
+      trouble: takenTrouble.map(({ type }) => type),
+    },
+  );
+
+  const hiddenByDefault = await pushService.lockScreen(d.userId);
+  const shown = await pushService.setLockScreen(d.userId, true);
+  const shownRead = await pushService.lockScreen(d.userId);
+  await step(
+    "the lock screen hides the children's details until the parent chooses to show them",
+    hiddenByDefault.isSuccess &&
+      !hiddenByDefault.getValue().details &&
+      shown.isSuccess &&
+      shownRead.isSuccess &&
+      shownRead.getValue().details,
+    {
+      before: hiddenByDefault.isSuccess && hiddenByDefault.getValue(),
+      after: shownRead.isSuccess && shownRead.getValue(),
+    },
   );
 
   const eventOfB = dueEvents[0] ?? "";
@@ -612,6 +1055,7 @@ run(async () => {
     recordingPush,
     emailSender,
     contexts,
+    new I18nPushCopy(),
     deadlines,
     transactions,
     outbox,
@@ -706,5 +1150,64 @@ run(async () => {
       planOf(legacyLate) === "null" &&
       migrated.plans.length === 2,
     migrated,
+  );
+
+  const phoneSession = `${c.userId}-phone`;
+  const laptopSession = `${c.userId}-laptop`;
+  await db.insert(authSchema.session).values(
+    [phoneSession, laptopSession].map((id) => ({
+      id,
+      token: `${id}-token`,
+      userId: c.userId,
+      expiresAt: NOW,
+      updatedAt: NOW,
+    })),
+  );
+  const deviceKeys = {
+    p256dh:
+      "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+    auth: "tBHItJI5svbpez7KI4CCXg",
+  };
+  const phoneEndpoint = `https://fcm.googleapis.com/fcm/send/${probe}-phone`;
+  const laptopEndpoint = `https://fcm.googleapis.com/fcm/send/${probe}-laptop`;
+  await pushService.subscribe(c.userId, {
+    endpoint: phoneEndpoint,
+    keys: deviceKeys,
+    sessionId: phoneSession,
+  });
+  await pushService.subscribe(c.userId, {
+    endpoint: laptopEndpoint,
+    keys: deviceKeys,
+    sessionId: laptopSession,
+  });
+  const endpointsOfC = async () =>
+    (
+      await db
+        .select({ endpoint: pushSubscription.endpoint })
+        .from(pushSubscription)
+        .where(eq(pushSubscription.userId, c.userId))
+    )
+      .map(({ endpoint }) => endpoint)
+      .sort();
+
+  await db.delete(authSchema.session).where(eq(authSchema.session.id, laptopSession));
+  await step(
+    "a session that expires keeps its device's push alerts",
+    isDeepStrictEqual(await endpointsOfC(), [laptopEndpoint, phoneEndpoint].sort()),
+    await endpointsOfC(),
+  );
+
+  const foreign = await pushService.forgetSession(a.userId, phoneSession);
+  await step(
+    "another parent cannot drop C's device by naming its session",
+    foreign.isSuccess && (await endpointsOfC()).length === 2,
+    await endpointsOfC(),
+  );
+
+  const forgotten = await pushService.forgetSession(c.userId, phoneSession);
+  await step(
+    "revoking the phone's session removes the phone's push alerts and keeps the laptop's",
+    forgotten.isSuccess && isDeepStrictEqual(await endpointsOfC(), [laptopEndpoint]),
+    await endpointsOfC(),
   );
 }, "each reminder is sent and planned once and stays inside its family on a real database");

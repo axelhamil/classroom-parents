@@ -22,6 +22,7 @@
     "@packages/emails": "workspace:*",
     "@packages/events": "workspace:*",
     "@packages/http": "workspace:*",
+    "@packages/i18n": "workspace:*",
     "@packages/outbox": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.14",

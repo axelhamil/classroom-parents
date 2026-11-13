@@ -28,6 +28,22 @@ export async function blockingViolations(page: Page, include?: string): Promise<
     .map(formatViolation);
 }
 
+// An entrance fade measured halfway reads as a contrast failure of text that is fine
+// once shown, and whether axe lands mid-fade depends on how loaded the host is. Waiting
+// for every finite animation makes the verdict about the page a reader actually sees.
+async function settleAnimations(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter(
+          (animation) => animation.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY,
+        )
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+}
+
 export async function audit(
   page: Page,
   target: AuditedPage,
@@ -49,6 +65,7 @@ export async function audit(
   // lang="en" fail: a membership check would pass on that bug trivially.
   await expect(page.locator("html")).toHaveAttribute("lang", expectedLocale);
 
+  await settleAnimations(page);
   expect(await blockingViolations(page)).toEqual([]);
 }
 

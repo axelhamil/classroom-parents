@@ -84,12 +84,12 @@ describe("QueuedEmailService", () => {
     expect(result.getError().code).toBe("EMAIL_PROVIDER_FAILURE");
   });
 
-  it("fails with EMAIL_PROVIDER_FAILURE when every row is suppressed (0 of N written)", async () => {
+  it("fails with EMAIL_ALREADY_QUEUED when every row is suppressed (0 of N written)", async () => {
     const fullySuppressed = fakeQueue(async () => Result.ok({ written: 0 }));
     const service = new QueuedEmailService(fullySuppressed.port, mockInstrumentation());
     const result = await service.sendTemplate("delete_completed", "a@x.test", { name: "Ada" });
     expect(result.isFailure).toBe(true);
-    expect(result.getError().code).toBe("EMAIL_PROVIDER_FAILURE");
+    expect(result.getError().code).toBe("EMAIL_ALREADY_QUEUED");
   });
 
   it("stays success on a partial suppression (some rows written, some duplicates)", async () => {

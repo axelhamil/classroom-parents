@@ -1,6 +1,3 @@
-import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
-import { PageHeader } from "@packages/ui/components/ui/page-header";
-import { Separator } from "@packages/ui/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -12,12 +9,12 @@ import {
 } from "@packages/ui/components/ui/table";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { TypographyH2, TypographyP } from "@packages/ui/components/ui/typography";
-import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { SUB_PROCESSOR_KEYS } from "../../shared/sub-processor-labels";
 import { SUB_PROCESSORS } from "../../shared/sub-processors.config";
 import { ContactLink } from "./components/contact-link";
+import { LegalScreen } from "./legal-screen";
 
 export const Route = createFileRoute("/legal/sub-processors")({
   component: SubProcessorsPage,
@@ -68,14 +65,10 @@ function SubProcessorTable() {
 function SubProcessorsPage() {
   const { t } = useTranslation("common");
   return (
-    <main className={cn(pageContainerVariants({ width: "prose" }), "flex flex-col gap-8 py-8")}>
-      <PageHeader
-        title={t("legal.subProcessors.title")}
-        description={t("legal.subProcessors.subtitle")}
-      />
-
-      <Separator />
-
+    <LegalScreen
+      title={t("legal.subProcessors.title")}
+      description={t("legal.subProcessors.subtitle")}
+    >
       <section className="flex flex-col gap-3">
         <TypographyH2>Qu'est-ce qu'un sous-traitant ?</TypographyH2>
         <TypographyP>
@@ -97,6 +90,6 @@ function SubProcessorsPage() {
           sous-traitant. Pour toute question : <ContactLink />.
         </TypographyP>
       </section>
-    </main>
+    </LegalScreen>
   );
 }

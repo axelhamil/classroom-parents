@@ -1,4 +1,4 @@
-import { DAY_MS } from "@packages/ddd-kit/days";
+import { DAY_MS, weekdayOf } from "@packages/ddd-kit/days";
 import type { ReviewReason } from "../../domain/extracted-event";
 import type { ExtractedCandidate } from "./extraction-output.schema";
 import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
@@ -38,9 +38,7 @@ function dayNumber(isoDate: string): number {
 }
 
 export function frenchWeekdayOf(isoDate: string): string {
-  const weekday = new Date(dayNumber(isoDate) * DAY_MS).getUTCDay();
-
-  return FRENCH_WEEKDAYS[weekday] ?? "";
+  return FRENCH_WEEKDAYS[weekdayOf(isoDate)] ?? "";
 }
 
 function partsOf(isoDate: string): Required<WrittenDay> {

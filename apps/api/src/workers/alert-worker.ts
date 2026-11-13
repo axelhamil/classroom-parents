@@ -1,35 +1,54 @@
 import { DISPATCH_BATCH } from "@modules/alerts/application/config/dispatch-budget";
 import type { AlertDispatchService } from "@modules/alerts/application/services/alert-dispatch.service";
+import type { WeeklyDigestService } from "@modules/alerts/application/services/weekly-digest.service";
 import type { IInstrumentation, ILogger } from "@packages/ddd-kit";
+import { drain } from "./drain";
 import { startPeriodic } from "./periodic";
 
 export const ALERT_TICK_MS = 30_000;
 
 export interface AlertWorkerDeps {
   AlertDispatchService: Pick<AlertDispatchService, "runOnce">;
+  WeeklyDigestService: Pick<WeeklyDigestService, "runOnce">;
   IInstrumentation: IInstrumentation;
 }
 
-export async function drainDueAlerts(
-  deps: AlertWorkerDeps,
+export function drainDueAlerts(
+  deps: Pick<AlertWorkerDeps, "AlertDispatchService">,
   signal: AbortSignal,
   logger: ILogger,
   clock: () => number = Date.now,
 ): Promise<void> {
-  const startedAt = clock();
+  return drain(
+    {
+      run: (now) => deps.AlertDispatchService.runOnce(now),
+      drained: (claimed) => claimed === 0,
+      label: "alert dispatch",
+      budgetMs: ALERT_TICK_MS,
+    },
+    signal,
+    logger,
+    clock,
+  );
+}
 
-  while (!signal.aborted && clock() - startedAt < ALERT_TICK_MS) {
-    const tick = await deps.AlertDispatchService.runOnce(new Date(clock()));
-    if (tick.isFailure) {
-      const { code, cause } = tick.getError();
-      logger.warn({ code, err: cause }, "alert dispatch failed");
-      return;
-    }
-
-    const { claimed } = tick.getValue();
-    if (claimed > 0) logger.info(tick.getValue(), "alert dispatch done");
-    if (claimed < DISPATCH_BATCH) return;
-  }
+export function drainWeeklyDigests(
+  deps: Pick<AlertWorkerDeps, "WeeklyDigestService">,
+  signal: AbortSignal,
+  logger: ILogger,
+  clock: () => number = Date.now,
+): Promise<void> {
+  return drain(
+    {
+      run: (now) => deps.WeeklyDigestService.runOnce(now),
+      drained: (claimed) => claimed < DISPATCH_BATCH,
+      label: "weekly digest",
+      budgetMs: ALERT_TICK_MS,
+    },
+    signal,
+    logger,
+    clock,
+  );
 }
 
 export function startAlertWorkers(
@@ -37,7 +56,12 @@ export function startAlertWorkers(
   signal: AbortSignal,
   logger: ILogger,
 ): Promise<void> {
-  return startPeriodic(() => drainDueAlerts(deps, signal, logger), ALERT_TICK_MS, signal, {
+  const tick = async () => {
+    await drainDueAlerts(deps, signal, logger);
+    await drainWeeklyDigests(deps, signal, logger);
+  };
+
+  return startPeriodic(tick, ALERT_TICK_MS, signal, {
     onError: (err) => deps.IInstrumentation.capture(err),
   });
 }

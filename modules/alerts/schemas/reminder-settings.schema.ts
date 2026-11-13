@@ -1,6 +1,6 @@
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { authSchema } from "@packages/drizzle";
-import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { ReminderValue } from "../src/domain/value-objects/reminder.vo";
 
 export const alertDefaultReminders = pgTable("alert_default_reminders", {
@@ -11,13 +11,27 @@ export const alertDefaultReminders = pgTable("alert_default_reminders", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
-export const alertEventReminders = pgTable("alert_event_reminders", {
-  eventId: uuid("event_id")
-    .primaryKey()
-    .references(() => agendaEvent.id, { onDelete: "cascade" }),
+export const alertEventReminders = pgTable(
+  "alert_event_reminders",
+  {
+    eventId: uuid("event_id")
+      .primaryKey()
+      .references(() => agendaEvent.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authSchema.user.id, { onDelete: "cascade" }),
+    reminders: jsonb("reminders").$type<ReminderValue[]>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("alert_event_reminders_user_idx").on(table.userId)],
+);
+
+export const alertQuietHours = pgTable("alert_quiet_hours", {
   userId: text("user_id")
-    .notNull()
+    .primaryKey()
     .references(() => authSchema.user.id, { onDelete: "cascade" }),
-  reminders: jsonb("reminders").$type<ReminderValue[]>().notNull(),
+  enabled: boolean("enabled").notNull(),
+  start: text("start").notNull(),
+  end: text("end").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });

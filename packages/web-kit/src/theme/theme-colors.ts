@@ -1,6 +1,6 @@
 import type { ResolvedTheme } from "./theme-store";
 
 export const THEME_COLORS = {
-  light: "#f9f7ef",
-  dark: "#152620",
+  light: "#fbf5eb",
+  dark: "#1b1612",
 } as const satisfies Record<ResolvedTheme, string>;

@@ -48,6 +48,7 @@ export interface RemindersFormProps {
   pending: boolean;
   onSubmit: (reminders: Reminder[], refuse: (refusal: ReminderRefusal) => void) => void;
   onCancel?: () => void;
+  formId?: string;
 }
 
 export function RemindersForm({
@@ -56,6 +57,7 @@ export function RemindersForm({
   pending,
   onSubmit,
   onCancel,
+  formId,
 }: RemindersFormProps) {
   const { t } = useTranslation("common");
   const form = useForm<RemindersInput>({
@@ -75,6 +77,7 @@ export function RemindersForm({
   return (
     <Form {...form}>
       <form
+        id={formId}
         onSubmit={form.handleSubmit((values) => onSubmit(toReminders(values), refuse))}
         className="flex flex-col gap-4"
         noValidate
@@ -111,16 +114,18 @@ export function RemindersForm({
             {t("reminders.add")}
           </Button>
         </Hint>
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" size="sm" disabled={pending}>
-            {t("actions.save")}
-          </Button>
-          {onCancel ? (
-            <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-              {t("actions.cancel")}
+        {formId ? null : (
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" size="sm" disabled={pending}>
+              {t("actions.save")}
             </Button>
-          ) : null}
-        </div>
+            {onCancel ? (
+              <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+                {t("actions.cancel")}
+              </Button>
+            ) : null}
+          </div>
+        )}
       </form>
     </Form>
   );

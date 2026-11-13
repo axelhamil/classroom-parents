@@ -10,7 +10,7 @@ src/
   locales.ts                          `LOCALES`, `Locale`, `DEFAULT_LOCALE`, `isLocale`, `toLocale`
   resolve.ts                          `resolveLocale(candidates)`: cookie, then browser languages, region subtag dropped
   load-catalog.ts                     `loadCatalog(locale)`, the French catalog ships in the main bundle
-  create-instance.ts                  `createI18n({ locale, resources })`
+  create-instance.ts                  `createI18n({ locale, resources })`, `i18nFor(locale)` (fresh instance over the locale's catalog), `fixedT(locale, namespace)`
   lookup.ts, types.ts                 catalog lookup helper, i18next `CustomTypeOptions` typed on the French catalog
 ```
 

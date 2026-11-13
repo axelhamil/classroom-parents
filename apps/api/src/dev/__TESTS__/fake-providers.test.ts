@@ -128,11 +128,17 @@ describe("fake push sink", () => {
   it("accepts every push and keeps it for the checks to read", async () => {
     const fakes = providers();
     const target = { endpoint: "https://fcm.googleapis.com/fcm/send/demo", p256dh: "k", auth: "a" };
-    const message = { title: "Contrôle", body: "jeudi", url: "https://app/events/1" };
+    const message = {
+      title: "Contrôle",
+      body: "jeudi",
+      url: "https://app/events/1",
+      tag: "event-1",
+    };
+    const options = { ttlSeconds: 7200, topic: "event1", urgency: "high" as const };
 
-    const sent = await fakes.push.send(target, message, { ttlSeconds: 7200, topic: "alert1" });
+    const sent = await fakes.push.send(target, message, options);
 
     expect(sent.isSuccess).toBe(true);
-    expect(fakes.pushed()).toEqual([{ endpoint: target.endpoint, message, topic: "alert1" }]);
+    expect(fakes.pushed()).toEqual([{ endpoint: target.endpoint, message, options }]);
   });
 });

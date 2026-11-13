@@ -1,17 +1,20 @@
 import { Button } from "@packages/ui/components/ui/button";
-import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
-import { Panel } from "@packages/ui/components/ui/panel";
-import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
-import { formatApiError } from "@packages/web-kit/api/errors/messages";
+import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
+import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Backpack, Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
+import { syncChildMutationOptions } from "../../shared/children/child-link.mutations";
+import { BoardEmpty } from "../../shared/events/event-board";
+import { childHue } from "../../shared/format/child-hue";
 import { Screen } from "../../shared/layout/screen";
-import { reconnectChildMutationOptions, syncChildMutationOptions } from "./api/children.mutations";
+import { QueryState } from "../../shared/query/query-state";
+import { ScreenTour } from "../../shared/tour/screen-tour";
+import { reconnectChildMutationOptions } from "./api/children.mutations";
 import { childrenSearchSchema } from "./children.schema";
 import { ChildCard } from "./components/child-card";
 
@@ -50,8 +53,8 @@ function useReconnectOnReturn(childId: string | undefined) {
 
 function ChildrenPage() {
   const { t } = useTranslation("children");
-  const { t: tErrors } = useTranslation("errors");
   const { reconnect } = Route.useSearch();
+  const { user } = Route.useRouteContext();
   const reconnecting = useReconnectOnReturn(reconnect);
   const children = useQuery(childrenQueryOptions);
 
@@ -59,9 +62,10 @@ function ChildrenPage() {
     <Screen
       title={t("list.title")}
       description={t("list.description")}
-      aside={
+      width="app"
+      actions={
         children.data?.length ? (
-          <Button asChild variant="outline">
+          <Button asChild data-tour="children-add">
             <Link to="/children/new">
               <Plus aria-hidden />
               {t("list.add")}
@@ -74,31 +78,41 @@ function ChildrenPage() {
         <TypographyMuted aria-live="polite">{t("list.reconnecting")}</TypographyMuted>
       )}
 
-      {children.isPending && <TypographyMuted>{t("list.loading")}</TypographyMuted>}
-
-      {children.isError && (
-        <LoadErrorAlert message={formatApiError(children.error, t("list.loading"), tErrors)} />
-      )}
-
-      {children.data?.length === 0 && (
-        <Panel size="md" className="flex flex-col items-start gap-3">
-          <TypographyH2 variant="section">{t("list.emptyTitle")}</TypographyH2>
-          <TypographyMuted>{t("list.emptyDescription")}</TypographyMuted>
-          <Button asChild>
-            <Link to="/children/new">{t("list.add")}</Link>
-          </Button>
-        </Panel>
-      )}
-
-      {children.data && children.data.length > 0 && (
-        <ul className="flex flex-col gap-4">
-          {children.data.map((child) => (
-            <li key={child.id}>
-              <ChildCard child={child} />
-            </li>
-          ))}
-        </ul>
-      )}
+      <QueryState
+        query={children}
+        skeleton={
+          <SkeletonGroup label={t("list.loading")} className="grid gap-4 md:grid-cols-2">
+            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-56 w-full" />
+          </SkeletonGroup>
+        }
+        empty={
+          <BoardEmpty
+            icon={Backpack}
+            title={t("list.emptyTitle")}
+            description={t("list.emptyDescription")}
+            action={
+              <Button asChild size="sm">
+                <Link to="/onboarding">{t("list.emptyAction")}</Link>
+              </Button>
+            }
+          />
+        }
+        isEmpty={(family) => family.length === 0}
+      >
+        {(family) => (
+          <>
+            <ul className="grid items-start gap-x-4 gap-y-6 md:grid-cols-2">
+              {family.map((child) => (
+                <li key={child.id} data-tour="children-card">
+                  <ChildCard child={child} hue={childHue(family, child.id)} />
+                </li>
+              ))}
+            </ul>
+            <ScreenTour screen="children" userId={user.id} />
+          </>
+        )}
+      </QueryState>
     </Screen>
   );
 }

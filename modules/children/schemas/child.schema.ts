@@ -1,6 +1,15 @@
 import { authSchema } from "@packages/drizzle";
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  check,
+  index,
+  integer,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { CHILD_STATUSES, RECONNECT_CAUSES } from "../src/domain/value-objects/child-status.vo";
 
 export const childAccount = pgTable(
@@ -16,6 +25,8 @@ export const childAccount = pgTable(
       .references(() => authSchema.account.id, { onDelete: "cascade" }),
     googleEmail: text("google_email").notNull(),
     label: text("label").notNull(),
+    color: smallint("color").notNull(),
+    avatarUrl: text("avatar_url"),
     status: text("status", { enum: CHILD_STATUSES }).notNull(),
     cause: text("cause", { enum: RECONNECT_CAUSES }),
     connectedAt: timestamp("connected_at").notNull(),
@@ -32,5 +43,6 @@ export const childAccount = pgTable(
     index("child_account_disconnecting_idx")
       .on(table.nextSyncAt)
       .where(sql`${table.status} = 'disconnecting'`),
+    check("child_account_color_hue", sql`${table.color} BETWEEN 1 AND 8`),
   ],
 );

@@ -32,7 +32,19 @@ describe("drainDueAlerts", () => {
     dispatcher.runOnce
       .mockResolvedValueOnce(outcome(DISPATCH_BATCH))
       .mockResolvedValueOnce(outcome(DISPATCH_BATCH))
-      .mockResolvedValueOnce(outcome(5));
+      .mockResolvedValueOnce(outcome(5))
+      .mockResolvedValueOnce(outcome(0));
+
+    await drainDueAlerts(deps(), new AbortController().signal, logger);
+
+    expect(dispatcher.runOnce).toHaveBeenCalledTimes(4);
+  });
+
+  it("given a batch short of the limit because the next parent's group did not fit, then that group is claimed in the same tick", async () => {
+    dispatcher.runOnce
+      .mockResolvedValueOnce(outcome(18))
+      .mockResolvedValueOnce(outcome(6))
+      .mockResolvedValueOnce(outcome(0));
 
     await drainDueAlerts(deps(), new AbortController().signal, logger);
 

@@ -26,6 +26,7 @@ const tokenError = z.object({ error: z.string() });
 const userInfoResponse = z.object({
   email: z.email(),
   given_name: z.string().optional(),
+  picture: z.string().optional(),
 });
 
 const providerFailure = (operation: string): ChildrenError => ({
@@ -122,6 +123,7 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
         return Result.ok({
           email: parsed.data.email,
           givenName: Option.fromNullable(parsed.data.given_name),
+          picture: Option.fromNullable(parsed.data.picture),
         });
       } catch (err) {
         this.instrumentation.capture(err);

@@ -1,0 +1,1 @@
+ALTER TABLE "event" ADD COLUMN "checklist" jsonb DEFAULT '{"done":[],"removed":[],"extra":[]}'::jsonb NOT NULL;

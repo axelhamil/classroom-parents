@@ -7,7 +7,7 @@ function KeyboardShortcut({ className, ...props }: React.ComponentProps<"kbd">) 
     <kbd
       data-slot="keyboard-shortcut"
       className={cn(
-        "rounded border bg-muted px-1.5 py-0.5 font-medium text-muted-foreground text-xs",
+        "rounded-xs border bg-muted px-1.5 py-0.5 font-medium text-muted-foreground text-xs",
         className,
       )}
       {...props}

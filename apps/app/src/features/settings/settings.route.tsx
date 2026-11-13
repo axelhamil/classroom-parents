@@ -1,20 +1,17 @@
-import { ListRow, ListRowContent } from "@packages/ui/components/ui/list-row";
-import { NavLink } from "@packages/ui/components/ui/nav-link";
-import { SettingsSection } from "@packages/ui/components/ui/settings-section";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Screen } from "../../shared/layout/screen";
+import { ScreenTour } from "../../shared/tour/screen-tour";
+import { AccountCard } from "./components/account-card";
+import { AppearanceCard } from "./components/appearance-card";
 import { DefaultRemindersCard } from "./components/default-reminders-card";
 import { DeleteAccountCard } from "./components/delete-account-card";
+import { DevicesCard } from "./components/devices-card";
+import { PrivacyLinksCard } from "./components/privacy-links-card";
 import { PushCard } from "./components/push-card";
-import { SignOutCard } from "./components/sign-out-card";
+import { QuietHoursCard } from "./components/quiet-hours-card";
+import { TourCard } from "./components/tour-card";
 import { settingsSearchSchema } from "./settings.schema";
-
-const DATA_LINKS = [
-  { to: "/settings/privacy", key: "links.privacy" },
-  { to: "/legal/privacy-policy", key: "links.policy" },
-  { to: "/legal/data-rights", key: "links.dataRights" },
-] as const;
 
 export const Route = createFileRoute("/_protected/_shell/settings")({
   validateSearch: settingsSearchSchema,
@@ -23,28 +20,27 @@ export const Route = createFileRoute("/_protected/_shell/settings")({
 
 function SettingsPage() {
   const { t } = useTranslation("settings");
-  const { user } = Route.useRouteContext();
+  const { user, sessionToken } = Route.useRouteContext();
   const { reauth, error } = Route.useSearch();
 
   return (
-    <Screen title={t("home.title")} description={t("home.description")}>
-      <PushCard userId={user.id} />
-      <DefaultRemindersCard userId={user.id} />
-      <SettingsSection title={t("links.title")} description={t("links.description")}>
-        <ul className="flex flex-col">
-          {DATA_LINKS.map(({ to, key }) => (
-            <ListRow variant="plain" key={to}>
-              <ListRowContent>
-                <NavLink asChild variant="underline">
-                  <Link to={to}>{t(key)}</Link>
-                </NavLink>
-              </ListRowContent>
-            </ListRow>
-          ))}
-        </ul>
-      </SettingsSection>
-      <SignOutCard />
-      <DeleteAccountCard reauthError={reauth ? (error ?? reauth) : undefined} />
+    <Screen title={t("home.title")} description={t("home.description")} width="app">
+      <div className="grid items-start gap-6 @4xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-6">
+          <PushCard userId={user.id} />
+          <DefaultRemindersCard userId={user.id} />
+          <QuietHoursCard userId={user.id} />
+          <AppearanceCard />
+          <TourCard userId={user.id} />
+        </div>
+        <div className="flex min-w-0 flex-col gap-6">
+          <DevicesCard userId={user.id} currentSessionToken={sessionToken} />
+          <PrivacyLinksCard />
+          <AccountCard user={user} />
+          <DeleteAccountCard reauthError={reauth ? (error ?? reauth) : undefined} />
+        </div>
+      </div>
+      <ScreenTour screen="settings" userId={user.id} />
     </Screen>
   );
 }

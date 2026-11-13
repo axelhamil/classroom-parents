@@ -1,11 +1,15 @@
 import { type IInstrumentation, type ILogger, Option, Result } from "@packages/ddd-kit";
+import type { IEmailService } from "@packages/email/email.port";
 import type { BatchSender } from "@packages/email/email-delivery-worker";
-import { renderTemplate } from "@packages/emails";
+import { type RenderedEmail, renderTemplate } from "@packages/emails";
 import type {
   AlertEmailContent,
+  AlertGroupEmailContent,
+  DigestEmailContent,
   IAlertEmailSender,
 } from "../../application/ports/alert-email-sender.port";
 import type { AlertsError } from "../../application/ports/alert-repository.port";
+import { alertLines } from "./alert-lines";
 
 function alertEmail(content: AlertEmailContent) {
   return renderTemplate("alert_reminder", {
@@ -14,6 +18,10 @@ function alertEmail(content: AlertEmailContent) {
     deadlineLabel: content.deadlineLabel,
     eventUrl: content.eventUrl,
   });
+}
+
+function digestEmail(content: DigestEmailContent) {
+  return renderTemplate("weekly_digest", { summary: content.summary, appUrl: content.appUrl });
 }
 
 const RECIPIENT_FIELD = /`to`|recipient/i;
@@ -29,26 +37,70 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
     private readonly from: string,
     private readonly instrumentation: IInstrumentation,
     private readonly logger: ILogger,
+    private readonly queue: IEmailService,
   ) {}
 
   async send(to: string, content: AlertEmailContent): Promise<Result<void, AlertsError>> {
-    return this.instrumentation.startSpan({ name: "ResendAlertEmailSender > send" }, async () => {
-      const idempotencyKey = `alert-${content.alertId}-v${content.version}`;
-      const result = await this.sender.batchSend(
-        [{ from: this.from, to, ...(await alertEmail(content)) }],
-        Option.some(idempotencyKey),
-      );
-      const refused = result.errors?.[0];
-      if (refused) return this.refused(content, { statusCode: 422, message: refused.message });
-      if (!result.error || result.error.kind === "conflict") return Result.ok();
-      if (result.error.kind === "rejected") return this.refused(content, result.error);
+    return this.instrumentation.startSpan({ name: "ResendAlertEmailSender > send" }, async () =>
+      this.deliver(to, await alertEmail(content), `alert-${content.alertId}-v${content.version}`, {
+        alertId: content.alertId,
+        version: content.version,
+      }),
+    );
+  }
 
-      return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", result.error.message));
-    });
+  async sendGroup(
+    to: string,
+    { groupKey, items, appUrl }: AlertGroupEmailContent,
+  ): Promise<Result<void, AlertsError>> {
+    return this.instrumentation.startSpan(
+      { name: "ResendAlertEmailSender > sendGroup" },
+      async () => {
+        const lines = await alertLines(items, { withChild: true });
+        const queued = await this.queue.sendTemplate(
+          "alert_group",
+          to,
+          { itemCount: String(items.length), items: lines.join("\n"), appUrl },
+          { idempotencyKey: groupKey },
+        );
+        if (queued.isFailure && queued.getError().code !== "EMAIL_ALREADY_QUEUED")
+          return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", queued.getError().message));
+
+        return Result.ok();
+      },
+    );
+  }
+
+  async sendDigest(to: string, content: DigestEmailContent): Promise<Result<void, AlertsError>> {
+    return this.instrumentation.startSpan(
+      { name: "ResendAlertEmailSender > sendDigest" },
+      async () =>
+        this.deliver(to, await digestEmail(content), `digest-${content.digestId}`, {
+          digestId: content.digestId,
+        }),
+    );
+  }
+
+  private async deliver(
+    to: string,
+    email: RenderedEmail,
+    idempotencyKey: string,
+    subject: Record<string, string | number>,
+  ): Promise<Result<void, AlertsError>> {
+    const result = await this.sender.batchSend(
+      [{ from: this.from, to, ...email }],
+      Option.some(idempotencyKey),
+    );
+    const refused = result.errors?.[0];
+    if (refused) return this.refused(subject, { statusCode: 422, message: refused.message });
+    if (!result.error || result.error.kind === "conflict") return Result.ok();
+    if (result.error.kind === "rejected") return this.refused(subject, result.error);
+
+    return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", result.error.message));
   }
 
   private refused(
-    content: AlertEmailContent,
+    subject: Record<string, string | number>,
     error: { statusCode: number; message: string },
   ): Result<void, AlertsError> {
     if (RECIPIENT_FIELD.test(error.message))
@@ -58,12 +110,7 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
       new Error(`alert email refused by the provider: ${error.statusCode}`),
     );
     this.logger.error(
-      {
-        alertId: content.alertId,
-        version: content.version,
-        statusCode: error.statusCode,
-        reason: error.message,
-      },
+      { ...subject, statusCode: error.statusCode, reason: error.message },
       "alert email refused by the provider configuration, check RESEND_API_KEY and RESEND_FROM",
     );
     return Result.fail(emailFailure("ALERT_EMAIL_UNAVAILABLE", error.message));

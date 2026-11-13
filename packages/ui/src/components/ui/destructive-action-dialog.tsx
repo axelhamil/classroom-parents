@@ -27,18 +27,19 @@ type TypedConfirmation =
  * Opened by its own trigger, or by the caller (a navigation blocker) through
  * `open` and `onOpenChange`.
  */
-type Opening =
+export type DestructiveActionDialogOpening =
   | { trigger: ReactNode; open?: never; onOpenChange?: never }
   | { trigger?: never; open: boolean; onOpenChange: (open: boolean) => void };
 
 type DestructiveActionDialogProps = TypedConfirmation &
-  Opening & {
+  DestructiveActionDialogOpening & {
     title: string;
     description: ReactNode;
     actionLabel: string;
     cancelLabel: string;
     onConfirm: () => void;
     isPending?: boolean;
+    onCloseAutoFocus?: (event: Event) => void;
     actionVariant?: "default" | "destructive";
   };
 
@@ -55,6 +56,7 @@ export function DestructiveActionDialog({
   confirmTextLabel,
   open: controlledOpen,
   onOpenChange,
+  onCloseAutoFocus,
 }: DestructiveActionDialogProps) {
   const [ownOpen, setOwnOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -80,7 +82,7 @@ export function DestructiveActionDialog({
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>

@@ -2,6 +2,7 @@ import { createECDH, randomBytes, randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { z } from "zod";
 import { JOURNEY_API_URL, JOURNEY_CONTROL_URL } from "./journey.config";
+import { TOUR_SELECTOR } from "./tour";
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
@@ -18,6 +19,7 @@ const run = randomUUID();
 const PARENT: Identity = { sub: `parent-${run}`, email: `journey-${run}@example.com` };
 const LEA: Identity = { sub: `lea-${run}`, email: "lea.demo@eleve.example" };
 const HUGO: Identity = { sub: `hugo-${run}`, email: "hugo.demo@eleve.example" };
+const PUSH_ENDPOINT = `https://fcm.googleapis.com/fcm/send/journey-${run}`;
 
 const Event = z.object({
   id: z.string(),
@@ -43,10 +45,37 @@ const Reminders = z.object({
   ),
 });
 const Session = z.object({ user: z.object({ id: z.string() }) });
-const Push = z.object({ endpoint: z.string(), message: z.object({ title: z.string() }) });
+const Push = z.object({
+  endpoint: z.string(),
+  message: z.object({ title: z.string(), body: z.string() }),
+});
 
 function parisDate(at: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(at);
+}
+
+function monthIndex(date: string): number {
+  return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7));
+}
+
+async function pickDate(page: Page, date: string, shown: string): Promise<void> {
+  const name = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(Date.parse(`${date}T00:00:00Z`));
+  const steps = monthIndex(date) - monthIndex(shown);
+
+  await page.getByLabel("Pour le").click();
+  for (let step = 0; step < Math.abs(steps); step += 1)
+    await page
+      .getByRole("button", {
+        name: steps < 0 ? "Aller au mois précédent" : "Aller au mois suivant",
+      })
+      .click();
+  await page.getByRole("button", { name: new RegExp(`(^|, )${name}`) }).click();
 }
 
 async function googleAnswersAs(page: Page, identity: Identity): Promise<void> {
@@ -60,7 +89,17 @@ async function googleAnswersAs(page: Page, identity: Identity): Promise<void> {
   });
 }
 
+const appSyncs: Promise<unknown>[] = [];
+
+function trackAppSyncs(page: Page): void {
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url() === `${JOURNEY_API_URL}/sync`)
+      appSyncs.push(request.response().catch(() => null));
+  });
+}
+
 async function control(path: string, method = "POST"): Promise<unknown> {
+  await Promise.all(appSyncs);
   const response = await fetch(`${JOURNEY_CONTROL_URL}${path}`, { method });
   expect(response.ok, `${method} ${path}`).toBe(true);
 
@@ -93,22 +132,42 @@ async function body<T>(page: Page, path: string, schema: z.ZodType<T>): Promise<
   return schema.parse(reply.body);
 }
 
-async function pushesTitled(title: string): Promise<number> {
+async function journeyPushes(): Promise<z.infer<typeof Push>[]> {
   const pushes = z.array(Push).parse(await control("/pushes", "GET"));
-  return pushes.filter((push) => push.message.title === title).length;
+  return pushes.filter((push) => push.endpoint === PUSH_ENDPOINT);
 }
 
 function childCard(page: Page, child: Identity) {
   return page.locator("[data-slot=card]").filter({ hasText: child.email });
 }
 
-async function linkChild(page: Page, child: Identity): Promise<void> {
-  await page.goto("/children/new");
+async function connectAndName(page: Page, child: Identity): Promise<void> {
+  await page.getByRole("button", { name: "J'ai tout, continuer" }).click();
   await googleAnswersAs(page, child);
   await page.getByRole("button", { name: "Ajouter le compte Google de mon enfant" }).click();
 
-  await expect(page.getByText("Compte relié")).toBeVisible();
-  await expect(page.getByText(/^Première échéance : /)).toBeVisible({ timeout: STREAM_WAIT_MS });
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Comment s'appelle votre enfant ?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await expect(page.getByText(/^Voici ce qui arrive pour /)).toBeVisible({
+    timeout: STREAM_WAIT_MS,
+  });
+}
+
+async function onboardFirstChild(page: Page, child: Identity): Promise<void> {
+  await page.getByRole("button", { name: "Commencer" }).click();
+  await connectAndName(page, child);
+
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await page.getByRole("button", { name: "Garder les rappels actuels" }).click();
+  await page.getByRole("button", { name: "Plus tard" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "C'est prêt" })).toBeVisible();
+}
+
+async function linkAnotherChild(page: Page, child: Identity): Promise<void> {
+  await page.goto("/children/new");
+  await connectAndName(page, child);
 }
 
 test("a parent links two children, follows their deadlines and alerts, then erases everything", async ({
@@ -116,6 +175,10 @@ test("a parent links two children, follows their deadlines and alerts, then eras
 }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
+  trackAppSyncs(page);
+  await page.addLocatorHandler(page.locator(TOUR_SELECTOR), (tour) =>
+    tour.getByRole("button", { name: "Passer" }).click(),
+  );
   const startedAt = Date.now();
   let userId = "";
 
@@ -126,17 +189,17 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   await test.step("signs in with Google", async () => {
     await page.goto("/login");
     await googleAnswersAs(page, PARENT);
-    await page.getByRole("button", { name: "Se connecter avec Google" }).click();
+    await page.getByRole("button", { name: "Continuer avec Google" }).first().click();
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Échéances", exact: true }),
+      page.getByRole("heading", { level: 1, name: "Ne ratez plus aucune échéance scolaire" }),
     ).toBeVisible();
     userId = (await body(page, "/api/auth/get-session", Session)).user.id;
   });
 
-  await test.step("links two children, their first deadline arrives without a reload", async () => {
-    await linkChild(page, LEA);
-    await linkChild(page, HUGO);
+  await test.step("links two children, their first deadlines arrive without a reload", async () => {
+    await onboardFirstChild(page, LEA);
+    await linkAnotherChild(page, HUGO);
 
     const children = await body(page, "/children", z.array(Child));
     expect(children.map((child) => child.googleEmail).sort()).toEqual([HUGO.email, LEA.email]);
@@ -154,18 +217,14 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   const [edited, deleted] = [...upcoming, ...past].filter(
     (event) => event.source === "coursework" && event.id !== alerted?.id,
   );
-  if (!lea || !hugo || !alerted || !edited || !deleted)
+  const alertedChild = children.find((child) => child.id === alerted?.childId);
+  if (!lea || !hugo || !alerted || !alertedChild || !edited || !deleted)
     throw new Error("the fake Classroom dataset no longer offers the deadlines this journey needs");
 
-  await test.step("filters by category, then opens a deadline", async () => {
-    await page.goto("/");
-    await page
-      .getByRole("group", { name: "Filtrer par type" })
-      .getByRole("button", { name: "Évaluation" })
-      .click();
-
-    await expect(page).toHaveURL(/category=assessment/);
-    await expect(page.getByRole("link").filter({ hasText: /./ }).first()).toBeVisible();
+  await test.step("finds a deadline on its day of the calendar, then opens it", async () => {
+    await page.goto(`/?view=week&date=${alerted.deadlineDate}`);
+    const row = page.getByRole("link").filter({ hasText: alerted.title }).first();
+    await expect(row).toBeVisible();
 
     await page.goto(`/events/${alerted.id}`);
     await expect(page.getByRole("heading", { level: 1, name: alerted.title })).toBeVisible();
@@ -191,7 +250,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        endpoint: `https://fcm.googleapis.com/fcm/send/journey-${run}`,
+        endpoint: PUSH_ENDPOINT,
         keys: {
           p256dh: keys.getPublicKey().toString("base64url"),
           auth: randomBytes(16).toString("base64url"),
@@ -201,10 +260,15 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     expect(subscribed).toMatchObject({ status: 204 });
 
     await control(`/alerts?at=${new Date(dueAt - MINUTE_MS).toISOString()}`);
-    expect(await pushesTitled(alerted.title)).toBe(0);
+    expect(await journeyPushes()).toHaveLength(0);
 
     await control(`/alerts?at=${new Date(dueAt).toISOString()}`);
-    expect(await pushesTitled(alerted.title)).toBe(1);
+    const [pushed, ...more] = await journeyPushes();
+    expect(more).toHaveLength(0);
+    const lockScreen = `${pushed?.message.title}\n${pushed?.message.body}`;
+    expect(lockScreen).toContain("KeepUpKids");
+    expect(lockScreen).not.toContain(alerted.title);
+    expect(lockScreen).not.toContain(alertedChild.label);
     await page.reload();
     await expect(page.getByText("Envoyé")).toBeVisible();
   });
@@ -214,7 +278,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   await test.step("edits a deadline into the past and deletes another", async () => {
     await page.goto(`/events/${edited.id}/edit`);
     await page.getByLabel("Titre").fill(editedTitle);
-    await page.getByLabel("Pour le").fill(parisDate(startedAt - DAY_MS));
+    await pickDate(page, parisDate(startedAt - DAY_MS), edited.deadlineDate);
     await page.getByRole("button", { name: "Enregistrer" }).click();
     await expect(page.getByRole("heading", { level: 1, name: editedTitle })).toBeVisible();
 
@@ -234,14 +298,15 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   });
 
   await test.step("history holds the deadline whose date has passed", async () => {
-    await page.goto("/history");
+    await page.goto("/?tab=history");
     await expect(page.getByText(editedTitle)).toBeVisible();
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Échéances", exact: true }),
-    ).toBeVisible();
-    await expect(page.getByText(editedTitle)).toHaveCount(0);
+    await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
+    await page.getByRole("button", { name: /^En retard, / }).click();
+    const late = page.getByRole("dialog", { name: /^En retard, / });
+    await expect(late.getByRole("link", { name: editedTitle })).toBeVisible();
+    await expect(page.getByText(editedTitle)).toHaveCount(1);
   });
 
   await test.step("a school block comes back from the sync as a failure", async () => {
@@ -265,7 +330,10 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   });
 
   await test.step("disconnecting a child removes its deadlines", async () => {
-    await childCard(page, LEA).getByRole("button", { name: "Déconnecter" }).click();
+    await childCard(page, LEA)
+      .getByRole("button", { name: /^Actions pour / })
+      .click();
+    await page.getByRole("menuitem", { name: "Déconnecter" }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Déconnecter" }).click();
 
     await expect(childCard(page, LEA)).toHaveCount(0, { timeout: STREAM_WAIT_MS });

@@ -183,6 +183,17 @@
       }
     },
     {
+      "includes": ["**/*.astro"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "off",
+            "noUnusedImports": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/routeTree.gen.ts"],
       "linter": { "enabled": false },
       "assist": { "enabled": false }

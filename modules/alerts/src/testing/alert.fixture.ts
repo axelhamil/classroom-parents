@@ -17,6 +17,8 @@ export function paris(date: string, time: string): Date {
 
 export interface AlertOverrides {
   id?: string;
+  userId?: string;
+  eventId?: string;
   reminder?: string;
   status?: AlertStatusValue;
   origin?: AlertOriginValue;
@@ -34,8 +36,8 @@ export function existingAlert(overrides: AlertOverrides = {}): Alert {
 
   return Alert.reconstitute(
     {
-      eventId: ALERT_EVENT,
-      userId: PARENT,
+      eventId: overrides.eventId ?? ALERT_EVENT,
+      userId: overrides.userId ?? PARENT,
       reminder: Reminder.fromKey(overrides.reminder ?? "d2@18:00").getValue(),
       time,
       deadlineAt: overrides.deadlineAt ?? paris("2026-11-15", "23:59"),

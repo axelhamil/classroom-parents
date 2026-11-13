@@ -2,7 +2,8 @@
  * Proves against a real Postgres what mocked ports cannot: 20 concurrent ingests of one
  * announcement create its events once, a parent edit or deletion survives a later ingest,
  * upcoming and history split on the deadline instant with their filters and keyset cursors,
- * a turned-in coursework leaves upcoming, the status filter isolates the events to review,
+ * a turned-in coursework leaves upcoming, a parent's done or to-do choice survives the next sync
+ * and drives the done filter, the status filter isolates the events to review,
  * a family never reads, edits, confirms or deletes another family's event, deleting a user
  * cascades its events, a coursework is stored once and follows its teacher until the parent edits
  * the field, an announcement deadline on a coursework's course and day stays hidden only while a
@@ -10,7 +11,10 @@
  * an archived course keeps its past coursework in the history, the user cascade on event reads
  * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx and
  * event_coursework_day_idx. A child being disconnected hides its events from lists, detail,
- * edit, confirm and delete.
+ * edit, confirm and delete. The calendar lists every event between the Paris midnights of its
+ * range, done ones included, through event_user_deadline_idx. A manual event has no Classroom
+ * course nor link and no sync withdraws, shadows or changes it; a parent never adds one to
+ * another family's child.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -410,6 +414,24 @@ run(async () => {
     kept?.deadlineDate === "2030-01-24" && kept.done && cancelled.includes(miaWork.id),
   );
 
+  const reopened = await edits.markDone(a, miaWork.id, false);
+  await ingestCoursework(a, aMia, [homework({ deadlineDate: "2030-01-25", done: true })]);
+  const [stillToDo] = await rowsOf(aMia, "w-mia");
+  const miaList = async (filter: Partial<EventFilter>) =>
+    idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10, ...filter }, NOW));
+  await step(
+    "a parent who marks a turned-in coursework to do keeps it to do over the next sync",
+    reopened.isSuccess && stillToDo?.done === false && stillToDo.editedFields.includes("done"),
+  );
+  await step(
+    "upcoming lists the events to do by default, done=true lists only the done ones",
+    (await miaList({})).includes(miaWork.id) &&
+      !(await miaList({ done: true })).includes(miaWork.id) &&
+      (await edits.markDone(a, miaWork.id, true)).isSuccess &&
+      !(await miaList({})).includes(miaWork.id) &&
+      (await miaList({ done: true })).includes(miaWork.id),
+  );
+
   const aNoe = await createChild(a, "noe");
   await ingest(a, aNoe, "ann-noe", [
     extracted({ title: "Contrôle du 26", deadlineDate: "2030-01-26" }),
@@ -499,6 +521,44 @@ run(async () => {
     "the past coursework of an archived course stays in the history",
     (await rowsOf(aNoe, "w-noe-past"))[0]?.withdrawnAt === null &&
       idsOf(await query.listHistory(a, { childIds: [aNoe], limit: 10 }, NOW)).includes(noePast.id),
+  );
+
+  const aIris = await createChild(a, "iris");
+  const added = await edits.add(a, {
+    childId: aIris,
+    title: "Réunion parents professeurs",
+    category: "document_due",
+    deadlineDate: "2030-01-27",
+  });
+  if (added.isFailure) throw new Error(`manual event refused: ${added.getError().code}`);
+  const manualId = added.getValue().id;
+  await ingestCoursework(a, aIris, [homework({ id: "w-iris-27", deadlineDate: "2030-01-27" })]);
+  await ingestCoursework(a, aIris, [], { complete: true, presentIds: [] });
+  await ingestService.withdrawCourseworkOutside({ userId: a, childId: aIris, activeCourseIds: [] });
+  const [manualRow] = await db.select().from(agendaEvent).where(eq(agendaEvent.id, manualId));
+  await step(
+    "a manual event has no Classroom course nor link, and no sync withdraws, shadows or changes it",
+    manualRow?.source === "manual" &&
+      manualRow.courseId === null &&
+      manualRow.announcementUrl === null &&
+      manualRow.withdrawnAt === null &&
+      manualRow.title === "Réunion parents professeurs" &&
+      idsOf(await query.listUpcoming(a, { childIds: [aIris], limit: 10 }, NOW)).includes(
+        manualId,
+      ) &&
+      (await alertable(a, manualId)) === "2030-01-27" &&
+      planned.some(({ eventId, actorUserId }) => eventId === manualId && actorUserId === a),
+  );
+  await step(
+    "A cannot add an event to B's child",
+    codeOf(
+      await edits.add(a, {
+        childId: bZoe,
+        title: "Pirate",
+        category: "homework",
+        deadlineDate: "2030-01-27",
+      }),
+    ) === "EVENT_CHILD_NOT_FOUND",
   );
 
   const [turnedIn] = await db
@@ -673,5 +733,41 @@ run(async () => {
       !listSql.includes("$5") &&
       planText.includes("event_user_deadline_idx") &&
       planText.includes("event_coursework_day_idx"),
+  );
+
+  await db
+    .update(agendaEvent)
+    .set({ done: true })
+    .where(and(eq(agendaEvent.userId, c), eq(agendaEvent.announcementId, "seed-30")));
+  spans.length = 0;
+  const calendar = await query.listCalendar(c, { from: "2029-01-02", to: "2029-01-03" });
+  const calendarSql = spans.at(-1) ?? "";
+  const calendarItems = calendar.isSuccess ? calendar.getValue().items : [];
+  await step(
+    "the calendar of two days lists every event between their Paris midnights, done ones included, in deadline order",
+    calendarItems.length === 48 &&
+      calendarItems[0]?.title === "Seed 23" &&
+      calendarItems.at(-1)?.title === "Seed 70" &&
+      calendarItems.some((item) => item.title === "Seed 30" && item.done),
+    { items: calendarItems.length, first: calendarItems[0]?.title },
+  );
+  const calendarPlan = await db.$client.query(`EXPLAIN (ANALYZE, BUFFERS) ${calendarSql}`, [
+    c,
+    "2029-01-01T23:00:00.000Z",
+    "2029-01-03T23:00:00.000Z",
+    cChild,
+  ]);
+  const calendarPlanText = calendarPlan.rows
+    .map((row: Record<string, string>) => Object.values(row).join(""))
+    .join("\n");
+  console.log(
+    `\nEXPLAIN ANALYZE listCalendar on ${SEEDED} rows:\n${calendarSql}\n${calendarPlanText}\n`,
+  );
+  await step(
+    `the calendar on ${SEEDED} rows reads event_user_deadline_idx on the range`,
+    calendarSql.includes("$4") &&
+      !calendarSql.includes("$5") &&
+      calendarPlanText.includes("event_user_deadline_idx") &&
+      !calendarPlanText.includes("Seq Scan"),
   );
 }, "agenda events stay inside their family and survive re-ingest on a real database");

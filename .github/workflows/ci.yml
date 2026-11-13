@@ -80,8 +80,21 @@ jobs:
           build-args: |
             VITE_API_URL=https://api.example.com
             VITE_CONTACT_EMAIL=contact@example.com
+            VITE_SITE_URL=https://example.com
           cache-from: type=gha,scope=app
           cache-to: type=gha,mode=max,scope=app
+
+      - name: Build the site image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/site/Dockerfile
+          push: false
+          build-args: |
+            PUBLIC_SITE_URL=https://example.com
+            PUBLIC_APP_URL=https://app.example.com
+          cache-from: type=gha,scope=site
+          cache-to: type=gha,mode=max,scope=site
 
   a11y:
     name: Accessibility gate
@@ -163,6 +176,17 @@ jobs:
         # alert forged onto another family's event reads nothing. Removes its probe rows.
         run: pnpm --filter api check:alert-context
 
+      - name: Check that a calendar feed serves only its owner's deadlines
+        # The secret-hash lookup, the event window and the owner filter live in SQL; only
+        # Postgres proves a rotated or revoked link serves nothing and an account deletion
+        # removes the feed. Removes its probe rows.
+        run: pnpm --filter api check:calendar-feed
+
+      - name: Check that the data export reads only the parent's family
+        # The owner filter lives in the host query and the 24 h limit in the stored request
+        # date; only Postgres proves both. Removes its probe families.
+        run: pnpm --filter api check:data-export
+
       - name: Check that a child's next sync reads only its own family's next alert
         # The owner and child filters live in the joins of the host query; only Postgres
         # proves a sibling's, a sent or a forged alert never pulls a sync earlier.
@@ -191,11 +215,21 @@ jobs:
         # The batched delete, its lease and its heartbeat are SQL. Removes its probes.
         run: pnpm --filter api check:email-retention
 
+      - name: Check the event history retention sweep against a real database
+        # The 12 month and 30 day windows, the sync window guard (purge then sync), the
+        # purge events and the cascade to reminders and alerts are SQL. Removes its probe family.
+        run: pnpm --filter api check:event-retention
+
       - name: Check the composed api end to end against a real database
         # Fake Google and model, real modules, real Postgres: a family's agenda filled by
         # the first sync, served over HTTP, the live stream, a school block, a
         # disconnection and the RGPD revocation. Removes its probe family.
         run: pnpm --filter api check:end-to-end
+
+      - name: Check the Sunday digest against a real database
+        # The parent and week unique key, the SKIP LOCKED claim and the audience query are
+        # SQL: four racing instances send each parent one digest. Removes its probes.
+        run: pnpm --filter api check:weekly-digest
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -221,6 +255,10 @@ jobs:
 
       - name: Audit
         run: pnpm turbo run check:a11y --filter=app
+
+      - name: Audit the landing site
+        # Static build, no api: one main, one h1 and no serious WCAG AA violation, light and dark.
+        run: pnpm turbo run check:a11y --filter=site
 
       - name: Create the journey database
         # The audit's api still runs on classroom_parents with real providers: on a shared
@@ -251,5 +289,7 @@ jobs:
         if: failure()
         with:
           name: a11y-traces
-          path: apps/app/test-results/
+          path: |
+            apps/app/test-results/
+            apps/site/test-results/
           retention-days: 7

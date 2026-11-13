@@ -1,5 +1,5 @@
 const FALLBACK = {
-  title: "Échéances Classroom",
+  title: "KeepUpKids",
   body: "Une échéance approche. Ouvrez l'application pour la voir.",
   navigate: "/",
 };
@@ -26,6 +26,7 @@ function readNotification(data) {
       title: notification.title,
       body: notification.body,
       navigate: safeTarget(notification.navigate),
+      tag: typeof notification.tag === "string" && notification.tag ? notification.tag : undefined,
     };
   } catch {
     return FALLBACK;
@@ -41,7 +42,8 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  const { title, body, navigate } = readNotification(event.data);
+  const { title, body, navigate, tag } = readNotification(event.data);
+  const grouping = tag ? { tag, renotify: true } : {};
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -50,14 +52,36 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/badge-96.png",
       data: { navigate },
+      ...grouping,
     }),
   );
 });
 
+const NAVIGATE_MESSAGE = "keepupkids:navigate";
+const ANSWER_TIMEOUT_MS = 500;
+
+function askAppToNavigate(client, path) {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => {
+      channel.port1.close();
+      resolve(false);
+    }, ANSWER_TIMEOUT_MS);
+    channel.port1.onmessage = () => {
+      clearTimeout(timer);
+      channel.port1.close();
+      resolve(true);
+    };
+    client.postMessage({ type: NAVIGATE_MESSAGE, path }, [channel.port2]);
+  });
+}
+
 async function openTarget(navigate) {
-  const url = new URL(safeTarget(navigate), self.location.origin).href;
-  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  const existing = windows[0];
+  const path = safeTarget(navigate);
+  const url = new URL(path, self.location.origin).href;
+  const controlled = await self.clients.matchAll({ type: "window" });
+  const any = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const existing = controlled[0] ?? any[0];
 
   if (!existing) {
     await self.clients.openWindow(url);
@@ -66,6 +90,7 @@ async function openTarget(navigate) {
 
   const focused = await existing.focus();
   if (focused.url === url) return;
+  if (await askAppToNavigate(focused, path)) return;
 
   try {
     await focused.navigate(url);

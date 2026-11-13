@@ -7,6 +7,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   time,
@@ -15,6 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { EDITABLE_FIELDS } from "../src/domain/event.aggregate";
+import type { StoredChecklist } from "../src/domain/value-objects/event-checklist.vo";
 import { EVENT_SOURCES } from "../src/domain/value-objects/event-source.vo";
 import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
 
@@ -31,8 +33,8 @@ export const agendaEvent = pgTable(
     source: text("source", { enum: EVENT_SOURCES }).notNull().default("announcement"),
     announcementId: text("announcement_id").notNull(),
     ordinal: integer("ordinal").notNull(),
-    courseId: text("course_id").notNull(),
-    announcementUrl: text("announcement_url").notNull(),
+    courseId: text("course_id"),
+    announcementUrl: text("announcement_url"),
     title: text("title").notNull(),
     description: text("description").notNull(),
     category: text("category", { enum: EVENT_CATEGORIES }).notNull(),
@@ -42,6 +44,10 @@ export const agendaEvent = pgTable(
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
     status: text("status", { enum: EVENT_STATUSES }).notNull(),
     done: boolean("done").notNull().default(false),
+    checklist: jsonb("checklist")
+      .$type<StoredChecklist>()
+      .notNull()
+      .default({ done: [], removed: [], extra: [] }),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     editedFields: text("edited_fields", { enum: EDITABLE_FIELDS })
       .array()
@@ -64,5 +70,8 @@ export const agendaEvent = pgTable(
         sql`${table.source} = 'coursework' and ${table.deletedAt} is null and ${table.withdrawnAt} is null`,
       ),
     index("event_user_deadline_idx").on(table.userId, table.deadlineAt),
+    index("event_dismissed_deadline_idx")
+      .on(table.deadlineAt)
+      .where(sql`${table.deletedAt} is not null or ${table.withdrawnAt} is not null`),
   ],
 );

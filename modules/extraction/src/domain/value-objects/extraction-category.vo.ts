@@ -1,8 +1,8 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
-import { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
+import { CLASSROOM_CATEGORIES } from "@packages/events/agenda-contract";
 import { z } from "zod";
 
-export const extractionCategorySchema = z.enum(EVENT_CATEGORIES);
+export const extractionCategorySchema = z.enum(CLASSROOM_CATEGORIES);
 
 export type ExtractionCategoryValue = z.infer<typeof extractionCategorySchema>;
 

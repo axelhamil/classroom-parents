@@ -2,6 +2,7 @@ import { Option } from "@packages/ddd-kit";
 import { AgendaEvent } from "../domain/event.aggregate";
 import { EventId } from "../domain/event-id";
 import { EventCategory } from "../domain/value-objects/event-category.vo";
+import { EventChecklist } from "../domain/value-objects/event-checklist.vo";
 import { EventDeadline } from "../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../domain/value-objects/event-description.vo";
 import { EventSource } from "../domain/value-objects/event-source.vo";
@@ -27,8 +28,8 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
         overrides.source === "coursework" ? EventSource.coursework() : EventSource.announcement(),
       announcementId: "announcement-1",
       ordinal: 0,
-      courseId: "course-1",
-      announcementUrl: "https://classroom.google.com/c/course-1/p/announcement-1",
+      courseId: Option.some("course-1"),
+      announcementUrl: Option.some("https://classroom.google.com/c/course-1/p/announcement-1"),
       title: EventTitle.create("Contrôle de maths").getValue(),
       description: EventDescription.create("Chapitre 3").getValue(),
       category: EventCategory.create("assessment").getValue(),
@@ -39,6 +40,7 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       receivedAt: new Date("2026-11-09T07:00:00.000Z"),
       status: EventStatus.create(overrides.status ?? "confirmed").getValue(),
       done: false,
+      checklist: EventChecklist.empty(),
       editedAt: Option.none(),
       editedFields: [],
       deletedAt: Option.none(),

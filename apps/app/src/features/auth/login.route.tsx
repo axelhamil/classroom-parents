@@ -1,14 +1,21 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
-import { Button } from "@packages/ui/components/ui/button";
-import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
-import { useMutation } from "@tanstack/react-query";
+import { BrandMark } from "@packages/ui/components/ui/brand-link";
+import { LandingAction, LandingReassurance, SignInPanel } from "@packages/ui/components/ui/landing";
+import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
+import { TextLink } from "@packages/ui/components/ui/text-link";
+import { TypographyH1, TypographyMuted } from "@packages/ui/components/ui/typography";
+import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
+import { PencilOffIcon } from "lucide-react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import { signInWithGoogleMutationOptions } from "./api/auth.mutations";
+import { LegalFooter } from "../../shared/components/legal-footer";
+import { ThemeToggle } from "../../shared/components/theme-toggle";
+import { env } from "../../shared/env";
 import { loginSearchSchema } from "./auth.schema";
-import { resolveAuthError } from "./auth-error";
-import { AuthShell } from "./components/auth-shell";
+import { GoogleSignInButton } from "./components/google-sign-in-button";
+import { useAutoGoogleSignIn } from "./use-auto-google-sign-in";
+import { useGoogleSignIn } from "./use-google-sign-in";
 
 export const Route = createFileRoute("/_guest/login")({
   validateSearch: loginSearchSchema,
@@ -17,27 +24,54 @@ export const Route = createFileRoute("/_guest/login")({
 
 function LoginPage() {
   const { t } = useTranslation("auth");
-  const { t: tErrors } = useTranslation("errors");
-  const { redirect, error } = Route.useSearch();
-  const signIn = useMutation({
-    ...signInWithGoogleMutationOptions,
-    onError: (error) => toast.error(resolveAuthError(error, "login.failed", t, tErrors)),
-  });
+  const { redirect, error, start } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const signIn = useGoogleSignIn(redirect);
+  const forgetStart = useCallback(
+    () => void navigate({ search: (prev) => ({ ...prev, start: undefined }), replace: true }),
+    [navigate],
+  );
+  const redirecting = useAutoGoogleSignIn(start === "google" && !error, signIn, forgetStart);
 
   return (
-    <AuthShell title={t("login.title")} description={t("login.promise")}>
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {error === "access_denied" ? t("login.cancelled") : t("login.callbackFailed")}
-          </AlertDescription>
-        </Alert>
-      )}
-      <Button size="lg" disabled={signIn.isPending} onClick={() => signIn.mutate(redirect)}>
-        {signIn.isPending ? t("login.pending") : t("login.google")}
-      </Button>
-      <TypographyP>{t("login.readOnly")}</TypographyP>
-      <TypographyMuted>{t("login.ownAccount")}</TypographyMuted>
-    </AuthShell>
+    <>
+      <meta name="robots" content="noindex" />
+      <header className={cn(pageContainerVariants(), "flex h-app-bar items-center justify-end")}>
+        <ThemeToggle />
+      </header>
+
+      <main
+        className={cn(
+          pageContainerVariants({ width: "form" }),
+          "flex min-h-[calc(100svh-var(--app-bar-height)*3)] flex-col justify-center pb-12",
+        )}
+      >
+        <SignInPanel>
+          <BrandMark className="size-16" />
+          <TypographyH1 variant="page">{t("login.title")}</TypographyH1>
+          <LandingAction>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {error === "access_denied" ? t("login.cancelled") : t("login.callbackFailed")}
+                </AlertDescription>
+              </Alert>
+            )}
+            {redirecting ? (
+              <TypographyMuted role="status">{t("login.redirecting")}</TypographyMuted>
+            ) : (
+              <GoogleSignInButton signIn={signIn} />
+            )}
+            <LandingReassurance>
+              <PencilOffIcon aria-hidden />
+              {t("login.readOnly")}
+            </LandingReassurance>
+          </LandingAction>
+          <TextLink href={env.VITE_SITE_URL}>{t("login.discover")}</TextLink>
+        </SignInPanel>
+      </main>
+
+      <LegalFooter />
+    </>
   );
 }

@@ -1,5 +1,8 @@
 import { COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { stubChildrenApi } from "./children-fixture";
+import { showColorScheme } from "./color-scheme";
+import { LEA, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
@@ -8,7 +11,9 @@ async function openDeletionDialog(page: Page): Promise<{ trigger: Locator; dialo
   await page.goto("/settings");
 
   const trigger = page.getByRole("button", { name: "Supprimer mon compte" });
-  await tabTo(page, trigger);
+  await page.getByText(/^Votre compte, les comptes Google de vos enfants/).click();
+  await page.keyboard.press("Tab");
+  await expect(trigger).toBeFocused();
   await page.keyboard.press("Enter");
 
   const dialog = page.getByRole("alertdialog", { name: "Supprimer votre compte ?" });
@@ -64,10 +69,10 @@ test("opens an icon button tooltip on keyboard focus and closes it with Escape",
 }) => {
   await page.goto("/login");
 
-  const toggle = page.getByRole("button", { name: /Passer au thème (sombre|clair)/ });
+  const toggle = page.getByRole("button", { name: /^Thème : / });
   await tabTo(page, toggle);
 
-  const tooltip = page.getByRole("tooltip").filter({ hasText: /Passer au thème (sombre|clair)/ });
+  const tooltip = page.getByRole("tooltip").filter({ hasText: /^Thème : / });
   await expect(tooltip).toBeVisible();
 
   await page.keyboard.press("Escape");
@@ -93,7 +98,8 @@ test("skips the theme view transition under reduced motion", async ({ page }) =>
   const isDark = () => page.evaluate(() => document.documentElement.classList.contains("dark"));
   const before = await isDark();
 
-  await page.getByRole("button", { name: /Passer au thème (sombre|clair)/ }).click();
+  await page.getByRole("button", { name: /^Thème : / }).click();
+  await page.getByRole("menuitemradio", { name: before ? "Clair" : "Sombre" }).click();
 
   await expect.poll(isDark).toBe(!before);
   const transitioned = await page.evaluate(
@@ -104,6 +110,7 @@ test("skips the theme view transition under reduced motion", async ({ page }) =>
 
 test.describe("signed in", () => {
   test.use({ storageState: STORAGE_STATE });
+  test.beforeEach(({ page }) => stubChildrenApi(page));
 
   for (const width of [390, 768, 1440]) {
     test(`keeps the shell and its navigation inside a ${width} px viewport`, async ({ page }) => {
@@ -112,13 +119,44 @@ test.describe("signed in", () => {
       await page.goto("/");
 
       const nav = page.getByRole("navigation", { name: "Navigation principale" });
-      for (const name of ["Échéances", "Historique", "Enfants", "Réglages"]) {
+      for (const name of ["Accueil", "Enfants", "Réglages"]) {
         await expect(nav.getByRole("link", { name })).toBeInViewport({ ratio: 1 });
       }
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
-      expect(overflow).toBe(0);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
+
+  for (const width of [390, 768, 1440]) {
+    test(`keeps the navigation still across pages at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/");
+
+      const nav = page.getByRole("navigation", { name: "Navigation principale" });
+      const boxes = async () => {
+        await expect(nav.getByRole("link")).toHaveCount(3);
+        await page.waitForFunction(
+          () =>
+            document.fonts.status === "loaded" &&
+            document.getAnimations().every((animation) => animation.playState !== "running"),
+        );
+        return Promise.all(
+          [nav, ...(await nav.getByRole("link").all())].map((element) => element.boundingBox()),
+        );
+      };
+
+      const onHome = await boxes();
+      for (const [name, path] of [
+        ["Enfants", /\/children$/],
+        ["Réglages", /\/settings$/],
+      ] as const) {
+        await nav.getByRole("link", { name }).click();
+        await expect(page).toHaveURL(path);
+        await expect(page.locator("main")).toBeVisible();
+        expect(await boxes()).toEqual(onHome);
+      }
     });
   }
 
@@ -142,7 +180,7 @@ test.describe("signed in", () => {
     test(`draws the destructive focus ring at 3:1 against its surface (${colorScheme})`, async ({
       page,
     }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       const { dialog } = await openDeletionDialog(page);
 
       const confirm = dialog.getByRole("button", { name: "Oui, supprimer mon compte" });
@@ -152,13 +190,40 @@ test.describe("signed in", () => {
     });
   }
 
-  test("names today's date tab for assistive technology", async ({ page }) => {
+  test("opens the user menu from the keyboard and gives focus back on Escape", async ({ page }) => {
     await page.goto("/");
 
-    const today = page.locator("[data-slot=date-tab]");
+    const trigger = page.getByRole("button", { name: "Ouvrir le menu utilisateur" });
+    await tabTo(page, trigger);
+    await page.keyboard.press("Enter");
 
-    await expect(today).toHaveAttribute("aria-label", "Aujourd'hui");
-    await expect(today).not.toHaveAttribute("title");
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: "Se déconnecter" })).toBeVisible();
+    await expect(menu.getByRole("menuitemradio", { name: "Automatique" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
+  test("switches the theme from the appearance radio group with the arrow keys", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+
+    const light = page.getByRole("radio", { name: "Clair" });
+    await page.getByText(/^Le thème de l'application sur cet appareil/).click();
+    await page.keyboard.press("Tab");
+    await expect(light).toBeFocused();
+    await page.keyboard.press("ArrowRight", { delay: 50 });
+
+    await expect(page.getByRole("radio", { name: "Sombre" })).toBeFocused();
+    await expect(page.getByRole("radio", { name: "Sombre" })).toBeChecked();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    await page.keyboard.press("ArrowLeft", { delay: 50 });
+    await expect(light).toBeChecked();
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
   });
 
   test("reaches every section from the bottom navigation on a phone", async ({ page }) => {
@@ -173,5 +238,39 @@ test.describe("signed in", () => {
       "aria-current",
       "page",
     );
+  });
+});
+
+test.describe("calendar month grid", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  test("walks the days with the arrows, Home, End and the page keys, Enter picks one", async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date(2026, 10, 11, 10));
+    await serveFamily(page, { children: [LEA], events: [] });
+    await page.goto("/?view=month&date=2026-11-11");
+
+    const day = (date: string) => page.locator(`[data-day="${date}"] button`);
+    await day("2026-11-11").focus();
+
+    await page.keyboard.press("ArrowRight");
+    await expect(day("2026-11-12")).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(day("2026-11-19")).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(day("2026-11-16")).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(day("2026-11-22")).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/[?&]date=2026-11-21/);
+    await expect(day("2026-11-21")).toBeFocused();
+
+    await page.keyboard.press("PageDown");
+    await expect(day("2026-12-21")).toBeFocused();
+    await expect(page.getByRole("heading", { level: 2, name: "décembre 2026" })).toBeVisible();
+    await page.keyboard.press("PageUp");
+    await expect(day("2026-11-21")).toBeFocused();
   });
 });

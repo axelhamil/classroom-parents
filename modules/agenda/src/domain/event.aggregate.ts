@@ -1,19 +1,22 @@
 import { Aggregate, Option, Result } from "@packages/ddd-kit";
 import { EventId } from "./event-id";
 import type { EventCategory } from "./value-objects/event-category.vo";
+import { type ChecklistChange, EventChecklist } from "./value-objects/event-checklist.vo";
 import type { EventDeadline } from "./value-objects/event-deadline.vo";
 import type { EventDescription } from "./value-objects/event-description.vo";
-import type { EventSource } from "./value-objects/event-source.vo";
+import { EventSource } from "./value-objects/event-source.vo";
 import { EventStatus } from "./value-objects/event-status.vo";
 import type { EventTitle } from "./value-objects/event-title.vo";
 
-export const EDITABLE_FIELDS = ["title", "description", "category", "deadline"] as const;
+export const EDITABLE_FIELDS = ["title", "description", "category", "deadline", "done"] as const;
 
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 
-export type EventField = EditableField | "status" | "done" | "withdrawn";
+export type EventField = EditableField | "status" | "withdrawn" | "checklist";
 
 export type EventRefusal = "deleted" | "withdrawn";
+
+export type ChecklistRefusal = "deleted" | "invalid";
 
 export interface AgendaEventProps {
   userId: string;
@@ -21,8 +24,8 @@ export interface AgendaEventProps {
   source: EventSource;
   announcementId: string;
   ordinal: number;
-  courseId: string;
-  announcementUrl: string;
+  courseId: Option<string>;
+  announcementUrl: Option<string>;
   title: EventTitle;
   description: EventDescription;
   category: EventCategory;
@@ -30,6 +33,7 @@ export interface AgendaEventProps {
   receivedAt: Date;
   status: EventStatus;
   done: boolean;
+  checklist: EventChecklist;
   editedAt: Option<Date>;
   editedFields: EditableField[];
   deletedAt: Option<Date>;
@@ -43,8 +47,8 @@ export interface NewAgendaEvent {
   source: EventSource;
   announcementId: string;
   ordinal: number;
-  courseId: string;
-  announcementUrl: string;
+  courseId: Option<string>;
+  announcementUrl: Option<string>;
   title: EventTitle;
   description: EventDescription;
   category: EventCategory;
@@ -52,6 +56,16 @@ export interface NewAgendaEvent {
   receivedAt: Date;
   needsReview: boolean;
   done: boolean;
+  now: Date;
+}
+
+export interface ManualEvent {
+  userId: string;
+  childId: string;
+  title: EventTitle;
+  description: EventDescription;
+  category: EventCategory;
+  deadline: EventDeadline;
   now: Date;
 }
 
@@ -80,6 +94,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
       {
         ...props,
         status: EventStatus.of(needsReview),
+        checklist: EventChecklist.empty(),
         editedAt: Option.none(),
         editedFields: [],
         deletedAt: Option.none(),
@@ -87,6 +102,31 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
         createdAt: now,
       },
       new EventId(),
+    );
+  }
+
+  static addByParent({ now, ...input }: ManualEvent): AgendaEvent {
+    const id = new EventId();
+
+    return new AgendaEvent(
+      {
+        ...input,
+        source: EventSource.manual(),
+        announcementId: id.value,
+        ordinal: 0,
+        courseId: Option.none(),
+        announcementUrl: Option.none(),
+        receivedAt: now,
+        status: EventStatus.confirmed(),
+        done: false,
+        checklist: EventChecklist.empty(),
+        editedAt: Option.none(),
+        editedFields: [],
+        deletedAt: Option.none(),
+        withdrawnAt: Option.none(),
+        createdAt: now,
+      },
+      id,
     );
   }
 
@@ -118,7 +158,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
       this._props.deadline = state.deadline;
       fields.push("deadline");
     }
-    if (state.done !== this._props.done) {
+    if (!edited.includes("done") && state.done !== this._props.done) {
       this._props.done = state.done;
       fields.push("done");
     }
@@ -146,6 +186,28 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     this._props.deadline = changes.deadline ?? this._props.deadline;
     this._props.editedAt = Option.some(now);
     return Result.ok();
+  }
+
+  markDone(done: boolean): Result<boolean, EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+    if (done === this._props.done) return Result.ok(false);
+
+    this._props.done = done;
+    this._props.editedFields = EDITABLE_FIELDS.filter(
+      (field) => field === "done" || this._props.editedFields.includes(field),
+    );
+    return Result.ok(true);
+  }
+
+  changeChecklist(change: ChecklistChange): Result<boolean, ChecklistRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+
+    const next = this._props.checklist.change(change);
+    if (next.isFailure) return Result.fail("invalid");
+    if (next.getValue().equals(this._props.checklist)) return Result.ok(false);
+
+    this._props.checklist = next.getValue();
+    return Result.ok(true);
   }
 
   confirm(): Result<void, EventRefusal> {

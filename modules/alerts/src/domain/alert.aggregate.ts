@@ -3,6 +3,7 @@ import { AlertId } from "./alert-id";
 import type { AlertOrigin } from "./value-objects/alert-origin.vo";
 import { AlertStatus } from "./value-objects/alert-status.vo";
 import type { AlertTime } from "./value-objects/alert-time.vo";
+import type { QuietHours } from "./value-objects/quiet-hours.vo";
 import type { Reminder } from "./value-objects/reminder.vo";
 
 export const MISSED_AFTER_MS = 6 * 3_600_000;
@@ -80,10 +81,10 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     return this._props.status.value === "pending";
   }
 
-  follow(plan: AlertPlan, deadline: AlertDeadline, now: Date): void {
+  follow(plan: AlertPlan, deadline: AlertDeadline, quiet: QuietHours, now: Date): void {
     const before = this.occurrence();
     this._props.origin = plan.origin;
-    if (this._props.status.value === "sent" && !this.movedAhead(plan.time, now)) {
+    if (this._props.status.value === "sent" && !this.rearms(plan.time, deadline, quiet, now)) {
       this._props.deadlineAt = deadline.at;
       return;
     }
@@ -120,6 +121,7 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
 
   markMissed(): void {
     this._props.status = AlertStatus.missed();
+    this._props.sentAt = Option.none();
   }
 
   skip(): void {
@@ -137,8 +139,11 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     this._props.version += 1;
   }
 
-  private movedAhead(time: AlertTime, now: Date): boolean {
-    return !time.equals(this._props.time) && time.isAfter(now);
+  private rearms(time: AlertTime, deadline: AlertDeadline, quiet: QuietHours, now: Date): boolean {
+    const deadlineMoved = deadline.at.getTime() !== this._props.deadlineAt.getTime();
+    const movedAhead = !time.equals(this._props.time) && time.isAfter(now);
+
+    return deadlineMoved && movedAhead && !quiet.silences(time.value.time);
   }
 
   private settleStatus(now: Date, keepOverdue: boolean): void {

@@ -1,29 +1,38 @@
 import { DEFAULT_LOCALE, type Locale } from "@packages/i18n";
 import { audit, COLOR_SCHEMES } from "@packages/test/a11y";
 import { LOCALE_COOKIE } from "@packages/web-kit/i18n/locale-cookie";
-import { test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import { showColorScheme } from "./color-scheme";
 import { AUTHENTICATED_PAGES, PUBLIC_PAGES } from "./pages";
 import { BASE_URL, STORAGE_STATE } from "./playwright.config";
 
 const DEFAULT_LOCALE_UNDER_TEST: Locale = DEFAULT_LOCALE;
 
+async function expectRendered(page: Page, colorScheme: (typeof COLOR_SCHEMES)[number]) {
+  const dark = await page.locator("html").evaluate((html) => html.classList.contains("dark"));
+  expect(dark).toBe(colorScheme === "dark");
+}
+
 for (const colorScheme of COLOR_SCHEMES) {
   test.describe(`public pages (${colorScheme})`, () => {
-    test.use({ colorScheme });
+    test.beforeEach(({ page }) => showColorScheme(page, colorScheme));
 
     for (const target of PUBLIC_PAGES) {
       test(target.name, async ({ page }) => {
         await audit(page, target, DEFAULT_LOCALE_UNDER_TEST);
+        await expectRendered(page, colorScheme);
       });
     }
   });
 
   test.describe(`authenticated pages (${colorScheme})`, () => {
-    test.use({ storageState: STORAGE_STATE, colorScheme });
+    test.use({ storageState: STORAGE_STATE });
+    test.beforeEach(({ page }) => showColorScheme(page, colorScheme));
 
     for (const target of AUTHENTICATED_PAGES) {
       test(target.name, async ({ page }) => {
         await audit(page, target, DEFAULT_LOCALE_UNDER_TEST);
+        await expectRendered(page, colorScheme);
       });
     }
   });

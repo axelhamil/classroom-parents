@@ -6,6 +6,8 @@ import { logger } from "../../shared/logger";
 import type { RgpdSettings } from "./application/config/rgpd-settings";
 import type { IChildConnections } from "./application/ports/child-connections.port";
 import type { IRgpdRepository } from "./application/ports/rgpd.port";
+import type { IUserDataReader } from "./application/ports/user-data-reader.port";
+import { DataExportService } from "./application/services/data-export.service";
 import { RgpdService } from "./application/services/rgpd.service";
 import { DrizzleRgpdRepository } from "./infrastructure/repositories/drizzle-rgpd.repository";
 
@@ -15,6 +17,7 @@ export interface RgpdPrerequisites {
   IOutboxRepository: IOutboxRepository;
   IEmailService: IEmailService;
   IChildConnections: IChildConnections;
+  IUserDataReader: IUserDataReader;
   rgpdSettings: RgpdSettings;
 }
 
@@ -36,6 +39,17 @@ export const rgpdModule = defineModule<RgpdPrerequisites>()((b) =>
           c.IInstrumentation,
           c.rgpdSettings,
           logger,
+        ),
+    )
+    .add(
+      "DataExportService",
+      (c) =>
+        new DataExportService(
+          c.IRgpdRepository,
+          c.IUserDataReader,
+          c.ITransactionService,
+          c.IOutboxRepository,
+          c.IInstrumentation,
         ),
     ),
 );

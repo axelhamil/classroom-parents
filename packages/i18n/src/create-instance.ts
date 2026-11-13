@@ -1,5 +1,6 @@
 import { createInstance, type i18n } from "i18next";
-import type { Resources } from "./load-catalog";
+import type { Namespace } from "./catalogs/fr";
+import { loadCatalog, type Resources } from "./load-catalog";
 import { DEFAULT_LOCALE, type Locale } from "./locales";
 import "./types";
 
@@ -21,4 +22,12 @@ export async function createI18n({ locale, resources }: CreateI18nOptions): Prom
     returnNull: false,
   });
   return instance;
+}
+
+export async function i18nFor(locale: Locale): Promise<i18n> {
+  return createI18n({ locale, resources: await loadCatalog(locale) });
+}
+
+export async function fixedT<N extends Namespace>(locale: Locale, namespace: N) {
+  return (await i18nFor(locale)).getFixedT(locale, namespace);
 }

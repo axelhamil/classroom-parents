@@ -6,7 +6,11 @@ import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 import { queryClient } from "../../../shared/api/query-client";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
-  useTheme: () => ({ theme: "system", resolvedTheme: "light", setTheme: () => undefined }),
+  useTheme: () => ({
+    theme: "system",
+    resolvedTheme: "light",
+    changeTheme: () => Promise.resolve(),
+  }),
 }));
 
 const EVENT = {

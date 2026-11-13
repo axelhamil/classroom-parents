@@ -1,8 +1,15 @@
 import { useSyncExternalStore } from "react";
 import { THEME_COLORS } from "./theme-colors";
-import { createThemeStore, type ResolvedTheme, type ThemeHost } from "./theme-store";
+import {
+  createThemeStore,
+  type ResolvedTheme,
+  THEME_STORAGE_KEY,
+  type ThemeHost,
+  type ThemePreference,
+} from "./theme-store";
+import { createThemeSwitcher } from "./theme-switch";
+import { type RevealOrigin, transitionTheme } from "./theme-transition";
 
-const STORAGE_KEY = "theme";
 const SWITCHING_CLASS = "theme-switching";
 
 const systemQuery = () => window.matchMedia("(prefers-color-scheme: dark)");
@@ -23,7 +30,7 @@ function applyResolved(resolved: ResolvedTheme) {
 const browserHost: ThemeHost = {
   readStored: () => {
     try {
-      return window.localStorage.getItem(STORAGE_KEY);
+      return window.localStorage.getItem(THEME_STORAGE_KEY);
     } catch {
       return null;
     }
@@ -31,7 +38,7 @@ const browserHost: ThemeHost = {
 
   writeStored: (theme) => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, theme);
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
     } catch {
       return;
     }
@@ -48,7 +55,7 @@ const browserHost: ThemeHost = {
 
   onStoredChange: (listener) => {
     const onStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE_KEY || event.key === null) listener();
+      if (event.key === THEME_STORAGE_KEY || event.key === null) listener();
     };
     window.addEventListener("storage", onStorage);
 
@@ -60,9 +67,25 @@ const browserHost: ThemeHost = {
 
 let themeStore: ReturnType<typeof createThemeStore> | undefined;
 
-export function useTheme() {
+function getThemeStore() {
   themeStore ??= createThemeStore(browserHost);
-  const state = useSyncExternalStore(themeStore.subscribe, themeStore.getState);
 
-  return { ...state, setTheme: themeStore.setTheme };
+  return themeStore;
+}
+
+let switchTheme:
+  | ((theme: ThemePreference, origin: RevealOrigin | null) => Promise<void>)
+  | undefined;
+
+export function changeTheme(theme: ThemePreference, origin: RevealOrigin | null): Promise<void> {
+  switchTheme ??= createThemeSwitcher(getThemeStore(), transitionTheme);
+
+  return switchTheme(theme, origin);
+}
+
+export function useTheme() {
+  const store = getThemeStore();
+  const state = useSyncExternalStore(store.subscribe, store.getState);
+
+  return { ...state, changeTheme };
 }

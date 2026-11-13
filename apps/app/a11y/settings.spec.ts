@@ -1,5 +1,6 @@
 import { blockingViolations } from "@packages/test/a11y";
 import { expect, test } from "@playwright/test";
+import { showColorScheme } from "./color-scheme";
 import { STORAGE_STATE } from "./playwright.config";
 
 test.describe("settings on a phone", () => {
@@ -9,17 +10,21 @@ test.describe("settings on a phone", () => {
     test(`shows the alerts and the account sections without overflow (${colorScheme})`, async ({
       page,
     }) => {
-      await page.emulateMedia({ colorScheme });
+      await showColorScheme(page, colorScheme);
       await page.goto("/settings");
 
-      await expect(page.getByRole("heading", { name: "Alertes sur ce téléphone" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Notifications sur ce téléphone" }),
+      ).toBeVisible();
       await expect(page.getByRole("button", { name: "Supprimer mon compte" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Heures calmes" })).toBeVisible();
+      await expect(page.getByLabel("Début")).toHaveValue("21:00");
       await expect(page.locator("main")).toHaveCount(1);
       await expect(page.locator("h1")).toHaveCount(1);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       );
-      expect(overflow).toBe(0);
+      expect(overflow).toBeLessThanOrEqual(0);
       expect(await blockingViolations(page)).toEqual([]);
     });
   }

@@ -24,9 +24,10 @@ function syncRequests(calls: ApiCall[]): ApiCall[] {
   return calls.filter((call) => call.method === "POST" && call.url.pathname === "/sync");
 }
 
-function givenSyncAnswers(status: number): ApiCall[] {
+function givenSyncAnswers(status: number, outcome = "started"): ApiCall[] {
+  const retryAt = new Date(OPENED_AT.getTime() + 5 * 60_000).toISOString();
   return stubApi(({ url }) =>
-    url.pathname === "/sync" ? json({ status: "requested" }, status) : undefined,
+    url.pathname === "/sync" ? json({ status: outcome, retryAt }, status) : undefined,
   );
 }
 
@@ -72,6 +73,24 @@ describe("useSyncOnOpen", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(syncRequests(calls)).toHaveLength(1);
+  });
+
+  it("given the server is still cooling down, when the app comes back, then it records no error and does not ask again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(OPENED_AT);
+    const calls = givenSyncAnswers(202, "throttled");
+    await renderWithProviders(<SyncOnOpen />);
+    await waitFor(() => expect(syncRequests(calls)).toHaveLength(1));
+
+    comeBackAfter(60_000, "visibilitychange");
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(syncRequests(calls)).toHaveLength(1);
+    expect(
+      queryClient
+        .getMutationCache()
+        .findAll({ mutationKey: requestSyncMutationOptions.mutationKey, status: "error" }),
+    ).toHaveLength(0);
   });
 
   it("given a failed sync, when the app becomes visible again, then it asks once more", async () => {

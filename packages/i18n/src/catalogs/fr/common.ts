@@ -1,11 +1,15 @@
 export default {
-  brand: "Échéances Classroom",
+  brand: "KeepUpKids",
   deadline: {
     today: "Aujourd'hui",
     tomorrow: "Demain",
     dateWithTime: "{{date}}, {{time}}",
     hours: "{{hours}} h",
     hoursMinutes: "{{hours}} h {{minutes}}",
+  },
+  alertLine: {
+    short: "{{eventTitle}}, {{deadline}}",
+    withChild: "{{childLabel}} : {{eventTitle}}, {{deadline}}",
   },
   reminders: {
     sameDay: "Le jour même, à {{time}}",
@@ -28,6 +32,12 @@ export default {
     empty: "Aucun rappel : rien ne sera envoyé.",
     hoursNeedTime: "Cette échéance n'a pas d'heure : choisissez des rappels en jours.",
   },
+  deletionBanner: {
+    title: "Votre compte va être supprimé",
+  },
+  queryState: {
+    loadError: "Le chargement n'a pas abouti. Vérifiez la connexion, puis réessayez.",
+  },
   actions: {
     save: "Enregistrer",
     cancel: "Annuler",
@@ -44,8 +54,7 @@ export default {
   },
   nav: {
     label: "Navigation principale",
-    events: "Échéances",
-    history: "Historique",
+    home: "Accueil",
     children: "Enfants",
     settings: "Réglages",
   },
@@ -76,6 +85,7 @@ export default {
   },
   userMenu: {
     openMenu: "Ouvrir le menu utilisateur",
+    openMenuWithInitials: "Ouvrir le menu utilisateur, {{initials}}",
     account: "Compte",
     signOut: "Se déconnecter",
     signingOut: "Déconnexion…",
@@ -101,11 +111,12 @@ export default {
     preferencesTitle: "Préférences cookies",
   },
   legal: {
+    backToApp: "Revenir à l'application",
     policies: {
       privacyTitle: "Politique de confidentialité",
       termsTitle: "Conditions d'utilisation",
       versionLine: "Version {{version}} (en vigueur le {{date}})",
-      updated: "Dernière mise à jour : 10 novembre 2026",
+      updated: "Dernière mise à jour : 12 novembre 2026",
     },
     accessibility: {
       title: "Déclaration d'accessibilité",
@@ -200,8 +211,11 @@ export default {
     confirm: "Je l'ai enregistré",
   },
   theme: {
-    switchToLight: "Passer au thème clair",
-    switchToDark: "Passer au thème sombre",
+    label: "Thème",
+    current: "Thème : {{mode}}",
+    light: "Clair",
+    dark: "Sombre",
+    system: "Automatique",
   },
   notifications: {
     title: "Notifications",

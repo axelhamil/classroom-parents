@@ -5,7 +5,11 @@ export type PushPermission = NotificationPermission | "unsupported";
 
 const OWNER_STORAGE_KEY = "push-owner";
 
-const pushOwnerSchema = z.object({ userId: z.string(), endpoint: z.string() });
+const pushOwnerSchema = z.object({
+  userId: z.string(),
+  endpoint: z.string(),
+  sessionId: z.string().optional(),
+});
 
 export type PushOwner = z.infer<typeof pushOwnerSchema>;
 
@@ -22,6 +26,35 @@ export function pushPermission(): PushPermission {
   if (!supported) return "unsupported";
 
   return Notification.permission;
+}
+
+const PERMISSION_OF_STATE: Record<PermissionState, NotificationPermission> = {
+  prompt: "default",
+  granted: "granted",
+  denied: "denied",
+};
+
+export function watchPermission(onChange: (permission: PushPermission) => void): () => void {
+  if (pushPermission() === "unsupported" || !navigator.permissions) return () => undefined;
+
+  let status: PermissionStatus | undefined;
+  let active = true;
+  const onStateChange = () => {
+    if (status) onChange(PERMISSION_OF_STATE[status.state]);
+  };
+  navigator.permissions
+    .query({ name: "notifications" })
+    .then((found) => {
+      if (!active) return;
+      status = found;
+      status.addEventListener("change", onStateChange);
+    })
+    .catch(() => undefined);
+
+  return () => {
+    active = false;
+    status?.removeEventListener("change", onStateChange);
+  };
 }
 
 export async function currentPushSubscription(): Promise<PushSubscription | null> {

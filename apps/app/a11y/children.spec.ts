@@ -18,7 +18,7 @@ test("lists every child state on a phone with one main, one h1 and no overflow",
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
-  expect(overflow).toBe(0);
+  expect(overflow).toBeLessThanOrEqual(0);
   expect(await blockingViolations(page)).toEqual([]);
 });
 
@@ -26,9 +26,9 @@ test("traps focus in the disconnect dialog and gives it back on Escape", async (
   await stubChildrenApi(page);
   await page.goto("/children");
 
-  const card = page.getByRole("listitem").filter({ hasText: FIXTURE_CHILD_LABEL });
-  const trigger = card.getByRole("button", { name: "Déconnecter" });
+  const trigger = page.getByRole("button", { name: `Actions pour ${FIXTURE_CHILD_LABEL}` });
   await trigger.click();
+  await page.getByRole("menuitem", { name: "Déconnecter" }).click();
 
   const dialog = page.getByRole("alertdialog", { name: `Déconnecter ${FIXTURE_CHILD_LABEL} ?` });
   await expect(dialog).toBeVisible();

@@ -63,6 +63,8 @@ const sealing: TokenSealing = {
 const revoked: string[] = [];
 let revokedInsideTransaction = 0;
 let googleDown = false;
+const AVATAR = "https://lh3.googleusercontent.com/a/probe";
+
 const google: IGoogleOAuthClient = {
   refresh: async () =>
     Result.ok<GoogleAccess, ChildrenError>({
@@ -79,7 +81,11 @@ const google: IGoogleOAuthClient = {
     return Result.ok();
   },
   profile: async (token) =>
-    Result.ok({ email: `${token.replace(/\W/g, "")}@school.example`, givenName: Option.none() }),
+    Result.ok({
+      email: `${token.replace(/\W/g, "")}@school.example`,
+      givenName: Option.none(),
+      picture: Option.some(AVATAR),
+    }),
 };
 
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
@@ -258,9 +264,19 @@ run(async () => {
         .join() === aChild,
   );
   await step(
-    "A cannot rename B's child",
-    codeOf(await service.rename(a, bChild, "Pirate")) === "CHILD_NOT_FOUND" &&
-      (await childRow(bChild))?.label === "Tom",
+    "A cannot rename or recolor B's child",
+    codeOf(await service.edit(a, bChild, { label: "Pirate", color: 8 })) === "CHILD_NOT_FOUND" &&
+      (await childRow(bChild))?.label === "Tom" &&
+      (await childRow(bChild))?.color === 1,
+  );
+  await step(
+    "A linked child keeps the Google picture of its account",
+    (await childRow(aChild))?.avatarUrl === AVATAR,
+  );
+  await step(
+    "A recolors its own child, the row keeps the hue",
+    (await service.edit(a, aChild, { color: 6 })).isSuccess &&
+      (await childRow(aChild))?.color === 6,
   );
   await step(
     "A cannot reconnect B's child",

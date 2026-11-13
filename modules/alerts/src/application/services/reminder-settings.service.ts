@@ -2,11 +2,13 @@ import { type AppError, type IInstrumentation, type IUnitOfWork, Result } from "
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
+import { QuietHours, type QuietHoursValue } from "../../domain/value-objects/quiet-hours.vo";
 import type { ReminderValue } from "../../domain/value-objects/reminder.vo";
 import { ReminderList, type ReminderRefusal } from "../../domain/value-objects/reminder-list.vo";
 import {
   type DefaultRemindersDto,
   type EventRemindersDto,
+  type QuietHoursDto,
   toEventRemindersDto,
 } from "../dto/reminder.dto";
 import {
@@ -52,6 +54,16 @@ const eventDone: AlertsError = {
   code: "ALERT_EVENT_DONE_CONFLICT",
   message: "Cette échéance est déjà faite, elle n'a plus besoin de rappel.",
 };
+
+const quietHoursInvalid: AlertsError = {
+  code: "ALERT_QUIET_HOURS_INVALID",
+  message:
+    "Les heures calmes vont d'une heure à une autre, différente. Choisissez deux heures distinctes.",
+};
+
+function sameQuietHours(a: QuietHoursValue, b: QuietHoursValue): boolean {
+  return a.enabled === b.enabled && a.start === b.start && a.end === b.end;
+}
 
 function corrupted(error: string): AlertsError {
   return { code: "ALERT_PROVIDER_FAILURE", message: `reminder settings failed: ${error}` };
@@ -118,6 +130,46 @@ export class ReminderSettingsService {
         if (replanned.isFailure) return Result.fail(replanned.getError());
 
         return Result.ok({ reminders: reminders.getValue().value });
+      }),
+    );
+  }
+
+  async quietHours(userId: string): Promise<Result<QuietHoursDto, SettingsError>> {
+    return this.span("quietHours", async () =>
+      (await this.settings.quietHoursFor(userId)).map(
+        (found) => found.unwrapOr(QuietHours.defaults()).value,
+      ),
+    );
+  }
+
+  async setQuietHours(
+    userId: string,
+    value: QuietHoursValue,
+  ): Promise<Result<QuietHoursDto, SettingsError>> {
+    return this.span("setQuietHours", () =>
+      this.transactions.run(async (): Promise<Result<QuietHoursDto, SettingsError>> => {
+        const quiet = QuietHours.from(value);
+        if (quiet.isFailure) return Result.fail(quietHoursInvalid);
+
+        const current = await this.settings.quietHoursFor(userId);
+        if (current.isFailure) return Result.fail(current.getError());
+        const inForce = current.getValue().unwrapOr(QuietHours.defaults()).value;
+        if (sameQuietHours(inForce, quiet.getValue().value)) return Result.ok(inForce);
+
+        const now = this.clock();
+        const saved = await this.settings.saveQuietHours(userId, quiet.getValue(), now);
+        if (saved.isFailure) return Result.fail(saved.getError());
+        await emitEvent(this.outbox, EventTypes.ALERT_QUIET_HOURS_CHANGED, "user", userId, {
+          userId,
+          ...quiet.getValue().value,
+        });
+
+        const upcoming = await this.deadlines.upcomingFor(userId, now);
+        if (upcoming.isFailure) return Result.fail(upcoming.getError());
+        const replanned = await this.planning.replanUpcoming(userId, upcoming.getValue(), userId);
+        if (replanned.isFailure) return Result.fail(replanned.getError());
+
+        return Result.ok(quiet.getValue().value);
       }),
     );
   }
@@ -208,7 +260,7 @@ export class ReminderSettingsService {
     const fitting = resolved
       .getValue()
       .map((item) => ({ ...item, fits: ringsBefore(item, target) }));
-    return Result.ok(toEventRemindersDto(fitting, customized, alerts.getValue()));
+    return Result.ok(toEventRemindersDto(fitting, customized, alerts.getValue(), target.at));
   }
 
   private async ownedDeadline(

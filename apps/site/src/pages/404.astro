@@ -1,0 +1,11 @@
+---
+import { frCatalog } from "@packages/i18n";
+import { NotFound } from "../components/not-found";
+import SiteLayout from "../layouts/site-layout.astro";
+
+const { notFound } = frCatalog.common;
+---
+
+<SiteLayout title={notFound.title} description={notFound.description} indexed={false}>
+  <NotFound copy={notFound} />
+</SiteLayout>

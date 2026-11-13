@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { Result } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { symmetricEncrypt } from "better-auth/crypto";
 import { authSecretKey } from "../shared/auth/auth-secrets";
@@ -7,10 +8,17 @@ import { env } from "../shared/env";
 import { runWithRequestContext } from "../shared/request-context";
 
 const enqueue = mock(async (_events: { eventType: string; payload: unknown }[]) => undefined);
+const forgetSession = mock(
+  async (
+    _userId: string,
+    _sessionId: string,
+  ): Promise<Result<void, { code: string; message: string }>> => Result.ok(),
+);
 
 mock.module("../container", () => ({
   di: {
     IOutboxRepository: { enqueue },
+    PushSubscriptionService: { forgetSession },
   },
 }));
 
@@ -238,5 +246,67 @@ describe("account events", () => {
     expect(emitted(EventTypes.USER_ACCOUNT_UNLINKED)).toEqual([
       { userId: "user-1", providerId: "google-classroom", accountId: "g-1" },
     ]);
+  });
+});
+
+describe("session revocation", () => {
+  beforeEach(() => {
+    enqueue.mockClear();
+    forgetSession.mockClear();
+    forgetSession.mockResolvedValue(Result.ok());
+  });
+
+  const sessionDelete = auth.options.databaseHooks.session.delete.after;
+  const sessionBeforeDelete = auth.options.databaseHooks.session.delete.before;
+  const revoked = { id: "session-2", userId: "user-1", token: "token-2" };
+
+  function revocations() {
+    return enqueue.mock.calls
+      .flatMap(([events]) => events)
+      .filter((event) => event.eventType === EventTypes.USER_SESSION_REVOKED)
+      .map((event) => event.payload);
+  }
+
+  for (const path of ["/revoke-session", "/revoke-sessions", "/revoke-other-sessions"]) {
+    it(`announces the session the parent ended from another device through ${path}`, async () => {
+      await sessionBeforeDelete(revoked as never, { path } as never);
+      await sessionDelete(revoked as never, { path } as never);
+
+      expect(revocations()).toEqual([{ userId: "user-1", sessionId: "session-2" }]);
+      expect(forgetSession.mock.calls).toEqual([["user-1", "session-2"]]);
+    });
+  }
+
+  it("stays silent and keeps the device's push alerts when a session ends by signing out or expiring", async () => {
+    await sessionBeforeDelete(revoked as never, { path: "/sign-out" } as never);
+    await sessionDelete(revoked as never, { path: "/sign-out" } as never);
+    await sessionBeforeDelete(revoked as never, null);
+    await sessionDelete(revoked as never, null);
+
+    expect(revocations()).toEqual([]);
+    expect(forgetSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps the session, so the parent can retry, when the device's push alerts could not be removed", async () => {
+    forgetSession.mockResolvedValue(
+      Result.fail({ code: "PUSH_PROVIDER_FAILURE", message: "push store down" }),
+    );
+
+    const attempt = sessionBeforeDelete(revoked as never, { path: "/revoke-session" } as never);
+
+    await expect(attempt).rejects.toMatchObject({ code: "PUSH_PROVIDER_FAILURE" });
+    expect(revocations()).toEqual([]);
+  });
+
+  it("removes the device's push alerts before the session row goes, and announces the revocation once it is gone", async () => {
+    await sessionBeforeDelete(revoked as never, { path: "/revoke-session" } as never);
+
+    expect(forgetSession.mock.calls).toEqual([["user-1", "session-2"]]);
+    expect(revocations()).toEqual([]);
+
+    await sessionDelete(revoked as never, { path: "/revoke-session" } as never);
+
+    expect(forgetSession.mock.calls).toHaveLength(1);
+    expect(revocations()).toEqual([{ userId: "user-1", sessionId: "session-2" }]);
   });
 });

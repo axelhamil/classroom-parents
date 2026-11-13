@@ -10,9 +10,11 @@ import { z } from "zod";
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+export const WALL_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const alertTimeSchema = z.object({
   date: z.string().regex(DATE_PATTERN),
-  time: z.string().regex(/^\d{2}:\d{2}$/),
+  time: z.string().regex(WALL_TIME),
   at: z.date(),
 });
 

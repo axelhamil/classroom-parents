@@ -15,6 +15,9 @@ export default {
     notificationDigest_one: "{{count}} nouvelle notification {{category}}",
     notificationDigest_other: "{{count}} nouvelles notifications {{category}}",
     alertReminder: "Rappel : {{eventTitle}} ({{childLabel}})",
+    alertGroup_one: "Rappel : {{count}} échéance à venir",
+    alertGroup_other: "Rappel : {{count}} échéances à venir",
+    weeklyDigest: "Votre semaine",
   },
   layout: {
     footer: "Si vous n'attendiez pas cet e-mail, vous pouvez l'ignorer.",
@@ -86,6 +89,12 @@ export default {
   alertReminder: {
     body: "{{childLabel}} a une échéance {{deadlineLabel}}.",
     cta: "Voir l'échéance",
+  },
+  alertGroup: {
+    cta: "Voir mes échéances",
+  },
+  weeklyDigest: {
+    cta: "Voir mes échéances",
   },
   notificationDigest: {
     intro: "Voici un résumé de votre activité récente dans la catégorie {{category}} :",

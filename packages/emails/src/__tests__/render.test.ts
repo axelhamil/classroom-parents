@@ -41,6 +41,15 @@ const STUB_VARS = {
     deadlineLabel: "jeudi 19 novembre, 8 h 30",
     eventUrl: "https://x.test/events/1",
   },
+  alert_group: {
+    itemCount: "2",
+    items: "Contrôle de maths (Léa), jeudi 19 novembre\nPiscine (Hugo), vendredi 20 novembre",
+    appUrl: "https://x.test/",
+  },
+  weekly_digest: {
+    summary: "3 échéances cette semaine : 2 pour Léa, 1 pour Hugo. Prochaine : Piscine lundi.",
+    appUrl: "https://x.test/",
+  },
 } as const satisfies Record<EmailTemplateKey, unknown>;
 
 describe("renderTemplate", () => {
@@ -61,6 +70,14 @@ describe("renderTemplate", () => {
       expect(out.text.length).toBeGreaterThan(0);
       expect(out.subject.length).toBeGreaterThan(0);
     }
+  });
+
+  it("lists every deadline of an alert group on its own line", async () => {
+    const out = await renderTemplate("alert_group", STUB_VARS.alert_group, "fr");
+    expect(out.subject).toBe("Rappel : 2 échéances à venir");
+    expect(out.text).toContain(
+      "Contrôle de maths (Léa), jeudi 19 novembre\n\nPiscine (Hugo), vendredi 20 novembre",
+    );
   });
 
   it("emphasises the token and organization names rather than inlining the tag", async () => {

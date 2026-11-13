@@ -1,0 +1,35 @@
+---
+import { frCatalog } from "@packages/i18n";
+import { LandingHero } from "@packages/ui/components/ui/landing";
+import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
+import { cn } from "@packages/ui/libs/utils.js";
+import { HeroCopy } from "../components/hero-copy";
+import { LandingDetails } from "../components/landing-details";
+import { ProductSample } from "../components/product-sample";
+import { SAMPLE_DEADLINES } from "../components/sample-deadlines";
+import { structuredData } from "../components/structured-data";
+import { env } from "../env";
+import SiteLayout from "../layouts/site-layout.astro";
+
+const { common, site } = frCatalog;
+const signInUrl = new URL("/login?start=google", env.PUBLIC_APP_URL).href;
+const privacyUrl = new URL("/legal/privacy-policy", env.PUBLIC_APP_URL).href;
+const jsonLd = JSON.stringify(structuredData(env.PUBLIC_SITE_URL)).replaceAll("<", "\\u003c");
+---
+
+<SiteLayout title={site.meta.title} description={site.meta.description} indexed>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} />
+  <main class={cn(pageContainerVariants({ width: "landing" }), "flex flex-col overflow-x-clip pb-12")}>
+    <LandingHero>
+      <HeroCopy copy={site} signInUrl={signInUrl} />
+      <ProductSample
+        client:visible
+        brand={common.brand}
+        copy={site.sample}
+        dayCopy={{ tomorrow: common.deadline.tomorrow, dateWithTime: common.deadline.dateWithTime }}
+        deadlines={SAMPLE_DEADLINES}
+      />
+    </LandingHero>
+    <LandingDetails copy={site} signInUrl={signInUrl} privacyUrl={privacyUrl} />
+  </main>
+</SiteLayout>

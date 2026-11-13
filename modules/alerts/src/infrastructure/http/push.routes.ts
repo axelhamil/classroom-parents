@@ -4,6 +4,7 @@ import { zV } from "@packages/http/validator";
 import { Hono } from "hono";
 import type { AlertsSettings } from "../../application/config/alerts-settings";
 import {
+  lockScreenBodySchema,
   type PushConfigDto,
   pushEndpointBodySchema,
   pushSubscriptionBodySchema,
@@ -14,7 +15,10 @@ const USER_AGENT_MAX = 512;
 
 export interface PushRoutesDeps {
   routeGuards: RouteGuards;
-  PushSubscriptionService: Pick<PushSubscriptionService, "subscribe" | "unsubscribe" | "status">;
+  PushSubscriptionService: Pick<
+    PushSubscriptionService,
+    "subscribe" | "unsubscribe" | "status" | "lockScreen" | "setLockScreen"
+  >;
   alertsSettings: Pick<AlertsSettings, "vapidPublicKey">;
 }
 
@@ -26,6 +30,7 @@ export function createPushRoutes(deps: PushRoutesDeps) {
       const result = await subscriptions.subscribe(g.currentUserId(c), {
         ...c.req.valid("json"),
         userAgent: c.req.header("user-agent")?.slice(0, USER_AGENT_MAX),
+        sessionId: g.currentSession(c).id,
       });
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.body(null, 204);
@@ -40,6 +45,19 @@ export function createPushRoutes(deps: PushRoutesDeps) {
     })
     .get("/status", g.requireAuth, async (c) => {
       const result = await subscriptions.status(g.currentUserId(c));
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .get("/lock-screen", g.requireAuth, async (c) => {
+      const result = await subscriptions.lockScreen(g.currentUserId(c));
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .put("/lock-screen", g.requireAuth, zV("json", lockScreenBodySchema), async (c) => {
+      const result = await subscriptions.setLockScreen(
+        g.currentUserId(c),
+        c.req.valid("json").details,
+      );
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })

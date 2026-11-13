@@ -38,6 +38,7 @@
 # Cache
 **/.cache
 **/.tanstack
+**/.astro
 **/.pnpm-store
 
 # Claude Code

@@ -5,21 +5,25 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const cardVariants = cva(
-  "flex flex-col gap-6 rounded-lg border bg-card py-6 text-card-foreground",
+  "flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-rest",
   {
     variants: {
       variant: {
         default: "",
         destructive: "border-destructive/40 bg-destructive/5",
       },
+      flush: {
+        true: "gap-0 overflow-hidden pt-0",
+        false: "",
+      },
     },
-    defaultVariants: { variant: "default" },
+    defaultVariants: { variant: "default", flush: false },
   },
 );
 
 interface CardProps extends React.ComponentProps<"div">, VariantProps<typeof cardVariants> {}
 
-const cardTitleVariants = cva("leading-none font-semibold", {
+const cardTitleVariants = cva("col-start-1 leading-none font-semibold", {
   variants: {
     variant: {
       default: "",
@@ -29,8 +33,10 @@ const cardTitleVariants = cva("leading-none font-semibold", {
   defaultVariants: { variant: "default" },
 });
 
-function Card({ className, variant, ...props }: CardProps) {
-  return <div data-slot="card" className={cn(cardVariants({ variant }), className)} {...props} />;
+function Card({ className, variant, flush, ...props }: CardProps) {
+  return (
+    <div data-slot="card" className={cn(cardVariants({ variant, flush }), className)} {...props} />
+  );
 }
 
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
@@ -68,7 +74,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("col-start-1 text-sm text-muted-foreground", className)}
       {...props}
     />
   );
@@ -78,7 +84,10 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-action"
-      className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+      className={cn(
+        "col-span-2 flex flex-wrap gap-2 self-start @md/card-header:col-span-1 @md/card-header:col-start-2 @md/card-header:row-span-2 @md/card-header:row-start-1 @md/card-header:justify-end @md/card-header:justify-self-end",
+        className,
+      )}
       {...props}
     />
   );

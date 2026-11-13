@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { createECDH, randomBytes } from "node:crypto";
 import { createServer, type Server, type Socket } from "node:net";
 import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
+import type { IEmailService } from "@packages/email/email.port";
 import { type ResendBatchClient, resendBatchSender } from "@packages/email/email-delivery-worker";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { mockPort } from "@packages/test/bun";
@@ -18,6 +19,7 @@ import type {
 import type { EventDeadline, IEventDeadlines } from "../application/ports/event-deadlines.port";
 import type { IPushSubscriptionRepository } from "../application/ports/push-subscription-repository.port";
 import { AlertDispatchService } from "../application/services/alert-dispatch.service";
+import { I18nPushCopy } from "../infrastructure/adapters/i18n-push.copy";
 import { ResendAlertEmailSender } from "../infrastructure/adapters/resend-alert-email.sender";
 import { WebPushSender } from "../infrastructure/adapters/web-push.sender";
 import { existingAlert, PARENT, paris } from "../testing/alert.fixture";
@@ -111,7 +113,10 @@ describe("dispatch budget under silent providers", () => {
     const endpoint = await silentPushService();
     const vapid = generateVAPIDKeys();
     const batch: ClaimedAlert[] = Array.from({ length: DISPATCH_BATCH }, (_, i) => {
-      const alert = existingAlert({ id: `0196a000-0000-7000-8000-${String(i).padStart(12, "0")}` });
+      const alert = existingAlert({
+        id: `0196a000-0000-7000-8000-${String(i).padStart(12, "0")}`,
+        userId: `parent-${i}`,
+      });
       return {
         alert,
         lease: { alertId: alert.id.value, attempts: 1, version: alert.get("version") },
@@ -126,6 +131,7 @@ describe("dispatch budget under silent providers", () => {
     subscriptions.listForUser.mockResolvedValue(
       Result.ok([{ id: "sub-1", userId: PARENT, endpoint, ...browserKeys() }]),
     );
+    subscriptions.lockScreenDetailsFor.mockResolvedValue(Result.ok(Option.none()));
     const contexts = mockPort<IAlertContextReader>();
     contexts.load.mockResolvedValue(
       Result.ok(
@@ -175,8 +181,10 @@ describe("dispatch budget under silent providers", () => {
         "alerts@example.com",
         instrumentation,
         mockPort<ILogger>(),
+        mockPort<IEmailService>(),
       ),
       contexts,
+      new I18nPushCopy(),
       deadlines,
       mockUnitOfWork().unitOfWork,
       mockPort<IOutboxRepository>(),
