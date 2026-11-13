@@ -146,6 +146,15 @@
   --scroll-region-height: 30rem;
   --scroll-edge-size: 1.5rem;
   --scroll-edge-shadow: color-mix(in oklch, var(--foreground) 16%, transparent);
+  --scroll-fade-size: 1rem;
+  --scroll-thumb: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+  --briefing-panel-width: 18rem;
+  --briefing-panel-top: calc(var(--app-bar-height) + env(safe-area-inset-top) + 1rem);
+  /* Fits under the page header before any scroll: the greeting row measured 7.4rem at 1280 and 1440. */
+  --briefing-panel-height: calc(100dvh - var(--briefing-panel-top) - 9rem);
+  /* 32svh leaves the first week row above the fold at 768x1024 (measured 999px of 1024). */
+  --briefing-compact-height: 32svh;
+  --briefing-phone-height: 40svh;
   --tour-halo: color-mix(in oklch, var(--primary) 22%, transparent);
   --sidebar-width: 16rem;
   --sidebar-width-icon: 3.5rem;
@@ -337,6 +346,11 @@
   --spacing-nav: var(--nav-height);
   --spacing-app-bar: var(--app-bar-height);
   --spacing-scroll-region: var(--scroll-region-height);
+  --spacing-briefing-panel: var(--briefing-panel-width);
+  --spacing-briefing-top: var(--briefing-panel-top);
+  --spacing-briefing-panel-height: var(--briefing-panel-height);
+  --spacing-briefing-compact: var(--briefing-compact-height);
+  --spacing-briefing-phone: var(--briefing-phone-height);
   --spacing-print-item: var(--print-item-space);
 
   --radius-sm: calc(var(--radius) * 0.6);
@@ -994,6 +1008,36 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
     calc(var(--scroll-edge-size) / 2) no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, var(--scroll-edge-shadow), transparent) bottom / 100%
     calc(var(--scroll-edge-size) / 2) no-repeat scroll;
+}
+
+@utility scroll-fade {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--scroll-thumb) transparent;
+  padding-block: var(--scroll-fade-size);
+
+  &::before,
+  &::after {
+    content: "";
+    position: sticky;
+    z-index: 1;
+    display: block;
+    height: var(--scroll-fade-size);
+    pointer-events: none;
+  }
+
+  &::before {
+    top: 0;
+    margin-top: calc(-1 * var(--scroll-fade-size));
+    background: linear-gradient(var(--scroll-fade-surface, var(--background)), transparent);
+  }
+
+  &::after {
+    bottom: 0;
+    margin-bottom: calc(-1 * var(--scroll-fade-size));
+    background: linear-gradient(transparent, var(--scroll-fade-surface, var(--background)));
+  }
 }
 
 @page {

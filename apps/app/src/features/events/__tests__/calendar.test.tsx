@@ -306,7 +306,7 @@ describe("Accueil, the family calendar", () => {
     await waitFor(() => expect(screen.queryByRole("region", { name: "En retard" })).toBeNull());
   });
 
-  it("a long backlog shows the three latest and opens the rest on demand", async () => {
+  it("a long backlog shows the latest and opens the rest on demand", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenCalendar(
       [CHILD],
@@ -317,11 +317,16 @@ describe("Accueil, the family calendar", () => {
     await renderAppAt("/");
 
     const overdue = await screen.findByRole("region", { name: "En retard" });
-    await waitFor(() => expect(within(overdue).getAllByRole("link")).toHaveLength(3));
-    expect(within(overdue).queryByText("Retard 4")).toBeNull();
+    await waitFor(() =>
+      expect(
+        within(overdue)
+          .getAllByRole("link")
+          .map((link) => link.textContent),
+      ).toEqual(["Retard 1"]),
+    );
 
     fireEvent.click(
-      within(overdue).getByRole("button", { name: "Voir les 2 autres échéances en retard" }),
+      within(overdue).getByRole("button", { name: "Voir les 4 autres échéances en retard" }),
     );
     expect(within(overdue).getAllByRole("link")).toHaveLength(5);
   });
@@ -340,7 +345,7 @@ describe("Accueil, the family calendar", () => {
     expect(within(overdue).getByText("Sur les 14 derniers jours")).toBeDefined();
     expect(
       await within(overdue).findByRole("button", {
-        name: "Voir les 57 autres échéances en retard",
+        name: "Voir les 59 autres échéances en retard",
       }),
     ).toBeDefined();
   });

@@ -11,6 +11,7 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCheckIcon } from "lucide-react";
@@ -45,7 +46,10 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
   const watched = childId ? family.filter((child) => child.id === childId) : family;
 
   return (
-    <Briefing aria-labelledby={titleId}>
+    <Briefing
+      aria-labelledby={titleId}
+      className="max-h-briefing-phone md:max-h-briefing-compact xl:sticky xl:top-briefing-top xl:max-h-briefing-panel-height"
+    >
       <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
       <QueryState
         query={query}
@@ -118,23 +122,25 @@ function BriefingBody({ events, family, childId, now, moment, day }: BriefingBod
       ) : (
         <BriefingSummary>{t("briefing.open", { count: open })}</BriefingSummary>
       )}
-      <BriefingGroups>
-        {family.map((child) => {
-          const due = events.filter((event) => event.childId === child.id);
-          if (due.length === 0) return null;
+      <ScrollRegion variant="panel" label={t("briefing.scroll", { day })}>
+        <BriefingGroups>
+          {family.map((child) => {
+            const due = events.filter((event) => event.childId === child.id);
+            if (due.length === 0) return null;
 
-          return (
-            <ChildBriefing
-              key={child.id}
-              child={child}
-              events={due}
-              family={family}
-              now={now}
-              moment={moment}
-            />
-          );
-        })}
-      </BriefingGroups>
+            return (
+              <ChildBriefing
+                key={child.id}
+                child={child}
+                events={due}
+                family={family}
+                now={now}
+                moment={moment}
+              />
+            );
+          })}
+        </BriefingGroups>
+      </ScrollRegion>
     </>
   );
 }

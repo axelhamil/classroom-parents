@@ -117,6 +117,44 @@ test.describe("the calendar on a phone", () => {
     });
   }
 
+  test("the briefing scrolls on its own from the keyboard, its items in the tab order", async ({
+    page,
+  }) => {
+    const evening = new Date();
+    evening.setHours(19, 0, 0, 0);
+    await page.clock.setFixedTime(evening);
+    const due = Array.from({ length: 6 }, (_, index) => ({
+      ...REVIEW_EVENT,
+      id: `7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0${index}`,
+      title: `Piscine ${index + 1}`,
+      category: "swimming",
+      status: "confirmed",
+      deadlineDate: inDays(1),
+      deadlineAt: `${inDays(1)}T07:00:00.000Z`,
+    }));
+    await serveFamily(page, { children: [LEA], events: due });
+    await page.goto("/");
+
+    const briefing = page.getByRole("region", { name: /^Pour / });
+    const scroller = briefing.getByRole("region", { name: /^Échéances à préparer pour / });
+    await expect(scroller.getByRole("link", { name: "Piscine 1" })).toBeVisible();
+    expect(await scroller.evaluate((region) => region.scrollHeight > region.clientHeight)).toBe(
+      true,
+    );
+    const box = await briefing.boundingBox();
+    expect(box && box.height <= 844 * 0.4 + 1).toBe(true);
+
+    await scroller.focus();
+    await page.keyboard.press("PageDown");
+    await expect.poll(() => scroller.evaluate((region) => region.scrollTop)).toBeGreaterThan(0);
+    await expect(briefing.getByText(/^Encore 6 échéances/)).toBeInViewport();
+
+    await page.keyboard.press("Tab");
+    expect(await scroller.evaluate((region) => region.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Shift+Tab");
+    await expect(scroller).toBeFocused();
+  });
+
   test("a category chip of the history filters through the url and the request", async ({
     page,
   }) => {
@@ -201,7 +239,7 @@ test.describe("the week on a tablet", () => {
 test.describe("the week on a desktop", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
-  test("gives each of the seven columns room for a title, and only the calendar widens", async ({
+  test("keeps the seven columns readable beside the briefing, and only the calendar widens", async ({
     page,
   }) => {
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
@@ -212,7 +250,11 @@ test.describe("the week on a desktop", () => {
     const widths = await columns.evaluateAll((days) =>
       days.map((day) => day.getBoundingClientRect().width),
     );
-    expect(Math.min(...widths)).toBeGreaterThanOrEqual(160);
+    expect(Math.min(...widths)).toBeGreaterThanOrEqual(120);
+    const briefing = await page.locator("[data-slot=briefing]").boundingBox();
+    const week = await page.locator("[data-slot=calendar-period]").boundingBox();
+    expect(briefing && week && briefing.x + briefing.width < week.x).toBe(true);
+    expect(week && week.y < 900).toBe(true);
     await expectOnePageWithoutOverflow(page);
 
     await page.goto("/settings");

@@ -8,7 +8,7 @@ function Briefing({ className, ...props }: React.ComponentProps<"section">) {
     <section
       data-slot="briefing"
       className={cn(
-        "@container/briefing flex min-w-0 flex-col gap-3 rounded-2xl bg-surface-container p-4 text-foreground",
+        "@container/briefing flex min-w-0 flex-col gap-3 rounded-2xl bg-surface-container p-4 text-foreground [--scroll-fade-surface:var(--surface-container)]",
         className,
       )}
       {...props}

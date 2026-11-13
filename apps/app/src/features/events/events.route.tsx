@@ -162,23 +162,27 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
-      <NextSchoolBriefing family={family} childId={childId} now={now} />
-      <CalendarBoard
-        family={family}
-        childId={childId}
-        onChildChange={selectChild}
-        place={place}
-        onPlaceChange={setSearch}
-        now={now}
-        tour={!search.event && <ScreenTour screen="home" userId={user.id} />}
-      />
-      {toReview.length > 0 && (
-        <ReviewCard
-          events={toReview}
-          childLabel={(id) => childLabelOf(family, id)}
-          childColor={(id) => childHue(family, id)}
-        />
-      )}
+      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[var(--spacing-briefing-panel)_minmax(0,1fr)] xl:items-start">
+        <NextSchoolBriefing family={family} childId={childId} now={now} />
+        <div className="flex min-w-0 flex-col gap-6">
+          <CalendarBoard
+            family={family}
+            childId={childId}
+            onChildChange={selectChild}
+            place={place}
+            onPlaceChange={setSearch}
+            now={now}
+            tour={!search.event && <ScreenTour screen="home" userId={user.id} />}
+          />
+          {toReview.length > 0 && (
+            <ReviewCard
+              events={toReview}
+              childLabel={(id) => childLabelOf(family, id)}
+              childColor={(id) => childHue(family, id)}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

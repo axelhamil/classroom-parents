@@ -113,6 +113,29 @@ describe("Accueil briefs the next school moment", () => {
     expect(within(tomorrow).getByText("Encore 2 échéances à boucler")).toBeDefined();
   });
 
+  it("scrolls what is due in its own keyboard reachable region, title and count staying in view", async () => {
+    at(THURSDAY_EVENING);
+    givenCalendar(
+      [CHILD, HUGO],
+      [
+        deadline(1, "2026-11-13", "Fiche à signer", { childId: HUGO.id }),
+        deadline(2, "2026-11-13", "Sac de piscine", { category: "swimming" }),
+      ],
+    );
+    await renderAppAt("/");
+
+    const tomorrow = await briefing("Pour demain");
+    const scroller = await within(tomorrow).findByRole("region", {
+      name: "Échéances à préparer pour demain",
+    });
+    expect(scroller.tabIndex).toBe(0);
+    expect(within(scroller).getByRole("region", { name: "Léa" })).toBeDefined();
+    expect(within(scroller).getByRole("region", { name: "Hugo" })).toBeDefined();
+    expect(within(scroller).queryByText("Encore 2 échéances à boucler")).toBeNull();
+    expect(within(scroller).queryByRole("heading", { name: "Pour demain" })).toBeNull();
+    expect(within(tomorrow).getByText("Encore 2 échéances à boucler")).toBeDefined();
+  });
+
   it("ticks done at once and rolls back when the server refuses", async () => {
     at(THURSDAY_EVENING);
     let refuse: (response: Response) => void = () => undefined;
