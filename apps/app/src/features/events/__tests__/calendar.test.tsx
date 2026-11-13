@@ -41,19 +41,51 @@ describe("Accueil, the family calendar", () => {
     localStorage.clear();
   });
 
-  it("opens on today: Agenda starts on today and Aujourd'hui has nowhere to go", async () => {
+  it("opens on the seven days ahead, the briefing holding today and the rows the six days after", async () => {
     at("2026-11-12T06:30:00.000Z");
     givenCalendar([CHILD], [deadline(1, "2026-11-13", "Sac de piscine", { category: "swimming" })]);
     await renderAppAt("/");
 
     const tabs = await screen.findByRole("tablist", { name: "Vue des échéances" });
-    expect(within(tabs).getByRole("tab", { name: "Agenda" }).getAttribute("aria-selected")).toBe(
-      "true",
+    expect(
+      within(tabs)
+        .getAllByRole("tab")
+        .map((tab) => [tab.textContent, tab.getAttribute("aria-selected")]),
+    ).toEqual([
+      ["Semaine", "true"],
+      ["Mois", "false"],
+    ]);
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Du 12 au 18 novembre" }),
+    ).toBeDefined();
+    await waitFor(() =>
+      expect(
+        [...document.querySelectorAll("[data-slot=calendar-day-title]")].map(
+          (title) => title.textContent,
+        ),
+      ).toEqual([
+        "Demain",
+        "Samedi 14 novembre",
+        "Dimanche 15 novembre",
+        "Lundi 16 novembre",
+        "Mardi 17 novembre",
+        "Mercredi 18 novembre",
+      ]),
     );
-    const headings = await screen.findAllByRole("heading", { level: 3 });
-    expect(headings[0]?.textContent).toBe("Aujourd'hui");
     expect(within(day("Demain")).getByText("Sac de piscine")).toBeDefined();
+    expect(screen.getByRole("region", { name: "Pour aujourd'hui" })).toBeDefined();
+    expect(within(day("Samedi 14 novembre")).getByText("Rien de prévu")).toBeDefined();
     expect(screen.getByRole("button", { name: "Aujourd'hui" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("a week across two months names both in its title", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenCalendar([CHILD], []);
+    await renderAppAt("/?date=2026-11-28");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Du 28 novembre au 4 décembre" }),
+    ).toBeDefined();
   });
 
   it("after 16:00 the briefing frames the evening and the calendar keeps calling today Aujourd'hui", async () => {
@@ -69,12 +101,12 @@ describe("Accueil, the family calendar", () => {
 
   it("asks the range query for exactly the visible period of each view", async () => {
     at("2026-11-12T09:00:00.000Z");
-    const agenda = givenCalendar([CHILD], []);
+    const week = givenCalendar([CHILD], []);
     await renderAppAt("/");
     await waitFor(() =>
-      expect(calendarRequests(agenda.calls)).toContainEqual({
+      expect(calendarRequests(week.calls)).toContainEqual({
         from: "2026-11-12",
-        to: "2026-11-25",
+        to: "2026-11-18",
       }),
     );
 
@@ -200,40 +232,44 @@ describe("Accueil, the family calendar", () => {
     expect(screen.queryByText("Piscine de Léa")).toBeNull();
   });
 
-  it("the week ribbon flags a crunch day and selecting a day keeps it in the url", async () => {
+  it("the week strip flags a crunch day and a day picked there takes the focus to its row", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenCalendar(FIVE_CHILDREN, crunchDay("2026-11-13", 15));
-    const router = await renderAppAt("/?view=week");
+    const router = await renderAppAt("/");
 
-    const ribbon = await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
-    const friday = within(ribbon).getByRole("radio", { name: /^Demain, 15 échéances/ });
+    const strip = await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
+    expect(within(strip).getAllByRole("radio")).toHaveLength(7);
+    const friday = within(strip).getByRole("radio", { name: /^Demain, 15 échéances/ });
     expect(friday.getAttribute("aria-label")).toContain("journée chargée");
 
     fireEvent.click(friday);
-    await waitFor(() => expect(search(router)).toMatchObject({ date: "2026-11-13" }));
-    expect(await screen.findByText(STRESS.title120)).toBeDefined();
+
+    await waitFor(() => expect(document.activeElement).toBe(day("Demain")));
+    expect(search(router).date).toBeUndefined();
   });
 
-  it("a crowded week column shows four stickers and its +N opens the whole day", async () => {
+  it("the strip sends the day the briefing covers to the briefing", async () => {
     at("2026-11-12T09:00:00.000Z");
-    vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: true,
-      media: query,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-    }));
-    givenCalendar(FIVE_CHILDREN, crunchDay("2026-11-13", 15));
-    const router = await renderAppAt("/?view=week");
+    givenCalendar([CHILD], [deadline(1, "2026-11-12", "Piscine", { category: "swimming" })]);
+    await renderAppAt("/");
 
-    const friday = await screen.findByLabelText(/^Demain, 15 échéances/);
-    expect(within(friday).getAllByRole("link")).toHaveLength(4);
+    const strip = await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
+    fireEvent.click(within(strip).getByRole("radio", { name: /^Aujourd'hui, 1 échéance/ }));
 
-    fireEvent.click(
-      within(friday).getByRole("button", { name: "+11 : voir toute la journée, demain" }),
-    );
     await waitFor(() =>
-      expect(search(router)).toMatchObject({ view: "agenda", date: "2026-11-13" }),
+      expect(document.activeElement).toBe(screen.getByRole("region", { name: "Pour aujourd'hui" })),
     );
+  });
+
+  it("a crowded day lists every deadline, none folded behind a count", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenCalendar(FIVE_CHILDREN, crunchDay("2026-11-13", 15));
+    await renderAppAt("/");
+
+    const friday = await waitFor(() => day("Demain"));
+    await waitFor(() => expect(within(friday).getAllByRole("link")).toHaveLength(15));
+    expect(within(friday).getByText(STRESS.title120)).toBeDefined();
+    expect(within(friday).getByText("Journée chargée")).toBeDefined();
   });
 
   it("Mois marks a crunch day and lists the picked day under the grid", async () => {
@@ -257,7 +293,7 @@ describe("Accueil, the family calendar", () => {
     const router = await renderAppAt("/?view=week&date=2026-12-03");
 
     expect(await screen.findByText("Rien de prévu sur cette période.")).toBeDefined();
-    expect(screen.queryByText("Rien de prévu ce jour-là.")).toBeNull();
+    expect(screen.queryByText("Rien de prévu")).toBeNull();
     expect(screen.getByText(/^Dernière lecture de Classroom : /)).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "Ajouter une échéance" }));
@@ -274,7 +310,7 @@ describe("Accueil, the family calendar", () => {
     expect(await screen.findByText("Sortie au musée")).toBeDefined();
   });
 
-  it("open deadlines the period hides are surfaced as En retard and leave once done", async () => {
+  it("late deadlines wait folded in one line, open in place and leave once done", async () => {
     at("2026-11-12T09:00:00.000Z");
     const stub = givenCalendar(
       [CHILD, HUGO],
@@ -286,7 +322,11 @@ describe("Accueil, the family calendar", () => {
     );
     await renderAppAt("/");
 
-    const overdue = await screen.findByRole("region", { name: "En retard" });
+    const overdue = await screen.findByRole("region", { name: "En retard, 1 échéance" });
+    expect(within(overdue).queryByRole("link")).toBeNull();
+
+    fireEvent.click(within(overdue).getByRole("button", { name: "En retard, 1 échéance" }));
+
     expect(within(overdue).getByRole("link", { name: "Cahier de liaison à signer" })).toBeDefined();
     expect(within(overdue).getByText("Hugo")).toBeDefined();
     expect(within(overdue).getByText("Mardi 10 novembre")).toBeDefined();
@@ -303,35 +343,10 @@ describe("Accueil, the family calendar", () => {
         stub.calls.some((call) => call.method === "POST" && call.url.pathname.endsWith("/done")),
       ).toBe(true),
     );
-    await waitFor(() => expect(screen.queryByRole("region", { name: "En retard" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("region", { name: /^En retard/ })).toBeNull());
   });
 
-  it("a long backlog shows the latest and opens the rest on demand", async () => {
-    at("2026-11-12T09:00:00.000Z");
-    givenCalendar(
-      [CHILD],
-      ["2026-11-11", "2026-11-10", "2026-11-09", "2026-11-06", "2026-11-05"].map((date, index) =>
-        deadline(index + 1, date, `Retard ${index + 1}`),
-      ),
-    );
-    await renderAppAt("/");
-
-    const overdue = await screen.findByRole("region", { name: "En retard" });
-    await waitFor(() =>
-      expect(
-        within(overdue)
-          .getAllByRole("link")
-          .map((link) => link.textContent),
-      ).toEqual(["Retard 1"]),
-    );
-
-    fireEvent.click(
-      within(overdue).getByRole("button", { name: "Voir les 4 autres échéances en retard" }),
-    );
-    expect(within(overdue).getAllByRole("link")).toHaveLength(5);
-  });
-
-  it("the strip counts every late deadline of the last 14 days, past a page of 50", async () => {
+  it("the line counts every late deadline of the last 14 days, past a page of 50", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenCalendar(
       [CHILD],
@@ -341,32 +356,34 @@ describe("Accueil, the family calendar", () => {
     );
     await renderAppAt("/");
 
-    const overdue = await screen.findByRole("region", { name: "En retard" });
+    const overdue = await screen.findByRole("region", { name: "En retard, 60 échéances" });
+    fireEvent.click(within(overdue).getByRole("button", { name: "En retard, 60 échéances" }));
+
     expect(within(overdue).getByText("Sur les 14 derniers jours")).toBeDefined();
-    expect(
-      await within(overdue).findByRole("button", {
-        name: "Voir les 59 autres échéances en retard",
-      }),
-    ).toBeDefined();
+    expect(within(overdue).getAllByRole("link")).toHaveLength(60);
   });
 
-  it("a deadline late by more than 14 days leaves the strip for past deadlines", async () => {
+  it("a deadline late by more than 14 days leaves the line for past deadlines", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenCalendar([CHILD], [deadline(1, "2026-10-28", "Autorisation de septembre")]);
     await renderAppAt("/");
 
     await screen.findByRole("tablist", { name: "Vue des échéances" });
     await waitFor(() => expect(screen.queryByText("Autorisation de septembre")).toBeNull());
-    expect(screen.queryByRole("region", { name: "En retard" })).toBeNull();
+    expect(screen.queryByRole("region", { name: /^En retard/ })).toBeNull();
   });
 
-  it("no strip when nothing is late, and a late day the week shows stays on its day", async () => {
+  it("a late deadline of a past week the parent goes back to stays on its day, not in the line", async () => {
     at("2026-11-12T09:00:00.000Z");
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
-    await renderAppAt("/?view=week");
+    await renderAppAt("/?date=2026-11-09");
 
-    expect(await screen.findByRole("radiogroup", { name: "Jours de la semaine" })).toBeDefined();
-    await waitFor(() => expect(screen.queryByRole("region", { name: "En retard" })).toBeNull());
+    const tuesday = await waitFor(() => day("Mardi 10 novembre"));
+    expect(
+      await within(tuesday).findByRole("link", { name: "Cahier de liaison à signer" }),
+    ).toBeDefined();
+    expect(within(tuesday).getByText("En retard")).toBeDefined();
+    expect(screen.queryByRole("region", { name: /^En retard/ })).toBeNull();
   });
 
   it("closing a deadline opened from the calendar gives focus back to its row", async () => {

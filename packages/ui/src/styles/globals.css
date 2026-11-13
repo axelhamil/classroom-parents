@@ -148,13 +148,16 @@
   --scroll-edge-shadow: color-mix(in oklch, var(--foreground) 16%, transparent);
   --scroll-fade-size: 1rem;
   --scroll-thumb: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
-  --briefing-panel-width: 18rem;
+  /* 18rem at 768 (230px floor), 24rem from 1280: a briefing title keeps 200 to 296px. */
+  --briefing-panel-width: clamp(18rem, 30vw, 24rem);
   --briefing-panel-top: calc(var(--app-bar-height) + env(safe-area-inset-top) + 1rem);
-  /* Fits under the page header before any scroll: the greeting row measured 7.4rem at 1280 and 1440. */
-  --briefing-panel-height: calc(100dvh - var(--briefing-panel-top) - 9rem);
-  /* 32svh leaves the first week row above the fold at 768x1024 (measured 999px of 1024). */
-  --briefing-compact-height: 32svh;
+  /* Fits under the greeting, the toolbar and the family row before any scroll. */
+  --briefing-panel-height: calc(100dvh - var(--briefing-panel-top) - 13.5rem);
   --briefing-phone-height: 40svh;
+  /* Holds "Mercredi 18 novembre" on two lines beside the add button. */
+  --day-gutter: 11rem;
+  /* The title of an empty day stops where the add button of a full day starts. */
+  --day-gutter-title: calc(var(--day-gutter) - var(--touch-target) - 1.5rem);
   --tour-halo: color-mix(in oklch, var(--primary) 22%, transparent);
   --sidebar-width: 16rem;
   --sidebar-width-icon: 3.5rem;
@@ -349,7 +352,8 @@
   --spacing-briefing-panel: var(--briefing-panel-width);
   --spacing-briefing-top: var(--briefing-panel-top);
   --spacing-briefing-panel-height: var(--briefing-panel-height);
-  --spacing-briefing-compact: var(--briefing-compact-height);
+  --spacing-day-gutter: var(--day-gutter);
+  --spacing-day-gutter-title: var(--day-gutter-title);
   --spacing-briefing-phone: var(--briefing-phone-height);
   --spacing-print-item: var(--print-item-space);
 

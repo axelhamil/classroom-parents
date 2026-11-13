@@ -28,34 +28,51 @@ function CalendarPeriod({ className, direction, ...props }: CalendarPeriodProps)
   );
 }
 
-const calendarDayVariants = cva("flex min-w-0 flex-col gap-2 scroll-mt-24", {
-  variants: {
-    tone: {
-      default: "",
-      today:
-        "[&>[data-slot=calendar-day-header]]:border-warning [&>[data-slot=calendar-day-header]]:bg-warning/20",
-      past: "[&>[data-slot=calendar-day-header]]:text-muted-foreground",
-      overdue:
-        "[&>[data-slot=calendar-day-header]]:border-destructive/40 [&>[data-slot=calendar-day-header]]:bg-destructive/10",
+function CalendarWeek({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="calendar-week"
+      className={cn("@container/week flex min-w-0 flex-col gap-3", className)}
+      {...props}
+    />
+  );
+}
+
+const calendarDayVariants = cva(
+  "flex min-w-0 scroll-mt-24 flex-col gap-2 rounded-xl outline-none focus-visible:ring focus-visible:ring-ring",
+  {
+    variants: {
+      layout: {
+        stack: "",
+        row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0 @3xl/week:[&>[data-slot=calendar-day-list]]:grid @3xl/week:[&>[data-slot=calendar-day-list]]:grid-cols-2",
+      },
+      tone: {
+        default: "",
+        today:
+          "[&>[data-slot=calendar-day-header]]:border-warning [&>[data-slot=calendar-day-header]]:bg-warning/20",
+        past: "[&>[data-slot=calendar-day-header]]:text-muted-foreground",
+        overdue:
+          "[&>[data-slot=calendar-day-header]]:border-destructive/40 [&>[data-slot=calendar-day-header]]:bg-destructive/10",
+      },
+      crunch: {
+        true: "[&_[data-slot=calendar-day-crunch]]:inline-flex",
+        false: "",
+      },
     },
-    crunch: {
-      true: "[&_[data-slot=calendar-day-crunch]]:inline-flex",
-      false: "",
-    },
+    defaultVariants: { layout: "stack", tone: "default", crunch: false },
   },
-  defaultVariants: { tone: "default", crunch: false },
-});
+);
 
 interface CalendarDayProps
   extends React.ComponentProps<"section">,
     VariantProps<typeof calendarDayVariants> {}
 
-function CalendarDay({ className, tone, crunch, ...props }: CalendarDayProps) {
+function CalendarDay({ className, layout, tone, crunch, ...props }: CalendarDayProps) {
   return (
     <section
       data-slot="calendar-day"
       data-tone={tone ?? "default"}
-      className={cn(calendarDayVariants({ tone, crunch }), className)}
+      className={cn(calendarDayVariants({ layout, tone, crunch }), className)}
       {...props}
     />
   );
@@ -107,7 +124,7 @@ function CalendarDayEmpty({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="calendar-day-empty"
-      className={cn("px-3 text-sm text-muted-foreground", className)}
+      className={cn("shrink-0 text-sm text-muted-foreground", className)}
       {...props}
     />
   );
@@ -132,4 +149,5 @@ export {
   CalendarDayNote,
   CalendarDayTitle,
   CalendarPeriod,
+  CalendarWeek,
 };

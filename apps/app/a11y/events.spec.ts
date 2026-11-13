@@ -24,6 +24,29 @@ async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
   expect(await views.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
 }
 
+async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void> {
+  const rows = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]");
+  await expect(rows).toHaveCount(7);
+  const titles = page.locator("[data-slot=calendar-week] [data-slot=calendar-entry-link]");
+  await expect(titles.first()).toBeVisible();
+  const clipped = await titles.evaluateAll(
+    (links) =>
+      links.filter(
+        (link) =>
+          link.scrollHeight > link.clientHeight + 1 || link.scrollWidth > link.clientWidth + 1,
+      ).length,
+  );
+  expect(clipped).toBe(0);
+  const widths = await titles.evaluateAll((links) =>
+    links.map((link) => link.getBoundingClientRect().width),
+  );
+  expect(Math.min(...widths)).toBeGreaterThanOrEqual(180);
+  const briefing = await page.locator("[data-slot=briefing]").boundingBox();
+  const week = await page.locator("[data-slot=calendar-week]").boundingBox();
+  expect(briefing && week && briefing.x + briefing.width < week.x).toBe(true);
+  expect(week && week.y < fold / 2).toBe(true);
+}
+
 test.describe("the calendar on a phone", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
 
@@ -45,7 +68,9 @@ test.describe("the calendar on a phone", () => {
       expect(await blockingViolations(page)).toEqual([]);
     });
 
-    test(`a late deadline sits above the period (${colorScheme})`, async ({ page }) => {
+    test(`a late deadline waits folded above the week and opens in place (${colorScheme})`, async ({
+      page,
+    }) => {
       const morning = new Date();
       morning.setHours(9, 0, 0, 0);
       await page.clock.setFixedTime(morning);
@@ -63,8 +88,13 @@ test.describe("the calendar on a phone", () => {
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [late] });
       await page.goto("/");
 
-      const strip = page.getByRole("region", { name: "En retard" });
+      const strip = page.getByRole("region", { name: "En retard, 1 échéance" });
+      const line = strip.getByRole("button", { name: "En retard, 1 échéance" });
+      await expect(line).toHaveAttribute("aria-expanded", "false");
+      await line.focus();
+      await page.keyboard.press("Enter");
       await expect(strip.getByRole("link", { name: late.title })).toBeVisible();
+      await expect(line).toBeFocused();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
     });
@@ -171,18 +201,31 @@ test.describe("the calendar on a phone", () => {
       .toContain("swimming");
   });
 
-  test("the week ribbon opens the picked day under it", async ({ page }) => {
+  test("the week strip names the seven days and takes the picked one to its row", async ({
+    page,
+  }) => {
     const morning = new Date();
     morning.setHours(9, 0, 0, 0);
     await page.clock.setFixedTime(morning);
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    const ribbon = page.getByRole("radiogroup", { name: "Jours de la semaine" });
-    await expect(ribbon.getByRole("radio")).toHaveCount(7);
-    await expect(
-      page.getByRole("link", { name: "Exercices 4 à 9 page 112", exact: true }),
-    ).toBeVisible();
+    const strip = page.getByRole("radiogroup", { name: "Jours de la semaine" });
+    await expect(strip.getByRole("radio")).toHaveCount(7);
+    await expect(strip).toBeInViewport();
+    const homework = page.getByRole("link", { name: "Exercices 4 à 9 page 112", exact: true });
+    await expect(homework).toBeVisible();
+    const row = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]", {
+      has: homework,
+    });
+    const date = await row.getAttribute("data-jump");
+    const shown = Array.from({ length: 7 }, (_, index) => inDays(3 + index));
+    await strip
+      .getByRole("radio")
+      .nth(shown.indexOf(date ?? ""))
+      .click();
+    await expect(row).toBeFocused();
+    await expect(row).toBeInViewport();
     await expectOnePageWithoutOverflow(page);
     expect(await blockingViolations(page)).toEqual([]);
   });
@@ -227,11 +270,12 @@ test.describe("event overlay focus", () => {
 test.describe("the week on a tablet", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 768, height: 1024 } });
 
-  test("keeps the day ribbon until seven columns can hold a title", async ({ page }) => {
+  test("puts the briefing beside the week, whose rows replace the day strip", async ({ page }) => {
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeVisible();
+    await expectWeekBesideBriefing(page, 1024);
+    await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeHidden();
     await expectOnePageWithoutOverflow(page);
   });
 });
@@ -239,22 +283,13 @@ test.describe("the week on a tablet", () => {
 test.describe("the week on a desktop", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
-  test("keeps the seven columns readable beside the briefing, and only the calendar widens", async ({
+  test("shows the week as rows of whole titles beside the briefing, and only the home widens", async ({
     page,
   }) => {
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    const columns = page.locator("[data-slot=calendar-period] [data-slot=calendar-day]");
-    await expect(columns).toHaveCount(7);
-    const widths = await columns.evaluateAll((days) =>
-      days.map((day) => day.getBoundingClientRect().width),
-    );
-    expect(Math.min(...widths)).toBeGreaterThanOrEqual(120);
-    const briefing = await page.locator("[data-slot=briefing]").boundingBox();
-    const week = await page.locator("[data-slot=calendar-period]").boundingBox();
-    expect(briefing && week && briefing.x + briefing.width < week.x).toBe(true);
-    expect(week && week.y < 900).toBe(true);
+    await expectWeekBesideBriefing(page, 900);
     await expectOnePageWithoutOverflow(page);
 
     await page.goto("/settings");
@@ -296,7 +331,7 @@ test.describe("the child dots of the month", () => {
   test("a crunch day keeps its whole date next to the badge", async ({ page }) => {
     await page.clock.setFixedTime(new Date("2026-11-12T09:00:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: crunch });
-    await page.goto("/?view=agenda&date=2026-11-17");
+    await page.goto("/?view=week&date=2026-11-17");
 
     const title = page.getByRole("heading", { level: 3, name: "Mardi 17 novembre" });
     await expect(title).toBeVisible();

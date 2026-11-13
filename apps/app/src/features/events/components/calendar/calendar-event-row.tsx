@@ -23,7 +23,6 @@ export interface CalendarEventRowProps {
   family: readonly ChildDto[];
   now: Date;
   today: string;
-  density?: "row" | "sticker";
   dated?: boolean;
   withChild?: boolean;
 }
@@ -41,7 +40,6 @@ export function CalendarEventRow({
   family,
   now,
   today,
-  density = "row",
   dated = false,
   withChild = true,
 }: CalendarEventRowProps) {
@@ -53,7 +51,7 @@ export function CalendarEventRow({
   const state = stateOf(event, now, today);
 
   return (
-    <CalendarEntry hue={hue} density={density} state={state}>
+    <CalendarEntry hue={hue} state={state}>
       <Checkbox
         checked={event.done}
         onCheckedChange={(checked) => toggle.mutate({ eventId: event.id, done: checked === true })}

@@ -22,9 +22,17 @@ export interface CalendarDaySectionProps {
   now: Date;
   today: string;
   onAdd: (date: string) => void;
+  layout?: "stack" | "row";
 }
 
-export function CalendarDaySection({ day, family, now, today, onAdd }: CalendarDaySectionProps) {
+export function CalendarDaySection({
+  day,
+  family,
+  now,
+  today,
+  onAdd,
+  layout,
+}: CalendarDaySectionProps) {
   const { t } = useTranslation("events");
   const locale = useIntlLocale();
   const titleId = useId();
@@ -33,6 +41,9 @@ export function CalendarDaySection({ day, family, now, today, onAdd }: CalendarD
   return (
     <CalendarDay
       aria-labelledby={titleId}
+      data-jump={day.date}
+      tabIndex={-1}
+      layout={layout}
       tone={dayTone(day.date, today)}
       crunch={isCrunchDay(day.date, day.events, today)}
     >
@@ -42,6 +53,7 @@ export function CalendarDaySection({ day, family, now, today, onAdd }: CalendarD
           <FlameIcon aria-hidden />
           {t("calendar.crunch")}
         </CalendarDayCrunch>
+        {day.events.length === 0 && <CalendarDayEmpty>{t("calendar.dayEmpty")}</CalendarDayEmpty>}
         <IconButton
           variant="ghost"
           label={t("calendar.addOn", { day: title.toLocaleLowerCase(locale) })}
@@ -50,9 +62,7 @@ export function CalendarDaySection({ day, family, now, today, onAdd }: CalendarD
           <PlusIcon aria-hidden />
         </IconButton>
       </CalendarDayHeader>
-      {day.events.length === 0 ? (
-        <CalendarDayEmpty>{t("calendar.dayEmpty")}</CalendarDayEmpty>
-      ) : (
+      {day.events.length > 0 && (
         <CalendarDayList>
           {day.events.map((event) => (
             <li key={event.id}>

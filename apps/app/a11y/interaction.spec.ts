@@ -190,15 +190,6 @@ test.describe("signed in", () => {
     });
   }
 
-  test("names today's date tab for assistive technology", async ({ page }) => {
-    await page.goto("/");
-
-    const today = page.locator("[data-slot=date-tab][aria-label]");
-
-    await expect(today).toHaveAttribute("aria-label", "Aujourd'hui");
-    await expect(today).not.toHaveAttribute("title");
-  });
-
   test("opens the user menu from the keyboard and gives focus back on Escape", async ({ page }) => {
     await page.goto("/");
 

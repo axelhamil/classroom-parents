@@ -1,5 +1,4 @@
 import { Button } from "@packages/ui/components/ui/button";
-import { DateTab } from "@packages/ui/components/ui/date-tab";
 import { userStorageKey, useStoredValue } from "@packages/web-kit/storage/use-stored-value";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
@@ -11,8 +10,6 @@ import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect
 import { CategoryFilter } from "../../shared/events/category-filter";
 import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
 import { childHue, childLabelOf } from "../../shared/format/child-hue";
-import { wallDateParts } from "../../shared/format/deadline-label";
-import { schoolToday } from "../../shared/format/school-today";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
 import { ScreenTour } from "../../shared/tour/screen-tour";
@@ -41,8 +38,6 @@ function HomePage() {
   const search = Route.useSearch();
   const router = useRouter();
   const now = useNow();
-  const today = schoolToday(now);
-  const todayParts = wallDateParts(today);
   const name = firstNameOf(user.name);
   const greeting =
     greetingKind(now) === "evening"
@@ -50,20 +45,7 @@ function HomePage() {
       : t("home.greeting.morning", { name });
 
   return (
-    <Screen
-      width="wide"
-      title={name ? greeting : t("list.title")}
-      actions={
-        <DateTab
-          dateTime={today}
-          tone="today"
-          day={todayParts.day}
-          month={todayParts.month}
-          weekday={todayParts.weekday}
-          aria-label={t("list.today")}
-        />
-      }
-    >
+    <Screen width="wide" title={name ? greeting : t("list.title")}>
       <HomeBoard now={now} />
       {search.event && (
         <EventOverlay eventId={search.event} onClose={() => router.history.back()} />
@@ -162,27 +144,23 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
-      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[var(--spacing-briefing-panel)_minmax(0,1fr)] xl:items-start">
-        <NextSchoolBriefing family={family} childId={childId} now={now} />
-        <div className="flex min-w-0 flex-col gap-6">
-          <CalendarBoard
-            family={family}
-            childId={childId}
-            onChildChange={selectChild}
-            place={place}
-            onPlaceChange={setSearch}
-            now={now}
-            tour={!search.event && <ScreenTour screen="home" userId={user.id} />}
-          />
-          {toReview.length > 0 && (
-            <ReviewCard
-              events={toReview}
-              childLabel={(id) => childLabelOf(family, id)}
-              childColor={(id) => childHue(family, id)}
-            />
-          )}
-        </div>
-      </div>
+      <CalendarBoard
+        family={family}
+        childId={childId}
+        onChildChange={selectChild}
+        place={place}
+        onPlaceChange={setSearch}
+        now={now}
+        briefing={<NextSchoolBriefing family={family} childId={childId} now={now} />}
+        tour={!search.event && <ScreenTour screen="home" userId={user.id} />}
+      />
+      {toReview.length > 0 && (
+        <ReviewCard
+          events={toReview}
+          childLabel={(id) => childLabelOf(family, id)}
+          childColor={(id) => childHue(family, id)}
+        />
+      )}
     </div>
   );
 }

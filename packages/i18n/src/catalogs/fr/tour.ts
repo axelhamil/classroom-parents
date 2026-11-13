@@ -16,8 +16,8 @@ export default {
       body: "Chaque enfant a sa couleur. Choisissez-en un pour ne voir que ses échéances.",
     },
     tabs: {
-      title: "Agenda, Semaine, Mois",
-      body: "Changez de vue sans perdre le jour choisi. Glissez pour passer à la période suivante.",
+      title: "Semaine ou mois",
+      body: "La semaine montre les sept jours à venir, le mois la vue d'ensemble. Glissez pour passer à la période suivante.",
     },
     share: {
       title: "Ajouter, partager, s'abonner",

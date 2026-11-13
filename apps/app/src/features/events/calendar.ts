@@ -3,11 +3,10 @@ import { utcDay } from "@packages/i18n";
 import type { EventItem } from "../../shared/api/queries/events";
 import type { CalendarRange } from "./api/events.queries";
 
-export const CALENDAR_VIEWS = ["agenda", "week", "month"] as const;
+export const CALENDAR_VIEWS = ["week", "month"] as const;
 
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
-const AGENDA_DAYS = 14;
 const WEEK_DAYS = 7;
 const MONTH_GRID_DAYS = 42;
 const CRUNCH_FROM = 3;
@@ -30,7 +29,7 @@ function daysFrom(start: string, length: number): string[] {
   return Array.from({ length }, (_, offset) => shiftDate(start, offset));
 }
 
-export function mondayOfDate(date: string): string {
+function mondayOfDate(date: string): string {
   const weekday = new Date(utcDay(date)).getUTCDay();
 
   return shiftDate(date, -((weekday + WEEK_DAYS - 1) % WEEK_DAYS));
@@ -41,14 +40,10 @@ function firstOfMonth(date: string): string {
 }
 
 function periodStart(view: CalendarView, anchor: string): string {
-  if (view === "agenda") return anchor;
-  if (view === "week") return mondayOfDate(anchor);
-
-  return mondayOfDate(firstOfMonth(anchor));
+  return view === "week" ? anchor : mondayOfDate(firstOfMonth(anchor));
 }
 
 const LENGTHS = {
-  agenda: AGENDA_DAYS,
   week: WEEK_DAYS,
   month: MONTH_GRID_DAYS,
 } as const satisfies Record<CalendarView, number>;
@@ -106,4 +101,10 @@ export function dayTone(date: string, today: string): DayTone {
   if (date === today) return "today";
 
   return date < today ? "past" : "default";
+}
+
+export function jumpToDay(date: string): void {
+  const target = document.querySelector<HTMLElement>(`[data-jump="${date}"]`);
+  target?.scrollIntoView?.({ block: "start" });
+  target?.focus({ preventScroll: true });
 }
