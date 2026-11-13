@@ -362,6 +362,61 @@ test.describe("the late deadlines on a desktop", () => {
     });
 });
 
+test.describe("a done tick inside the late deadlines overlay", () => {
+  test.use({ storageState: STORAGE_STATE });
+
+  for (const width of [390, 1440])
+    test(`is undone from inside it, by pointer and by keyboard (${width} px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const morning = new Date();
+      morning.setHours(9, 0, 0, 0);
+      await page.clock.setFixedTime(morning);
+      const late = {
+        ...REVIEW_EVENT,
+        id: "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c02",
+        title: "Mot du carnet à signer",
+        status: "confirmed",
+        done: false,
+        deadlineDate: inDays(-2),
+        deadlineAt: `${inDays(-2)}T07:00:00.000Z`,
+      };
+      await serveFamily(page, { children: [LEA], events: [late] });
+      await page.route(`**/events/${late.id}/done`, (route) => {
+        late.done = route.request().method() === "POST";
+        return route.fulfill({ json: late });
+      });
+      await page.goto("/");
+
+      await page.getByRole("button", { name: "En retard, 1 échéance" }).click();
+      const overlay = page.getByRole("dialog");
+      const tick = overlay.getByRole("checkbox", { name: `Marquer comme fait : ${late.title}` });
+      const undo = overlay.getByRole("button", { name: "Annuler" });
+
+      await tick.click();
+      await expect(overlay.getByRole("status")).toHaveText(/Marqué comme fait/);
+      await undo.click();
+      await expect(tick).toHaveAttribute("aria-checked", "false");
+      await expect(overlay).toBeVisible();
+      expect(late.done).toBe(false);
+
+      await tick.focus();
+      await page.keyboard.press("Space");
+      await expect(undo).toBeVisible();
+      for (
+        let step = 0;
+        step < 6 && !(await undo.evaluate((el) => el === document.activeElement));
+        step++
+      )
+        await page.keyboard.press("Tab");
+      await expect(undo).toBeFocused();
+      expect(await blockingViolations(page)).toEqual([]);
+      await page.keyboard.press("Enter");
+      await expect(tick).toHaveAttribute("aria-checked", "false");
+      await expect(overlay).toBeVisible();
+      expect(late.done).toBe(false);
+    });
+});
+
 test.describe("the child dots of the month", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
 

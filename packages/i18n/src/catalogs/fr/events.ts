@@ -67,7 +67,6 @@ export default {
       lastFetched: "Dernière lecture par votre agenda : {{date}}.",
       neverFetched: "Votre agenda ne l'a pas encore lu.",
     },
-    close: "Fermer",
   },
   briefing: {
     title: "Pour {{day}}",
@@ -200,7 +199,6 @@ export default {
     description: "Ce qu'en dit l'annonce",
     openInClassroom: "Ouvrir dans Classroom",
     edit: "Modifier",
-    close: "Fermer",
     back: "Retour à l'accueil",
     notFound: {
       title: "Échéance introuvable",

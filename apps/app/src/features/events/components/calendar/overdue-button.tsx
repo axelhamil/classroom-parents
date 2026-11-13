@@ -5,11 +5,12 @@ import { ChevronRightIcon, ClockAlertIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
+import { ResponsiveOverlay } from "../../../../shared/layout/responsive-overlay";
 import { calendarEventsQueryOptions } from "../../api/events.queries";
-import { isOverdue, overdueWindow } from "../../calendar";
-import { OverdueSheet } from "./overdue-sheet";
+import { isOverdue, OVERDUE_WINDOW_DAYS, overdueWindow } from "../../calendar";
+import { OverdueList } from "./overdue-list";
 
-export interface OverdueStripProps {
+export interface OverdueButtonProps {
   family: readonly ChildDto[];
   childId: string | null;
   now: Date;
@@ -17,7 +18,7 @@ export interface OverdueStripProps {
   before: string;
 }
 
-export function OverdueStrip({ family, childId, now, today, before }: OverdueStripProps) {
+export function OverdueButton({ family, childId, now, today, before }: OverdueButtonProps) {
   const { t } = useTranslation("events");
   const trigger = useRef<HTMLButtonElement>(null);
   const [opened, setOpened] = useState<readonly string[] | null>(null);
@@ -31,16 +32,7 @@ export function OverdueStrip({ family, childId, now, today, before }: OverdueStr
   const shown = loaded
     .filter((event) => opened?.includes(event.id))
     .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate));
-  const returnFocus = (event: Event) => {
-    const target = trigger.current?.isConnected
-      ? trigger.current
-      : document.querySelector<HTMLElement>("main h1");
-    if (!target) return;
-
-    event.preventDefault();
-    if (target.tabIndex < 0 && !target.hasAttribute("tabindex")) target.tabIndex = -1;
-    target.focus();
-  };
+  const title = t("calendar.overdueCount", { count: late.length });
 
   return (
     <>
@@ -50,7 +42,7 @@ export function OverdueStrip({ family, childId, now, today, before }: OverdueStr
           variant="outline"
           className="w-full"
           aria-haspopup="dialog"
-          aria-label={t("calendar.overdueCount", { count: late.length })}
+          aria-label={title}
           onClick={() => setOpened(late.map((event) => event.id))}
         >
           <ClockAlertIcon aria-hidden />
@@ -60,15 +52,15 @@ export function OverdueStrip({ family, childId, now, today, before }: OverdueStr
         </Button>
       )}
       {opened && (
-        <OverdueSheet
-          events={shown}
-          count={late.length}
-          family={family}
-          now={now}
-          today={today}
+        <ResponsiveOverlay
+          docked="dialog"
+          title={title}
+          description={t("calendar.overdueWindow", { count: OVERDUE_WINDOW_DAYS })}
+          returnFocus={() => (trigger.current ? [trigger.current] : [])}
           onClose={() => setOpened(null)}
-          onCloseAutoFocus={returnFocus}
-        />
+        >
+          <OverdueList events={shown} family={family} now={now} today={today} />
+        </ResponsiveOverlay>
       )}
     </>
   );

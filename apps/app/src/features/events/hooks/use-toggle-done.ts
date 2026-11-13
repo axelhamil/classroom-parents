@@ -2,43 +2,33 @@ import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import { EVENTS_KEY, type EventItem } from "../../../shared/api/queries/events";
+import { EVENTS_KEY } from "../../../shared/api/queries/events";
+import { useUndoChannel } from "../../../shared/layout/responsive-overlay";
 import { markEventDoneMutationOptions } from "../api/events.mutations";
-import { CALENDAR_KEY, eventQueryOptions } from "../api/events.queries";
+import { patchCachedEvent } from "../api/events.queries";
 
 export function useToggleDone() {
   const { t } = useTranslation("events");
   const queryClient = useQueryClient();
+  const undoChannel = useUndoChannel();
   const toggle = useMutation({
     ...markEventDoneMutationOptions,
-    onMutate: async ({ eventId, done }) => {
-      const detailKey = eventQueryOptions(eventId).queryKey;
-      await queryClient.cancelQueries({ queryKey: CALENDAR_KEY });
-      await queryClient.cancelQueries({ queryKey: detailKey });
-      const calendars = queryClient.getQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY });
-      const detail = queryClient.getQueryData(detailKey);
-      queryClient.setQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY }, (items) =>
-        items?.map((event) => (event.id === eventId ? { ...event, done } : event)),
-      );
-      queryClient.setQueryData(detailKey, (event) => event && { ...event, done });
-
-      return { calendars, detailKey, detail };
-    },
+    onMutate: async ({ eventId, done }) => ({
+      rollback: await patchCachedEvent(queryClient, eventId, () => ({ done })),
+    }),
     onError: (error, _toggle, context) => {
-      for (const [key, items] of context?.calendars ?? []) queryClient.setQueryData(key, items);
-      if (context) queryClient.setQueryData(context.detailKey, context.detail);
+      context?.rollback();
       toastError(error, errorFallback("markEventDone"));
     },
     onSuccess: (_result, { eventId, done }) => {
-      if (!done) return;
+      const id = `done:${eventId}`;
+      if (!done) return undoChannel.withdraw(id);
 
-      toast(t("calendar.doneToast"), {
-        id: `done:${eventId}`,
-        action: {
-          label: t("calendar.undo"),
-          onClick: () => toggle.mutate({ eventId, done: false }),
-        },
+      undoChannel.offer({
+        id,
+        message: t("calendar.doneToast"),
+        label: t("calendar.undo"),
+        undo: () => toggle.mutate({ eventId, done: false }),
       });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: EVENTS_KEY }),

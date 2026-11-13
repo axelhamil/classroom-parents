@@ -392,6 +392,33 @@ describe("Accueil, the family calendar", () => {
     expect(screen.queryByRole("button", { name: /^En retard/ })).toBeNull();
   });
 
+  it("a tick in the late deadlines overlay is undone from inside it, the overlay staying open", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const stub = givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
+    await renderAppAt("/");
+
+    fireEvent.click(await screen.findByRole("button", { name: "En retard, 1 échéance" }));
+    const overdue = await screen.findByRole("dialog", { name: "En retard, 1 échéance" });
+    const tick = within(overdue).getByRole("checkbox", {
+      name: "Marquer comme fait : Cahier de liaison à signer",
+    });
+    fireEvent.click(tick);
+    expect(await within(overdue).findByRole("status")).toHaveProperty(
+      "textContent",
+      expect.stringContaining("Marqué comme fait"),
+    );
+    fireEvent.click(await within(overdue).findByRole("button", { name: "Annuler" }));
+
+    await waitFor(() =>
+      expect(
+        stub.calls.some((call) => call.method === "DELETE" && call.url.pathname.endsWith("/done")),
+      ).toBe(true),
+    );
+    await waitFor(() => expect(tick.getAttribute("aria-checked")).toBe("false"));
+    expect(screen.getByRole("dialog", { name: "En retard, 1 échéance" })).toBe(overdue);
+    expect(within(overdue).queryByRole("button", { name: "Annuler" })).toBeNull();
+  });
+
   it("a done tick says so in a toast that undoes it", async () => {
     at("2026-11-12T09:00:00.000Z");
     const stub = givenCalendar([CHILD], [deadline(1, "2026-11-14", "Sac de piscine")]);
@@ -467,6 +494,24 @@ describe("Accueil, the family calendar", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
+  it("a deadline marked done from its overlay is undone from inside it", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const homework = deadline(1, "2026-11-13", "Lire le chapitre 2");
+    const stub = givenCalendar([CHILD], [homework], { detail: homework });
+    await renderAppAt(`/?event=${homework.id}`);
+
+    const detail = await screen.findByRole("dialog");
+    fireEvent.click(await within(detail).findByRole("button", { name: "C'est fait" }));
+    fireEvent.click(await within(detail).findByRole("button", { name: "Annuler" }));
+
+    await waitFor(() =>
+      expect(
+        stub.calls.some((call) => call.method === "DELETE" && call.url.pathname.endsWith("/done")),
+      ).toBe(true),
+    );
+    expect(screen.getByRole("dialog")).toBe(detail);
   });
 
   it("the more menu offers to share, print, subscribe and see past deadlines", async () => {

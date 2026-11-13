@@ -1,8 +1,12 @@
 import { throwApiError } from "@packages/web-kit/api/errors/api-error";
-import { queryOptions } from "@tanstack/react-query";
+import { type QueryClient, queryOptions } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { api } from "../../../shared/api/api-client";
-import { type EventFilters, eventFilterQuery } from "../../../shared/api/queries/events";
+import {
+  type EventFilters,
+  type EventItem,
+  eventFilterQuery,
+} from "../../../shared/api/queries/events";
 
 const $list = api.events.$get;
 const $get = api.events[":id"].$get;
@@ -107,4 +111,27 @@ export function eventRemindersQueryOptions(eventId: string) {
       return res.json();
     },
   });
+}
+
+type PatchedFields = Pick<EventItem, "done" | "checklist">;
+
+export async function patchCachedEvent(
+  queryClient: QueryClient,
+  eventId: string,
+  patch: (event: PatchedFields) => Partial<PatchedFields>,
+): Promise<() => void> {
+  const detailKey = eventQueryOptions(eventId).queryKey;
+  await queryClient.cancelQueries({ queryKey: CALENDAR_KEY });
+  await queryClient.cancelQueries({ queryKey: detailKey });
+  const calendars = queryClient.getQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY });
+  const detail = queryClient.getQueryData(detailKey);
+  queryClient.setQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY }, (items) =>
+    items?.map((event) => (event.id === eventId ? { ...event, ...patch(event) } : event)),
+  );
+  queryClient.setQueryData(detailKey, (event) => event && { ...event, ...patch(event) });
+
+  return () => {
+    for (const [key, items] of calendars) queryClient.setQueryData(key, items);
+    queryClient.setQueryData(detailKey, detail);
+  };
 }

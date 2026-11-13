@@ -18,10 +18,11 @@ export interface AddEventDialogProps {
 
 export function AddEventDialog({ date, family, childId, onClose }: AddEventDialogProps) {
   const { t } = useTranslation("events");
+  const { t: tCommon } = useTranslation("common");
 
   return (
     <Dialog open={date !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent closeLabel={t("calendar.close")}>
+      <DialogContent closeLabel={tCommon("actions.close")}>
         <DialogHeader>
           <DialogTitle>{t("calendar.addDialog.title")}</DialogTitle>
           <DialogDescription>{t("calendar.addDialog.description")}</DialogDescription>
