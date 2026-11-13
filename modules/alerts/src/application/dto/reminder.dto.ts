@@ -48,9 +48,20 @@ export const remindersBodySchema = z.strictObject({
   reminders: z.array(reminderInputSchema).max(REMINDERS_BODY_MAX),
 });
 
-function alertOf(alerts: Alert[], { reminder, time }: ResolvedReminder): Option<Alert> {
-  const own = alerts.find((alert) => alert.key() === reminder.key() && alert.isPending());
-  if (own) return Option.some(own);
+function alertOf(
+  alerts: Alert[],
+  { reminder, time }: ResolvedReminder,
+  deadlineAt: Date,
+): Option<Alert> {
+  const own = alerts.filter((alert) => alert.key() === reminder.key());
+  const planned =
+    own.find((alert) => alert.isPending()) ??
+    own.find(
+      (alert) =>
+        alert.get("status").value !== "skipped" &&
+        alert.get("deadlineAt").getTime() === deadlineAt.getTime(),
+    );
+  if (planned) return Option.some(planned);
 
   return time.flatMap((at) =>
     Option.fromNullable(alerts.find((alert) => alert.get("time").equals(at))),
@@ -65,11 +76,12 @@ export function toEventRemindersDto(
   resolved: FittingReminder[],
   customized: boolean,
   alerts: Alert[],
+  deadlineAt: Date,
 ): EventRemindersDto {
   return {
     customized,
     reminders: resolved.map((item) => {
-      const alert = alertOf(alerts, item);
+      const alert = alertOf(alerts, item, deadlineAt);
       return {
         reminder: item.reminder.value,
         dueAt: alert

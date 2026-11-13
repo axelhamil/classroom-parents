@@ -260,7 +260,7 @@ export class ReminderSettingsService {
     const fitting = resolved
       .getValue()
       .map((item) => ({ ...item, fits: ringsBefore(item, target) }));
-    return Result.ok(toEventRemindersDto(fitting, customized, alerts.getValue()));
+    return Result.ok(toEventRemindersDto(fitting, customized, alerts.getValue(), target.at));
   }
 
   private async ownedDeadline(

@@ -424,6 +424,35 @@ describe("reminders of one event", () => {
     ]);
   });
 
+  it("given a reminder moved out of the quiet hours and then sent, then reading it shows the send at its real time", async () => {
+    settings.defaultsFor.mockResolvedValue(
+      Result.ok(Option.some(ReminderList.from([days(1, "22:00")]).getValue())),
+    );
+    givenEvent(deadlineOn("2026-11-16", "08:00"));
+    alerts.listOwned.mockResolvedValue(
+      Result.ok([
+        existingAlert({
+          reminder: "d1@22:00",
+          status: "sent",
+          date: "2026-11-16",
+          time: "07:00",
+          deadlineAt: paris("2026-11-16", "08:00"),
+        }),
+      ]),
+    );
+
+    const result = await service.eventReminders(PARENT, ALERT_EVENT);
+
+    expect(result.getValue().reminders).toEqual([
+      {
+        reminder: days(1, "22:00"),
+        dueAt: "2026-11-16T06:00:00.000Z",
+        status: "sent",
+        fits: true,
+      },
+    ]);
+  });
+
   it("given an event that follows the defaults, then reading it shows each default reminder and its state", async () => {
     alerts.listOwned.mockResolvedValue(Result.ok([existingAlert({ status: "sent" })]));
 
