@@ -113,6 +113,29 @@ describe("Accueil briefs the next school moment", () => {
     expect(within(tomorrow).getByText("Encore 2 échéances à boucler")).toBeDefined();
   });
 
+  it("scrolls what is due in its own keyboard reachable region, title and count staying in view", async () => {
+    at(THURSDAY_EVENING);
+    givenCalendar(
+      [CHILD, HUGO],
+      [
+        deadline(1, "2026-11-13", "Fiche à signer", { childId: HUGO.id }),
+        deadline(2, "2026-11-13", "Sac de piscine", { category: "swimming" }),
+      ],
+    );
+    await renderAppAt("/");
+
+    const tomorrow = await briefing("Pour demain");
+    const scroller = await within(tomorrow).findByRole("region", {
+      name: "Échéances à préparer pour demain",
+    });
+    expect(scroller.tabIndex).toBe(0);
+    expect(within(scroller).getByRole("region", { name: "Léa" })).toBeDefined();
+    expect(within(scroller).getByRole("region", { name: "Hugo" })).toBeDefined();
+    expect(within(scroller).queryByText("Encore 2 échéances à boucler")).toBeNull();
+    expect(within(scroller).queryByRole("heading", { name: "Pour demain" })).toBeNull();
+    expect(within(tomorrow).getByText("Encore 2 échéances à boucler")).toBeDefined();
+  });
+
   it("ticks done at once and rolls back when the server refuses", async () => {
     at(THURSDAY_EVENING);
     let refuse: (response: Response) => void = () => undefined;
@@ -133,6 +156,54 @@ describe("Accueil briefs the next school moment", () => {
     refuse(json({ code: "INTERNAL" }, 500));
     await waitFor(() => expect(check.getAttribute("aria-checked")).toBe("false"));
     expect(await screen.findByText("Échec de la mise à jour de l'échéance")).toBeDefined();
+  });
+
+  it("a leftover ticked in the evening stays, keeps the focus and can be unticked", async () => {
+    at(THURSDAY_EVENING);
+    givenCalendar(
+      [CHILD],
+      [
+        deadline(1, "2026-11-12", "Exercice en ligne"),
+        deadline(2, "2026-11-13", "Sac de piscine", { category: "swimming" }),
+      ],
+    );
+    await renderAppAt("/");
+
+    const tomorrow = await briefing("Pour demain");
+    const check = await within(tomorrow).findByRole("checkbox", {
+      name: "Marquer comme fait : Exercice en ligne",
+    });
+    check.focus();
+    fireEvent.click(check);
+
+    await waitFor(() => expect(check.getAttribute("aria-checked")).toBe("true"));
+    expect(tomorrow.contains(check)).toBe(true);
+    expect(document.activeElement).toBe(check);
+    expect(titlesIn(tomorrow)).toEqual(["Exercice en ligne", "Sac de piscine"]);
+
+    fireEvent.click(check);
+    await waitFor(() => expect(check.getAttribute("aria-checked")).toBe("false"));
+  });
+
+  it("the last tick leaves the ready line still, the toast being the one celebration", async () => {
+    at(THURSDAY_EVENING);
+    givenCalendar(
+      [CHILD],
+      [deadline(1, "2026-11-13", "Fiche à signer"), deadline(2, "2026-11-16", "Exposé")],
+    );
+    await renderAppAt("/");
+
+    const tomorrow = await briefing("Pour demain");
+    fireEvent.click(
+      await within(tomorrow).findByRole("checkbox", {
+        name: "Marquer comme fait : Fiche à signer",
+      }),
+    );
+
+    const ready = await within(tomorrow).findByText("Tout est prêt pour demain.");
+    expect(await screen.findByText("Tout est prêt pour demain. Bien joué.")).toBeDefined();
+    expect(ready.className).not.toContain("animate-rise-in");
+    expect(ready.className).toContain("animate-none");
   });
 
   it("lists what to prepare under an open item, ticked from the briefing", async () => {

@@ -14,7 +14,7 @@ import { calendarEventsQueryOptions } from "../../api/events.queries";
 import { isOverdue, OVERDUE_WINDOW_DAYS, overdueWindow } from "../../calendar";
 import { CalendarEventRow } from "./calendar-event-row";
 
-const SHOWN_AT_FIRST = 3;
+const SHOWN_AT_FIRST = 1;
 
 export interface OverdueStripProps {
   family: readonly ChildDto[];

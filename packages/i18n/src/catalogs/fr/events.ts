@@ -71,6 +71,7 @@ export default {
   briefing: {
     title: "Pour {{day}}",
     loading: "Chargement de ce qu'il faut préparer",
+    scroll: "Échéances à préparer pour {{day}}",
     open_one: "Encore {{count}} échéance à boucler",
     open_other: "Encore {{count}} échéances à boucler",
     empty: "Rien à préparer pour {{day}}.",

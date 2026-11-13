@@ -11,6 +11,7 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCheckIcon } from "lucide-react";
@@ -45,7 +46,10 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
   const watched = childId ? family.filter((child) => child.id === childId) : family;
 
   return (
-    <Briefing aria-labelledby={titleId}>
+    <Briefing
+      aria-labelledby={titleId}
+      className="max-h-briefing-phone md:max-h-briefing-compact xl:sticky xl:top-briefing-top xl:max-h-briefing-panel-height"
+    >
       <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
       <QueryState
         query={query}
@@ -57,7 +61,8 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
       >
         {(events) => (
           <BriefingBody
-            events={dueBy(events, moment, childId)}
+            key={moment.focus}
+            events={events}
             family={watched}
             childId={childId}
             now={now}
@@ -74,13 +79,14 @@ function dueBy(
   events: readonly EventItem[],
   { today, focus }: SchoolMoment,
   childId: string | null,
+  shown: ReadonlySet<string>,
 ): EventItem[] {
   return events.filter(
     (event) =>
       (childId === null || event.childId === childId) &&
       event.deadlineDate >= today &&
       event.deadlineDate <= focus &&
-      (event.deadlineDate === focus || !event.done),
+      (event.deadlineDate === focus || !event.done || shown.has(event.id)),
   );
 }
 
@@ -93,11 +99,13 @@ interface BriefingBodyProps {
   day: string;
 }
 
-function BriefingBody({ events, family, childId, now, moment, day }: BriefingBodyProps) {
+function BriefingBody({ events: loaded, family, childId, now, moment, day }: BriefingBodyProps) {
   const { t } = useTranslation("events");
+  const shown = useRef(new Set<string>());
+  const events = dueBy(loaded, moment, childId, shown.current);
+  for (const event of events) shown.current.add(event.id);
   const open = events.filter((event) => !event.done).length;
   const allSet = events.length > 0 && open === 0;
-  const openedReady = useRef(allSet);
 
   if (events.length === 0)
     return isFirstSyncRunning(family) ? (
@@ -109,7 +117,7 @@ function BriefingBody({ events, family, childId, now, moment, day }: BriefingBod
   return (
     <>
       {allSet ? (
-        <BriefingSummary tone="ready" arrive={!openedReady.current}>
+        <BriefingSummary tone="ready">
           <CelebrationStamp>
             <CheckCheckIcon />
           </CelebrationStamp>
@@ -118,23 +126,25 @@ function BriefingBody({ events, family, childId, now, moment, day }: BriefingBod
       ) : (
         <BriefingSummary>{t("briefing.open", { count: open })}</BriefingSummary>
       )}
-      <BriefingGroups>
-        {family.map((child) => {
-          const due = events.filter((event) => event.childId === child.id);
-          if (due.length === 0) return null;
+      <ScrollRegion variant="panel" label={t("briefing.scroll", { day })}>
+        <BriefingGroups>
+          {family.map((child) => {
+            const due = events.filter((event) => event.childId === child.id);
+            if (due.length === 0) return null;
 
-          return (
-            <ChildBriefing
-              key={child.id}
-              child={child}
-              events={due}
-              family={family}
-              now={now}
-              moment={moment}
-            />
-          );
-        })}
-      </BriefingGroups>
+            return (
+              <ChildBriefing
+                key={child.id}
+                child={child}
+                events={due}
+                family={family}
+                now={now}
+                moment={moment}
+              />
+            );
+          })}
+        </BriefingGroups>
+      </ScrollRegion>
     </>
   );
 }
