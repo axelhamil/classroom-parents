@@ -13,7 +13,11 @@ import {
 function closedStream() {
   const body = new ReadableStream<Uint8Array>({ start: (controller) => controller.close() });
 
-  return { ok: true, status: 200, body };
+  return { ok: true, status: 200, headers: new Headers(), body };
+}
+
+function refused(status: number, headers: Record<string, string> = {}) {
+  return { ok: false, status, headers: new Headers(headers), body: null };
 }
 
 function streamClosingAfter(ms: number) {
@@ -23,13 +27,11 @@ function streamClosingAfter(ms: number) {
     },
   });
 
-  return { ok: true, status: 200, body };
+  return { ok: true, status: 200, headers: new Headers(), body };
 }
 
 async function connectionGaps(
-  responses: (
-    index: number,
-  ) => ReturnType<typeof closedStream> | { ok: false; status: number; body: null },
+  responses: (index: number) => ReturnType<typeof closedStream> | ReturnType<typeof refused>,
   count: number,
 ) {
   const controller = new AbortController();
@@ -104,12 +106,34 @@ describe("runUserStream", () => {
     expect(gaps).toEqual([500, 1_000, 2_000, 20_000 + 500, 1_000]);
   });
 
+  it("given a refusal that names its delay, then the next attempt waits that long instead of the backoff", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const gaps = await connectionGaps(
+      (index) => (index === 0 ? refused(429, { "Retry-After": "40" }) : closedStream()),
+      3,
+    );
+
+    expect(gaps).toEqual([40_000, 1_000]);
+  });
+
+  it("given a refusal and a backoff, then the longer of the two delays applies", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const gaps = await connectionGaps(
+      (index) => (index < 3 ? refused(503, { "Retry-After": "1" }) : closedStream()),
+      4,
+    );
+
+    expect(gaps).toEqual([1_000, 1_000, 2_000]);
+  });
+
   it.each([401, 403, 404])(
     "given a %i answer, then the stream stops retrying and reports it",
     async (status) => {
       const controller = new AbortController();
       const onDisconnect = vi.fn();
-      const connect = vi.fn(async () => ({ ok: false, status, body: null }));
+      const connect = vi.fn(async () => refused(status));
 
       const run = runUserStream(
         () => ({ connect, onData: () => {}, onDisconnect }),
@@ -130,7 +154,7 @@ describe("runUserStream", () => {
     let connections = 0;
     const connect = async () => {
       connections += 1;
-      if (connections === 1) return { ok: false, status: 429, body: null };
+      if (connections === 1) return refused(429);
       controller.abort();
 
       return closedStream();

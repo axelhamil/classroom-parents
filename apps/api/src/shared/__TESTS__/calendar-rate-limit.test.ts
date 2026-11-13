@@ -32,7 +32,7 @@ interface Requester {
   request: (path: string) => Response | Promise<Response>;
 }
 
-const GLOBAL_BURST = 300;
+const GLOBAL_BURST = 600;
 const MISS_BUDGET = 300;
 
 const feeds = {

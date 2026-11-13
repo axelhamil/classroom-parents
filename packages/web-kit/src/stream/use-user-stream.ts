@@ -1,5 +1,6 @@
 import { hashKey, type QueryKey, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { retryAfterSeconds } from "../api/errors/api-error";
 
 const FRAME_SEPARATOR = /\r?\n\r?\n/;
 const LINE_SEPARATOR = /\r?\n/;
@@ -146,10 +147,22 @@ export async function consume(body: ReadableStream<Uint8Array>, onData: (data: s
 }
 
 export class UserStreamError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly retryAfterMs = 0,
+  ) {
     super(`USER_STREAM_${status}`);
     this.name = "UserStreamError";
   }
+}
+
+// A refusal that names its own delay (429, 503) is retried no sooner: reconnecting on the
+// backoff alone hammers a rate limit that already said when it reopens, from every tab.
+function retryAfterMs(headers: UserStreamResponse["headers"]): number {
+  const header = headers.get("Retry-After");
+  const seconds = header === null ? undefined : retryAfterSeconds(header);
+
+  return seconds !== undefined && seconds > 0 ? seconds * 1_000 : 0;
 }
 
 export function isServerFailure(error: unknown): boolean {
@@ -159,6 +172,7 @@ export function isServerFailure(error: unknown): boolean {
 export interface UserStreamResponse {
   ok: boolean;
   status: number;
+  headers: Pick<Headers, "get">;
   body: ReadableStream<Uint8Array> | null;
 }
 
@@ -178,9 +192,10 @@ export async function runUserStream(
 
   while (!signal.aborted) {
     let connectedAt: number | undefined;
+    let refusedForMs = 0;
     try {
       const res = await options().connect(signal);
-      if (!res.ok || !res.body) throw new UserStreamError(res.status);
+      if (!res.ok || !res.body) throw new UserStreamError(res.status, retryAfterMs(res.headers));
 
       connectedAt = Date.now();
       setConnected(true);
@@ -189,13 +204,14 @@ export async function runUserStream(
     } catch (err) {
       if (!signal.aborted) options().onDisconnect?.(attempt, err);
       if (err instanceof UserStreamError && TERMINAL_STATUSES.includes(err.status)) return;
+      if (err instanceof UserStreamError) refusedForMs = err.retryAfterMs;
     } finally {
       if (!signal.aborted) setConnected(false);
     }
 
     if (signal.aborted) return;
     if (connectedAt !== undefined && Date.now() - connectedAt >= STABLE_CONNECTION_MS) attempt = 0;
-    await sleep(backoffDelay(attempt), signal);
+    await sleep(Math.max(backoffDelay(attempt), refusedForMs), signal);
     attempt += 1;
   }
 }
