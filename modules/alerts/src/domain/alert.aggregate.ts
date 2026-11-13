@@ -121,6 +121,7 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
 
   markMissed(): void {
     this._props.status = AlertStatus.missed();
+    this._props.sentAt = Option.none();
   }
 
   skip(): void {

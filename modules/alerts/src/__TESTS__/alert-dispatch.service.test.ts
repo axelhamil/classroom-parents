@@ -493,6 +493,27 @@ describe("grouping", () => {
     expect(alerts.addFailure).toHaveBeenCalledTimes(2);
   });
 
+  it("given the grouped email fails for the fifth time, then every alert is missed with no send time", async () => {
+    givenBatch([1, 2].map((n) => ({ ...alertOf(n), failures: MAX_EMAIL_FAILURES - 1 })));
+    givenSubscriptions([]);
+    email.sendGroup.mockResolvedValue(
+      Result.fail({ code: "ALERT_PROVIDER_FAILURE", message: "queue down" }),
+    );
+    const saved: { status: string; sent: boolean }[] = [];
+    alerts.settle.mockImplementation(async (alert) => {
+      saved.push({ status: alert.get("status").value, sent: alert.get("sentAt").isSome() });
+      return Result.ok(true);
+    });
+
+    const result = await service.runOnce(NOW);
+
+    expect(result.getValue()).toEqual({ claimed: 2, sent: 0, emailed: 0, missed: 2 });
+    expect(saved.filter(({ status }) => status === "missed")).toEqual([
+      { status: "missed", sent: false },
+      { status: "missed", sent: false },
+    ]);
+  });
+
   it("given another dispatcher took the lease of the group over, then no grouped email is queued and no failure is recorded", async () => {
     givenBatch([alertOf(1), alertOf(2)]);
     givenSubscriptions([]);
