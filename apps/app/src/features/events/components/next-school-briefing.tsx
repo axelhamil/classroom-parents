@@ -61,7 +61,8 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
       >
         {(events) => (
           <BriefingBody
-            events={dueBy(events, moment, childId)}
+            key={moment.focus}
+            events={events}
             family={watched}
             childId={childId}
             now={now}
@@ -78,13 +79,14 @@ function dueBy(
   events: readonly EventItem[],
   { today, focus }: SchoolMoment,
   childId: string | null,
+  shown: ReadonlySet<string>,
 ): EventItem[] {
   return events.filter(
     (event) =>
       (childId === null || event.childId === childId) &&
       event.deadlineDate >= today &&
       event.deadlineDate <= focus &&
-      (event.deadlineDate === focus || !event.done),
+      (event.deadlineDate === focus || !event.done || shown.has(event.id)),
   );
 }
 
@@ -97,11 +99,13 @@ interface BriefingBodyProps {
   day: string;
 }
 
-function BriefingBody({ events, family, childId, now, moment, day }: BriefingBodyProps) {
+function BriefingBody({ events: loaded, family, childId, now, moment, day }: BriefingBodyProps) {
   const { t } = useTranslation("events");
+  const shown = useRef(new Set<string>());
+  const events = dueBy(loaded, moment, childId, shown.current);
+  for (const event of events) shown.current.add(event.id);
   const open = events.filter((event) => !event.done).length;
   const allSet = events.length > 0 && open === 0;
-  const openedReady = useRef(allSet);
 
   if (events.length === 0)
     return isFirstSyncRunning(family) ? (
@@ -113,7 +117,7 @@ function BriefingBody({ events, family, childId, now, moment, day }: BriefingBod
   return (
     <>
       {allSet ? (
-        <BriefingSummary tone="ready" arrive={!openedReady.current}>
+        <BriefingSummary tone="ready">
           <CelebrationStamp>
             <CheckCheckIcon />
           </CelebrationStamp>

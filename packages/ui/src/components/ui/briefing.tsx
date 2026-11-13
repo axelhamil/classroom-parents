@@ -30,19 +30,15 @@ function BriefingTitle({ className, ...props }: React.ComponentProps<"h2">) {
 }
 
 const briefingSummaryVariants = cva(
-  "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground",
+  "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground [&>[data-slot=celebration-stamp]]:animate-none",
   {
     variants: {
       tone: {
         default: "",
         ready: "font-medium text-foreground",
       },
-      arrive: {
-        true: "motion-safe:animate-rise-in",
-        false: "[&>[data-slot=celebration-stamp]]:animate-none",
-      },
     },
-    defaultVariants: { tone: "default", arrive: false },
+    defaultVariants: { tone: "default" },
   },
 );
 
@@ -50,12 +46,12 @@ interface BriefingSummaryProps
   extends React.ComponentProps<"p">,
     VariantProps<typeof briefingSummaryVariants> {}
 
-function BriefingSummary({ className, tone, arrive, ...props }: BriefingSummaryProps) {
+function BriefingSummary({ className, tone, ...props }: BriefingSummaryProps) {
   return (
     <p
       data-slot="briefing-summary"
       data-tone={tone ?? "default"}
-      className={cn(briefingSummaryVariants({ tone, arrive }), className)}
+      className={cn(briefingSummaryVariants({ tone }), className)}
       {...props}
     />
   );
