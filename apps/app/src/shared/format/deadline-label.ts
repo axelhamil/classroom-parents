@@ -10,6 +10,10 @@ function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase(LOCALE) + text.slice(1);
 }
 
+export function inSentence(label: string): string {
+  return label.toLocaleLowerCase(LOCALE);
+}
+
 export function daysUntil(deadlineDate: string, now: Date): number {
   return Math.round((utcDay(deadlineDate) - utcDay(schoolToday(now))) / DAY_MS);
 }

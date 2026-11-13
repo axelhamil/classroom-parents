@@ -11,8 +11,7 @@ import { FlameIcon, PlusIcon } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
-import { dayLabel } from "../../../../shared/format/deadline-label";
-import { useIntlLocale } from "../../../../shared/i18n/use-intl-locale";
+import { dayLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { type CalendarDay as Day, dayTone, isCrunchDay } from "../../calendar";
 import { CalendarEventRow } from "./calendar-event-row";
 
@@ -34,7 +33,6 @@ export function CalendarDaySection({
   layout,
 }: CalendarDaySectionProps) {
   const { t } = useTranslation("events");
-  const locale = useIntlLocale();
   const titleId = useId();
   const title = dayLabel(day.date, now);
 
@@ -56,7 +54,7 @@ export function CalendarDaySection({
         {day.events.length === 0 && <CalendarDayEmpty>{t("calendar.dayEmpty")}</CalendarDayEmpty>}
         <IconButton
           variant="ghost"
-          label={t("calendar.addOn", { day: title.toLocaleLowerCase(locale) })}
+          label={t("calendar.addOn", { day: inSentence(title) })}
           onClick={() => onAdd(day.date)}
         >
           <PlusIcon aria-hidden />
