@@ -1,3 +1,4 @@
+import { mondayOf } from "@packages/ddd-kit/days";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import {
   readStoredValue,
@@ -12,12 +13,11 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Route as ProtectedRoute } from "../../../router/_protected";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { dayLabel } from "../../../shared/format/deadline-label";
+import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
-import { useIntlLocale } from "../../../shared/i18n/use-intl-locale";
 import { markEventDoneMutationOptions } from "../api/events.mutations";
 import { calendarEventsQueryOptions } from "../api/events.queries";
-import { mondayOf, weekAhead } from "../week";
+import { weekAhead } from "../week";
 
 const celebratedSchema = z.object({ days: z.array(z.string()), weeks: z.array(z.string()) });
 
@@ -33,25 +33,23 @@ function completedDays(events: readonly EventItem[]): string[] {
 
 interface Progress {
   scope: string;
-  completed: string;
+  days: string[];
+  weekDone: boolean;
 }
 
 export function useCelebrateProgress(now: Date): void {
   const { t } = useTranslation("events");
   const { user } = ProtectedRoute.useRouteContext();
-  const locale = useIntlLocale();
   const query = useQuery(calendarEventsQueryOptions(weekAhead(schoolToday(now))));
   const toggling = useIsMutating({ mutationKey: markEventDoneMutationOptions.mutationKey }) > 0;
   const loaded = query.data ?? [];
-  const week = mondayOf(now);
+  const week = mondayOf(schoolToday(now));
   const progress: Progress | null =
     query.isSuccess && !toggling
       ? {
-          scope: [week, ...loaded.map((event) => event.id)].join("\n"),
-          completed: [
-            ...completedDays(loaded),
-            ...(loaded.length > 0 && loaded.every((event) => event.done) ? [`week:${week}`] : []),
-          ].join("\n"),
+          scope: [week, ...loaded.map((event) => event.id)].join(" "),
+          days: completedDays(loaded),
+          weekDone: loaded.length > 0 && loaded.every((event) => event.done),
         }
       : null;
   const previous = useRef<Progress | null>(null);
@@ -65,18 +63,14 @@ export function useCelebrateProgress(now: Date): void {
     previous.current = progress;
     if (!before || before.scope !== progress.scope) return;
 
-    const known = new Set(before.completed.split("\n"));
-    const fresh = progress.completed
-      .split("\n")
-      .filter((entry) => entry !== "" && !known.has(entry));
-    if (fresh.length === 0) return;
+    const freshDays = progress.days.filter((day) => !before.days.includes(day));
+    const freshWeek = progress.weekDone && !before.weekDone;
+    if (freshDays.length === 0 && !freshWeek) return;
 
     const today = schoolToday(now);
     const stored = readStoredValue(key, celebratedSchema, NONE);
-    const days = fresh.filter(
-      (entry) => !entry.startsWith("week:") && !stored.days.includes(entry),
-    );
-    const weekDone = fresh.includes(`week:${week}`) && !stored.weeks.includes(week);
+    const days = freshDays.filter((day) => !stored.days.includes(day));
+    const weekDone = freshWeek && !stored.weeks.includes(week);
     if (days.length === 0 && !weekDone) return;
 
     writeStoredValue(key, {
@@ -87,7 +81,7 @@ export function useCelebrateProgress(now: Date): void {
     const day = days.at(-1);
     const message = weekDone
       ? t("celebration.week")
-      : t("celebration.day", { day: dayLabel(day ?? today, now).toLocaleLowerCase(locale) });
+      : t("celebration.day", { day: inSentence(dayLabel(day ?? today, now)) });
 
     toast.success(message, {
       id: weekDone ? `celebration:week:${week}` : `celebration:day:${day ?? today}`,
@@ -97,5 +91,5 @@ export function useCelebrateProgress(now: Date): void {
         </CelebrationStamp>
       ),
     });
-  }, [progress?.scope, progress?.completed]);
+  }, [progress?.scope, progress?.days.join(" "), progress?.weekDone]);
 }

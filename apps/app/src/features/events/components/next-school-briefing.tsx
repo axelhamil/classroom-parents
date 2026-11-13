@@ -16,14 +16,13 @@ import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCheckIcon } from "lucide-react";
-import { useId, useRef } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { isFirstSyncRunning } from "../../../shared/events/event-board";
 import { childHue } from "../../../shared/format/child-hue";
-import { dayLabel } from "../../../shared/format/deadline-label";
-import { useIntlLocale } from "../../../shared/i18n/use-intl-locale";
+import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { calendarEventsQueryOptions, nextEventQueryOptions } from "../api/events.queries";
 import { useChecklist } from "../hooks/use-checklist";
@@ -39,10 +38,9 @@ export interface NextSchoolBriefingProps {
 
 export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingProps) {
   const { t } = useTranslation("events");
-  const locale = useIntlLocale();
   const titleId = useId();
   const moment = schoolMoment(now);
-  const day = dayLabel(moment.focus, now).toLocaleLowerCase(locale);
+  const day = inSentence(dayLabel(moment.focus, now));
   const query = useQuery(calendarEventsQueryOptions(weekAhead(moment.today)));
   const watched = childId ? family.filter((child) => child.id === childId) : family;
 
@@ -105,9 +103,10 @@ interface BriefingBodyProps {
 
 function BriefingBody({ events: loaded, family, childId, now, moment, day }: BriefingBodyProps) {
   const { t } = useTranslation("events");
-  const shown = useRef(new Set<string>());
-  const events = dueBy(loaded, moment, childId, shown.current);
-  for (const event of events) shown.current.add(event.id);
+  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
+  const events = dueBy(loaded, moment, childId, shown);
+  const unseen = events.filter((event) => !shown.has(event.id));
+  if (unseen.length > 0) setShown(new Set([...shown, ...unseen.map((event) => event.id)]));
   const open = events.filter((event) => !event.done).length;
   const allSet = events.length > 0 && open === 0;
 
@@ -220,7 +219,6 @@ interface NothingDueProps {
 
 function NothingDue({ childId, now, after, day }: NothingDueProps) {
   const { t } = useTranslation("events");
-  const locale = useIntlLocale();
   const next = useQuery(nextEventQueryOptions(childId)).data;
 
   return (
@@ -229,7 +227,7 @@ function NothingDue({ childId, now, after, day }: NothingDueProps) {
         ? t("briefing.emptyThenNext", {
             day,
             title: next.title,
-            next: dayLabel(next.deadlineDate, now).toLocaleLowerCase(locale),
+            next: inSentence(dayLabel(next.deadlineDate, now)),
           })
         : t("briefing.empty", { day })}
     </BriefingSummary>

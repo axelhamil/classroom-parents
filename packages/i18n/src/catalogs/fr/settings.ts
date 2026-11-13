@@ -98,7 +98,6 @@ export default {
     description:
       "De 0 à 5 rappels pour chaque échéance. Une échéance dont vous avez choisi les rappels garde les siens.",
     loading: "Chargement des rappels par défaut",
-    loadError: "Impossible de charger les rappels par défaut.",
     saved: "Rappels par défaut enregistrés",
   },
   quietHours: {
@@ -109,7 +108,6 @@ export default {
     start: "Début",
     end: "Fin",
     loading: "Chargement des heures calmes",
-    loadError: "Impossible de charger les heures calmes.",
     saved: "Heures calmes enregistrées",
   },
   install: {

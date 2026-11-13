@@ -22,7 +22,7 @@ import { deadlineIcs, downloadIcs, icsFileName } from "../../../shared/calendar/
 import { EventBadges } from "../../../shared/events/event-badges";
 import { DeadlineWhen } from "../../../shared/events/event-card";
 import { childHue } from "../../../shared/format/child-hue";
-import { countdownOf, deadlineLabel } from "../../../shared/format/deadline-label";
+import { countdownOf, deadlineLabel, inSentence } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
 import { ScreenTour } from "../../../shared/tour/screen-tour";
 import { useToggleDone } from "../hooks/use-toggle-done";
@@ -30,8 +30,6 @@ import { DeleteEventDialog } from "./delete-event-dialog";
 import { EventReminders } from "./event-reminders";
 import { PrepareChecklist } from "./prepare-checklist";
 import { ShareButton } from "./share-button";
-
-const LOCALE = "fr-FR";
 
 export function EventDetailSkeleton() {
   const { t } = useTranslation("events");
@@ -73,7 +71,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
 
     return {
       title,
-      text: `${title}\n${t("share.when", { when: label.toLocaleLowerCase(LOCALE) })}`,
+      text: `${title}\n${t("share.when", { when: inSentence(label) })}`,
       url: `${window.location.origin}/events/${event.id}`,
     };
   };

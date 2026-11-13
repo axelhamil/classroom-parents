@@ -30,7 +30,7 @@ import { AddEventDialog } from "./add-event-dialog";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { MonthView } from "./month-view";
-import { OverdueStrip } from "./overdue-strip";
+import { OverdueButton } from "./overdue-button";
 import { PeriodEmpty } from "./period-empty";
 import { WeekStrip } from "./week-strip";
 import { WeekView } from "./week-view";
@@ -162,7 +162,7 @@ export function CalendarBoard({
             onShare={() => shareDays(days)}
             onSubscribe={() => setSubscribing(true)}
           />
-          <OverdueStrip
+          <OverdueButton
             family={family}
             childId={childId}
             now={now}

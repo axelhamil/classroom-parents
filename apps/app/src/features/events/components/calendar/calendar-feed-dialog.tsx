@@ -38,10 +38,11 @@ export interface CalendarFeedDialogProps {
 
 export function CalendarFeedDialog({ open, onOpenChange }: CalendarFeedDialogProps) {
   const { t } = useTranslation("events");
+  const { t: tCommon } = useTranslation("common");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent closeLabel={t("calendar.close")}>
+      <DialogContent closeLabel={tCommon("actions.close")}>
         <DialogHeader>
           <DialogTitle>{t("calendar.feed.title")}</DialogTitle>
           <DialogDescription>{t("calendar.feed.description")}</DialogDescription>

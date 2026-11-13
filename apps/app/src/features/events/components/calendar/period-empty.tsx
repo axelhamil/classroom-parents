@@ -5,8 +5,7 @@ import { CalendarCheckIcon, PlusIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { BoardEmpty } from "../../../../shared/events/event-board";
-import { dayLabel } from "../../../../shared/format/deadline-label";
-import { useIntlLocale } from "../../../../shared/i18n/use-intl-locale";
+import { dayLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { nextEventQueryOptions } from "../../api/events.queries";
 
 export interface PeriodEmptyProps {
@@ -32,7 +31,6 @@ function useLastRead(family: readonly ChildDto[]): string {
 
 export function PeriodEmpty({ family, childId, now, onAdd, onGoTo }: PeriodEmptyProps) {
   const { t } = useTranslation("events");
-  const locale = useIntlLocale();
   const next = useQuery(nextEventQueryOptions(childId)).data;
   const watched = childId ? family.filter((child) => child.id === childId) : family;
   const lastRead = useLastRead(watched);
@@ -48,7 +46,7 @@ export function PeriodEmpty({ family, childId, now, onAdd, onGoTo }: PeriodEmpty
             <Button variant="outline" onClick={() => onGoTo(next.deadlineDate)}>
               {t("calendar.nextEvent", {
                 title: next.title,
-                day: dayLabel(next.deadlineDate, now).toLocaleLowerCase(locale),
+                day: inSentence(dayLabel(next.deadlineDate, now)),
               })}
             </Button>
           )}

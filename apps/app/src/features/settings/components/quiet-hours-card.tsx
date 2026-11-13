@@ -3,7 +3,6 @@ import { Button } from "@packages/ui/components/ui/button";
 import { Form } from "@packages/ui/components/ui/form";
 import { FormCheckboxField } from "@packages/ui/components/ui/form-checkbox-field";
 import { FormTextField } from "@packages/ui/components/ui/form-text-field";
-import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
@@ -18,6 +17,7 @@ import {
 } from "../../../shared/api/mutations/set-quiet-hours";
 import { EVENTS_KEY } from "../../../shared/api/queries/events";
 import { quietHoursQueryOptions } from "../../../shared/api/queries/quiet-hours";
+import { QueryState } from "../../../shared/query/query-state";
 
 const quietHoursSchema = z
   .object({
@@ -36,7 +36,6 @@ export interface QuietHoursCardProps {
 
 export function QuietHoursCard({ userId }: QuietHoursCardProps) {
   const { t } = useTranslation("settings");
-  const { t: tCommon } = useTranslation("common");
   const queryClient = useQueryClient();
   const query = useQuery(quietHoursQueryOptions(userId));
   const save = useMutation({
@@ -51,27 +50,23 @@ export function QuietHoursCard({ userId }: QuietHoursCardProps) {
 
   return (
     <SectionCard title={t("quietHours.title")} description={t("quietHours.description")}>
-      {query.isPending ? (
-        <SkeletonGroup label={t("quietHours.loading")}>
-          <Skeleton className="h-24 w-full" />
-        </SkeletonGroup>
-      ) : query.isError ? (
-        <LoadErrorAlert
-          message={t("quietHours.loadError")}
-          retry={
-            <Button type="button" size="sm" variant="outline" onClick={() => void query.refetch()}>
-              {tCommon("actions.retry")}
-            </Button>
-          }
-        />
-      ) : (
-        <QuietHoursForm
-          key={JSON.stringify(query.data)}
-          quiet={query.data}
-          pending={save.isPending}
-          onSubmit={(quiet) => save.mutate(quiet)}
-        />
-      )}
+      <QueryState
+        query={query}
+        skeleton={
+          <SkeletonGroup label={t("quietHours.loading")}>
+            <Skeleton className="h-24 w-full" />
+          </SkeletonGroup>
+        }
+      >
+        {(quiet) => (
+          <QuietHoursForm
+            key={JSON.stringify(quiet)}
+            quiet={quiet}
+            pending={save.isPending}
+            onSubmit={(next) => save.mutate(next)}
+          />
+        )}
+      </QueryState>
     </SectionCard>
   );
 }

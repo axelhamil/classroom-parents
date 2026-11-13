@@ -1,5 +1,4 @@
-import { shiftDate } from "@packages/ddd-kit/days";
-import { utcDay } from "@packages/i18n";
+import { daysFrom, mondayOf, shiftDate } from "@packages/ddd-kit/days";
 import type { EventItem } from "../../shared/api/queries/events";
 import type { CalendarRange } from "./api/events.queries";
 
@@ -25,22 +24,12 @@ export interface CalendarDay {
 
 type Deadline = Pick<EventItem, "done" | "deadlineDate">;
 
-function daysFrom(start: string, length: number): string[] {
-  return Array.from({ length }, (_, offset) => shiftDate(start, offset));
-}
-
-function mondayOfDate(date: string): string {
-  const weekday = new Date(utcDay(date)).getUTCDay();
-
-  return shiftDate(date, -((weekday + WEEK_DAYS - 1) % WEEK_DAYS));
-}
-
 function firstOfMonth(date: string): string {
   return `${date.slice(0, 7)}-01`;
 }
 
 function periodStart(view: CalendarView, anchor: string): string {
-  return view === "week" ? anchor : mondayOfDate(firstOfMonth(anchor));
+  return view === "week" ? anchor : mondayOf(firstOfMonth(anchor));
 }
 
 const LENGTHS = {
