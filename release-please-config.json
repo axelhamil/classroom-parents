@@ -3,6 +3,7 @@
   "release-type": "node",
   "include-component-in-tag": false,
   "bump-minor-pre-major": true,
+  "initial-version": "0.1.0",
   "pull-request-title-pattern": "chore: release ${version}",
   "pull-request-header": "Merging this PR tags the release below, publishes its GitHub release and moves `main` to the tag, which deploys production.",
   "changelog-sections": [
