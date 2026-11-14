@@ -49,4 +49,18 @@ describe("env", () => {
     );
     expect(() => parseAppEnv({ VITE_CONTACT_EMAIL: "" })).toThrow(/VITE_CONTACT_EMAIL/);
   });
+
+  it.each(["VITE_API_URL", "VITE_SITE_URL"])(
+    "refuses a missing or blank %s, which would bake localhost into the build",
+    (key) => {
+      const complete = {
+        VITE_API_URL: "https://api.example.com",
+        VITE_SITE_URL: "https://example.com",
+        VITE_CONTACT_EMAIL: "contact@example.com",
+      };
+
+      expect(() => parseAppEnv({ ...complete, [key]: undefined })).toThrow(key);
+      expect(() => parseAppEnv({ ...complete, [key]: "" })).toThrow(key);
+    },
+  );
 });

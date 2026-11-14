@@ -1,7 +1,8 @@
 import { COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { stubChildrenApi } from "./children-fixture";
 import { showColorScheme } from "./color-scheme";
+import { expect, test } from "./csp";
 import { LEA, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 

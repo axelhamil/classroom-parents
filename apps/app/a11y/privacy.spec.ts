@@ -1,5 +1,5 @@
 import { blockingViolations } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp";
 import { STORAGE_STATE } from "./playwright.config";
 
 const PAGES = ["/settings/privacy", "/legal/privacy-policy"];

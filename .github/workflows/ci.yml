@@ -50,9 +50,9 @@ jobs:
         run: pnpm check:unused
 
   build-images:
-    # The deploy images build from the pruned workspace, so a Dockerfile that copies a
+    # The api image builds from the pruned workspace, so a Dockerfile that copies a
     # deleted file or a lockfile the prune cannot honour fails here, not at deploy time.
-    # Nothing is pushed.
+    # Nothing is pushed. The app and the site deploy on Vercel from their vercel config.
     name: Build deploy images
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -70,31 +70,6 @@ jobs:
           push: false
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
-
-      - name: Build the app image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/app/Dockerfile
-          push: false
-          build-args: |
-            VITE_API_URL=https://api.example.com
-            VITE_CONTACT_EMAIL=contact@example.com
-            VITE_SITE_URL=https://example.com
-          cache-from: type=gha,scope=app
-          cache-to: type=gha,mode=max,scope=app
-
-      - name: Build the site image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/site/Dockerfile
-          push: false
-          build-args: |
-            PUBLIC_SITE_URL=https://example.com
-            PUBLIC_APP_URL=https://app.example.com
-          cache-from: type=gha,scope=site
-          cache-to: type=gha,mode=max,scope=site
 
   a11y:
     name: Accessibility gate

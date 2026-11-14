@@ -1,6 +1,6 @@
 import { blockingViolations } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
 import { FIXTURE_CHILD_LABEL, stubChildrenApi } from "./children-fixture";
+import { expect, test } from "./csp";
 import { STORAGE_STATE } from "./playwright.config";
 
 test.use({ storageState: STORAGE_STATE });

@@ -1,6 +1,7 @@
 import { createECDH, randomBytes, randomUUID } from "node:crypto";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { z } from "zod";
+import { expect, test } from "./csp";
 import { JOURNEY_API_URL, JOURNEY_CONTROL_URL } from "./journey.config";
 import { TOUR_SELECTOR } from "./tour";
 

@@ -1,6 +1,7 @@
 import { blockingViolations } from "@packages/test/a11y";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
+import { expect, test } from "./csp";
 import { EVENTS, LEA, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 import { forgetTours, TOUR_SELECTOR } from "./tour";

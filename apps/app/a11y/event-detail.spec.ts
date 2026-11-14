@@ -1,6 +1,6 @@
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
+import { expect, test } from "./csp";
 import { LEA, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 

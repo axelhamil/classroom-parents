@@ -1,6 +1,6 @@
 import { blockingViolations } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
+import { expect, test } from "./csp";
 import { STORAGE_STATE } from "./playwright.config";
 
 test.describe("settings on a phone", () => {
