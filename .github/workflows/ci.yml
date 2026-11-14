@@ -49,28 +49,6 @@ jobs:
       - name: Unused code
         run: pnpm check:unused
 
-  build-images:
-    # The api image builds from the pruned workspace, so a Dockerfile that copies a
-    # deleted file or a lockfile the prune cannot honour fails here, not at deploy time.
-    # Nothing is pushed. The app and the site deploy on Vercel from their vercel config.
-    name: Build deploy images
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build the api image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: false
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
-
   a11y:
     name: Accessibility gate
     runs-on: ubuntu-latest
@@ -205,6 +183,12 @@ jobs:
         # The parent and week unique key, the SKIP LOCKED claim and the audience query are
         # SQL: four racing instances send each parent one digest. Removes its probes.
         run: pnpm --filter api check:weekly-digest
+
+      - name: Check the request-driven mode against a real database
+        # No loop, no listener: a mutation ships its event and email through waitUntil, the
+        # clock tick pushes a due reminder once under two racing ticks, and a live stream ends
+        # at its lifetime. Leases and SKIP LOCKED only hold against Postgres. Removes its probes.
+        run: pnpm --filter api check:request-driven
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4

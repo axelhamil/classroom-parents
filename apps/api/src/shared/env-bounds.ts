@@ -175,7 +175,7 @@ function validateCookieDomain(
 
 /**
  * The auth cookies are SameSite=Lax: an app and an api on two sites (two registrable
- * domains, or two names under a public suffix such as up.railway.app) never see them on
+ * domains, or two names under a public suffix such as vercel.app) never see them on
  * the app's fetches, so every sign-in silently fails. Localhost ports share one site.
  */
 function validateSameSite(

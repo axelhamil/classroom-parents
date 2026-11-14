@@ -53,6 +53,7 @@ export {
   secondsFromClock,
   secondsFromNow,
 } from "./lease";
+export { type DatabasePool, observeDatabasePools } from "./pool-observer";
 export {
   closeRateLimitDb,
   configureRateLimitDbPool,

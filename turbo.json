@@ -13,6 +13,8 @@
     "NODE_ENV",
     "PORT",
     "DATABASE_URL",
+    "DATABASE_URL_DIRECT",
+    "CRON_SECRET",
     "CORS_ORIGIN",
     "APP_ORIGIN",
     "COOKIE_DOMAIN",
@@ -40,7 +42,9 @@
         "vite.config.ts",
         "astro.config.ts",
         "public/**",
-        "drizzle.config.ts"
+        "drizzle.config.ts",
+        "scripts/vercel-build.ts",
+        "wrangler.jsonc"
       ],
       "outputs": ["dist/**", "build/**", "!dist/**/*.map"],
       "env": ["DATABASE_URL"],
@@ -50,11 +54,6 @@
       "cache": false,
       "persistent": true,
       "interruptible": true,
-      "env": ["DATABASE_URL"]
-    },
-    "start": {
-      "dependsOn": ["build"],
-      "cache": false,
       "env": ["DATABASE_URL"]
     },
     "test": {

@@ -13,7 +13,7 @@ export const envSchema = z
     DATABASE_URL_DIRECT: z.url().optional(),
     DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(20),
     RATE_LIMIT_POOL_MAX: z.coerce.number().int().min(1).max(20).default(3),
-    MIGRATIONS_FOLDER: z.string().default("./migrations"),
+    DATABASE_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(100).default(30_000),
     BETTER_AUTH_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_SECRETS: z

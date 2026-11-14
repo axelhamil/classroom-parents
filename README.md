@@ -2,7 +2,7 @@
 
 A French mobile-first PWA for parents. Link your children's Google Classroom accounts (read only), see the upcoming deadlines extracted from class announcements, and get a push alert before each one, even with the app closed.
 
-Status: early development, see [`ROADMAP.md`](ROADMAP.md).
+Status: proof of concept, ready to hand over for a free-tier deployment (Vercel for the api, the app and the landing, Neon in Frankfurt, a Cloudflare Worker as the quarter-hour clock). Progress: [`ROADMAP.md`](ROADMAP.md).
 
 ## Stack
 
@@ -30,3 +30,7 @@ pnpm ci:check && pnpm check:boundaries
 pnpm turbo run build type-check test
 pnpm check:duplication && pnpm check:unused
 ```
+
+## Deployment
+
+Nothing deploys from this repo by itself. The account owner follows [`docs/DEPLOY.md`](docs/DEPLOY.md), one checklist from the accounts to the first-deploy verification.

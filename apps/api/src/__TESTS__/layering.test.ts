@@ -13,7 +13,10 @@ const scan = createSourceScan(apiSrcRoot);
 
 const ENV_OWNER = "shared/env.ts";
 
-const ALLOWED_ENV_READERS: Record<string, string> = {};
+const ALLOWED_ENV_READERS: Record<string, string> = {
+  "vercel-function.ts":
+    "the function entry applies the platform defaults to the environment before env.ts parses it",
+};
 
 const ALLOWED_TX_PARAMETERS: Record<string, string> = {};
 

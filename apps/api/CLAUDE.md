@@ -30,8 +30,8 @@ apps/api/src/
   app.ts                        `Hono` construction, middleware, chained `.route()` mounts, `export const routes` / `export type AppType`. No server boot.
   index.ts                      Process entry: `Bun.serve()` handle kept on `globalThis` for `bun --hot`, worker starts, ordered shutdown steps
   request-driven.ts             Function entry: `createRequestDrivenApp(platform)` returns `{ fetch }` for `export default`, starts no loop
+  vercel-function.ts            Vercel binding of it (`waitUntil`, platform client IP, `attachDatabasePool`); `vercel-env.ts` sets the function's env defaults; bundled by `scripts/vercel-build.ts` behind `api/index.js`
   shared/stream/                `GET /stream`: per-user SSE fed by the outbox relay `user-stream-relay` through `pg_notify`
-  migrate.ts                    Migration entry; `start` runs it before the server
   client.ts                     `hcWithType` factory, `hc<AppType>`
 ```
 
@@ -44,8 +44,9 @@ apps/api/src/
 One composition root (`container.ts`, `app.ts`), two entries; the mode is the entry, never an `if` in the code.
 
 - **Process** (`index.ts`): the outbox dispatcher listens, the email worker polls, `workers/` loop, `BackgroundWork` is awaited at shutdown.
-- **Request-driven** (`request-driven.ts`): the platform passes `waitUntil` and the client address it vouches for. After the response, the function awaits the work the request deferred, then, if the request may have written, drains the outbox then the email queue (`DeliveryDrain`). The external clock calls `/internal/tick` (producers, then outbox, then emails, each with a reserved share of the budget) and `/internal/sweep` (bearer `CRON_SECRET`, unset = 404, only failed attempts spend the rate limit); the stream hub listens on the first stream only, and a stream ends at `STREAM_MAX_LIFETIME_MS`. **Why**: a function runs only while it answers, so nothing may wait for a loop; every job body is the one the loops run, so the two modes cannot drift.
+- **Request-driven** (`request-driven.ts`, deployed on Vercel through `vercel-function.ts`): the platform passes `waitUntil`, the client address it vouches for and a hook that receives each database pool. After the response, the function awaits the work the request deferred, then, if the request may have written, drains the outbox then the email queue (`DeliveryDrain`). The external clock calls `/internal/tick` (producers, then outbox, then emails, each with a reserved share of the budget) and `/internal/sweep` (bearer `CRON_SECRET`, unset = 404, only failed attempts spend the rate limit); the stream hub listens on the first stream only, and a stream ends at `STREAM_MAX_LIFETIME_MS`. **Why**: a function runs only while it answers, so nothing may wait for a loop; every job body is the one the loops run, so the two modes cannot drift.
 - Work that outlives a response goes through `IBackgroundWork.defer`, never a bare floating promise. **Why**: the process awaits it at shutdown and the function hands it to `waitUntil`; a floating promise is killed with the function and its error is lost.
+- **Migrations run in the build, never at boot**: `scripts/vercel-build.ts` migrates only when `VERCEL_ENV=production`, against `DATABASE_URL_DIRECT`, and a failure fails the deployment. **Why**: a function has no start command, and a boot that migrates would run once per cold instance and on previews.
 - `Bun`-only APIs stay in `index.ts`, `sentry-*` (`@sentry/bun`) and the dev scripts; anything the request path reaches uses web or Node APIs.
 
 ## Module anatomy

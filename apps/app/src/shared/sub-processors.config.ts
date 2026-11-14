@@ -1,4 +1,4 @@
-export type SubProcessorId = "google" | "anthropic" | "resend" | "railway";
+export type SubProcessorId = "google" | "anthropic" | "resend" | "vercel" | "neon";
 
 export interface SubProcessor {
   /**
@@ -44,11 +44,22 @@ export const SUB_PROCESSORS: readonly SubProcessor[] = [
     dpaUrl: "https://resend.com/legal/dpa",
   },
   {
-    id: "railway",
-    name: "Railway",
-    purpose: "Hosting of the application, its workers and its database",
-    region: "EU region chosen at deployment",
+    id: "vercel",
+    name: "Vercel",
+    purpose: "Runs the api functions and serves the files of the application and the landing page",
+    region:
+      "api functions in the EU (Frankfurt); app and landing files from the nearest point of its global network; Vercel Inc. (US), standard contractual clauses",
     category: "infra",
-    url: "https://railway.com",
+    url: "https://vercel.com/legal/privacy-policy",
+    dpaUrl: "https://vercel.com/legal/dpa",
+  },
+  {
+    id: "neon",
+    name: "Neon",
+    purpose: "PostgreSQL database holding the accounts, children, deadlines and alerts",
+    region: "EU (Frankfurt); DPA signed by Databricks, Inc. (US), parent company of Neon, LLC",
+    category: "infra",
+    url: "https://neon.com/privacy-policy",
+    dpaUrl: "https://neon.com/dpa",
   },
 ];
