@@ -397,6 +397,22 @@ describe("requireRateLimit middleware", () => {
       expect(body.ip).toBe("5.6.7.8");
     });
 
+    it("given a request-driven platform that names the client, then its address is the key and a forged XFF is ignored", async () => {
+      mockedAddress = "10.0.0.1";
+      const { env: e } = await import("../env");
+      (e as Record<string, unknown>).TRUSTED_PROXIES = ["10.0.0.1"];
+
+      const app = new Hono();
+      app.get("/ip", (c) => c.json({ ip: resolveClientIp(c) }));
+      const res = await app.request(
+        "/ip",
+        { headers: { "x-forwarded-for": "203.0.113.9" } },
+        { clientAddress: "198.51.100.4" },
+      );
+
+      expect(await res.json()).toEqual({ ip: "198.51.100.4" });
+    });
+
     it("single trusted proxy: XFF with one entry returns the client IP", async () => {
       mockedAddress = "10.0.0.1";
       const { env: e } = await import("../env");

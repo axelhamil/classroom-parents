@@ -4,7 +4,7 @@ import {
   type ILogger,
   type IUnitOfWork,
   Option,
-  type Result,
+  Result,
   uuidv7,
 } from "@packages/ddd-kit";
 import { type EmailTemplateKey, renderTemplate } from "@packages/emails";
@@ -62,6 +62,13 @@ type BatchResult = {
 };
 type BatchErrorKind = "retryable" | "in_flight" | "conflict" | "rejected";
 type BatchError = { kind: BatchErrorKind; statusCode: number; message: string };
+export interface EmailDrainOutcome {
+  claimed: number;
+  saturated: boolean;
+}
+
+const NOTHING_DRAINED: EmailDrainOutcome = { claimed: 0, saturated: false };
+
 export interface EmailDeliveryOptions {
   leaseSeconds: number;
   deadRetrySeconds: number;
@@ -149,8 +156,8 @@ export class EmailDeliveryWorker {
     });
   }
 
-  async drainOnce(): Promise<void> {
-    if (this.stopping || this.draining) return;
+  async drainOnce(): Promise<Result<EmailDrainOutcome, EmailQueueError>> {
+    if (this.stopping || this.draining) return Result.ok(NOTHING_DRAINED);
     this.draining = true;
     this.requestId = uuidv7();
     return this.instrumentation.startSpan({ name: "EmailDeliveryWorker > drainOnce" }, async () => {
@@ -163,7 +170,7 @@ export class EmailDeliveryWorker {
         });
         if (claimed.isFailure) {
           this.logger.error({ err: claimed.getError() }, "email claim failed");
-          return;
+          return Result.fail(claimed.getError());
         }
 
         const groups = groupRows(claimed.getValue());
@@ -177,12 +184,19 @@ export class EmailDeliveryWorker {
               group.slice(i * EMAIL_BATCH_CHUNK_SIZE, (i + 1) * EMAIL_BATCH_CHUNK_SIZE),
             ),
           );
+        const drained = {
+          claimed: claimed.getValue().length,
+          saturated: claimed.getValue().length >= this.claimLimit,
+        };
         for (const [index, chunk] of chunks.entries()) {
-          if (this.stopping || (index > 0 && !lease.coversNextUnit()))
-            return this.release(chunks.slice(index).flat());
+          if (this.stopping || (index > 0 && !lease.coversNextUnit())) {
+            await this.release(chunks.slice(index).flat());
+            return Result.ok(drained);
+          }
 
           await this.sendChunk(chunk);
         }
+        return Result.ok(drained);
       } finally {
         this.draining = false;
       }

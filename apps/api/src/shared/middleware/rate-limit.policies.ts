@@ -133,3 +133,11 @@ export const CALENDAR_FEED_MISS_POLICY: PolicyConfig = {
   failClosed: true,
   advertiseBudget: false,
 };
+
+export const INTERNAL_CLOCK_POLICY: PolicyConfig = {
+  name: "internal-clock",
+  keyFn: ipKeyFn("internal-clock"),
+  windows: [{ policyName: "internal-clock", windowSec: 60, maxRequests: 30 }],
+  emitSecurityEvent: true,
+  advertiseBudget: false,
+};

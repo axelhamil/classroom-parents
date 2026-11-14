@@ -5,6 +5,7 @@ import {
 } from "@modules/classroom-sync/application/services/sync-due-children.service";
 import type { IInstrumentation, ILogger } from "@packages/ddd-kit";
 import { drain } from "./drain";
+import { failed, inSequence, type JobOutcome, succeeded } from "./job";
 import { startPeriodic } from "./periodic";
 
 export const SYNC_TICK_MS = 60_000;
@@ -22,7 +23,7 @@ export function drainDueChildren(
   signal: AbortSignal,
   logger: ILogger,
   clock: () => number = Date.now,
-): Promise<void> {
+): Promise<JobOutcome> {
   return drain(
     {
       run: async (now) =>
@@ -40,6 +41,36 @@ export function drainDueChildren(
   );
 }
 
+export async function resumeDisconnections(
+  deps: Pick<SyncWorkerDeps, "ChildConnectionService">,
+  logger: ILogger,
+): Promise<JobOutcome> {
+  const resumed = await deps.ChildConnectionService.resumeDisconnections(
+    DISCONNECT_RESUME_BATCH,
+    new Date(),
+  );
+  if (resumed.isFailure) {
+    const { code, cause } = resumed.getError();
+    logger.warn({ code, err: cause }, "disconnection resume failed");
+    return failed(code, {}, resumed.getError());
+  }
+
+  const { finished, failed: failures } = resumed.getValue();
+  if (finished + failures > 0) logger.info(resumed.getValue(), "disconnections resumed");
+  return succeeded({ finished, failed: failures });
+}
+
+export function syncPass(
+  deps: Pick<SyncWorkerDeps, "SyncDueChildrenService" | "ChildConnectionService">,
+  signal: AbortSignal,
+  logger: ILogger,
+): Promise<JobOutcome> {
+  return inSequence([
+    ["due", () => drainDueChildren(deps, signal, logger)],
+    ["resume", () => resumeDisconnections(deps, logger)],
+  ]);
+}
+
 export function startSyncWorkers(
   deps: SyncWorkerDeps,
   signal: AbortSignal,
@@ -47,22 +78,10 @@ export function startSyncWorkers(
 ): Promise<void> {
   const onError = (err: unknown) => deps.IInstrumentation.capture(err);
 
-  const syncDue = () => drainDueChildren(deps, signal, logger);
-
-  const resumeDisconnections = async () => {
-    const resumed = await deps.ChildConnectionService.resumeDisconnections(
-      DISCONNECT_RESUME_BATCH,
-      new Date(),
-    );
-    if (resumed.isFailure) {
-      const { code, cause } = resumed.getError();
-      logger.warn({ code, err: cause }, "disconnection resume failed");
-    } else if (resumed.getValue().finished + resumed.getValue().failed > 0)
-      logger.info(resumed.getValue(), "disconnections resumed");
-  };
-
   return Promise.all([
-    startPeriodic(syncDue, SYNC_TICK_MS, signal, { onError }),
-    startPeriodic(resumeDisconnections, DISCONNECT_RESUME_TICK_MS, signal, { onError }),
+    startPeriodic(() => drainDueChildren(deps, signal, logger), SYNC_TICK_MS, signal, { onError }),
+    startPeriodic(() => resumeDisconnections(deps, logger), DISCONNECT_RESUME_TICK_MS, signal, {
+      onError,
+    }),
   ]).then(() => undefined);
 }

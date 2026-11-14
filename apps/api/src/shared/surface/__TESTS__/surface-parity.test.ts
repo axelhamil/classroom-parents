@@ -55,6 +55,7 @@ describe("surface parity", () => {
   // the exact silent gap this test exists to catch (declare it in ROUTE_MAP instead).
   const KNOWN_MIDDLEWARE_ALL_PATHS = new Set([
     "/*",
+    "/internal/*",
     "/me",
     "/me/*",
     "/children",

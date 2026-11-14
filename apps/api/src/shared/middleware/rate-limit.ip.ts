@@ -1,6 +1,7 @@
 import { BlockList, isIPv4, isIPv6 } from "node:net";
 import type { Context } from "hono";
 import { getConnInfo } from "hono/bun";
+import { z } from "zod";
 import { env } from "../env";
 import { PRIVATE_V4, PRIVATE_V6 } from "../private-ranges";
 
@@ -69,14 +70,23 @@ function isTrusted(ip: string, list: BlockList): boolean {
   return false;
 }
 
+const PlatformClient = z.object({ clientAddress: z.string() });
+
+function platformClientAddress(c: Context): string | undefined {
+  return PlatformClient.safeParse(c.env).data?.clientAddress;
+}
+
 export function isFromTrustedProxy(c: Context): boolean {
   const list = trustedList();
-  if (!list) return false;
+  if (!list || platformClientAddress(c) !== undefined) return false;
 
   return isTrusted(normalizeHop(getConnInfo(c).remote.address ?? ""), list);
 }
 
 export function resolveClientIp(c: Context): string {
+  const named = platformClientAddress(c);
+  if (named !== undefined) return named || "unknown";
+
   const rawSocket = getConnInfo(c).remote.address ?? "";
   const socketAddr = normalizeHop(rawSocket);
   const list = trustedList();

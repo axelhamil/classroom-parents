@@ -8,8 +8,13 @@ import { calendarFeedModule } from "@modules/calendar-feed/calendar-feed.module"
 import { childrenModule } from "@modules/children/children.module";
 import { classroomSyncModule } from "@modules/classroom-sync/classroom-sync.module";
 import { extractionModule } from "@modules/extraction/extraction.module";
-import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
-import { getRateLimitDbClient, TransactionService } from "@packages/drizzle";
+import type { IBackgroundWork, IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
+import {
+  configureDbPool,
+  configureRateLimitDbPool,
+  getRateLimitDbClient,
+  TransactionService,
+} from "@packages/drizzle";
 import { DrizzleEmailQueue } from "@packages/email/drizzle-email-queue";
 import type { IEmailService } from "@packages/email/email.port";
 import { QueuedEmailService } from "@packages/email/email.service";
@@ -19,16 +24,13 @@ import {
   resendBatchSender,
 } from "@packages/email/email-delivery-worker";
 import type { IEmailQueue } from "@packages/email/email-queue.port";
-import { ALL_EVENT_TYPES } from "@packages/events";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
-import { buildEventDispatcher } from "@packages/outbox/event-handlers";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import {
-  OUTBOX_BATCH_SIZE,
+  type CreateOutboxRelay,
   OUTBOX_STOP_SETTLE_MARGIN_MS,
-  OutboxDispatcher,
+  type OutboxDispatcher,
 } from "@packages/outbox/outbox-dispatcher";
-import { OutboxRelay } from "@packages/outbox/outbox-relay";
 import { container } from "inwire";
 import { Resend } from "resend";
 import {
@@ -46,6 +48,7 @@ import {
   manualSyncGateFor,
   visibleChildrenFor,
 } from "./composition/bindings";
+import { deliveryModule, runtimeModule } from "./composition/delivery";
 import { fakeProviderBindings } from "./composition/fake-bindings";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
@@ -65,17 +68,19 @@ import type { ICaptchaService } from "./shared/ports/captcha.port";
 import type { IRateLimiter, IRateLimitUsage } from "./shared/ports/rate-limiter.port";
 import type { ISweepRunStore } from "./shared/ports/sweep-run.port";
 import { getRequestId } from "./shared/request-context";
+import type { BackgroundWork } from "./shared/services/background-work";
 import { DrizzleSweepRunStore } from "./shared/services/drizzle-sweep-run.store";
 import { LoggingInstrumentation } from "./shared/services/logging-instrumentation";
 import { NoopCaptchaService } from "./shared/services/noop-captcha.service";
-import { NotificationStreamHub } from "./shared/services/notification-stream-hub";
+import type { NotificationStreamHub } from "./shared/services/notification-stream-hub";
 import {
   RateLimiterFlexibleAdapter,
   storeFactoryFor,
 } from "./shared/services/rate-limiter-flexible.adapter";
 import { SentryInstrumentation } from "./shared/services/sentry-instrumentation";
 import { SiteverifyCaptchaService } from "./shared/services/siteverify-captcha.service";
-import { PgUserStreamPublisher, userStreamRelay } from "./shared/services/user-stream-relay";
+import type { ClockService } from "./workers/clock";
+import type { DeliveryDrain } from "./workers/delivery";
 
 type AlertPlanner = Pick<AlertPlanningService, "planDefault" | "replan" | "cancel">;
 
@@ -92,8 +97,18 @@ declare module "inwire" {
     NotificationStreamHub: NotificationStreamHub;
     OutboxDispatcher: OutboxDispatcher;
     EmailDeliveryWorker: EmailDeliveryWorker;
+    BackgroundWork: BackgroundWork;
+    IBackgroundWork: IBackgroundWork;
+    createOutboxRelay: CreateOutboxRelay;
+    DeliveryDrain: DeliveryDrain;
+    ClockService: ClockService;
   }
 }
+
+configureDbPool(env.DATABASE_POOL_MAX);
+configureRateLimitDbPool(env.RATE_LIMIT_POOL_MAX);
+
+const listenerDatabaseUrl = env.DATABASE_URL_DIRECT ?? env.DATABASE_URL;
 
 export const di = container()
   .addModule(apiSettings(env))
@@ -161,10 +176,7 @@ export const di = container()
         : new NoopCaptchaService(),
   )
   .add("ISweepRunStore", (c): ISweepRunStore => new DrizzleSweepRunStore(c.IInstrumentation))
-  .add(
-    "NotificationStreamHub",
-    (c) => new NotificationStreamHub(logger, env.DATABASE_URL, c.IInstrumentation),
-  )
+  .addModule(runtimeModule(listenerDatabaseUrl))
   .addModule(healthModule)
   .addModule(childrenModule)
   .add("IChildOwnership", (c) => childOwnershipFor(c.ChildSyncService))
@@ -204,37 +216,30 @@ export const di = container()
   .add("IUserDataReader", (c): IUserDataReader => new UserDataQuery(c.IInstrumentation))
   .addModule(rgpdModule)
   .addModule(await fakeProviderBindings(env))
-  .add(
-    "OutboxDispatcher",
-    (c) =>
-      new OutboxDispatcher(
-        c.IOutboxRepository,
-        (diLike) =>
-          new OutboxRelay(
-            c.IOutboxRepository,
-            c.ITransactionService,
-            buildEventDispatcher(
-              [userStreamRelay(new PgUserStreamPublisher(c.IInstrumentation))],
-              diLike,
-            ),
-            {
-              eventTypes: ALL_EVENT_TYPES,
-              batchSize: OUTBOX_BATCH_SIZE,
-              maxAttempts: env.OUTBOX_MAX_ATTEMPTS,
-              leaseSeconds: env.OUTBOX_LEASE_SECONDS,
-              deadRetrySeconds: env.OUTBOX_DEAD_RETRY_HOURS * 3600,
-              concurrency: env.OUTBOX_CONCURRENCY,
-              handlerBudgetSeconds: env.OUTBOX_HANDLER_BUDGET_SECONDS,
-            },
-            c.IInstrumentation,
-            logger,
-          ),
-        logger,
-        env.DATABASE_URL,
-        c.IInstrumentation,
-        {
-          stopGraceMs: Math.max(0, env.SHUTDOWN_WORKERS_TIMEOUT_MS - OUTBOX_STOP_SETTLE_MARGIN_MS),
+  .addModule(
+    deliveryModule(
+      {
+        relay: {
+          maxAttempts: env.OUTBOX_MAX_ATTEMPTS,
+          leaseSeconds: env.OUTBOX_LEASE_SECONDS,
+          deadRetrySeconds: env.OUTBOX_DEAD_RETRY_HOURS * 3600,
+          concurrency: env.OUTBOX_CONCURRENCY,
+          handlerBudgetSeconds: env.OUTBOX_HANDLER_BUDGET_SECONDS,
         },
-      ),
+        listenerDatabaseUrl,
+        dispatcherStopGraceMs: Math.max(
+          0,
+          env.SHUTDOWN_WORKERS_TIMEOUT_MS - OUTBOX_STOP_SETTLE_MARGIN_MS,
+        ),
+        tickBudgetMs: env.CLOCK_TICK_BUDGET_MS,
+        sweep: {
+          emailRetentionDays: env.EMAIL_RETENTION_DAYS,
+          emailDeadReplayWindowHours: env.EMAIL_DEAD_REPLAY_WINDOW_HOURS,
+          sweepBatchSize: env.RGPD_SWEEP_BATCH_SIZE,
+          sweepDeadlineMs: env.SWEEP_DEADLINE_MS,
+        },
+      },
+      (): Record<string, unknown> => di,
+    ),
   )
   .build();

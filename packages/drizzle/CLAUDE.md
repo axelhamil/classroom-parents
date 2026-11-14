@@ -8,13 +8,13 @@ The database package: Drizzle client, schema, migrations and the transaction ser
 drizzle.config.ts              drizzle-kit config (schema "./src/schema/*", out "./migrations")
 migrations/                    generated SQL, committed (regenerated as one `0000_*.sql` by T10)
 src/
-  config.ts                    `db`, `DbClient`, `Transaction`, `closeDb()` (ends the pool, called by the api shutdown)
+  config.ts                    `db`, `DbClient`, `Transaction`, `closeDb()` (ends the pool, called by the api shutdown), `configureDbPool(max)` (the host sizes the pool before the first query)
   schema/<topic>.ts            one file per topic (auth, email, outbox, rate-limit, sweep), re-exported as `<topic>Schema` from `index.ts`
   db-failure.ts                `dbOperationFailure(code)`: the error a store returns when a query throws
   advisory-lock.ts             `lockForTransaction`, `tryLockForTransaction` (transaction scoped advisory lock)
   services/                    `TransactionService` (the `IUnitOfWork` impl)
   seeds/                       dev seeds
-  rate-limit-client.ts         dedicated pool for the rate-limiter store, `closeRateLimitDb()`
+  rate-limit-client.ts         dedicated pool for the rate-limiter store, `closeRateLimitDb()`, `configureRateLimitDbPool(max)`
 ```
 
 ## Rules

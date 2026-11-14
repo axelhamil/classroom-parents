@@ -195,7 +195,7 @@ async function control(request: Request): Promise<Response> {
     );
   if (request.method !== "POST") return new Response("not found", { status: 404 });
 
-  await di.ManualSyncService.settled();
+  await di.BackgroundWork.settled();
 
   if (action === "schools" && school && toggle === "block") {
     fakes.blockSchool(school);

@@ -229,12 +229,13 @@ export async function runRetentionSweep(opts: RunRetentionSweepOptions): Promise
   });
 }
 
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function runBatchedSweep(opts: RunBatchedSweepOptions): Promise<SweepRunResult> {
   const now = opts.now ?? Date.now;
-  const sleep =
-    opts.sleep ??
-    // biome-ignore lint/correctness/noUndeclaredVariables: Bun global available at runtime
-    Bun.sleep;
+  const sleep = opts.sleep ?? pause;
 
   if (opts.dryRun) {
     return { deleted: await opts.countEligible(), batchCount: 0, stopReason: "exhausted" };

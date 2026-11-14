@@ -1,4 +1,4 @@
-import { type IInstrumentation, Result } from "@packages/ddd-kit";
+import { type IBackgroundWork, type IInstrumentation, Result } from "@packages/ddd-kit";
 import type { IManualSyncGate } from "../ports/manual-sync-gate.port";
 import type { SyncError } from "../sync-error";
 import type { SyncChildService } from "./sync-child.service";
@@ -27,11 +27,10 @@ function combined(outcomes: ManualSyncOutcome[], now: Date): ManualSyncOutcome {
 }
 
 export class ManualSyncService {
-  private readonly running = new Set<Promise<void>>();
-
   constructor(
     private readonly gate: IManualSyncGate,
     private readonly sync: Pick<SyncChildService, "syncChild">,
+    private readonly background: IBackgroundWork,
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
@@ -65,10 +64,6 @@ export class ManualSyncService {
     );
   }
 
-  async settled(): Promise<void> {
-    await Promise.all([...this.running]);
-  }
-
   private async start(
     userId: string,
     childId: string,
@@ -81,18 +76,9 @@ export class ManualSyncService {
     if (claim.outcome !== "started")
       return Result.ok({ status: "throttled", retryAt: claim.retryAt });
 
-    this.launch(
+    this.background.defer(
       this.sync.syncChild({ userId, childId, label: claim.label, lease: claim.lease }, now),
     );
     return Result.ok({ status: "started", retryAt: claim.retryAt });
-  }
-
-  private launch(work: Promise<unknown>): void {
-    const tracked = work.then(
-      () => undefined,
-      (err: unknown) => this.instrumentation.capture(err),
-    );
-    this.running.add(tracked);
-    void tracked.finally(() => this.running.delete(tracked));
   }
 }

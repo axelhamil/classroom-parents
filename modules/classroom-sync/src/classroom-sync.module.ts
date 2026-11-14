@@ -1,4 +1,4 @@
-import type { IInstrumentation, ILogger, IUnitOfWork } from "@packages/ddd-kit";
+import type { IBackgroundWork, IInstrumentation, ILogger, IUnitOfWork } from "@packages/ddd-kit";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
 import { onChildConnected } from "./application/event-handlers/on-child-connected";
@@ -21,6 +21,7 @@ import { DrizzleSeenAnnouncementRepository } from "./infrastructure/repositories
 
 export interface ClassroomSyncPrerequisites {
   IInstrumentation: IInstrumentation;
+  IBackgroundWork: IBackgroundWork;
   ILogger: ILogger;
   ITransactionService: IUnitOfWork;
   IOutboxRepository: IOutboxRepository;
@@ -71,7 +72,13 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
     )
     .add(
       "ManualSyncService",
-      (c) => new ManualSyncService(c.IManualSyncGate, c.SyncChildService, c.IInstrumentation),
+      (c) =>
+        new ManualSyncService(
+          c.IManualSyncGate,
+          c.SyncChildService,
+          c.IBackgroundWork,
+          c.IInstrumentation,
+        ),
     )
     .add("onChildConnected", (c) => onChildConnected(c)),
 );

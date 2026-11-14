@@ -47,7 +47,7 @@ export async function seedDemoFamily(email: string, linkPrefix: string): Promise
 
   const synced = await di.ManualSyncService.requestAll(userId);
   if (synced.isFailure) throw new Error(`demo sync refused: ${synced.getError().code}`);
-  await di.ManualSyncService.settled();
+  await di.BackgroundWork.settled();
 
   const children = await di.ChildConnectionService.list(userId);
   if (children.isFailure) throw new Error(`demo children unreadable: ${children.getError().code}`);

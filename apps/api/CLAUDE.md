@@ -22,12 +22,14 @@ apps/api/src/
     settings.ts                 `apiSettings(env)`: env mapped once onto each module's typed settings
     route-guards.ts             `routeGuards`: the `RouteGuards` of `@packages/http` built from `shared/middleware`
     bindings.ts                 one adapter per port a module declares towards another (`<port>For(service)`)
+    delivery.ts                 `runtimeModule` (stream hub, background work) and `deliveryModule` (relay factory, dispatcher, delivery drain, clock), the bindings whose lifetime depends on the execution mode
     fake-bindings.ts            `FAKE_PROVIDERS=1`: overrides Google, Classroom, the extractor and web push with `dev/fake-providers.ts`, imported dynamically so the prod boot never loads it
-  workers/                      periodic loops started by `index.ts` (sync, alert dispatch and the Sunday digest, rgpd sweep, email, outbox and event history retention), one tick never overlaps the next
+  workers/                      one pass of each job (sync, alert dispatch and the Sunday digest, rgpd sweep, email, outbox and event history retention) as a `Job` with a typed outcome; `index.ts` loops them, `clock.ts` runs them once for `/internal/*`; one tick never overlaps the next
   dev/                          fakes over the French dataset of `@modules/extraction/eval/classroom-dataset`, local database only
   auth.ts                       BetterAuth singleton, deliberate exception to the modules rule (config-as-code, the lib owns the model), mounted on `/api/auth/*`
   app.ts                        `Hono` construction, middleware, chained `.route()` mounts, `export const routes` / `export type AppType`. No server boot.
-  index.ts                      Server entry: `Bun.serve()` handle kept on `globalThis` for `bun --hot`, worker starts, ordered shutdown steps
+  index.ts                      Process entry: `Bun.serve()` handle kept on `globalThis` for `bun --hot`, worker starts, ordered shutdown steps
+  request-driven.ts             Function entry: `createRequestDrivenApp(platform)` returns `{ fetch }` for `export default`, starts no loop
   shared/stream/                `GET /stream`: per-user SSE fed by the outbox relay `user-stream-relay` through `pg_notify`
   migrate.ts                    Migration entry; `start` runs it before the server
   client.ts                     `hcWithType` factory, `hc<AppType>`
@@ -36,6 +38,15 @@ apps/api/src/
 **Module boundary.** Within a module, layers import inwards (`infrastructure/` → `application/` → `domain/`). Modules never import each other, not even ports: they talk through domain events or a port the host binds. Enforced by `pnpm check:boundaries` (`.dependency-cruiser.cjs`). `module.ts` is imported only by `container.ts`, routes only by `app.ts`; re-exporting routes from `module.ts` recreates the cycle `module → routes → container → module`.
 
 **Removability.** Trashing a module plus its `.addModule()` and `app.route()` lines must leave `tsc` pointing at every other line that named it.
+
+## Execution modes
+
+One composition root (`container.ts`, `app.ts`), two entries; the mode is the entry, never an `if` in the code.
+
+- **Process** (`index.ts`): the outbox dispatcher listens, the email worker polls, `workers/` loop, `BackgroundWork` is awaited at shutdown.
+- **Request-driven** (`request-driven.ts`): the platform passes `waitUntil` and the client address it vouches for. After the response, the function awaits the work the request deferred, then, if the request may have written, drains the outbox then the email queue (`DeliveryDrain`). The external clock calls `/internal/tick` (producers, then outbox, then emails, each with a reserved share of the budget) and `/internal/sweep` (bearer `CRON_SECRET`, unset = 404, only failed attempts spend the rate limit); the stream hub listens on the first stream only, and a stream ends at `STREAM_MAX_LIFETIME_MS`. **Why**: a function runs only while it answers, so nothing may wait for a loop; every job body is the one the loops run, so the two modes cannot drift.
+- Work that outlives a response goes through `IBackgroundWork.defer`, never a bare floating promise. **Why**: the process awaits it at shutdown and the function hands it to `waitUntil`; a floating promise is killed with the function and its error is lost.
+- `Bun`-only APIs stay in `index.ts`, `sentry-*` (`@sentry/bun`) and the dev scripts; anything the request path reaches uses web or Node APIs.
 
 ## Module anatomy
 
@@ -115,4 +126,4 @@ BDD style, runner `bun test`. One test file per service, store, DTO or route fil
 
 - **Tests**: `pnpm --filter api test` (`bun test --isolate --parallel`); a bare `bun test` drops file isolation. The tests read `apps/api/.env`, so run `pnpm bootstrap` then `scripts/worktree-db.sh` first.
 - **Fakes**: `FAKE_PROVIDERS=1` replaces every external provider (Google OAuth, Classroom, the model, web push; email without a Resend key only logs) with the synthetic dataset; the boot refuses it in production and on any database but the local one. **Why**: the dev server, the demo seed and the end-to-end check run without a key and never reach a real account. `pnpm --filter api db:seed:demo` seeds a parent with two children and their planned alerts.
-- **Real-database checks**: `pnpm --filter api check:db` runs them all, or one of `check:{uow-rollback,outbox-lease,wipe-rollback,token-sealing,child-sign-in,alert-context,upcoming-alerts,calendar-feed,data-export,email-retention,event-retention,end-to-end,weekly-digest}`. Each refuses any database but this worktree's local one (`requireLocalDatabase` from `@packages/test/db-check`: localhost, port 54329, `classroom_parents[_<slug>]`) and is wired in `.github/workflows/ci.yml`. Re-run the matching one after touching the code it covers.
+- **Real-database checks**: `pnpm --filter api check:db` runs them all, or one of `check:{uow-rollback,outbox-lease,wipe-rollback,token-sealing,child-sign-in,alert-context,upcoming-alerts,calendar-feed,data-export,email-retention,event-retention,end-to-end,weekly-digest,request-driven}`. Each refuses any database but this worktree's local one (`requireLocalDatabase` from `@packages/test/db-check`: localhost, port 54329, `classroom_parents[_<slug>]`) and is wired in `.github/workflows/ci.yml`. Re-run the matching one after touching the code it covers.
