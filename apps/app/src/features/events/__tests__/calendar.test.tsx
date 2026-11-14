@@ -108,15 +108,49 @@ describe("Accueil, the family calendar", () => {
     ).toBeDefined();
   });
 
-  it("after 16:00 the briefing frames the evening and the calendar keeps calling today Aujourd'hui", async () => {
+  it("after 16:00 on a phone the briefing owns today and tomorrow, the week starts the day after", async () => {
     at("2026-11-12T17:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-11-13", "Piscine", { category: "swimming" })]);
+    givenCalendar(
+      [CHILD],
+      [
+        deadline(1, "2026-11-12", "Mot signé"),
+        deadline(2, "2026-11-13", "Sac de piscine", { category: "swimming" }),
+      ],
+    );
     await renderAppAt("/");
 
-    expect(await screen.findByRole("region", { name: "Pour demain" })).toBeDefined();
-    expect(await screen.findByRole("heading", { level: 3, name: "Aujourd'hui" })).toBeDefined();
+    const briefing = await screen.findByRole("region", { name: "Pour demain" });
+    expect(await within(briefing).findByText("Mot signé")).toBeDefined();
+    expect(within(briefing).getByText("Sac de piscine")).toBeDefined();
+    await waitFor(() => expect(day("Samedi 14 novembre")).toBeDefined());
+    expect(screen.getAllByText("Mot signé")).toHaveLength(1);
+    expect(screen.getAllByText("Sac de piscine")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { level: 3, name: "Aujourd'hui" })).toBeNull();
+    expect(screen.queryByRole("heading", { level: 3, name: "Demain" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Ce soir" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Préparer la semaine" })).toBeNull();
+  });
+
+  it("on a Saturday phone the briefing owns Sunday and Monday, the week starts on Tuesday", async () => {
+    at("2026-11-14T09:00:00.000Z");
+    givenCalendar([CHILD], [deadline(1, "2026-11-15", "Exposé à finir")]);
+    await renderAppAt("/");
+
+    const briefing = await screen.findByRole("region", { name: "Pour lundi 16 novembre" });
+    expect(await within(briefing).findByText("Exposé à finir")).toBeDefined();
+    await waitFor(() =>
+      expect(
+        [...document.querySelectorAll("[data-slot=calendar-day-title]")].map(
+          (title) => title.textContent,
+        ),
+      ).toEqual([
+        "Mardi 17 novembre",
+        "Mercredi 18 novembre",
+        "Jeudi 19 novembre",
+        "Vendredi 20 novembre",
+      ]),
+    );
+    expect(screen.getAllByText("Exposé à finir")).toHaveLength(1);
   });
 
   it("asks the range query for exactly the visible period of each view", async () => {

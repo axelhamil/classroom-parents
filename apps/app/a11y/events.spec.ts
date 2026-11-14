@@ -131,9 +131,7 @@ test.describe("the calendar on a phone", () => {
 
       await expect(page.getByRole("heading", { level: 2, name: "À vérifier" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
-      await expect(
-        page.getByRole("link", { name: REVIEW_EVENT.title, exact: true }).first(),
-      ).toBeVisible();
+      await expect(page.getByRole("link", { name: REVIEW_EVENT.title, exact: true })).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
     });

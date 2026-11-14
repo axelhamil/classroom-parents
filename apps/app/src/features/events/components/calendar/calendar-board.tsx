@@ -190,9 +190,7 @@ export function CalendarBoard({
                       {...swipe}
                     >
                       {candidate === "week" &&
-                        (periodEmpty ?? (
-                          <WeekView {...viewProps} briefed={schoolMoment(now).focus} />
-                        ))}
+                        (periodEmpty ?? <WeekView {...viewProps} briefed={schoolMoment(now)} />)}
                       {candidate === "month" && (
                         <MonthView
                           {...viewProps}
