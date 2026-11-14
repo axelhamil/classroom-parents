@@ -5,6 +5,6 @@
     "jsxImportSource": "react",
     "noUncheckedIndexedAccess": true
   },
-  "include": [".astro/types.d.ts", "astro.config.ts", "src/**/*", "a11y/**/*"],
+  "include": [".astro/types.d.ts", "astro.config.ts", "preview.config.ts", "src/**/*", "a11y/**/*"],
   "exclude": ["dist", "node_modules"]
 }

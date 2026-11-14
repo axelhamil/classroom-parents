@@ -22,12 +22,13 @@
         "src/shared/observability/noop.ts",
         "src/shared/observability/sentry.ts",
         "a11y/*.setup.ts",
-        "a11y/*.spec.ts"
+        "a11y/*.spec.ts",
+        "vercel.ts"
       ],
       "project": ["**/*.ts", "**/*.tsx"]
     },
     "apps/site": {
-      "entry": ["src/pages/**/*.{astro,ts}", "a11y/*.spec.ts"],
+      "entry": ["src/pages/**/*.{astro,ts}", "a11y/*.spec.ts", "preview.config.ts"],
       "project": ["**/*.{ts,tsx,astro}"]
     },
     "packages/ddd-kit": {

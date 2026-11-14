@@ -1,6 +1,6 @@
 import { blockingViolations } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
+import { expect, test } from "./csp";
 
 test.describe("login on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });

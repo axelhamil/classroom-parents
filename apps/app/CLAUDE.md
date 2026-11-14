@@ -7,7 +7,7 @@ Vite 8 + React 19 + TanStack Router/Query + Tailwind 4 + shadcn (`@packages/ui`)
 ```
 apps/app/
   routes.ts                     Virtual route tree: rootRoute/layout/route/index, paths relative to routesDirectory "./src"
-  Caddyfile                     Serves the build and injects the CSP nonce
+  vercel.ts                     Vercel project config: build, SPA fallback, headers from src/hosting
   a11y/                         Accessibility gate (Playwright + axe), see a11y/README.md
   src/
     main.tsx                    createRoot + <AppProviders />
@@ -69,7 +69,7 @@ One client in `shared/api/api-client.ts`: `createApiClient(baseUrl, hcWithType)`
 - Types: `InferRequestType<typeof $endpoint>["json"]` + `InferResponseType<typeof $endpoint, 200>`.
 - **Errors stay `throw on !res.ok`**: `ApplyGlobalResponse` widens response types but gives no discriminated union.
 - **CSRF is transparent**: the API validates `Origin` (no double-submit token, no `X-CSRF-Token`); the browser sends `Origin` itself. Do not add CSRF header injection.
-- **CSP nonce**: Vite's `html.cspNonce` (`vite.config.ts`) emits a `<meta property="csp-nonce">` and nonce attributes carrying a Caddy placeholder; Caddy's `templates` resolves it per request and sends the matching CSP header (`Caddyfile`). `index.html` holds no meta; the same mechanism stamps the blocking `/theme-init.js`, the only classic script, which is why it runs under `'strict-dynamic'`. Never inline the nonce in JS.
+- **CSP without nonce or inline script**: `src/hosting/app-hosting.ts` derives the headers and the CSP (`script-src 'self'`, `connect-src` = `VITE_API_URL` plus the Sentry DSN origin) from the build env; `vercel.ts` serves them on Vercel and the preview server applies the same object, so the a11y and journey gates run under the production policy and fail on any CSP violation (every spec imports `test` from `a11y/csp.ts`, never from `@playwright/test`). **Why**: static hosting cannot stamp a per-request nonce, and one definition keeps the gate and production identical. Never add an inline script or an external script origin; a new origin the app fetches goes in `app-hosting.ts`.
 
 ## Queries and mutations
 
@@ -112,7 +112,7 @@ Primitives, tokens and their authoring rules live in `packages/ui/CLAUDE.md`. As
 4. **Enum to copy**: a `<noun>-labels.ts` map keyed by the enum and resolved through `t()` (feature root, or `shared/<domain>/` once shared), never an inline ternary in JSX.
 5. **Typography**: text goes through the shadcn typography exports (named, not namespace). The page title is `<TypographyH1 variant="page">`; a settings tab whose card already carries the visible title renders `<TypographyH1 className="sr-only">` so the page keeps exactly one `<h1>`. Never a raw `<h1 className="text-2xl ...">`.
 6. **Page width**: `pageContainerVariants({ width })`; call sites add only `flex`/`gap-*`/`py-*`, never a hand-picked `max-w-*` or `px-*`.
-7. **Theme and dark mode**: `public/theme-init.js` (a symlink to `@packages/web-kit/src/theme/theme-init.js`, because `public/` is served verbatim) sets `.dark` before first paint, `@packages/web-kit/theme/use-theme` owns the choice afterwards; both read the same storage key (`light`, `dark` or `system`, light when unset). **Why a blocking script file and no React-rendered script**: a script tag in the tree needs the nonce threaded through JS, a same-origin file only needs the one Vite already stamps. Every control that changes the theme calls `changeTheme(choice, origin)` from `useTheme`, never the store directly: it owns the circular View Transition from `origin`, the color cross-fade where the API is missing and the instant swap under `prefers-reduced-motion`. **Why**: one entry point keeps the motion, the persistence and the `theme-color` meta identical wherever the parent switches; the CSS is in `globals.css`.
+7. **Theme and dark mode**: `public/theme-init.js` (a symlink to `@packages/web-kit/src/theme/theme-init.js`, because `public/` is served verbatim) sets `.dark` before first paint, `@packages/web-kit/theme/use-theme` owns the choice afterwards; both read the same storage key (`light`, `dark` or `system`, light when unset). **Why a blocking script file and no React-rendered script**: an inline script would need a hash or `'unsafe-inline'` in the CSP, a same-origin file passes `script-src 'self'`. Every control that changes the theme calls `changeTheme(choice, origin)` from `useTheme`, never the store directly: it owns the circular View Transition from `origin`, the color cross-fade where the API is missing and the instant swap under `prefers-reduced-motion`. **Why**: one entry point keeps the motion, the persistence and the `theme-color` meta identical wherever the parent switches; the CSS is in `globals.css`.
 8. **Paper is a theme, not a page.** A printable view (`/week/print`) composes the `print-planner` primitives and adds only `print:` layout variants; paper colors are the tokens of the `@media print` block in `globals.css` (light whatever the screen theme) and a screen-only control carries `print:hidden`. **Why**: hand-picked print colors fail contrast on paper unnoticed, and a dark screen theme would otherwise print as a black sheet.
 
 ## Accessibility gate

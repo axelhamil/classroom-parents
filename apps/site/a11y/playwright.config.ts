@@ -18,8 +18,7 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
   },
   webServer: {
-    // --ignore-lock keeps the server in the foreground, where Playwright owns its lifetime.
-    command: `pnpm preview --host ${PREVIEW.hostname} --port ${PREVIEW.port} --ignore-lock`,
+    command: `pnpm preview --host ${PREVIEW.hostname} --port ${PREVIEW.port} --strictPort`,
     cwd: SITE_ROOT,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,

@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
-import { expect, test as setup } from "@playwright/test";
 import { stubChildrenApi } from "./children-fixture";
+import { expect, test as setup } from "./csp";
 import { STORAGE_STATE } from "./playwright.config";
 import { markToursSeen, openSignedIn } from "./tour";
 

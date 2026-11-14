@@ -12,8 +12,9 @@ apps/site/
   src/layouts/             The one HTML shell: head, SEO, header, legal footer
   src/components/          React components rendered at build, two of them hydrated as islands
   public/                  Symlinks to the shared assets in packages/ui and to web-kit's theme-init.js
-  a11y/                    Playwright + axe gate on the built site (astro preview, port 4182)
-  Caddyfile, Dockerfile    Static runner, same shape as apps/app
+  a11y/                    Playwright + axe gate on the built site (preview on port 4182)
+  vercel.json              Vercel project config: build, clean URLs, security and cache headers
+  preview.config.ts        Preview server that serves dist with the vercel.json headers
 ```
 
 ## Rules
@@ -32,4 +33,4 @@ apps/site/
 
 Biome lints the frontmatter of `.astro` files only; it cannot see template usage, so `noUnusedImports` and `noUnusedVariables` are off for them in `biome.json` and `astro check` covers that ground.
 
-`astro dev` and `astro preview` start in the background when run by an agent (`astro dev stop` to end it); the a11y config passes `--ignore-lock` to keep its preview in the foreground.
+`astro dev` starts in the background when run by an agent (`astro dev stop` to end it). `pnpm preview` is a Vite preview of `dist` that applies `vercel.json`, not `astro preview`, which ignores Vite plugins: what the gate audits carries the production headers.

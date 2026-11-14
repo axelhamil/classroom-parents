@@ -29,6 +29,11 @@ Lighthouse is deliberately absent: its a11y category runs a subset of axe, so a
 budget of 100 would restate what the axe run already proves, for two more
 minutes of CI and one more source of flake.
 
+- **Content-Security-Policy**: the preview serves the production headers and
+  CSP (`src/hosting/app-hosting.ts`, the object `vercel.ts` deploys), and any
+  CSP violation logged in a page fails its test (`csp.ts`, the `test` every
+  spec imports), the journey included.
+
 ## Running it locally
 
 The gate audits the **preview build** on port 4173, against a live API:

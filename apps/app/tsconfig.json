@@ -5,6 +5,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "vercel.ts"],
   "exclude": ["node_modules", "dist"]
 }

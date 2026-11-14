@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "astro dev --port 4181",
     "build": "astro build",
-    "preview": "astro preview",
+    "preview": "vite preview --config preview.config.ts",
     "type-check": "astro check",
     "test": "vitest run",
     "check:a11y": "playwright test --config a11y/playwright.config.ts"

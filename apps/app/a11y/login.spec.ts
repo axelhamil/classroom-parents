@@ -1,5 +1,5 @@
 import { tabTo } from "@packages/test/a11y";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp";
 
 test("signs in with Google only, from one main and one h1, reachable with the keyboard", async ({
   page,

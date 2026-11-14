@@ -1,9 +1,11 @@
 import { resolve } from "node:path";
+import { staticHostingPreview } from "@packages/web-kit/hosting/static-hosting";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
+import { appHosting } from "./src/hosting/app-hosting";
 import { parseAppEnv } from "./src/shared/env.schema";
 
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
@@ -11,8 +13,9 @@ const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT;
 const release = process.env.VITE_GIT_SHA;
 
-export default defineConfig(({ command, mode }) => {
-  if (command === "build") parseAppEnv(loadEnv(mode, __dirname, "VITE_"));
+export default defineConfig(({ command, mode, isPreview }) => {
+  const env = loadEnv(mode, __dirname, "VITE_");
+  if (command === "build") parseAppEnv(env);
 
   return {
     plugins: [
@@ -34,6 +37,7 @@ export default defineConfig(({ command, mode }) => {
             sourcemaps: { filesToDeleteAfterUpload: ["dist/**/*.map"] },
           })
         : undefined,
+      isPreview ? staticHostingPreview(appHosting(env)) : undefined,
     ].filter(Boolean),
     resolve: {
       alias: { "@": resolve(__dirname, "./src") },
@@ -51,6 +55,5 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     build: { chunkSizeWarningLimit: 700, sourcemap: "hidden" },
-    html: { cspNonce: "{{placeholder `http.request.uuid`}}" },
   };
 });

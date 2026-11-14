@@ -1,8 +1,9 @@
 import { DEFAULT_LOCALE, type Locale } from "@packages/i18n";
 import { audit, COLOR_SCHEMES } from "@packages/test/a11y";
 import { LOCALE_COOKIE } from "@packages/web-kit/i18n/locale-cookie";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
+import { expect, test } from "./csp";
 import { AUTHENTICATED_PAGES, PUBLIC_PAGES } from "./pages";
 import { BASE_URL, STORAGE_STATE } from "./playwright.config";
 

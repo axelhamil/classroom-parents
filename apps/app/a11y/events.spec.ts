@@ -1,7 +1,8 @@
 import { shiftDate, weekdayOf } from "@packages/ddd-kit/days";
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
+import { expect, test } from "./csp";
 import {
   EVENTS,
   inDays,

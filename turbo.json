@@ -68,6 +68,7 @@
         "**/*.test.ts",
         "**/*.test.tsx",
         "**/__TESTS__/**",
+        "vercel.json",
         "package.json",
         "tsconfig*.json",
         "vitest.config.*"
@@ -93,6 +94,9 @@
         "common/**",
         "a11y/**",
         "astro.config.ts",
+        "preview.config.ts",
+        "vercel.json",
+        "vercel.ts",
         "package.json",
         "tsconfig*.json"
       ],
