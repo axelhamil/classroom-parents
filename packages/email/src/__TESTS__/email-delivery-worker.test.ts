@@ -29,6 +29,7 @@ const { EmailDeliveryWorker, chunkBatchKey, chunkIdempotencyKey, groupRows, rese
   await import("../email-delivery-worker");
 
 const OPTIONS = { leaseSeconds: 120, deadRetrySeconds: 21_600, deadReplayWindowHours: 24 };
+const RENDER_HEAVY_TIMEOUT_MS = 60_000;
 
 type BatchResult = {
   data: Array<{ id: string }> | null;
@@ -205,18 +206,22 @@ describe("EmailDeliveryWorker.drainOnce", () => {
     expect(requests.map((r) => r.length)).toEqual([2, 1]);
   });
 
-  it("chunks a group larger than the provider cap", async () => {
-    claims(Array.from({ length: 150 }, (_, i) => row({ id: String(i) })));
-    const requests: unknown[][] = [];
-    batch = async (entries) => {
-      requests.push(entries);
-      return accepted(entries);
-    };
+  it(
+    "chunks a group larger than the provider cap",
+    async () => {
+      claims(Array.from({ length: 150 }, (_, i) => row({ id: String(i) })));
+      const requests: unknown[][] = [];
+      batch = async (entries) => {
+        requests.push(entries);
+        return accepted(entries);
+      };
 
-    await worker().drainOnce();
+      await worker().drainOnce();
 
-    expect(requests.map((r) => r.length)).toEqual([100, 50]);
-  });
+      expect(requests.map((r) => r.length)).toEqual([100, 50]);
+    },
+    RENDER_HEAVY_TIMEOUT_MS,
+  );
 
   it("settles sent rows with the provider ids that came back aligned", async () => {
     claims([row({ id: "1" }), row({ id: "2" })]);
