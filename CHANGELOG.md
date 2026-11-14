@@ -1,0 +1,76 @@
+# Changelog
+
+## 0.1.0 (2026-11-14)
+
+
+### Features
+
+* **agenda:** list, edit and delete school events with tombstones ([5013d42](https://github.com/axelhamil/classroom-parents/commit/5013d42a84b117850cab8fa4670e0a473532c4f3))
+* **alerts:** let parents set up to five reminders by default and per event ([94b1a86](https://github.com/axelhamil/classroom-parents/commit/94b1a866c002682a3805e5467b62a2e269cabc4e))
+* **alerts:** send scheduled web push alerts with email fallback ([5298e94](https://github.com/axelhamil/classroom-parents/commit/5298e941968e44c5ec8a0cca2a42962f3f8e580b))
+* **api:** compose the alerts module with its dispatch worker ([c0c9244](https://github.com/axelhamil/classroom-parents/commit/c0c924468afcd0eb0f87575a1bf9edbfc3a411a6))
+* **api:** compose the classroom modules with workers, sse and fakes ([5309832](https://github.com/axelhamil/classroom-parents/commit/5309832dfe0bcda6efca3aea2124a54b9c3497dd))
+* **api:** run the api request-driven on on-demand functions ([#4](https://github.com/axelhamil/classroom-parents/issues/4)) ([c05b866](https://github.com/axelhamil/classroom-parents/commit/c05b866d8e9e4e6bff1772585240ac5a41b32315))
+* **app:** add the school-diary design system, shell and service worker ([d232f9f](https://github.com/axelhamil/classroom-parents/commit/d232f9f2de8fe65fddeccbe2b4d07fae08b614ba))
+* **app:** edit events and browse the history ([d89c929](https://github.com/axelhamil/classroom-parents/commit/d89c9291a6011ff89f96488b9436d7c557cf8c45))
+* **app:** enable push alerts, guide ios install and rewrite the privacy pages ([3d080c4](https://github.com/axelhamil/classroom-parents/commit/3d080c462b16f5c6c952a5367b1a377403205295))
+* **app:** list upcoming school events and show their detail ([3fc86fd](https://github.com/axelhamil/classroom-parents/commit/3fc86fd176b75a278f6d68d253d1557433e91e01))
+* **app:** sign in, add a child account and explain school blocks ([0be84f0](https://github.com/axelhamil/classroom-parents/commit/0be84f030d8db2b02c8b37a4dbe508dbf0fdbbbf))
+* **auth:** sign in with google and seal linked account tokens ([7ec5ff1](https://github.com/axelhamil/classroom-parents/commit/7ec5ff1ebe30e2a15dbbf98e293dc9f5f76c6df0))
+* **children:** link, reconnect and revoke google child accounts ([63c38ed](https://github.com/axelhamil/classroom-parents/commit/63c38ed007888c3d0a771b15ccc73217d6d3f0ac))
+* **deploy:** deploy the app and the landing on vercel ([#5](https://github.com/axelhamil/classroom-parents/issues/5)) ([05efd7d](https://github.com/axelhamil/classroom-parents/commit/05efd7dca1e21a3d53abe4c053fe60b763cc96d6))
+* **deploy:** host the api on vercel functions with a cloudflare clock ([#7](https://github.com/axelhamil/classroom-parents/issues/7)) ([097755e](https://github.com/axelhamil/classroom-parents/commit/097755e901be576170280063dd389484b6d73005))
+* **design:** give KeepUpKids its family planner design ([#2](https://github.com/axelhamil/classroom-parents/issues/2)) ([bf40763](https://github.com/axelhamil/classroom-parents/commit/bf40763c374ad86fb0cf6fa0f34fd2ea88d1ca37))
+* **extraction:** extract school deadlines with haiku and sonnet escalation ([26b2eb8](https://github.com/axelhamil/classroom-parents/commit/26b2eb81b72a97a2a812450a647f9653a0354251))
+* **rgpd:** erase the account, revoke child tokens and purge the outbox ([4ccd98e](https://github.com/axelhamil/classroom-parents/commit/4ccd98eba14dc8d220136ac928cfc28d9250ac51))
+* **sync:** adapt the sync cadence to the school day and alerts ([#1](https://github.com/axelhamil/classroom-parents/issues/1)) ([af04d74](https://github.com/axelhamil/classroom-parents/commit/af04d74e73f5d6d5d6b97f8af84d0e7a737027aa))
+* **sync:** poll classroom announcements idempotently and track school blocks ([7ea1662](https://github.com/axelhamil/classroom-parents/commit/7ea1662ab23564d6de43802bf896405b239a077c))
+* **test-classroom:** provision a demo domain class from a versioned template ([57f6a10](https://github.com/axelhamil/classroom-parents/commit/57f6a10c4d96b6466d7b541264f1ec9abc9d9a62))
+
+
+### Bug Fixes
+
+* **agenda:** lock coursework once per batch and keep archived history ([72fdd02](https://github.com/axelhamil/classroom-parents/commit/72fdd02f0bfd47336b66d61f9340a1121c4a1c20))
+* **agenda:** refuse forged cursors and foreign children, read events unlocked ([6036f20](https://github.com/axelhamil/classroom-parents/commit/6036f209f6d05d6d3c5437d634ab058f5f67a17f))
+* **agenda:** refuse skipped wall times and keep edits visible ([3660172](https://github.com/axelhamil/classroom-parents/commit/3660172ccd3e694e0bde25cc8468fd9a21c9f2c2))
+* **agenda:** retire coursework the teacher removed and freeze only edited fields ([cf498b7](https://github.com/axelhamil/classroom-parents/commit/cf498b779594b79e1355eadb7316dc5e3b9de47b))
+* **agenda:** withdraw teacher-removed coursework reversibly ([a99ce9e](https://github.com/axelhamil/classroom-parents/commit/a99ce9ec70e6999d3623600786da2023c877e4dd))
+* **alerts:** bound each push for real and never alert a done deadline ([9f1faf7](https://github.com/axelhamil/classroom-parents/commit/9f1faf7e2ec81c49e158ae1141440aa0827a2000))
+* **alerts:** keep reminders in step with corrected and withdrawn deadlines ([7a3b382](https://github.com/axelhamil/classroom-parents/commit/7a3b3828b8c13a269ce2771af331e511480b7cb0))
+* **alerts:** keep the parent's alert offset and skip done deadlines ([7656b28](https://github.com/axelhamil/classroom-parents/commit/7656b28ba6facb69b247a39e5bea7f77a397e6df))
+* **alerts:** retry email refusals on our side and keep child data out of dev logs ([2ac9fd8](https://github.com/axelhamil/classroom-parents/commit/2ac9fd8cc34e9a65386348fe73d84c367aa53db1))
+* **alerts:** send each alert occurrence once and guard push endpoints ([5f0aef5](https://github.com/axelhamil/classroom-parents/commit/5f0aef5d072b9d8fe04860b2698bf756d3b7c7e2))
+* **api:** apply the lot d review fixes on the host side ([89aef43](https://github.com/axelhamil/classroom-parents/commit/89aef43de55fb63cd451dfe6ca60681421bd5c9f))
+* **api:** keep the database cause in error logs ([908ef6e](https://github.com/axelhamil/classroom-parents/commit/908ef6e0c1695c5575de2679a8f65565a9768bcc))
+* **api:** purge failed and dead emails past the retention window ([785d8ed](https://github.com/axelhamil/classroom-parents/commit/785d8ed3fc58d881446fdd57aa486fbd4eb9e6d6))
+* **app:** apply the front fixes of the lot d review ([d76485d](https://github.com/axelhamil/classroom-parents/commit/d76485d01aaa5db3a9518fa97fca8fa55ed68d28))
+* **app:** keep google refusals in the app and retry the right link ([ad928b2](https://github.com/axelhamil/classroom-parents/commit/ad928b27abcc37cd407d25311be7409d5478d12a))
+* **app:** keep notification targets in the app and stop hammering the stream ([b39f572](https://github.com/axelhamil/classroom-parents/commit/b39f5720068374ca2f8da15e3f60a94a2fb6c505))
+* **app:** show each deadline once on the phone home ([#6](https://github.com/axelhamil/classroom-parents/issues/6)) ([9a7fcba](https://github.com/axelhamil/classroom-parents/commit/9a7fcbaac9ba18e5a39ab8406185ecec1d12b6e0))
+* **auth:** link children through a provider that cannot sign in ([cca2413](https://github.com/axelhamil/classroom-parents/commit/cca2413871f44d9f9ddef73fc534d9c5510913e8))
+* **auth:** refuse any second google account so children link only through classroom ([c6a340e](https://github.com/axelhamil/classroom-parents/commit/c6a340efc2d2c2b2cd95dd38497449600363b789))
+* **children:** check ownership in share mode and ask for all three scopes ([f6ef2c1](https://github.com/axelhamil/classroom-parents/commit/f6ef2c1f749029ec064a967d473a8becd0e938dd))
+* **children:** name accounts to retry beside refused links and clean the probe outbox ([863d4a0](https://github.com/axelhamil/classroom-parents/commit/863d4a07e2978286c27191c0fd2179ed82d8fa76))
+* **children:** one sync per child and no google link left unrevoked ([0eea511](https://github.com/axelhamil/classroom-parents/commit/0eea51155bdd9e22ca0f1e829428abcdec82e38a))
+* **children:** revoke google access outside any transaction ([638c0a2](https://github.com/axelhamil/classroom-parents/commit/638c0a2a9498ff42177a5f1258fe576911daa515))
+* close the lot a review findings on auth, stream and pwa ([6618028](https://github.com/axelhamil/classroom-parents/commit/66180285472e5fbde2057dbb04a36f1b41aa5cbd))
+* close the lot b review findings on children, rgpd and extraction ([c3f4b23](https://github.com/axelhamil/classroom-parents/commit/c3f4b23101ef84c778d6612a45bfb53d275644fd))
+* **deploy:** answer 404 on missing assets and guard the test class publisher ([39370f8](https://github.com/axelhamil/classroom-parents/commit/39370f830f6862667b10c18c8b98da528501fa1b))
+* **extraction:** keep doubtful deadlines instead of losing or hiding them ([0f5a948](https://github.com/axelhamil/classroom-parents/commit/0f5a94851970ba094912432ab12dd49680be624f))
+* **extraction:** mask every name of the child before the model ([fd395d8](https://github.com/axelhamil/classroom-parents/commit/fd395d8774ae2958f0c98b56224d9bc8a6f672cd))
+* **modules:** resolve cross-module schemas and reject impossible wall times ([b109e58](https://github.com/axelhamil/classroom-parents/commit/b109e58809df3282e53a056a520f5fbbb647d3c1))
+* restore pieces later tasks consume and harden the worktree database guard ([7b8b1ef](https://github.com/axelhamil/classroom-parents/commit/7b8b1ef60d4545b02dccd8a8ba06a0292419ad4f))
+* **rgpd:** erase the deletion confirmation once it is settled ([5be4112](https://github.com/axelhamil/classroom-parents/commit/5be41120cd51f4bdc48438f1361da23ca919e023))
+* **rgpd:** never erase an account whose deletion was cancelled ([0d56d3f](https://github.com/axelhamil/classroom-parents/commit/0d56d3febc015da0aab8043001bc01e71ede3e95))
+* run the rgpd sweeps at boot and let the a11y gate pick its port ([2630e06](https://github.com/axelhamil/classroom-parents/commit/2630e06a46b20c96ff897d822285667e9af12bec))
+* **sync:** stop on a lost lease and let the agenda own coursework deadlines ([7b14ae9](https://github.com/axelhamil/classroom-parents/commit/7b14ae9c5ab9158b0325974fced7eca862d232a5))
+* **sync:** tell our own google outage apart from a school block ([5f0f8d4](https://github.com/axelhamil/classroom-parents/commit/5f0f8d48ad1c04d654ac4a93ab872a879e6f868a))
+
+
+### Refactor
+
+* **api:** count wipe check sessions through the shared db-check helper ([67687c5](https://github.com/axelhamil/classroom-parents/commit/67687c5211578d649a4af287db34c1cead51dec2))
+* **children:** split the connection service by responsibility ([4704c00](https://github.com/axelhamil/classroom-parents/commit/4704c0083b2bd1588c1be3df01a0009a184ee258))
+* **classroom-sync:** read classroom through a dedicated reader port ([8142aca](https://github.com/axelhamil/classroom-parents/commit/8142aca2341ce1a0f823d946cfd7fb9ae8888901))
+* **ddd-kit:** share bounded concurrency and traced spans ([a411d4c](https://github.com/axelhamil/classroom-parents/commit/a411d4ca3d6fa2faad55076ab6c955f620aa0220))
+* share day arithmetic and event categories, scope the alert db check ([70a8f31](https://github.com/axelhamil/classroom-parents/commit/70a8f314140b54c1362ddd28ba9ca81406506e20))
