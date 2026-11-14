@@ -86,8 +86,8 @@ Three things bite when running repeatedly:
 
 The home changes with the day: on a weekday morning the briefing covers today, from
 the evening and over the weekend it covers the next school day and pulls in the
-deadlines that fall before it, so the same deadline can sit in the briefing and in
-the week. A spec that renders dated fixtures therefore pins the browser clock with
+deadlines that fall before it, which a phone then leaves out of the week below. A
+spec that renders dated fixtures therefore pins the browser clock with
 `todayAt(...)` and dates its fixtures with `inDays(...)` (`events-fixtures.ts`), both
 read from one Paris day, `TODAY`, never from `new Date()`, and asserts what holds on
 every day of the week. `A11Y_TODAY` overrides that day, which is how a change is
