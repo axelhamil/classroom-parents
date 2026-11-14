@@ -10,6 +10,9 @@ const commaList = (value: string): string[] =>
 export const envSchema = z
   .object({
     DATABASE_URL: z.url(),
+    DATABASE_URL_DIRECT: z.url().optional(),
+    DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(20),
+    RATE_LIMIT_POOL_MAX: z.coerce.number().int().min(1).max(20).default(3),
     MIGRATIONS_FOLDER: z.string().default("./migrations"),
     BETTER_AUTH_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(32),
@@ -40,6 +43,9 @@ export const envSchema = z
     PORT: z.coerce.number().optional(),
     SERVER_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(255).default(120),
     SWEEP_DEADLINE_MS: z.coerce.number().int().min(1000).default(90_000),
+    CRON_SECRET: z.string().min(32).optional(),
+    CLOCK_TICK_BUDGET_MS: z.coerce.number().int().min(1000).max(280_000).default(40_000),
+    STREAM_MAX_LIFETIME_MS: z.coerce.number().int().min(5_000).optional(),
     CORS_ORIGIN: z
       .string()
       .optional()

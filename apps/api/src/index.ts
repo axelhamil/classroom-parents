@@ -93,7 +93,7 @@ const steps: ShutdownStep[] = [
       periodicWorkers.abort();
       await Promise.all([
         periodicLoops,
-        di.ManualSyncService.settled(),
+        di.BackgroundWork.settled(),
         di.EmailDeliveryWorker.stop(),
         di.OutboxDispatcher.stop(),
         di.NotificationStreamHub.stop(),

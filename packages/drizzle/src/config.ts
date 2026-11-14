@@ -21,15 +21,24 @@ export type Transaction = NodePgTransaction<
   ExtractTablesWithRelations<typeof schema>
 >;
 
+export const DEFAULT_POOL_MAX = 20;
+
 let _db: DbClient | null = null;
 let _pool: Pool | null = null;
+let poolMax = DEFAULT_POOL_MAX;
+
+export function configureDbPool(max: number): void {
+  if (_pool) throw new Error("the database pool is already open, size it before the first query");
+
+  poolMax = max;
+}
 
 function getDb(): DbClient {
   if (_db) return _db;
 
   _pool = new Pool({
     connectionString: requireDatabaseUrl(),
-    max: 20,
+    max: poolMax,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
   });

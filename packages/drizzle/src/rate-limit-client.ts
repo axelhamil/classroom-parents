@@ -8,15 +8,25 @@ const rlSchema = { ...rateLimitSchema };
 
 export type RateLimitDbClient = ReturnType<typeof drizzle<typeof rlSchema>>;
 
+export const DEFAULT_RATE_LIMIT_POOL_MAX = 3;
+
 let _rateLimitDb: RateLimitDbClient | null = null;
 let _rateLimitPool: Pool | null = null;
+let rateLimitPoolMax = DEFAULT_RATE_LIMIT_POOL_MAX;
+
+export function configureRateLimitDbPool(max: number): void {
+  if (_rateLimitPool)
+    throw new Error("the rate-limit pool is already open, size it before the first query");
+
+  rateLimitPoolMax = max;
+}
 
 export function getRateLimitDbClient(): RateLimitDbClient {
   if (_rateLimitDb) return _rateLimitDb;
 
   _rateLimitPool = new Pool({
     connectionString: requireDatabaseUrl(),
-    max: 3,
+    max: rateLimitPoolMax,
     connectionTimeoutMillis: 500,
     idleTimeoutMillis: 30000,
   });

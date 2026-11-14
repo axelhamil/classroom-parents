@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./app": "./src/app.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./request-driven": "./src/request-driven.ts"
   },
   "scripts": {
     "dev": "bun --hot src/index.ts",
@@ -27,8 +28,9 @@
     "check:event-retention": "FAKE_PROVIDERS=1 bun scripts/check-event-retention.ts",
     "check:end-to-end": "FAKE_PROVIDERS=1 bun scripts/check-end-to-end.ts",
     "check:weekly-digest": "FAKE_PROVIDERS=1 bun scripts/check-weekly-digest.ts",
+    "check:request-driven": "FAKE_PROVIDERS=1 CRON_SECRET=check-request-driven-local-clock-secret STREAM_MAX_LIFETIME_MS=5000 bun scripts/check-request-driven.ts",
     "serve:journey": "FAKE_PROVIDERS=1 bun scripts/serve-journey.ts",
-    "check:db": "pnpm run check:uow-rollback && pnpm run check:outbox-lease && pnpm run check:wipe-rollback && pnpm run check:token-sealing && pnpm run check:child-sign-in && pnpm run check:alert-context && pnpm run check:upcoming-alerts && pnpm run check:calendar-feed && pnpm run check:data-export && pnpm run check:email-retention && pnpm run check:event-retention && pnpm run check:end-to-end && pnpm run check:weekly-digest",
+    "check:db": "pnpm run check:uow-rollback && pnpm run check:outbox-lease && pnpm run check:wipe-rollback && pnpm run check:token-sealing && pnpm run check:child-sign-in && pnpm run check:alert-context && pnpm run check:upcoming-alerts && pnpm run check:calendar-feed && pnpm run check:data-export && pnpm run check:email-retention && pnpm run check:event-retention && pnpm run check:end-to-end && pnpm run check:weekly-digest && pnpm run check:request-driven",
     "start": "bun dist/migrate.js && bun dist/index.js",
     "type-check": "tsc --noEmit",
     "test": "bun test --isolate --parallel --pass-with-no-tests",

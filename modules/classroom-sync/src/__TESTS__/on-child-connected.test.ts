@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { Result } from "@packages/ddd-kit";
+import { type IBackgroundWork, Result } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
@@ -12,6 +12,9 @@ import { CHILD, NOW, type SyncHarness, syncHarness } from "./sync-harness";
 let h: SyncHarness;
 let gate: PortMock<IManualSyncGate>;
 let manual: ManualSyncService;
+let background: PortMock<IBackgroundWork>;
+
+const deferredWork = () => Promise.all(background.defer.mock.calls.map(([work]) => work));
 
 const connected = (payload: unknown) => ({
   eventType: EventTypes.CHILD_CONNECTED,
@@ -29,7 +32,8 @@ const claims = (claim: ManualSyncClaim) =>
 beforeEach(() => {
   h = syncHarness();
   gate = mockPort<IManualSyncGate>();
-  manual = new ManualSyncService(gate, h.service, mockInstrumentation(), () => NOW);
+  background = mockPort<IBackgroundWork>();
+  manual = new ManualSyncService(gate, h.service, background, mockInstrumentation(), () => NOW);
 });
 
 describe("on child connected", () => {
@@ -38,7 +42,7 @@ describe("on child connected", () => {
     const handler = onChildConnected({ ManualSyncService: manual });
 
     await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
-    await manual.settled();
+    await deferredWork();
 
     expect(gate.claim).toHaveBeenCalledWith(CHILD.userId, CHILD.childId, NOW);
     expect(h.client.listCourses).toHaveBeenCalledTimes(1);
@@ -54,7 +58,7 @@ describe("on child connected", () => {
       const handler = onChildConnected({ ManualSyncService: manual });
 
       await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
-      await manual.settled();
+      await deferredWork();
 
       expect(h.tokens.accessTokenFor).not.toHaveBeenCalled();
       expect(h.client.listCourses).not.toHaveBeenCalled();
@@ -101,7 +105,7 @@ describe("manual refresh of every child", () => {
     });
 
     const result = await manual.requestAll(CHILD.userId);
-    await manual.settled();
+    await deferredWork();
 
     expect(result.getValue()).toEqual({ status: "started", retryAt: LATER });
     expect(h.client.listCourses).toHaveBeenCalledTimes(1);
@@ -131,10 +135,20 @@ describe("manual refresh of one child", () => {
     claims({ outcome: "started", lease: CHILD.lease, label: CHILD.label, retryAt: COOLDOWN_END });
 
     const result = await manual.requestChild(CHILD.userId, CHILD.childId);
-    await manual.settled();
+    await deferredWork();
 
     expect(result.getValue()).toEqual({ status: "started", retryAt: COOLDOWN_END });
     expect(h.client.listCourses).toHaveBeenCalledTimes(1);
+  });
+
+  it("given an idle child, then its sync is handed to the background work so it outlives the response", async () => {
+    claims({ outcome: "started", lease: CHILD.lease, label: CHILD.label, retryAt: COOLDOWN_END });
+
+    await manual.requestChild(CHILD.userId, CHILD.childId);
+
+    expect(background.defer).toHaveBeenCalledTimes(1);
+    await deferredWork();
+    expect(h.state.markSynced).toHaveBeenCalledTimes(1);
   });
 
   it("given a refresh inside the cooldown, then a no-op that tells when the next refresh is possible", async () => {

@@ -4,9 +4,12 @@ The api ships a transactional outbox and an in-process dispatcher. You declare e
 
 ## Deployment requirements
 
-The dispatcher is an **in-process Bun worker** holding a persistent `pg.Client` on `LISTEN outbox_event`; the email delivery worker polls. Both die with the api process, so the api runs as a long-lived process (a VM, a container platform, `min_instances ≥ 1` on scale-to-zero platforms). Serverless functions and edge runtimes are not supported: nothing would drain `outbox_event`.
+The api runs in one of two modes, chosen by its entry point; both deliver through the same relay and email worker.
 
-**Symptom of mis-deployment**: the api answers requests and `outbox_event` rows accumulate with `dispatched_at` null.
+- **Process mode** (`src/index.ts`, dev and Docker): the dispatcher holds a persistent `pg.Client` on `LISTEN outbox_event`, the email worker polls, the periodic loops tick. All of them die with the process, so it runs long-lived (a VM, a container platform, `min_instances >= 1` on scale-to-zero platforms).
+- **Request-driven mode** (`createRequestDrivenApp` in `src/request-driven.ts`, on-demand functions): no listener, poller or loop. After a request that may have written, the function drains the outbox, then the email queue, in the platform's `waitUntil`; an external clock calls `/internal/tick` every minute (one pass of sync and alerts, then the outbox, then the email queue, each with its own share of the budget, so what the tick produces ships in that tick) and `/internal/sweep` hourly. **Why**: a function lives only while it answers, so delivery rides the request that produced it, and the tick retries what a cut function or a failed handler left behind. Leases and `SKIP LOCKED` keep concurrent drains and ticks from delivering a row twice (`check:request-driven`).
+
+**Symptom of mis-deployment**: the api answers requests and `outbox_event` rows accumulate with `dispatched_at` null: in process mode the dispatcher is not running; in request-driven mode the clock is not calling `/internal/tick` (or `CRON_SECRET` is unset, so it answers 404).
 
 ## Mental model
 
@@ -17,7 +20,8 @@ your code           ─►  uow.run(async () => repo.save(aggregate))
                        outbox_event INSERT + pg_notify (same TX, delivered at COMMIT)
                                           │
                                           ▼
-                                  OutboxDispatcher (in-process Bun worker)
+              OutboxDispatcher (process mode), or the drain after a response
+                        and /internal/tick (request-driven mode)
                                           │
              OutboxRelay claims by lease: one statement, FOR UPDATE SKIP LOCKED,
              attempts + 1, next_attempt_at = now() + lease; no transaction stays open

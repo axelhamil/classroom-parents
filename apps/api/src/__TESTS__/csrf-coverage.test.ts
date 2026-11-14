@@ -22,7 +22,7 @@ const { app, routes } = await import("../app");
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "ALL"]);
 
-const NOT_COOKIE_AUTHENTICATED = ["/api/auth/"];
+const NOT_COOKIE_AUTHENTICATED = ["/api/auth/", "/internal/"];
 
 function isCookieAuthenticated(path: string): boolean {
   return !NOT_COOKIE_AUTHENTICATED.some((prefix) => path.startsWith(prefix));

@@ -30,7 +30,7 @@ function parseNotification(payload: string | undefined) {
 export class NotificationStreamHub {
   private readonly subscribers = new Map<string, Set<StreamHandle>>();
   private readonly listener: PgListener;
-  private started = false;
+  private listening: Promise<void> | undefined;
 
   constructor(
     private readonly logger: Logger,
@@ -84,16 +84,18 @@ export class NotificationStreamHub {
     }
   }
 
-  async start(): Promise<void> {
-    if (this.started) return;
+  start(): Promise<void> {
+    this.listening ??= this.listen();
+    return this.listening;
+  }
 
-    this.started = true;
+  private async listen(): Promise<void> {
     await this.listener.start();
     this.logger.info("notification stream hub started");
   }
 
   async stop(): Promise<void> {
-    this.started = false;
+    this.listening = undefined;
     await this.listener.stop();
     this.subscribers.clear();
     this.logger.info("notification stream hub stopped");

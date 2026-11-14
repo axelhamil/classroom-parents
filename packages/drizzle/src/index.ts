@@ -32,7 +32,14 @@ export {
   lockForTransaction,
   tryLockForTransaction,
 } from "./advisory-lock";
-export { closeDb, type DbClient, db, type Transaction } from "./config";
+export {
+  closeDb,
+  configureDbPool,
+  type DbClient,
+  DEFAULT_POOL_MAX,
+  db,
+  type Transaction,
+} from "./config";
 export { dbOperationFailure } from "./db-failure";
 export {
   claimedSet,
@@ -48,6 +55,8 @@ export {
 } from "./lease";
 export {
   closeRateLimitDb,
+  configureRateLimitDbPool,
+  DEFAULT_RATE_LIMIT_POOL_MAX,
   getRateLimitDbClient,
   type RateLimitDbClient,
 } from "./rate-limit-client";

@@ -3,6 +3,7 @@ import type { AlertDispatchService } from "@modules/alerts/application/services/
 import type { WeeklyDigestService } from "@modules/alerts/application/services/weekly-digest.service";
 import type { IInstrumentation, ILogger } from "@packages/ddd-kit";
 import { drain } from "./drain";
+import { inSequence, type JobOutcome } from "./job";
 import { startPeriodic } from "./periodic";
 
 export const ALERT_TICK_MS = 30_000;
@@ -18,7 +19,7 @@ export function drainDueAlerts(
   signal: AbortSignal,
   logger: ILogger,
   clock: () => number = Date.now,
-): Promise<void> {
+): Promise<JobOutcome> {
   return drain(
     {
       run: (now) => deps.AlertDispatchService.runOnce(now),
@@ -37,7 +38,7 @@ export function drainWeeklyDigests(
   signal: AbortSignal,
   logger: ILogger,
   clock: () => number = Date.now,
-): Promise<void> {
+): Promise<JobOutcome> {
   return drain(
     {
       run: (now) => deps.WeeklyDigestService.runOnce(now),
@@ -51,17 +52,23 @@ export function drainWeeklyDigests(
   );
 }
 
+export function alertsPass(
+  deps: Pick<AlertWorkerDeps, "AlertDispatchService" | "WeeklyDigestService">,
+  signal: AbortSignal,
+  logger: ILogger,
+): Promise<JobOutcome> {
+  return inSequence([
+    ["dispatch", () => drainDueAlerts(deps, signal, logger)],
+    ["digest", () => drainWeeklyDigests(deps, signal, logger)],
+  ]);
+}
+
 export function startAlertWorkers(
   deps: AlertWorkerDeps,
   signal: AbortSignal,
   logger: ILogger,
 ): Promise<void> {
-  const tick = async () => {
-    await drainDueAlerts(deps, signal, logger);
-    await drainWeeklyDigests(deps, signal, logger);
-  };
-
-  return startPeriodic(tick, ALERT_TICK_MS, signal, {
+  return startPeriodic(() => alertsPass(deps, signal, logger), ALERT_TICK_MS, signal, {
     onError: (err) => deps.IInstrumentation.capture(err),
   });
 }

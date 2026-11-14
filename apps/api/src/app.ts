@@ -6,6 +6,7 @@ import { createCalendarRoutes } from "@modules/calendar-feed/infrastructure/http
 import { createCalendarFeedRoutes } from "@modules/calendar-feed/infrastructure/http/calendar-feed.routes";
 import { createChildrenRoutes } from "@modules/children/infrastructure/http/children.routes";
 import { createClassroomSyncRoutes } from "@modules/classroom-sync/infrastructure/http/sync.routes";
+import { Option } from "@packages/ddd-kit";
 import type { RouteGuard } from "@packages/http/route-guards";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -16,7 +17,8 @@ import { routeGuards } from "./composition/route-guards";
 import { di } from "./container";
 import { healthRoutes } from "./modules/health/routes";
 import { createRgpdRoutes } from "./modules/rgpd/routes";
-import { FRONT_ORIGINS } from "./shared/env";
+import { env, FRONT_ORIGINS } from "./shared/env";
+import { createInternalRoutes } from "./shared/internal-routes/internal.routes";
 import { type AuthVariables, sessionMiddleware } from "./shared/middleware/auth.middleware";
 import { calendarFeedRateLimit, globalRateLimit } from "./shared/middleware/calendar-rate-limit";
 import { requireCsrf } from "./shared/middleware/csrf.middleware";
@@ -30,6 +32,7 @@ import {
   AUTH_SIGN_IN_POLICY,
   AUTH_SIGN_UP_POLICY,
   AUTH_VERIFY_EMAIL_POLICY,
+  INTERNAL_CLOCK_POLICY,
   type PolicyConfig,
 } from "./shared/middleware/rate-limit.policies";
 import { runWithRequestContext } from "./shared/request-context";
@@ -53,6 +56,7 @@ const routeDeps = di.scope(
       ),
     calendarFeedRateLimit: (c): RouteGuard =>
       calendarFeedRateLimit({ limiter: c.IRateLimiter, outbox: c.IOutboxRepository }),
+    streamMaxLifetimeMs: () => Option.fromNullable(env.STREAM_MAX_LIFETIME_MS),
   },
   { name: "routes" },
 );
@@ -119,6 +123,21 @@ app.use(
     },
   }),
 );
+app.route(
+  "/internal",
+  createInternalRoutes({
+    cronSecret: Option.fromNullable(env.CRON_SECRET),
+    rateLimit: requireRateLimit(
+      { limiter: di.IRateLimiter, outbox: di.IOutboxRepository },
+      INTERNAL_CLOCK_POLICY,
+    ),
+    clock: {
+      tick: () => di.ClockService.tick(),
+      sweep: () => di.ClockService.sweep(),
+    },
+  }),
+);
+
 app.use(
   "*",
   cors({
