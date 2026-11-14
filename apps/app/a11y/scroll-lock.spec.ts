@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { stubChildrenApi } from "./children-fixture";
-import { inDays, LEA, REVIEW_EVENT, serveFamily } from "./events-fixtures";
+import { inDays, LEA, REVIEW_EVENT, serveFamily, todayAt } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
 test.use({
@@ -33,6 +33,7 @@ for (const width of [390, 768, 1440]) {
 for (const width of [390, 1440]) {
   test(`keeps the page still when the late deadlines open at ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 600 });
+    await page.clock.setFixedTime(todayAt("09:00"));
     const late = {
       ...REVIEW_EVENT,
       status: "confirmed",

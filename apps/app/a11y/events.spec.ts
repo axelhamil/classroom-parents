@@ -1,8 +1,18 @@
-import { shiftDate } from "@packages/ddd-kit/days";
+import { shiftDate, weekdayOf } from "@packages/ddd-kit/days";
 import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { expect, type Page, test } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
-import { EVENTS, inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily } from "./events-fixtures";
+import {
+  EVENTS,
+  inDays,
+  LEA,
+  MAXIMILIEN,
+  parisTime,
+  REVIEW_EVENT,
+  serveFamily,
+  TODAY,
+  todayAt,
+} from "./events-fixtures";
 import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
 
@@ -50,20 +60,13 @@ async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void>
   expect(week && week.y < fold / 2).toBe(true);
 }
 
-function morningToday(): Date {
-  const morning = new Date();
-  morning.setHours(9, 0, 0, 0);
-
-  return morning;
-}
-
 function comingFriday(): string {
-  return inDays((FRIDAY - new Date().getDay() + 7) % 7);
+  return inDays((FRIDAY - weekdayOf(TODAY) + 7) % 7);
 }
 
 async function expectSevenRowsOnFridayEvening(page: Page): Promise<void> {
   const friday = comingFriday();
-  await page.clock.setFixedTime(new Date(`${friday}T17:00:00`));
+  await page.clock.setFixedTime(parisTime(friday, "17:00"));
   await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
   await page.goto(`/?view=week&date=${friday}`);
 
@@ -77,9 +80,7 @@ async function expectOverdueOverlay(
   page: Page,
   colorScheme: (typeof COLOR_SCHEMES)[number],
 ): Promise<void> {
-  const morning = new Date();
-  morning.setHours(9, 0, 0, 0);
-  await page.clock.setFixedTime(morning);
+  await page.clock.setFixedTime(todayAt("09:00"));
   await showColorScheme(page, colorScheme);
   const late = {
     ...REVIEW_EVENT,
@@ -122,16 +123,16 @@ test.describe("the calendar on a phone", () => {
     test(`two children, a blocked one and an event to review (${colorScheme})`, async ({
       page,
     }) => {
-      const morning = new Date();
-      morning.setHours(9, 0, 0, 0);
-      await page.clock.setFixedTime(morning);
+      await page.clock.setFixedTime(todayAt("09:00"));
       await showColorScheme(page, colorScheme);
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
       await page.goto("/");
 
       await expect(page.getByRole("heading", { level: 2, name: "À vérifier" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
-      await expect(page.getByRole("link", { name: REVIEW_EVENT.title, exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: REVIEW_EVENT.title, exact: true }).first(),
+      ).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
     });
@@ -145,9 +146,7 @@ test.describe("the calendar on a phone", () => {
     test(`the next school moment, per child with what to prepare (${colorScheme})`, async ({
       page,
     }) => {
-      const evening = new Date();
-      evening.setHours(19, 0, 0, 0);
-      await page.clock.setFixedTime(evening);
+      await page.clock.setFixedTime(todayAt("19:00"));
       await showColorScheme(page, colorScheme);
       const tonight = {
         ...REVIEW_EVENT,
@@ -193,9 +192,7 @@ test.describe("the calendar on a phone", () => {
   test("the briefing scrolls on its own from the keyboard, its items in the tab order", async ({
     page,
   }) => {
-    const evening = new Date();
-    evening.setHours(19, 0, 0, 0);
-    await page.clock.setFixedTime(evening);
+    await page.clock.setFixedTime(todayAt("19:00"));
     const due = Array.from({ length: 6 }, (_, index) => ({
       ...REVIEW_EVENT,
       id: `7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0${index}`,
@@ -247,9 +244,7 @@ test.describe("the calendar on a phone", () => {
   test("the week strip names the seven days and takes the picked one to its row", async ({
     page,
   }) => {
-    const morning = new Date();
-    morning.setHours(9, 0, 0, 0);
-    await page.clock.setFixedTime(morning);
+    await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
@@ -279,6 +274,7 @@ test.describe("event overlay focus", () => {
 
   test("the sheet gives focus back to the sticker that opened it on Escape", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
+    await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto("/");
 
@@ -314,7 +310,7 @@ test.describe("the week on a tablet", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 768, height: 1024 } });
 
   test("puts the briefing beside the week, whose rows replace the day strip", async ({ page }) => {
-    await page.clock.setFixedTime(morningToday());
+    await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
@@ -334,7 +330,7 @@ test.describe("the week on a desktop", () => {
   test("shows the week as rows of whole titles beside the briefing, and only the home widens", async ({
     page,
   }) => {
-    await page.clock.setFixedTime(morningToday());
+    await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
@@ -368,9 +364,7 @@ test.describe("a done tick inside the late deadlines overlay", () => {
   for (const width of [390, 1440])
     test(`is undone from inside it, by pointer and by keyboard (${width} px)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      const morning = new Date();
-      morning.setHours(9, 0, 0, 0);
-      await page.clock.setFixedTime(morning);
+      await page.clock.setFixedTime(todayAt("09:00"));
       const late = {
         ...REVIEW_EVENT,
         id: "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c02",

@@ -1,4 +1,5 @@
-import { shiftInstant } from "@packages/ddd-kit/days";
+import { shiftDate } from "@packages/ddd-kit/days";
+import { PARIS_TIME_ZONE, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import type { Page, Request } from "@playwright/test";
 
 export const LEA = {
@@ -20,8 +21,23 @@ export const MAXIMILIEN = {
   syncing: false,
 };
 
+export const TODAY =
+  process.env.A11Y_TODAY ??
+  new Intl.DateTimeFormat("en-CA", { timeZone: PARIS_TIME_ZONE }).format(Date.now());
+
 export function inDays(days: number): string {
-  return shiftInstant(new Date(), days).toISOString().slice(0, 10);
+  return shiftDate(TODAY, days);
+}
+
+export function parisTime(date: string, time: string): Date {
+  const instant = zonedWallTimeToUtc(date, time, PARIS_TIME_ZONE);
+  if (instant.isFailure) throw new Error(`${date} ${time} is not a Paris wall time`);
+
+  return instant.getValue();
+}
+
+export function todayAt(time: string): Date {
+  return parisTime(TODAY, time);
 }
 
 const LONG_TITLE =
@@ -39,7 +55,7 @@ export const REVIEW_EVENT = {
   source: "announcement",
   done: false,
   announcementUrl: "https://classroom.google.com/c/abc/p/def",
-  receivedAt: new Date().toISOString(),
+  receivedAt: todayAt("08:00").toISOString(),
   edited: false,
   editedFields: [],
   checklist: { done: [], removed: [], extra: [] },
@@ -114,19 +130,19 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
 const REMINDERS = [
   {
     reminder: { kind: "days_before", days: 3, time: "18:00" },
-    dueAt: new Date().toISOString(),
+    dueAt: todayAt("07:00").toISOString(),
     status: "sent",
     fits: true,
   },
   {
     reminder: { kind: "days_before", days: 1, time: "07:30" },
-    dueAt: new Date().toISOString(),
+    dueAt: todayAt("07:00").toISOString(),
     status: "skipped",
     fits: true,
   },
   {
     reminder: { kind: "days_before", days: 0, time: "07:00" },
-    dueAt: new Date().toISOString(),
+    dueAt: todayAt("07:00").toISOString(),
     status: "pending",
     fits: true,
   },
@@ -138,7 +154,7 @@ const REMINDERS = [
   },
   {
     reminder: { kind: "hours_before", hours: 1 },
-    dueAt: new Date().toISOString(),
+    dueAt: todayAt("07:00").toISOString(),
     status: "missed",
     fits: true,
   },

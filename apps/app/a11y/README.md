@@ -77,6 +77,25 @@ Three things bite when running repeatedly:
   dev database *and* a restart of the API process, `inMemoryBlockOnConsumed`
   caches the block in-process, so clearing the table alone leaves it in place.
 
+## Dates
+
+The home changes with the day: on a weekday morning the briefing covers today, from
+the evening and over the weekend it covers the next school day and pulls in the
+deadlines that fall before it, so the same deadline can sit in the briefing and in
+the week. A spec that renders dated fixtures therefore pins the browser clock with
+`todayAt(...)` and dates its fixtures with `inDays(...)` (`events-fixtures.ts`), both
+read from one Paris day, `TODAY`, never from `new Date()`, and asserts what holds on
+every day of the week. `A11Y_TODAY` overrides that day, which is how a change is
+checked on every weekday and across a month or a year boundary:
+
+```sh
+for day in 2026-11-16 2026-11-17 2026-11-18 2026-11-19 2026-11-20 2026-11-21 2026-11-22 2026-11-30 2026-12-31; do
+  A11Y_TODAY=$day pnpm --filter app check:a11y
+done
+```
+
+Restart the API and clear the limiter between runs (see above).
+
 ## Adding a page
 
 Append it to `PUBLIC_PAGES` or `AUTHENTICATED_PAGES` in [`pages.ts`](./pages.ts).
