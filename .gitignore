@@ -9,6 +9,11 @@
 # Turbo
 **/.turbo
 
+# Hosting CLIs: project links and local state of the owner's accounts
+**/.vercel
+**/.wrangler
+**/.dev.vars*
+
 # Testing
 **/coverage
 **/a11y/.auth

@@ -15,6 +15,7 @@ src/
   services/                    `TransactionService` (the `IUnitOfWork` impl)
   seeds/                       dev seeds
   rate-limit-client.ts         dedicated pool for the rate-limiter store, `closeRateLimitDb()`, `configureRateLimitDbPool(max)`
+  pool-observer.ts             `observeDatabasePools(observer)`: every pool, created before or after, is handed to the host (a function platform closes idle clients before it suspends)
 ```
 
 ## Rules
@@ -24,6 +25,7 @@ src/
 3. **Every user-owned table carries `userId NOT NULL` + FK `user(id) ON DELETE CASCADE` from its first migration** (directly, or through a parent row that carries it). **Why**: ownership is filtered in the repository `WHERE`, and a missing cascade leaves orphans after an account deletion. The outbox is the exception: it keeps no owner column, so the account wipe deletes the rows whose payload names the user (`userId` or `actorUserId`), and only `user.deleted` remains.
 4. **A new table's primary key defaults to `uuid("id").primaryKey().default(sql`uuidv7()`)`** (native in Postgres 18): time-ordered, so inserts avoid the B-tree hotspot of a random uuid. The BetterAuth tables keep their `text` ids, which the library generates.
 5. **A schema change ships with its migration**: every database, local ones included, is built by `db:generate` + `db:migrate`; `db:push` is for a throwaway database only. Touch an existing schema as little as possible.
+6. **A migration expands, a later one contracts: the code already in production must run on the new schema.** Add columns nullable or with a default, add tables and indexes, widen; drop or rename a column, tighten a constraint or drop a unique index only once no deployed code reads or relies on it, in a later release. **Why**: production migrates in the build, so the previous deployment serves on the new schema until the new one is promoted, and an instant rollback puts that previous code back on it for as long as it stays; the schema is never rolled back. A contraction the old code still needs breaks production in that window.
 
 ## Unit of work
 

@@ -42,6 +42,7 @@ const deferred: Promise<unknown>[] = [];
 const handler = await createRequestDrivenApp({
   waitUntil: (work) => deferred.push(work),
   clientAddress: () => "198.51.100.20",
+  attachDatabasePool: () => undefined,
 });
 
 async function settle(): Promise<void> {

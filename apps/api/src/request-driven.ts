@@ -1,6 +1,7 @@
 import "./shared/services/sentry-init";
 
 import { EventCollector } from "@packages/ddd-kit";
+import { type DatabasePool, observeDatabasePools } from "@packages/drizzle";
 import { app } from "./app";
 import { di } from "./container";
 import { env } from "./shared/env";
@@ -11,6 +12,7 @@ import { lifecycleState } from "./shared/shutdown";
 export interface RequestDrivenPlatform {
   waitUntil(work: Promise<unknown>): void;
   clientAddress(request: Request): string;
+  attachDatabasePool(pool: DatabasePool): void;
 }
 
 export interface RequestDrivenHandler {
@@ -33,6 +35,7 @@ export async function createRequestDrivenApp(
   platform: RequestDrivenPlatform,
 ): Promise<RequestDrivenHandler> {
   assertRequestDrivenEnv();
+  observeDatabasePools((pool) => platform.attachDatabasePool(pool));
   EventCollector.setOutOfContextLogger((msg, meta) => logger.warn(meta ?? {}, msg));
   await di.preload();
   lifecycleState.markStarted();

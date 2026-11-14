@@ -11,8 +11,7 @@
   },
   "scripts": {
     "dev": "bun --hot src/index.ts",
-    "build": "bun build src/index.ts src/migrate.ts --outdir dist --target bun --minify --splitting",
-    "migrate": "bun src/migrate.ts",
+    "build": "node scripts/vercel-build.ts",
     "db:seed": "bun scripts/seed-dev-session.ts",
     "db:seed:demo": "FAKE_PROVIDERS=1 bun scripts/seed-demo.ts",
     "check:wipe-rollback": "bun scripts/check-wipe-rollback.ts",
@@ -31,7 +30,6 @@
     "check:request-driven": "FAKE_PROVIDERS=1 CRON_SECRET=check-request-driven-local-clock-secret STREAM_MAX_LIFETIME_MS=5000 bun scripts/check-request-driven.ts",
     "serve:journey": "FAKE_PROVIDERS=1 bun scripts/serve-journey.ts",
     "check:db": "pnpm run check:uow-rollback && pnpm run check:outbox-lease && pnpm run check:wipe-rollback && pnpm run check:token-sealing && pnpm run check:child-sign-in && pnpm run check:alert-context && pnpm run check:upcoming-alerts && pnpm run check:calendar-feed && pnpm run check:data-export && pnpm run check:email-retention && pnpm run check:event-retention && pnpm run check:end-to-end && pnpm run check:weekly-digest && pnpm run check:request-driven",
-    "start": "bun dist/migrate.js && bun dist/index.js",
     "type-check": "tsc --noEmit",
     "test": "bun test --isolate --parallel --pass-with-no-tests",
     "test:watch": "bun test --isolate --watch --pass-with-no-tests",
@@ -56,6 +54,7 @@
     "@packages/outbox": "workspace:*",
     "@packages/sentry-scrub": "workspace:*",
     "@sentry/bun": "^11.9.0",
+    "@vercel/functions": "^3.11.2",
     "better-auth": "1.7.14",
     "hono": "^4.13.14",
     "hono-pino": "^0.10.3",
@@ -72,6 +71,7 @@
     "@packages/typescript-config": "workspace:*",
     "@types/bun": "^1.4.4",
     "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
     "pino-pretty": "^13.2.0",
     "typescript": "^7.0.2"
   }

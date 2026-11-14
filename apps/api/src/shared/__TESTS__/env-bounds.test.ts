@@ -163,9 +163,9 @@ describe("validateHostsEnv", () => {
 
   it.each([
     [
-      "two railway sub-domains",
-      "https://classroom-app.up.railway.app",
-      "https://classroom-api.up.railway.app",
+      "two vercel.app sub-domains",
+      "https://classroom-app.vercel.app",
+      "https://classroom-api.vercel.app",
     ],
     ["two unrelated domains", "https://app.example.com", "https://api.other.com"],
     ["localhost against an ip", "http://localhost:5173", "http://127.0.0.1:3000"],

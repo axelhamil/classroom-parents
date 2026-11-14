@@ -19,8 +19,12 @@ export const SUB_PROCESSOR_KEYS = {
     purpose: "legal.subProcessors.resend.purpose",
     region: "legal.subProcessors.resend.region",
   },
-  railway: {
-    purpose: "legal.subProcessors.railway.purpose",
-    region: "legal.subProcessors.railway.region",
+  vercel: {
+    purpose: "legal.subProcessors.vercel.purpose",
+    region: "legal.subProcessors.vercel.region",
+  },
+  neon: {
+    purpose: "legal.subProcessors.neon.purpose",
+    region: "legal.subProcessors.neon.region",
   },
 } as const satisfies Record<SubProcessorId, { purpose: string; region: string }>;

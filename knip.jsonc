@@ -4,6 +4,8 @@
     "apps/api": {
       "entry": [
         "src/container.ts",
+        "src/vercel-function.ts",
+        "api/index.js",
         "src/shared/middleware/*.ts",
         "src/modules/*/module.ts",
         "src/modules/*/routes.ts"
@@ -30,6 +32,10 @@
     "apps/site": {
       "entry": ["src/pages/**/*.{astro,ts}", "a11y/*.spec.ts", "preview.config.ts"],
       "project": ["**/*.{ts,tsx,astro}"]
+    },
+    "apps/clock": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
     },
     "packages/ddd-kit": {
       "project": ["src/**/*.ts"]

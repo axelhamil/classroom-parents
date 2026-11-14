@@ -127,10 +127,14 @@ export function PrivacyPolicyBody(): ReactElement {
       <section className="flex flex-col gap-3">
         <TypographyH2>Sous-traitants et transferts</TypographyH2>
         <TypographyP>
-          Google, Anthropic, Resend et Railway traitent des données pour notre compte. Certains sont
-          établis aux États-Unis : les transferts reposent sur le cadre EU-US Data Privacy Framework
-          ou sur les clauses contractuelles types de la Commission européenne. La liste à jour est
-          dans le{" "}
+          Google, Anthropic, Resend, Vercel et Neon traitent des données pour notre compte. Les
+          fonctions de l'API et la base de données sont hébergées dans l'Union européenne, à
+          Francfort. Les fichiers de l'application et du site sont servis par le réseau mondial de
+          Vercel, depuis son point le plus proche de vous, et chaque requête vers l'API entre par ce
+          réseau avant d'atteindre Francfort. Ces prestataires sont établis aux États-Unis, Neon par
+          sa société mère Databricks : les transferts reposent sur le cadre EU-US Data Privacy
+          Framework ou sur les clauses contractuelles types de la Commission européenne. La liste à
+          jour est dans le{" "}
           <TextLink asChild>
             <Link to="/legal/sub-processors">registre des sous-traitants</Link>
           </TextLink>

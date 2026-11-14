@@ -2,6 +2,7 @@ import type { QueryKey } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   batchInvalidations,
+  followVisibility,
   handleStreamChunk,
   invalidationsFor,
   isServerFailure,
@@ -293,5 +294,55 @@ describe("batchInvalidations", () => {
     vi.advanceTimersByTime(250);
 
     expect(invalidate).not.toHaveBeenCalled();
+  });
+});
+
+describe("followVisibility", () => {
+  function page(visibilityState: DocumentVisibilityState) {
+    const target = new EventTarget();
+    const view = Object.assign(target, { visibilityState });
+    const turn = (next: DocumentVisibilityState) => {
+      view.visibilityState = next;
+      target.dispatchEvent(new Event("visibilitychange"));
+    };
+
+    return { view, turn };
+  }
+
+  it("given a hidden tab, then the stream closes and the server instance it held is freed, and it reopens once visible", () => {
+    const { view, turn } = page("visible");
+    const signals: AbortSignal[] = [];
+
+    followVisibility(view, (signal) => signals.push(signal));
+    turn("hidden");
+    turn("visible");
+
+    expect(signals).toHaveLength(2);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+  });
+
+  it("given a tab opened in the background, then no stream opens until it is shown", () => {
+    const { view, turn } = page("hidden");
+    const signals: AbortSignal[] = [];
+
+    followVisibility(view, (signal) => signals.push(signal));
+    expect(signals).toHaveLength(0);
+
+    turn("visible");
+    expect(signals).toHaveLength(1);
+  });
+
+  it("given the page leaves, then the open stream closes and visibility no longer reopens it", () => {
+    const { view, turn } = page("visible");
+    const signals: AbortSignal[] = [];
+
+    const stop = followVisibility(view, (signal) => signals.push(signal));
+    stop();
+    turn("hidden");
+    turn("visible");
+
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(true);
   });
 });

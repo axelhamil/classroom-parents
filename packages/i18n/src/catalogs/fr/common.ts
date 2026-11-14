@@ -116,7 +116,7 @@ export default {
       privacyTitle: "Politique de confidentialité",
       termsTitle: "Conditions d'utilisation",
       versionLine: "Version {{version}} (en vigueur le {{date}})",
-      updated: "Dernière mise à jour : 12 novembre 2026",
+      updated: "Dernière mise à jour : 14 novembre 2026",
     },
     accessibility: {
       title: "Déclaration d'accessibilité",
@@ -139,7 +139,7 @@ export default {
     },
     subProcessors: {
       title: "Registre des sous-traitants",
-      subtitle: "RGPD article 28 · Dernière mise à jour : 10 novembre 2026",
+      subtitle: "RGPD article 28 · Dernière mise à jour : 14 novembre 2026",
       tableCaption: "Prestataires qui traitent des données pour faire fonctionner le service",
       table: {
         name: "Nom",
@@ -163,9 +163,17 @@ export default {
           "Envoi des e-mails, dont les alertes quand aucun appareil ne reçoit les notifications",
         region: "États-Unis (certifié EU DPF)",
       },
-      railway: {
-        purpose: "Hébergement de l'application, de ses tâches de fond et de sa base de données",
-        region: "Union européenne (région choisie au déploiement)",
+      vercel: {
+        purpose:
+          "Exécution des fonctions de l'API, diffusion des fichiers de l'application et du site",
+        region:
+          "API dans l'Union européenne (Francfort) ; fichiers de l'application et du site servis par le point le plus proche de son réseau mondial ; Vercel Inc. (États-Unis), clauses contractuelles types",
+      },
+      neon: {
+        purpose:
+          "Base de données qui conserve les comptes, les enfants, les échéances et les alertes",
+        region:
+          "Union européenne (Francfort) ; accord signé par Databricks, Inc. (États-Unis), société mère de Neon",
       },
     },
     accept: {

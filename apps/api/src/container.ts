@@ -105,8 +105,14 @@ declare module "inwire" {
   }
 }
 
-configureDbPool(env.DATABASE_POOL_MAX);
-configureRateLimitDbPool(env.RATE_LIMIT_POOL_MAX);
+configureDbPool({
+  max: env.DATABASE_POOL_MAX,
+  idleTimeoutMillis: env.DATABASE_POOL_IDLE_TIMEOUT_MS,
+});
+configureRateLimitDbPool({
+  max: env.RATE_LIMIT_POOL_MAX,
+  idleTimeoutMillis: env.DATABASE_POOL_IDLE_TIMEOUT_MS,
+});
 
 const listenerDatabaseUrl = env.DATABASE_URL_DIRECT ?? env.DATABASE_URL;
 

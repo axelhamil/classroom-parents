@@ -3,6 +3,7 @@ import { drizzle, type NodePgTransaction } from "drizzle-orm/node-postgres";
 import type { ExtractTablesWithRelations } from "drizzle-orm/relations";
 import { Pool } from "pg";
 import { requireDatabaseUrl } from "./database-url";
+import { announcePool, retirePool } from "./pool-observer";
 import * as authSchema from "./schema/auth";
 import * as outboxSchema from "./schema/outbox";
 
@@ -23,25 +24,34 @@ export type Transaction = NodePgTransaction<
 
 export const DEFAULT_POOL_MAX = 20;
 
+export const DEFAULT_POOL_IDLE_TIMEOUT_MS = 30_000;
+
+export interface PoolSizing {
+  max: number;
+  idleTimeoutMillis: number;
+}
+
 let _db: DbClient | null = null;
 let _pool: Pool | null = null;
-let poolMax = DEFAULT_POOL_MAX;
+let sizing: PoolSizing = { max: DEFAULT_POOL_MAX, idleTimeoutMillis: DEFAULT_POOL_IDLE_TIMEOUT_MS };
 
-export function configureDbPool(max: number): void {
+export function configureDbPool(next: PoolSizing): void {
   if (_pool) throw new Error("the database pool is already open, size it before the first query");
 
-  poolMax = max;
+  sizing = next;
 }
 
 function getDb(): DbClient {
   if (_db) return _db;
 
-  _pool = new Pool({
-    connectionString: requireDatabaseUrl(),
-    max: poolMax,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
-  });
+  _pool = announcePool(
+    new Pool({
+      connectionString: requireDatabaseUrl(),
+      max: sizing.max,
+      idleTimeoutMillis: sizing.idleTimeoutMillis,
+      connectionTimeoutMillis: 5000,
+    }),
+  );
   _db = drizzle(_pool, { schema });
 
   return _db;
@@ -53,6 +63,7 @@ export async function closeDb(): Promise<void> {
 
   _pool = null;
   _db = null;
+  retirePool(pool);
   await pool.end();
 }
 

@@ -216,6 +216,40 @@ export async function runUserStream(
   }
 }
 
+export interface VisibilitySource
+  extends Pick<EventTarget, "addEventListener" | "removeEventListener"> {
+  readonly visibilityState: DocumentVisibilityState;
+}
+
+// An open stream holds a server instance for its whole life: a hidden tab closes it, and the
+// reconnect refetch catches up on what changed meanwhile once the tab is shown again.
+export function followVisibility(
+  page: VisibilitySource,
+  run: (signal: AbortSignal) => void,
+): () => void {
+  let open: AbortController | undefined;
+
+  const follow = () => {
+    if (page.visibilityState === "hidden") {
+      open?.abort();
+      open = undefined;
+      return;
+    }
+    if (open) return;
+
+    open = new AbortController();
+    run(open.signal);
+  };
+
+  follow();
+  page.addEventListener("visibilitychange", follow);
+
+  return () => {
+    page.removeEventListener("visibilitychange", follow);
+    open?.abort();
+  };
+}
+
 export interface UserStreamOptions<Type extends string> {
   connect: (signal: AbortSignal) => Promise<UserStreamResponse>;
   parse: StreamMessageParser<Type>;
@@ -235,31 +269,33 @@ export function useUserStream<Type extends string>(
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const controller = new AbortController();
     const batch = batchInvalidations((keys) => {
       for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
     }, INVALIDATION_WINDOW_MS);
     let connections = 0;
 
-    void runUserStream(
-      () => ({
-        connect: latest.current.connect,
-        onData: (data) =>
-          batch.add(invalidationsFor(data, latest.current.parse, latest.current.invalidations)),
-        onDisconnect: (_attempt, error) => {
-          if (isServerFailure(error)) latest.current.onServerFailure(error);
-        },
-        onConnect: () => {
-          connections += 1;
-          if (connections > 1) batch.add(latest.current.reconnectKeys);
-        },
-      }),
-      controller.signal,
-      setConnected,
-    );
+    const stop = followVisibility(document, (signal) => {
+      signal.addEventListener("abort", () => setConnected(false), { once: true });
+      void runUserStream(
+        () => ({
+          connect: latest.current.connect,
+          onData: (data) =>
+            batch.add(invalidationsFor(data, latest.current.parse, latest.current.invalidations)),
+          onDisconnect: (_attempt, error) => {
+            if (isServerFailure(error)) latest.current.onServerFailure(error);
+          },
+          onConnect: () => {
+            connections += 1;
+            if (connections > 1) batch.add(latest.current.reconnectKeys);
+          },
+        }),
+        signal,
+        setConnected,
+      );
+    });
 
     return () => {
-      controller.abort();
+      stop();
       batch.close();
     };
   }, [queryClient]);
