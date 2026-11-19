@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { onlineManager } from "@tanstack/react-query";
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { queryClient, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { givenCalendar } from "../../../__tests__/calendar-fixtures";
@@ -20,6 +20,10 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 
 const THURSDAY_AFTERNOON = new Date(2026, 10, 19, 15, 12);
 
+function nextSchoolMoment(): Promise<HTMLElement> {
+  return screen.findByRole("region", { name: /^Pour (aujourd'hui|demain)$/ });
+}
+
 describe("shell without network", () => {
   afterEach(() => {
     cleanup();
@@ -33,7 +37,8 @@ describe("shell without network", () => {
     vi.setSystemTime(THURSDAY_AFTERNOON);
     givenCalendar([CHILD], [deadline(1, "2026-11-19", "Piscine")]);
     await renderAppAt("/");
-    await screen.findByText("Piscine");
+    const briefing = await nextSchoolMoment();
+    await within(briefing).findByText("Piscine");
     vi.setSystemTime(new Date(2026, 10, 19, 18, 40));
 
     act(() => onlineManager.setOnline(false));
@@ -50,7 +55,8 @@ describe("shell without network", () => {
     vi.setSystemTime(THURSDAY_AFTERNOON);
     givenCalendar([CHILD], [deadline(1, "2026-11-19", "Piscine")]);
     await renderAppAt("/");
-    await screen.findByText("Piscine");
+    const briefing = await nextSchoolMoment();
+    await within(briefing).findByText("Piscine");
     stubApi(() => {
       throw new TypeError("Failed to fetch");
     });
@@ -58,7 +64,7 @@ describe("shell without network", () => {
     await act(() => queryClient.refetchQueries({ queryKey: EVENTS_KEY }));
 
     expect(await screen.findByText("Connexion instable, données du 19/11 à 15 h 12")).toBeDefined();
-    expect(screen.getByText("Piscine")).toBeDefined();
+    expect(within(briefing).getByText("Piscine")).toBeDefined();
     expect(screen.queryByText(/Le chargement n'a pas abouti/)).toBeNull();
   });
 
