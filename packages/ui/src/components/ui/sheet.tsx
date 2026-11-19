@@ -65,9 +65,9 @@ function SheetContent({
           side === "left" &&
             "inset-y-0 left-0 h-full w-3/4 overflow-y-auto border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
           side === "top" &&
-            "inset-x-0 top-0 h-auto max-h-[calc(100dvh-2rem)] overflow-y-auto border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+            "inset-x-0 top-0 h-auto max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-b-surface border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
           side === "bottom" &&
-            "inset-x-0 bottom-0 h-auto max-h-[calc(100dvh-2rem)] overflow-y-auto border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+            "inset-x-0 bottom-0 h-auto max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-t-surface border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
           size === "lg" && "w-full sm:max-w-xl",
           className,
         )}
@@ -77,8 +77,8 @@ function SheetContent({
         {showCloseButton && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <SheetPrimitive.Close className="absolute top-4 right-4 rounded-full opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-secondary">
-                <XIcon className="size-4" />
+              <SheetPrimitive.Close className="absolute top-surface right-surface rounded-full opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-secondary">
+                <XIcon className="size-icon" />
                 <span className="sr-only">{closeLabel}</span>
               </SheetPrimitive.Close>
             </TooltipTrigger>
@@ -94,7 +94,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("flex flex-col gap-1.5 p-4", className)}
+      className={cn("flex flex-col gap-1.5 p-surface", className)}
       {...props}
     />
   );
@@ -104,7 +104,7 @@ function SheetBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-body"
-      className={cn("flex min-w-0 flex-col gap-4 px-4 pb-4", className)}
+      className={cn("flex min-w-0 flex-col gap-4 px-surface pb-surface", className)}
       {...props}
     />
   );
@@ -114,7 +114,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"
-      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+      className={cn("mt-auto flex flex-col gap-2 p-surface", className)}
       {...props}
     />
   );
@@ -124,7 +124,7 @@ function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPr
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("font-semibold text-foreground", className)}
+      className={cn("font-display text-title text-foreground", className)}
       {...props}
     />
   );
@@ -137,7 +137,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-small text-muted-foreground", className)}
       {...props}
     />
   );

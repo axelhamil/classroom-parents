@@ -5,12 +5,12 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const plannerCardVariants = cva(
-  "@container/planner-card flex w-full min-w-0 items-start gap-3 rounded-xl border p-3 outline-none hover:bg-accent focus-visible:ring focus-visible:ring-ring",
+  "@container/planner-card flex w-full min-w-0 items-start gap-3 rounded-inner p-block outline-none hover:bg-accent focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       muted: {
-        false: "bg-card text-card-foreground shadow-rest hover:shadow-raised",
-        true: "border-dashed bg-surface-container text-muted-foreground",
+        false: "bg-surface-container text-card-foreground",
+        true: "bg-surface-container text-muted-foreground",
       },
       hue: {
         1: "bg-child-1-container hover:bg-child-1-container",
@@ -76,10 +76,7 @@ function PlannerCardTitle({ className, ...props }: React.ComponentProps<"span">)
   return (
     <span
       data-slot="planner-card-title"
-      className={cn(
-        "line-clamp-2 font-semibold leading-snug wrap-anywhere @md/planner-card:text-lg",
-        className,
-      )}
+      className={cn("line-clamp-2 text-heading wrap-anywhere", className)}
       {...props}
     />
   );
@@ -90,7 +87,7 @@ function PlannerCardMeta({ className, ...props }: React.ComponentProps<"span">) 
     <span
       data-slot="planner-card-meta"
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground @lg/planner-card:col-start-1",
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-small text-muted-foreground @lg/planner-card:col-start-1",
         className,
       )}
       {...props}

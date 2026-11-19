@@ -8,8 +8,8 @@ const deadlineCategoryVariants = cva(
   {
     variants: {
       size: {
-        sm: "text-sm [&>svg]:size-4",
-        xs: "gap-1 text-xs [&>svg]:size-3.5",
+        sm: "text-small [&>svg]:size-icon",
+        xs: "gap-1 text-meta [&>svg]:size-icon-sm",
       },
       tone: {
         assessment: "text-category-assessment",
@@ -68,7 +68,7 @@ function DeadlineOrigin({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="deadline-origin"
       className={cn(
-        "inline-flex max-w-full min-w-0 items-center gap-2 align-middle text-sm text-muted-foreground",
+        "inline-flex max-w-full min-w-0 items-center gap-2 align-middle text-small text-muted-foreground",
         className,
       )}
       {...props}
@@ -105,10 +105,7 @@ function DeadlineHeroDay({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="deadline-hero-day"
-      className={cn(
-        "font-display text-3xl leading-tight font-bold tracking-tight text-balance",
-        className,
-      )}
+      className={cn("font-display text-display text-balance", className)}
       {...props}
     />
   );
@@ -119,7 +116,7 @@ function DeadlineHeroDate({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="deadline-hero-date"
       className={cn(
-        "text-base font-medium text-muted-foreground tabular-nums first-letter:uppercase",
+        "text-body font-medium text-muted-foreground tabular-nums first-letter:uppercase",
         className,
       )}
       {...props}
@@ -160,7 +157,7 @@ function DeadlineQuote({ className, ...props }: React.ComponentProps<"blockquote
     <blockquote
       data-slot="deadline-quote"
       className={cn(
-        "max-w-prose rounded-xl bg-surface-container p-4 text-base leading-relaxed whitespace-pre-line wrap-anywhere text-foreground",
+        "max-w-prose rounded-inner bg-surface-container p-block text-body whitespace-pre-line wrap-anywhere text-foreground",
         className,
       )}
       {...props}

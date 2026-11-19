@@ -1,4 +1,5 @@
 import type { frCatalog } from "@packages/i18n";
+import { IconTile } from "@packages/ui/components/ui/icon-tile";
 import {
   LandingAction,
   LandingFaq,
@@ -37,7 +38,9 @@ export function LandingDetails({ copy, signInUrl, privacyUrl }: LandingDetailsPr
         <LandingList>
           {PROOFS.map(({ key, icon: Icon }) => (
             <li key={key}>
-              <Icon aria-hidden />
+              <IconTile>
+                <Icon aria-hidden />
+              </IconTile>
               {copy.proofs[key]}
             </li>
           ))}

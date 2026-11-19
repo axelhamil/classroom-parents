@@ -19,13 +19,13 @@ const checklistVariants = cva("flex flex-col", {
 });
 
 const checklistItemVariants = cva(
-  "flex min-w-0 items-center rounded-md has-data-[state=checked]:text-muted-foreground [&>label]:min-w-0 [&>label]:flex-1 [&>label]:cursor-pointer [&>label]:leading-snug [&>label]:font-normal [&>label]:wrap-anywhere has-data-[state=checked]:[&>label]:line-through",
+  "flex min-w-0 items-center rounded-inner has-data-[state=checked]:text-muted-foreground [&>label]:min-w-0 [&>label]:flex-1 [&>label]:cursor-pointer [&>label]:font-normal [&>label]:wrap-anywhere has-data-[state=checked]:[&>label]:line-through",
   {
     variants: {
       density: {
-        default: "min-h-touch gap-3 px-2 hover:bg-accent [&>label]:py-2 [&>label]:text-base",
+        default: "min-h-control gap-3 px-2 hover:bg-accent [&>label]:py-2 [&>label]:text-body",
         compact:
-          "min-h-8 gap-2 text-muted-foreground [&>[data-slot=checkbox]]:size-4 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card [&>label]:py-1 [&>label]:text-sm",
+          "min-h-control-sm gap-2 text-muted-foreground [&>[data-slot=checkbox][data-state=unchecked]]:bg-card [&>label]:py-1 [&>label]:text-small",
       },
     },
     defaultVariants: { density: "default" },

@@ -27,7 +27,7 @@ function MonthPlannerDayButton({ className, day, modifiers, children, ...props }
       data-crunch={modifiers.crunch || undefined}
       aria-current={modifiers.today ? "date" : undefined}
       className={cn(
-        "flex size-full min-h-11 group-data-[density=planner]/planner:min-h-14 flex-col items-center gap-1 rounded-lg border border-transparent p-1 text-sm text-foreground outline-none hover:bg-accent focus-visible:ring focus-visible:ring-ring has-data-[slot=month-planner-chips]:min-h-28 has-data-[slot=month-planner-chips]:items-stretch has-data-[slot=month-planner-chips]:p-1.5 has-data-[slot=month-planner-chips]:[&>[data-slot=month-planner-number]]:self-start",
+        "flex size-full min-h-11 group-data-[density=planner]/planner:min-h-14 flex-col items-center gap-1 rounded-inner border-2 border-transparent p-1 text-small text-foreground outline-none hover:bg-accent focus-visible:ring focus-visible:ring-ring has-data-[slot=month-planner-chips]:min-h-28 has-data-[slot=month-planner-chips]:items-stretch has-data-[slot=month-planner-chips]:p-1.5 has-data-[slot=month-planner-chips]:[&>[data-slot=month-planner-number]]:self-start",
         "data-[outside]:text-muted-foreground data-[today]:[&>[data-slot=month-planner-number]]:bg-primary data-[today]:[&>[data-slot=month-planner-number]]:text-primary-foreground data-[selected]:data-[today]:[&>[data-slot=month-planner-number]]:bg-primary-foreground data-[selected]:data-[today]:[&>[data-slot=month-planner-number]]:text-primary group-data-[density=planner]/planner:data-[crunch]:not-data-[selected]:bg-warning/30 data-[crunch]:[&_[data-slot=month-planner-count]]:bg-warning data-[crunch]:[&_[data-slot=month-planner-count]]:text-warning-foreground data-[selected]:bg-primary data-[selected]:text-primary-foreground data-[selected]:[&_[data-slot=month-planner-more]]:text-primary-foreground data-[selected]:[&_[data-slot=hue-dot]]:ring-1 data-[selected]:[&_[data-slot=hue-dot]]:ring-primary-foreground",
         className,
       )}
@@ -62,7 +62,7 @@ function MonthPlannerCount({ className, ...props }: React.ComponentProps<"span">
       data-slot="month-planner-count"
       aria-hidden
       className={cn(
-        "min-w-5 rounded-full px-1 text-center text-xs font-semibold tabular-nums text-muted-foreground",
+        "min-w-5 rounded-full px-1 text-center text-meta font-semibold tabular-nums text-muted-foreground",
         className,
       )}
       {...props}
@@ -92,7 +92,7 @@ function MonthPlannerChip({ className, hue, done = false, ...props }: MonthPlann
       data-slot="month-planner-chip"
       data-done={done || undefined}
       className={cn(
-        "truncate rounded-sm px-1.5 py-0.5 text-left text-xs text-foreground data-[done]:line-through",
+        "truncate rounded-mark px-1.5 py-0.5 text-left text-meta text-foreground data-[done]:line-through",
         childHueContainer[hue],
         className,
       )}
@@ -105,7 +105,7 @@ function MonthPlannerMore({ className, ...props }: React.ComponentProps<"span">)
   return (
     <span
       data-slot="month-planner-more"
-      className={cn("text-left text-xs font-medium text-muted-foreground", className)}
+      className={cn("text-left text-meta font-medium text-muted-foreground", className)}
       {...props}
     />
   );
@@ -152,7 +152,7 @@ function MonthPlanner({
           month_grid: cn("w-full border-collapse", defaults.month_grid),
           weekdays: cn("grid grid-cols-7", defaults.weekdays),
           weekday: cn(
-            "pb-1 text-xs font-medium text-muted-foreground capitalize",
+            "pb-1 text-meta font-medium text-muted-foreground capitalize",
             defaults.weekday,
           ),
           week: cn("grid grid-cols-7 gap-1 pt-1", defaults.week),

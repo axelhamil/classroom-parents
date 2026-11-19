@@ -3,7 +3,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const scrollRegionVariants = cva(
-  "-mx-scroll-gutter rounded-sm px-scroll-gutter outline-none focus-visible:ring focus-visible:ring-ring",
+  "-mx-scroll-gutter rounded-inner px-scroll-gutter outline-none focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       variant: {

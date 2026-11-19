@@ -14,7 +14,7 @@ function BrandLink({ className, asChild = false, ...props }: BrandLinkProps) {
     <Comp
       data-slot="brand-link"
       className={cn(
-        "inline-flex min-h-touch min-w-0 shrink-0 items-center whitespace-nowrap gap-2.5 rounded-md font-display text-base font-bold tracking-tight outline-none focus-visible:ring focus-visible:ring-ring",
+        "inline-flex min-h-control min-w-0 shrink-0 items-center whitespace-nowrap gap-2.5 rounded-inner font-display text-body font-bold tracking-tight outline-none focus-visible:ring focus-visible:ring-ring",
         className,
       )}
       {...props}
@@ -40,7 +40,7 @@ function BrandMark({ className, ...props }: React.ComponentProps<"svg">) {
       viewBox="0 0 64 64"
       aria-hidden
       className={cn(
-        "size-9 shrink-0 rounded-xl bg-primary p-1.5 text-primary-foreground shadow-raised",
+        "size-9 shrink-0 rounded-inner bg-primary p-1.5 text-primary-foreground shadow-raised",
         className,
       )}
       {...props}

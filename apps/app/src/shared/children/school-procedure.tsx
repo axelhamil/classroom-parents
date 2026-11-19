@@ -14,7 +14,7 @@ export function SchoolProcedure({ kind }: SchoolProcedureProps) {
   const { t } = useTranslation("children");
 
   return (
-    <Panel tone="muted" size="md" className="flex flex-col items-start gap-4">
+    <Panel tone="muted" className="flex flex-col items-start gap-4">
       <TypographyP>{t(`school.kinds.${kind}`)}</TypographyP>
       <Button asChild variant="outline">
         <Link to="/aide/ecole">

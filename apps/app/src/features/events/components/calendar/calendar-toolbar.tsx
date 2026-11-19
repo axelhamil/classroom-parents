@@ -9,7 +9,7 @@ import {
 } from "@packages/ui/components/ui/dropdown-menu";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
 import { TabsList, TabsTrigger } from "@packages/ui/components/ui/tabs";
-import { TypographyH2 } from "@packages/ui/components/ui/typography";
+import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 import {
   CalendarSyncIcon,
@@ -84,17 +84,21 @@ export function CalendarToolbar({
   const summaryLabel = useSummaryLabel()(summary);
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 [grid-template-areas:'title_actions''views_nav'] @2xl:grid-cols-[auto_minmax(0,1fr)_auto_auto] @2xl:gap-x-4 @2xl:[grid-template-areas:'nav_title_views_actions']">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 [grid-template-areas:'title_actions''views_nav'] @xl:grid-cols-[auto_minmax(0,1fr)_auto_auto] @xl:gap-x-4 @xl:[grid-template-areas:'nav_title_views_actions']">
       <div className="flex min-w-0 flex-col items-start [grid-area:title]">
         <TypographyH2 variant="section">{label}</TypographyH2>
-        <p className="text-sm text-muted-foreground">{summaryLabel}</p>
+        <TypographyMuted>{summaryLabel}</TypographyMuted>
         {!todayInView && (
-          <Button variant="link" className="h-auto min-h-touch px-0 @5xl:hidden" onClick={onToday}>
+          <Button
+            variant="link"
+            className="h-auto min-h-control px-0 @5xl:hidden"
+            onClick={onToday}
+          >
             {t("calendar.backToToday")}
           </Button>
         )}
       </div>
-      <div className="flex items-center gap-1 justify-self-end [grid-area:nav] @2xl:justify-self-start">
+      <div className="flex items-center gap-1 justify-self-end [grid-area:nav] @xl:justify-self-start">
         <IconButton variant="outline" label={t("calendar.previous")} onClick={() => onStep(-1)}>
           <ChevronLeftIcon aria-hidden />
         </IconButton>
@@ -108,7 +112,6 @@ export function CalendarToolbar({
         </IconButton>
       </div>
       <TabsList
-        size="touch"
         aria-label={t("calendar.views.label")}
         data-tour="home-tabs"
         className="justify-self-start [grid-area:views]"

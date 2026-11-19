@@ -27,7 +27,7 @@ export function FormCheckboxField<
             <FormControl>
               <Checkbox {...checkboxProps} checked={field.value} onCheckedChange={field.onChange} />
             </FormControl>
-            <FormLabel weight="normal" className="block leading-normal">
+            <FormLabel weight="normal" className="block">
               {label}
             </FormLabel>
           </div>

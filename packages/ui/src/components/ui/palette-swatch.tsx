@@ -14,7 +14,7 @@ function PaletteSwatch({ palette, className, ...props }: PaletteSwatchProps) {
       data-palette={palette}
       aria-hidden
       className={cn(
-        "pointer-events-none flex flex-col gap-2 rounded-xl border bg-background p-2.5 text-foreground shadow-rest",
+        "pointer-events-none flex flex-col gap-2 rounded-inner bg-background p-block text-foreground shadow-rest",
         className,
       )}
       {...props}

@@ -97,7 +97,6 @@ function PrintWeekPage() {
         <ToggleGroup
           type="single"
           variant="chip"
-          size="touch"
           spacing={2}
           aria-label={t("print.weeks.label")}
           value={week}

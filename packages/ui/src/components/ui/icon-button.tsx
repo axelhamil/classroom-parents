@@ -9,7 +9,7 @@ interface IconButtonProps
   label: string;
   accessibleName?: string;
   shortcut?: string;
-  size?: "icon" | "icon-xs" | "icon-sm" | "icon-lg";
+  size?: "icon" | "icon-sm" | "icon-lg";
 }
 
 function IconButton({ label, accessibleName, shortcut, size = "icon", ...props }: IconButtonProps) {

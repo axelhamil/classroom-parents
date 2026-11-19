@@ -11,7 +11,7 @@ export function GoogleSignInButton({ signIn }: GoogleSignInButtonProps) {
   const { t } = useTranslation("auth");
 
   return (
-    <Button variant="google" size="cta" disabled={signIn.pending} onClick={signIn.start}>
+    <Button variant="google" size="lg" disabled={signIn.pending} onClick={signIn.start}>
       <img src={googleG} alt="" />
       {signIn.pending ? t("login.pending") : t("login.google")}
     </Button>

@@ -69,7 +69,7 @@ function NotificationRow({ notification, child, hue, timeZone, onOpen }: Notific
           <ItemContent>
             <ItemTitle>{t(copy.key, copy.values)}</ItemTitle>
             <ItemDescription className="flex items-center gap-2 tabular-nums">
-              {child && <Icon aria-hidden className="size-4" />}
+              {child && <Icon aria-hidden className="size-icon" />}
               {notificationTimeLabel(notification.createdAt, timeZone)}
             </ItemDescription>
           </ItemContent>

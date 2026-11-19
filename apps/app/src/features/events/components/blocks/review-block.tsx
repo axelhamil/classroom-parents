@@ -1,4 +1,6 @@
 import { DashboardPanelEmpty, DashboardPanelFigure } from "@packages/ui/components/ui/dashboard";
+import { IconTile } from "@packages/ui/components/ui/icon-tile";
+import { AllDoneIcon, ConfirmDateIcon } from "@packages/ui/components/ui/icons";
 import { RollingCount } from "@packages/ui/components/ui/rolling-count";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
@@ -71,7 +73,9 @@ function AllClear({ ref, pastNote }: AllClearProps) {
 
   return (
     <DashboardPanelEmpty ref={ref} tabIndex={-1}>
-      <CheckCheckIcon aria-hidden />
+      <IconTile>
+        <CheckCheckIcon aria-hidden />
+      </IconTile>
       <p>{t("blocks.review.empty")}</p>
       {pastNote || <p>{t("blocks.review.emptyHint")}</p>}
     </DashboardPanelEmpty>

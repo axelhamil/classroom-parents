@@ -8,7 +8,7 @@ import { cn } from "../../libs/utils";
 import { RadioGroup } from "./radio-group";
 
 const swatchVariants = cva(
-  "group/swatch flex aspect-square w-full items-center justify-center rounded-full text-xs font-semibold text-child-foreground outline-offset-2 transition-[outline-color,scale] duration-(--press-duration) ease-(--ease-out) active:scale-(--press-scale) data-[state=checked]:outline-2 data-[state=checked]:outline-foreground focus-visible:outline-(length:--ring-width) focus-visible:outline-ring",
+  "group/swatch flex aspect-square w-full items-center justify-center rounded-full text-meta font-semibold text-child-foreground outline-offset-2 transition-[outline-color,scale] duration-(--press-duration) ease-(--ease-out) active:scale-(--press-scale) data-[state=checked]:outline-2 data-[state=checked]:outline-foreground focus-visible:outline-(length:--ring-width) focus-visible:outline-ring",
   {
     variants: {
       tone: childHueFill,
@@ -80,7 +80,7 @@ function HueRadioGroup({
             className={swatchVariants({ tone: hue })}
           >
             <RadioGroupPrimitive.Indicator asChild>
-              <CheckIcon aria-hidden className="size-5" />
+              <CheckIcon aria-hidden className="size-icon-lg" />
             </RadioGroupPrimitive.Indicator>
             {mark && (
               <span aria-hidden className="group-data-[state=checked]/swatch:hidden">

@@ -9,13 +9,13 @@ const navLinkVariants = cva(
   {
     variants: {
       size: {
-        sm: "text-xs",
-        md: "text-sm",
+        sm: "text-meta",
+        md: "text-small",
       },
       variant: {
         plain: "text-muted-foreground hover:text-foreground",
-        pill: "rounded-md px-3 py-1.5",
-        underline: "relative h-10 px-3 focus-visible:ring-inset",
+        pill: "rounded-full px-3 py-1.5",
+        underline: "relative h-control px-3 focus-visible:ring-inset",
       },
       active: {
         true: "",

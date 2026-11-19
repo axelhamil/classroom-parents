@@ -75,12 +75,12 @@ function CalendarWeekend({ className, label, children, ...props }: CalendarWeeke
       aria-labelledby={labelId}
       data-slot="calendar-weekend"
       className={cn(
-        "flex min-w-0 flex-col gap-2 rounded-xl bg-surface-weekend pt-2 [&>[data-slot=calendar-day]:not([data-tone=today])]:bg-surface-weekend",
+        "flex min-w-0 flex-col gap-2 rounded-inner bg-surface-weekend pt-2 [&>[data-slot=calendar-day]:not([data-tone=today])]:bg-surface-weekend",
         className,
       )}
       {...props}
     >
-      <p id={labelId} className="px-2 text-sm font-semibold text-muted-foreground">
+      <p id={labelId} className="px-2 text-small font-semibold text-muted-foreground">
         {label}
       </p>
       {children}
@@ -106,20 +106,20 @@ function CalendarDayStrip({ className, ...props }: React.ComponentProps<"div">) 
 }
 
 const calendarDayVariants = cva(
-  "flex min-w-0 scroll-mt-24 flex-col gap-2 rounded-xl outline-none focus-visible:ring focus-visible:ring-ring",
+  "flex min-w-0 scroll-mt-24 flex-col gap-2 rounded-inner outline-none focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       layout: {
         stack: "",
         rail: "grid scroll-mt-day-strip grid-cols-[var(--spacing-day-rail)_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-none py-3 data-[quiet=true]:py-2 [&>:not([data-slot=calendar-day-mark])]:col-start-2",
         column:
-          "gap-1.5 rounded-xl bg-card px-1 pb-2 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
+          "gap-1.5 rounded-inner bg-card pb-2 [&>[data-slot=calendar-day-mark]]:px-1 [&>[data-slot=calendar-day-note]]:px-1 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
         row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0",
       },
       tone: {
         default: "",
         today:
-          "[&>[data-slot=calendar-day-header]]:border-warning [&>[data-slot=calendar-day-header]]:bg-warning/20",
+          "[&>[data-slot=calendar-day-header]]:border-warning-edge [&>[data-slot=calendar-day-header]]:bg-warning/20",
         past: "[&>[data-slot=calendar-day-header]]:text-muted-foreground",
       },
       crunch: {
@@ -127,7 +127,7 @@ const calendarDayVariants = cva(
         false: "",
       },
       quiet: {
-        true: "[&>[data-slot=calendar-day-header]]:min-h-9 [&_[data-slot=calendar-day-title]]:text-sm [&_[data-slot=calendar-day-title]]:font-medium",
+        true: "[&>[data-slot=calendar-day-header]]:min-h-control-sm [&_[data-slot=calendar-day-title]]:text-small [&_[data-slot=calendar-day-title]]:font-medium",
         false: "",
       },
     },
@@ -171,10 +171,10 @@ function CalendarDayMark({ className, ...props }: React.ComponentProps<"h3">) {
         "z-10 flex text-foreground group-data-[tone=past]/day:text-muted-foreground",
         "[&>[data-part=day]]:inline-grid [&>[data-part=day]]:place-items-center [&>[data-part=day]]:rounded-full [&>[data-part=day]]:font-display [&>[data-part=day]]:font-bold [&>[data-part=day]]:tabular-nums",
         "group-data-[tone=today]/day:[&>[data-part=day]]:bg-primary group-data-[tone=today]/day:[&>[data-part=day]]:text-primary-foreground",
-        "[&>[data-part=weekday]]:text-sm [&>[data-part=weekday]]:font-semibold [&>[data-part=weekday]]:text-muted-foreground group-data-[tone=today]/day:[&>[data-part=weekday]]:text-foreground",
+        "[&>[data-part=weekday]]:text-small [&>[data-part=weekday]]:font-semibold [&>[data-part=weekday]]:text-muted-foreground group-data-[tone=today]/day:[&>[data-part=weekday]]:text-foreground",
         "group-data-[layout=rail]/day:sticky group-data-[layout=rail]/day:top-[calc(var(--spacing-app-bar)+var(--spacing-day-strip)+env(safe-area-inset-top))] group-data-[layout=rail]/day:row-span-full group-data-[layout=rail]/day:flex-col group-data-[layout=rail]/day:items-center group-data-[layout=rail]/day:self-start",
         "group-data-[layout=rail]/day:[&>[data-part=day]]:min-w-10 group-data-[layout=rail]/day:[&>[data-part=day]]:h-10 group-data-[layout=rail]/day:[&>[data-part=day]]:px-1 group-data-[layout=rail]/day:[&>[data-part=day]]:text-2xl",
-        "group-data-[quiet=true]/day:[&>[data-part=day]]:h-7 group-data-[quiet=true]/day:[&>[data-part=day]]:text-base group-data-[quiet=true]/day:[&>[data-part=day]]:whitespace-nowrap group-data-[quiet=true]/day:[&>[data-part=day]]:text-muted-foreground group-data-[quiet=true]/day:[&>[data-part=weekday]]:text-xs",
+        "group-data-[quiet=true]/day:[&>[data-part=day]]:h-7 group-data-[quiet=true]/day:[&>[data-part=day]]:text-body group-data-[quiet=true]/day:[&>[data-part=day]]:whitespace-nowrap group-data-[quiet=true]/day:[&>[data-part=day]]:text-muted-foreground group-data-[quiet=true]/day:[&>[data-part=weekday]]:text-meta",
         "group-data-[layout=column]/day:sticky group-data-[layout=column]/day:top-0 group-data-[layout=column]/day:flex-wrap group-data-[layout=column]/day:items-baseline group-data-[layout=column]/day:gap-1.5 group-data-[layout=column]/day:border-b group-data-[layout=column]/day:border-border group-data-[layout=column]/day:bg-inherit group-data-[layout=column]/day:px-0.5 group-data-[layout=column]/day:pt-1 group-data-[layout=column]/day:pb-1.5",
         "group-data-[layout=column]/day:[&>[data-part=day]]:min-w-7 group-data-[layout=column]/day:[&>[data-part=day]]:px-1 group-data-[layout=column]/day:[&>[data-part=day]]:text-xl",
         className,
@@ -190,7 +190,7 @@ function CalendarDayNote({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="calendar-day-note"
       className={cn(
-        "flex min-h-6 min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground",
+        "flex min-h-6 min-w-0 flex-wrap items-center gap-2 text-small text-muted-foreground",
         className,
       )}
       {...props}
@@ -203,7 +203,7 @@ function CalendarDayHeader({ className, ...props }: React.ComponentProps<"header
     <header
       data-slot="calendar-day-header"
       className={cn(
-        "flex min-h-touch items-center gap-2 rounded-xl border border-transparent ps-3 pe-1 text-foreground",
+        "flex min-h-control items-center gap-2 rounded-inner border-2 border-transparent ps-3 pe-1 text-foreground",
         className,
       )}
       {...props}
@@ -215,7 +215,7 @@ function CalendarDayTitle({ className, ...props }: React.ComponentProps<"h3">) {
   return (
     <h3
       data-slot="calendar-day-title"
-      className={cn("min-w-0 flex-1 text-base font-semibold text-balance", className)}
+      className={cn("min-w-0 flex-1 text-heading text-balance", className)}
       {...props}
     />
   );
@@ -241,7 +241,7 @@ function CalendarDayEmpty({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="calendar-day-empty"
-      className={cn("shrink-0 text-sm text-muted-foreground", className)}
+      className={cn("shrink-0 text-small text-muted-foreground", className)}
       {...props}
     />
   );

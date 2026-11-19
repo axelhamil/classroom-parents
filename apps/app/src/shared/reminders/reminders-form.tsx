@@ -85,9 +85,9 @@ export function RemindersForm({
         {rows.fields.length === 0 ? (
           <TypographyMuted>{t("reminders.empty")}</TypographyMuted>
         ) : (
-          <ol className="flex flex-col gap-2">
+          <ol className="flex flex-col">
             {rows.fields.map((row, index) => (
-              <ListRow key={row.id} className="items-end">
+              <ListRow key={row.id} variant="ruled" className="items-end">
                 <ReminderFields control={form.control} index={index} allowHours={allowHours} />
                 <IconButton
                   type="button"

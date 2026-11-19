@@ -13,7 +13,7 @@ function CardGrid({ className, ...props }: React.ComponentProps<"ul">) {
     <ul
       data-slot="card-grid"
       className={cn(
-        "grid items-start gap-6 @2xl:grid-cols-2 @5xl:grid-cols-3 @ultrawide:grid-cols-4",
+        "grid items-start gap-surface @2xl:grid-cols-2 @5xl:grid-cols-3 @ultrawide:grid-cols-4",
         className,
       )}
       {...props}

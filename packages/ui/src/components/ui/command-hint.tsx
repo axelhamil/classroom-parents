@@ -11,7 +11,7 @@ function CommandHint({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="command-hint"
-      className={cn("text-xs text-muted-foreground", className)}
+      className={cn("text-meta text-muted-foreground", className)}
       {...props}
     />
   );

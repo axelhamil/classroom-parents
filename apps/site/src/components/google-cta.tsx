@@ -8,7 +8,7 @@ export interface GoogleCtaProps {
 
 export function GoogleCta({ href, label }: GoogleCtaProps) {
   return (
-    <Button variant="google" size="cta" asChild>
+    <Button variant="google" size="lg" asChild>
       <a href={href}>
         <img src={googleG} alt="" width={24} height={24} />
         {label}

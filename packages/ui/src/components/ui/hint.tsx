@@ -26,7 +26,7 @@ function Hint({ text, showOnTouch = true, className, children }: HintProps) {
         <TooltipTrigger asChild>
           <span
             tabIndex={text ? 0 : undefined}
-            className="inline-flex w-full flex-col rounded-md outline-none focus-visible:ring focus-visible:ring-ring"
+            className="inline-flex w-full flex-col rounded-inner outline-none focus-visible:ring focus-visible:ring-ring"
           >
             {children}
           </span>
@@ -37,7 +37,7 @@ function Hint({ text, showOnTouch = true, className, children }: HintProps) {
         <span
           id={textId}
           className={cn(
-            "hidden text-xs text-muted-foreground",
+            "hidden text-meta text-muted-foreground",
             showOnTouch && "pointer-coarse:block",
           )}
         >

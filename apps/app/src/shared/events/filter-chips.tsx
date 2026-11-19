@@ -40,7 +40,6 @@ export function FilterChips({
     <ToggleGroup
       type="multiple"
       variant="chip"
-      size="touch"
       spacing={2}
       aria-label={label}
       data-tour={tourTarget}

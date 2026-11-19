@@ -3,11 +3,11 @@ import type * as React from "react";
 
 import { cn } from "../../libs/utils";
 
-const typographyH1Variants = cva("scroll-m-20 font-display font-bold tracking-tight", {
+const typographyH1Variants = cva("scroll-m-20 font-display text-display", {
   variants: {
     variant: {
-      hero: "text-center text-4xl leading-tight text-balance",
-      page: "text-left text-3xl leading-tight",
+      hero: "text-center text-balance",
+      page: "text-left",
     },
   },
   defaultVariants: { variant: "hero" },
@@ -27,11 +27,11 @@ function TypographyH1({ className, variant, ...props }: TypographyH1Props) {
   );
 }
 
-const typographyH2Variants = cva("scroll-m-20 font-semibold tracking-tight first:mt-0", {
+const typographyH2Variants = cva("scroll-m-20 first:mt-0", {
   variants: {
     variant: {
-      default: "text-xl",
-      section: "text-base",
+      default: "font-display text-title",
+      section: "text-heading",
     },
     tone: {
       default: "",
@@ -59,7 +59,7 @@ function TypographyH3({ className, ...props }: React.ComponentProps<"h3">) {
   return (
     <h3
       data-slot="typography-h3"
-      className={cn("scroll-m-20 font-semibold text-lg tracking-tight", className)}
+      className={cn("scroll-m-20 font-display text-title", className)}
       {...props}
     />
   );
@@ -69,21 +69,21 @@ function TypographyH4({ className, ...props }: React.ComponentProps<"h4">) {
   return (
     <h4
       data-slot="typography-h4"
-      className={cn("scroll-m-20 font-semibold text-base tracking-tight", className)}
+      className={cn("scroll-m-20 text-heading", className)}
       {...props}
     />
   );
 }
 
 function TypographyP({ className, ...props }: React.ComponentProps<"p">) {
-  return <p data-slot="typography-p" className={cn("leading-7", className)} {...props} />;
+  return <p data-slot="typography-p" className={cn("text-body", className)} {...props} />;
 }
 
 function TypographyLead({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="typography-lead"
-      className={cn("text-muted-foreground text-lg", className)}
+      className={cn("text-body text-muted-foreground", className)}
       {...props}
     />
   );
@@ -93,7 +93,7 @@ function TypographyLarge({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="typography-large"
-      className={cn("font-semibold text-lg", className)}
+      className={cn("font-display text-title", className)}
       {...props}
     />
   );
@@ -103,7 +103,7 @@ function TypographySmall({ className, ...props }: React.ComponentProps<"small">)
   return (
     <small
       data-slot="typography-small"
-      className={cn("font-medium text-sm leading-none", className)}
+      className={cn("text-small font-medium", className)}
       {...props}
     />
   );
@@ -113,7 +113,7 @@ function TypographyMuted({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="typography-muted"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn("text-muted-foreground text-small", className)}
       {...props}
     />
   );
@@ -132,8 +132,8 @@ const typographyInlineVariants = cva("", {
     },
     size: {
       inherit: "",
-      sm: "text-sm",
-      xs: "text-xs",
+      sm: "text-small",
+      xs: "text-meta",
     },
     weight: {
       inherit: "",
@@ -180,10 +180,7 @@ function TypographyDisplay({ className, ...props }: React.ComponentProps<"span">
   return (
     <span
       data-slot="typography-display"
-      className={cn(
-        "block font-display text-2xl leading-tight font-bold tracking-tight text-balance",
-        className,
-      )}
+      className={cn("block font-display text-display text-balance", className)}
       {...props}
     />
   );
@@ -204,7 +201,7 @@ function TypographyInlineCode({ className, ...props }: React.ComponentProps<"cod
     <code
       data-slot="typography-inline-code"
       className={cn(
-        "relative rounded-xs bg-muted px-1 py-0.5 font-mono font-medium text-sm",
+        "relative rounded-mark bg-muted px-1 py-0.5 font-mono font-medium text-small",
         className,
       )}
       {...props}

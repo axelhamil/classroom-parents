@@ -16,7 +16,7 @@ function CardColumns({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-columns"
       className={cn(
-        "columns-1 gap-6 space-y-6 @2xl:columns-2 @5xl:columns-3 @ultrawide:columns-4",
+        "columns-1 gap-surface space-y-surface @2xl:columns-2 @5xl:columns-3 @ultrawide:columns-4",
         className,
       )}
       {...props}

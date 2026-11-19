@@ -12,7 +12,7 @@ function CelebrationStamp({ className, burst = false, ...props }: CelebrationSta
       data-burst={burst ? "" : undefined}
       aria-hidden
       className={cn(
-        "relative flex size-8 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground shadow-raised [&>svg]:size-4",
+        "relative flex size-8 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground shadow-raised [&>svg]:size-icon",
         className,
       )}
       {...props}
