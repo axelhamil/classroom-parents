@@ -3,7 +3,8 @@
  * the export reads only the requesting parent's rows (the owner filter lives in the host query),
  * keeps withdrawn, deleted and hand-added events, the child color and picture, the calendar feed
  * (never its secret) and the Sunday digest choice and history, with the default choice for a
- * parent who never made one; it never carries a token or a push key, and the 24 h limit is held
+ * parent who never made one; each Classroom deadline carries its course name read through the
+ * same port as the api, a hand-added one none; it never carries a token or a push key, and the 24 h limit is held
  * by the stored request date, so a second request is refused and leaves one event.
  */
 
@@ -26,6 +27,7 @@ import {
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
+import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
 import {
   and,
@@ -39,6 +41,7 @@ import {
 } from "@packages/drizzle";
 import { EventTypes } from "@packages/events";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
+import { di } from "../src/container";
 import { DataExportService } from "../src/modules/rgpd/application/services/data-export.service";
 import { DrizzleRgpdRepository } from "../src/modules/rgpd/infrastructure/repositories/drizzle-rgpd.repository";
 import { UserDataQuery } from "../src/queries/user-data.query";
@@ -54,6 +57,7 @@ const service = (at: Date) =>
   new DataExportService(
     new DrizzleRgpdRepository(logger, instrumentation),
     new UserDataQuery(instrumentation),
+    di.ICourseNames,
     new TransactionService(instrumentation),
     new DrizzleOutboxRepository(instrumentation, () => undefined),
     instrumentation,
@@ -164,6 +168,12 @@ async function family(name: string): Promise<{ userId: string; childId: string }
     channel: "push",
     sentAt: NOW,
   });
+  await db.insert(classroomCourse).values({
+    childId,
+    courseId: "course-1",
+    name: `Mathématiques ${name}`,
+    listedAt: NOW,
+  });
   await db.insert(seenAnnouncement).values({
     childId,
     announcementId: `announcement-${name}`,
@@ -241,6 +251,14 @@ run(async () => {
       (e) => e.source === "manual" && e.courseId === null && e.announcementUrl === null,
     ),
     document.events.map((e) => [e.source, e.courseId, e.announcementUrl]),
+  );
+  await step(
+    "each Classroom deadline carries its course name, the hand-added one none",
+    document.events
+      .filter((e) => e.source !== "manual")
+      .every((e) => e.course?.id === "course-1" && e.course.name === "Mathématiques a") &&
+      document.events.some((e) => e.source === "manual" && e.course === null),
+    document.events.map((e) => [e.source, e.course]),
   );
   await step(
     "the calendar feed comes with its children and dates, never its secret",

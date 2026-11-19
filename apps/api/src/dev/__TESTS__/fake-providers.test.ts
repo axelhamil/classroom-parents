@@ -41,12 +41,15 @@ describe("fake Google OAuth", () => {
 });
 
 describe("fake Classroom", () => {
-  it("lists only the courses of the child behind the token", async () => {
+  it("lists only the courses of the child behind the token, with their names", async () => {
     const { fakes, token } = await accessTokenFor("lea");
 
     const courses = await fakes.classroom.listCourses(token, scope);
 
-    expect(courses.getValue().map((course) => course.id)).toEqual(["lea-cm2", "lea-anglais"]);
+    expect(courses.getValue().map(({ id, name }) => [id, name.toUndefined()])).toEqual([
+      ["lea-cm2", "CM2 B, Mme Bernard"],
+      ["lea-anglais", "Anglais CM2"],
+    ]);
   });
 
   it("serves announcements already published, moved to the current week", async () => {

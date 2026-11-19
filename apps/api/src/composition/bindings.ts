@@ -1,5 +1,6 @@
 import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
 import type { IChildOwnership } from "@modules/agenda/application/ports/child-ownership.port";
+import type { ICourseNames } from "@modules/agenda/application/ports/course-names.port";
 import type { IVisibleChildren } from "@modules/agenda/application/ports/visible-children.port";
 import type { EventIngestService } from "@modules/agenda/application/services/event-ingest.service";
 import type { EventQueryService } from "@modules/agenda/application/services/event-query.service";
@@ -17,6 +18,7 @@ import type { IChildSyncState } from "@modules/classroom-sync/application/ports/
 import type { IDueChildren } from "@modules/classroom-sync/application/ports/due-children.port";
 import type { IEventIngest } from "@modules/classroom-sync/application/ports/event-ingest.port";
 import type { IManualSyncGate } from "@modules/classroom-sync/application/ports/manual-sync-gate.port";
+import type { CourseNamesService } from "@modules/classroom-sync/application/services/course-names.service";
 import type { SyncError } from "@modules/classroom-sync/application/sync-error";
 import type { ExtractionService } from "@modules/extraction/application/services/extraction.service";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
@@ -251,6 +253,10 @@ export function alertPlannerFor(
   };
 }
 
+export function courseNamesFor(courses: () => Pick<CourseNamesService, "namesOf">): ICourseNames {
+  return { namesOf: (refs) => courses().namesOf(refs) };
+}
+
 const FEED_EVENTS_MAX = 500;
 
 export function feedEntriesFor(
@@ -288,6 +294,7 @@ export function feedEntriesFor(
           categoryLabel: frCatalog.events.categories[event.category],
           deadlineDate: event.deadlineDate,
           deadlineTime: Option.fromNullable(event.deadlineTime),
+          courseName: Option.fromNullable(event.course?.name),
           classroomUrl: Option.fromNullable(event.announcementUrl),
           alarmsAt: rings.getValue().get(event.id) ?? [],
           doneLabel: event.done ? Option.some(frCatalog.events.agenda.done) : Option.none<string>(),

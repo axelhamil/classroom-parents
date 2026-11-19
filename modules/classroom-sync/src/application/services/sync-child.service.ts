@@ -38,6 +38,7 @@ import type {
   IClassroomReader,
   PendingAnnouncement,
 } from "../ports/classroom-reader.port";
+import type { ICourseRepository, NamedCourse } from "../ports/course-repository.port";
 import type { IEventIngest } from "../ports/event-ingest.port";
 import type { ISeenAnnouncementRepository } from "../ports/seen-announcement-repository.port";
 import type { IUpcomingAlerts } from "../ports/upcoming-alerts.port";
@@ -106,6 +107,7 @@ export class SyncChildService {
     private readonly alerts: IUpcomingAlerts,
     private readonly syncState: IChildSyncState,
     private readonly ledger: ISeenAnnouncementRepository,
+    private readonly courses: ICourseRepository,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
@@ -141,6 +143,9 @@ export class SyncChildService {
     { courses, complete }: CourseList,
     now: Date,
   ): Promise<Result<SyncReport, SyncError>> {
+    if ((await this.saveCourseNames(lease, { courses, complete }, now)).kind === "lease_lost")
+      return Result.fail(leaseLost);
+
     const reads = await mapBounded(courses, COURSE_CONCURRENCY, (course) =>
       this.reader.readCourse(input.childId, access, course, now),
     );
@@ -176,6 +181,34 @@ export class SyncChildService {
       failedAnnouncements: extracted.filter(({ kind }) => kind === "failed").length,
       failedCoursework: saved.filter(({ kind }) => kind === "failed").length,
     });
+  }
+
+  private async saveCourseNames(
+    lease: SyncLease,
+    { courses, complete }: CourseList,
+    now: Date,
+  ): Promise<SyncOutcome> {
+    const named = courses.flatMap(({ id, name }): NamedCourse[] =>
+      name.map((text) => [{ courseId: id, name: text }]).unwrapOr([]),
+    );
+    const saved = await this.transactions.run(async (): Promise<Result<void, AppError>> => {
+      const held = await this.leaseStillHeld(lease);
+      if (held.isFailure) return Result.fail(held.getError());
+
+      const recorded = await this.courses.recordListed(lease.childId, named, now);
+      if (recorded.isFailure || !complete) return recorded;
+
+      return this.courses.withdrawOutside(
+        lease.childId,
+        courses.map(({ id }) => id),
+        now,
+      );
+    });
+    if (saved.isSuccess) return { kind: "done", created: 0 };
+    if (saved.getError().code === leaseLost.code) return { kind: "lease_lost" };
+
+    this.instrumentation.capture(saved.getError(), { metadata: { childId: lease.childId } });
+    return { kind: "failed" };
   }
 
   private async saveCoursework(

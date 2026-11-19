@@ -7,7 +7,6 @@ import {
   type EventPageDto,
   type TitledDeadlineDto,
   toEventDeadlineDto,
-  toEventDto,
   type UpcomingDeadlineDto,
 } from "../dto/event.dto";
 import type {
@@ -18,6 +17,7 @@ import type {
 } from "../ports/event-repository.port";
 import type { IVisibleChildren } from "../ports/visible-children.port";
 import { parseRange } from "./event-fields";
+import type { EventPresenter } from "./event-presenter";
 import { visibleEvent } from "./visible-event";
 
 type ListError = AgendaError | AppError;
@@ -39,14 +39,11 @@ export interface CalendarQuery {
 
 const emptyPage: EventPageDto = { items: [], nextCursor: undefined };
 
-function toPageDto(page: EventPage): EventPageDto {
-  return { items: page.events.map(toEventDto), nextCursor: page.nextCursor.toUndefined() };
-}
-
 export class EventQueryService {
   constructor(
     private readonly events: IEventRepository,
     private readonly children: IVisibleChildren,
+    private readonly presenter: EventPresenter,
     private readonly instrumentation: IInstrumentation,
   ) {}
 
@@ -85,9 +82,10 @@ export class EventQueryService {
       if (visible.getValue().isNone()) return Result.ok({ items: [] });
 
       const calendar = { ...visible.getValue().unwrap(), range: range.getValue() };
-      return (await this.events.listCalendar(userId, calendar)).map((events) => ({
-        items: events.map(toEventDto),
-      }));
+      const events = await this.events.listCalendar(userId, calendar);
+      if (events.isFailure) return Result.fail(events.getError());
+
+      return Result.ok({ items: await this.presenter.present(events.getValue()) });
     });
   }
 
@@ -96,9 +94,11 @@ export class EventQueryService {
       const found = await this.events.findOwned(userId, eventId);
       if (found.isFailure) return Result.fail(found.getError());
 
-      return (await visibleEvent(this.children, userId, found.getValue())).map((visible) =>
-        visible.map(toEventDto),
-      );
+      const visible = await visibleEvent(this.children, userId, found.getValue());
+      if (visible.isFailure) return Result.fail(visible.getError());
+      if (visible.getValue().isNone()) return Result.ok(Option.none());
+
+      return Result.ok(Option.some(await this.presenter.presentOne(visible.getValue().unwrap())));
     });
   }
 
@@ -153,14 +153,15 @@ export class EventQueryService {
       if (visible.getValue().isNone()) return Result.ok([]);
 
       const childIds = visible.getValue().unwrap().childIds ?? [];
-      return (
-        await this.events.listConfirmedSince(
-          userId,
-          childIds,
-          { since: request.since, now: request.now },
-          request.limit,
-        )
-      ).map((events) => events.map(toEventDto));
+      const events = await this.events.listConfirmedSince(
+        userId,
+        childIds,
+        { since: request.since, now: request.now },
+        request.limit,
+      );
+      if (events.isFailure) return Result.fail(events.getError());
+
+      return Result.ok(await this.presenter.present(events.getValue()));
     });
   }
 
@@ -173,7 +174,14 @@ export class EventQueryService {
     if (visible.isFailure) return Result.fail(visible.getError());
     if (visible.getValue().isNone()) return Result.ok(emptyPage);
 
-    return (await read(visible.getValue().unwrap())).map(toPageDto);
+    const page = await read(visible.getValue().unwrap());
+    if (page.isFailure) return Result.fail(page.getError());
+
+    return Result.ok(await this.toPageDto(page.getValue()));
+  }
+
+  private async toPageDto({ events, nextCursor }: EventPage): Promise<EventPageDto> {
+    return { items: await this.presenter.present(events), nextCursor: nextCursor.toUndefined() };
   }
 
   private async visibleFilter<F extends { childIds?: string[] }>(

@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
+import type { CourseName, ICourseNames } from "../application/ports/course-names.port";
 import type {
   AgendaError,
   EventPage,
   IEventRepository,
 } from "../application/ports/event-repository.port";
 import type { IVisibleChildren } from "../application/ports/visible-children.port";
+import { EventPresenter } from "../application/services/event-presenter";
 import { EventQueryService } from "../application/services/event-query.service";
 import type { AgendaEvent } from "../domain/event.aggregate";
 import { agendaEvent, CHILD, PARENT } from "../testing/agenda-event.fixture";
@@ -17,13 +19,24 @@ const LEAVING = "0196a000-0000-7000-8000-000000000002";
 
 let repo: PortMock<IEventRepository>;
 let children: PortMock<IVisibleChildren>;
+let courseNames: PortMock<ICourseNames>;
 let service: EventQueryService;
+
+const MATHS: CourseName = { childId: CHILD, courseId: "course-1", name: "Mathématiques 4e B" };
 
 beforeEach(() => {
   repo = mockPort<IEventRepository>();
   children = mockPort<IVisibleChildren>();
   children.idsOf.mockResolvedValue(Result.ok([CHILD]));
-  service = new EventQueryService(repo, children, mockInstrumentation());
+  courseNames = mockPort<ICourseNames>();
+  courseNames.namesOf.mockResolvedValue(Result.ok<CourseName[], AppError>([MATHS]));
+  const instrumentation = mockInstrumentation();
+  service = new EventQueryService(
+    repo,
+    children,
+    new EventPresenter(courseNames, instrumentation),
+    instrumentation,
+  );
 });
 
 describe("list", () => {
@@ -47,6 +60,7 @@ describe("list", () => {
         {
           id: event.id.value,
           childId: CHILD,
+          course: { id: "course-1", name: "Mathématiques 4e B" },
           title: "Contrôle de maths",
           description: "Chapitre 3",
           category: "assessment",
@@ -223,6 +237,55 @@ describe("get", () => {
     const result = await service.get(PARENT, "0196a000-0000-7000-8000-00000000abcd");
 
     expect(result.getValue().isNone()).toBe(true);
+  });
+});
+
+describe("course of each deadline", () => {
+  const page = (events: AgendaEvent[]) =>
+    repo.listUpcoming.mockResolvedValue(
+      Result.ok<EventPage, AgendaError>({ events, nextCursor: Option.none() }),
+    );
+
+  it("given deadlines of one course, then its name is looked up once and set on each", async () => {
+    page([agendaEvent(), agendaEvent({ deadlineDate: "2026-11-20" })]);
+
+    const result = await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(courseNames.namesOf).toHaveBeenCalledWith([{ childId: CHILD, courseId: "course-1" }]);
+    expect(result.getValue().items.map(({ course }) => course)).toEqual([
+      { id: "course-1", name: "Mathématiques 4e B" },
+      { id: "course-1", name: "Mathématiques 4e B" },
+    ]);
+  });
+
+  it("given a deadline the parent added by hand, then it has no course and nothing is looked up", async () => {
+    page([agendaEvent({ withoutCourse: true })]);
+
+    const result = await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(courseNames.namesOf).not.toHaveBeenCalled();
+    expect(result.getValue().items[0]?.course).toBeNull();
+  });
+
+  it("given a course whose name was never listed, then the deadline has no course", async () => {
+    page([agendaEvent()]);
+    courseNames.namesOf.mockResolvedValue(Result.ok<CourseName[], AppError>([]));
+
+    const result = await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(result.getValue().items[0]?.course).toBeNull();
+  });
+
+  it("given the course names cannot be read, then the deadlines are still listed without them", async () => {
+    page([agendaEvent()]);
+    courseNames.namesOf.mockResolvedValue(
+      Result.fail<CourseName[], AppError>({ code: "SYNC_PROVIDER_FAILURE", message: "db" }),
+    );
+
+    const result = await service.listUpcoming(PARENT, { limit: 20 }, NOW);
+
+    expect(result.getValue().items).toHaveLength(1);
+    expect(result.getValue().items[0]?.course).toBeNull();
   });
 });
 

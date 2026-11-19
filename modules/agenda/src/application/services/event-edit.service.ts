@@ -17,13 +17,7 @@ import {
   type ManualEvent,
 } from "../../domain/event.aggregate";
 import type { ChecklistChange } from "../../domain/value-objects/event-checklist.vo";
-import {
-  CLEAR_TIME,
-  type EventDto,
-  type EventPatch,
-  type NewEventBody,
-  toEventDto,
-} from "../dto/event.dto";
+import { CLEAR_TIME, type EventDto, type EventPatch, type NewEventBody } from "../dto/event.dto";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import {
   type AgendaError,
@@ -35,10 +29,13 @@ import {
 import type { IVisibleChildren } from "../ports/visible-children.port";
 import { alertAnnouncementsOn, courseDayOf, dayLeftBy } from "./alert-planning";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
+import type { EventPresenter } from "./event-presenter";
 import { plannedDeadline } from "./planned-deadline";
 import { visibleEvent } from "./visible-event";
 
 type EditError = AgendaError | AppError;
+
+type Edited = Promise<Result<AgendaEvent, EditError>>;
 
 const invalidChecklist: AgendaError = {
   code: "EVENT_CHECKLIST_INVALID",
@@ -52,35 +49,38 @@ export class EventEditService {
     private readonly alerts: IAlertPlanner,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
+    private readonly presenter: EventPresenter,
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
   async add(userId: string, body: NewEventBody): Promise<Result<EventDto, EditError>> {
-    return traced(this.instrumentation, "EventEditService > add", () =>
-      this.transactions.run(async () => {
-        const visible = await this.children.idsOf(userId);
-        if (visible.isFailure) return Result.fail(visible.getError());
-        if (!visible.getValue().includes(body.childId)) return Result.fail(childNotFound);
+    return traced(this.instrumentation, "EventEditService > add", async () =>
+      this.presented(
+        await this.transactions.run(async (): Edited => {
+          const visible = await this.children.idsOf(userId);
+          if (visible.isFailure) return Result.fail(visible.getError());
+          if (!visible.getValue().includes(body.childId)) return Result.fail(childNotFound);
 
-        const fields = this.manualFrom(userId, body);
-        if (fields.isFailure) return Result.fail(fields.getError());
+          const fields = this.manualFrom(userId, body);
+          if (fields.isFailure) return Result.fail(fields.getError());
 
-        const event = AgendaEvent.addByParent(fields.getValue());
-        const inserted = await this.events.insertIfAbsent(event);
-        if (inserted.isFailure) return Result.fail(inserted.getError());
+          const event = AgendaEvent.addByParent(fields.getValue());
+          const inserted = await this.events.insertIfAbsent(event);
+          if (inserted.isFailure) return Result.fail(inserted.getError());
 
-        const planned = await this.alerts.planDefault(plannedDeadline(event, userId));
-        if (planned.isFailure) return Result.fail(planned.getError());
+          const planned = await this.alerts.planDefault(plannedDeadline(event, userId));
+          if (planned.isFailure) return Result.fail(planned.getError());
 
-        await emitEvent(this.outbox, EventTypes.EVENT_ADDED, "event", event.id.value, {
-          userId,
-          childId: body.childId,
-          eventId: event.id.value,
-          actorUserId: userId,
-        });
-        return Result.ok(toEventDto(event));
-      }),
+          await emitEvent(this.outbox, EventTypes.EVENT_ADDED, "event", event.id.value, {
+            userId,
+            childId: body.childId,
+            eventId: event.id.value,
+            actorUserId: userId,
+          });
+          return Result.ok(event);
+        }),
+      ),
     );
   }
 
@@ -89,55 +89,59 @@ export class EventEditService {
     eventId: string,
     patch: EventPatch,
   ): Promise<Result<EventDto, EditError>> {
-    return traced(this.instrumentation, "EventEditService > edit", () =>
-      this.transactions.run(async () => {
-        const found = await this.owned(userId, eventId);
-        if (found.isFailure) return Result.fail(found.getError());
-        const event = found.getValue();
+    return traced(this.instrumentation, "EventEditService > edit", async () =>
+      this.presented(
+        await this.transactions.run(async (): Edited => {
+          const found = await this.owned(userId, eventId);
+          if (found.isFailure) return Result.fail(found.getError());
+          const event = found.getValue();
 
-        const changes = this.changesFrom(event, patch);
-        if (changes.isFailure) return Result.fail(changes.getError());
+          const changes = this.changesFrom(event, patch);
+          if (changes.isFailure) return Result.fail(changes.getError());
 
-        const fields = event.changedFields(changes.getValue());
-        if (fields.length === 0) return Result.ok(toEventDto(event));
+          const fields = event.changedFields(changes.getValue());
+          if (fields.length === 0) return Result.ok(event);
 
-        const day = courseDayOf(event);
-        if (event.edit(changes.getValue(), this.clock()).isFailure)
-          return Result.fail(eventNotFound);
-        const saved = await this.events.save(event);
-        if (saved.isFailure) return Result.fail(saved.getError());
+          const day = courseDayOf(event);
+          if (event.edit(changes.getValue(), this.clock()).isFailure)
+            return Result.fail(eventNotFound);
+          const saved = await this.events.save(event);
+          if (saved.isFailure) return Result.fail(saved.getError());
 
-        if (fields.includes("deadline")) {
-          const replanned = await this.alerts.replan(plannedDeadline(event, userId));
-          if (replanned.isFailure) return Result.fail(replanned.getError());
-        }
-        const unmasked = await this.unmask(event, day, userId);
-        if (unmasked.isFailure) return Result.fail(unmasked.getError());
+          if (fields.includes("deadline")) {
+            const replanned = await this.alerts.replan(plannedDeadline(event, userId));
+            if (replanned.isFailure) return Result.fail(replanned.getError());
+          }
+          const unmasked = await this.unmask(event, day, userId);
+          if (unmasked.isFailure) return Result.fail(unmasked.getError());
 
-        await this.emitUpdated(event, fields);
-        return Result.ok(toEventDto(event));
-      }),
+          await this.emitUpdated(event, fields);
+          return Result.ok(event);
+        }),
+      ),
     );
   }
 
   async confirm(userId: string, eventId: string): Promise<Result<EventDto, EditError>> {
-    return traced(this.instrumentation, "EventEditService > confirm", () =>
-      this.transactions.run(async () => {
-        const found = await this.owned(userId, eventId);
-        if (found.isFailure) return Result.fail(found.getError());
-        const event = found.getValue();
-        if (!event.needsReview()) return Result.ok(toEventDto(event));
+    return traced(this.instrumentation, "EventEditService > confirm", async () =>
+      this.presented(
+        await this.transactions.run(async (): Edited => {
+          const found = await this.owned(userId, eventId);
+          if (found.isFailure) return Result.fail(found.getError());
+          const event = found.getValue();
+          if (!event.needsReview()) return Result.ok(event);
 
-        if (event.confirm().isFailure) return Result.fail(eventNotFound);
-        const saved = await this.events.save(event);
-        if (saved.isFailure) return Result.fail(saved.getError());
+          if (event.confirm().isFailure) return Result.fail(eventNotFound);
+          const saved = await this.events.save(event);
+          if (saved.isFailure) return Result.fail(saved.getError());
 
-        const planned = await this.alerts.planDefault(plannedDeadline(event, userId));
-        if (planned.isFailure) return Result.fail(planned.getError());
+          const planned = await this.alerts.planDefault(plannedDeadline(event, userId));
+          if (planned.isFailure) return Result.fail(planned.getError());
 
-        await this.emitUpdated(event, ["status"]);
-        return Result.ok(toEventDto(event));
-      }),
+          await this.emitUpdated(event, ["status"]);
+          return Result.ok(event);
+        }),
+      ),
     );
   }
 
@@ -146,25 +150,27 @@ export class EventEditService {
     eventId: string,
     done: boolean,
   ): Promise<Result<EventDto, EditError>> {
-    return traced(this.instrumentation, "EventEditService > markDone", () =>
-      this.transactions.run(async () => {
-        const found = await this.owned(userId, eventId);
-        if (found.isFailure) return Result.fail(found.getError());
-        const event = found.getValue();
+    return traced(this.instrumentation, "EventEditService > markDone", async () =>
+      this.presented(
+        await this.transactions.run(async (): Edited => {
+          const found = await this.owned(userId, eventId);
+          if (found.isFailure) return Result.fail(found.getError());
+          const event = found.getValue();
 
-        const marked = event.markDone(done);
-        if (marked.isFailure) return Result.fail(eventNotFound);
-        if (!marked.getValue()) return Result.ok(toEventDto(event));
+          const marked = event.markDone(done);
+          if (marked.isFailure) return Result.fail(eventNotFound);
+          if (!marked.getValue()) return Result.ok(event);
 
-        const saved = await this.events.save(event);
-        if (saved.isFailure) return Result.fail(saved.getError());
+          const saved = await this.events.save(event);
+          if (saved.isFailure) return Result.fail(saved.getError());
 
-        const replanned = await this.alerts.replan(plannedDeadline(event, userId));
-        if (replanned.isFailure) return Result.fail(replanned.getError());
+          const replanned = await this.alerts.replan(plannedDeadline(event, userId));
+          if (replanned.isFailure) return Result.fail(replanned.getError());
 
-        await this.emitUpdated(event, ["done"]);
-        return Result.ok(toEventDto(event));
-      }),
+          await this.emitUpdated(event, ["done"]);
+          return Result.ok(event);
+        }),
+      ),
     );
   }
 
@@ -173,24 +179,34 @@ export class EventEditService {
     eventId: string,
     change: ChecklistChange,
   ): Promise<Result<EventDto, EditError>> {
-    return traced(this.instrumentation, "EventEditService > changeChecklist", () =>
-      this.transactions.run(async () => {
-        const found = await this.owned(userId, eventId);
-        if (found.isFailure) return Result.fail(found.getError());
-        const event = found.getValue();
+    return traced(this.instrumentation, "EventEditService > changeChecklist", async () =>
+      this.presented(
+        await this.transactions.run(async (): Edited => {
+          const found = await this.owned(userId, eventId);
+          if (found.isFailure) return Result.fail(found.getError());
+          const event = found.getValue();
 
-        const changed = event.changeChecklist(change);
-        if (changed.isFailure)
-          return Result.fail(changed.getError() === "invalid" ? invalidChecklist : eventNotFound);
-        if (!changed.getValue()) return Result.ok(toEventDto(event));
+          const changed = event.changeChecklist(change);
+          if (changed.isFailure)
+            return Result.fail(changed.getError() === "invalid" ? invalidChecklist : eventNotFound);
+          if (!changed.getValue()) return Result.ok(event);
 
-        const saved = await this.events.save(event);
-        if (saved.isFailure) return Result.fail(saved.getError());
+          const saved = await this.events.save(event);
+          if (saved.isFailure) return Result.fail(saved.getError());
 
-        await this.emitUpdated(event, ["checklist"]);
-        return Result.ok(toEventDto(event));
-      }),
+          await this.emitUpdated(event, ["checklist"]);
+          return Result.ok(event);
+        }),
+      ),
     );
+  }
+
+  private async presented(
+    edited: Result<AgendaEvent, EditError>,
+  ): Promise<Result<EventDto, EditError>> {
+    if (edited.isFailure) return Result.fail(edited.getError());
+
+    return Result.ok(await this.presenter.presentOne(edited.getValue()));
   }
 
   async remove(userId: string, eventId: string): Promise<Result<void, EditError>> {

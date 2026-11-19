@@ -1,8 +1,8 @@
 /**
  * Proves the composed api end to end against a real Postgres, with FAKE_PROVIDERS standing
  * in for Google and the model. A parent links two children of the synthetic dataset; the
- * first sync fills the agenda from announcements and coursework, served over HTTP; a
- * second sync creates nothing; a deleted deadline stays deleted and an edited title stays
+ * first sync fills the agenda from announcements and coursework, served over HTTP, each
+ * deadline named after the Classroom course it comes from; a second sync creates nothing; a deleted deadline stays deleted and an edited title stays
  * edited across a resync; a pg_notify reaches the live stream; a school block turns a
  * child to `blocked_by_school` and tells the parent's stream, a reconnect brings it back;
  * an unregistered linked account is discarded; a disconnection erases the child and its
@@ -24,6 +24,7 @@ import { pushSubscription } from "@modules/alerts/schemas/push-subscription.sche
 import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
 import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { childAccount } from "@modules/children/schemas/child.schema";
+import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
 import { Result } from "@packages/ddd-kit";
 import {
@@ -75,6 +76,7 @@ const EventRow = z.object({
   title: z.string(),
   source: z.string(),
   done: z.boolean(),
+  course: z.object({ id: z.string(), name: z.string() }).nullable(),
 });
 
 const EventPage = z.object({ items: z.array(EventRow) });
@@ -241,6 +243,11 @@ run(async () => {
   const fractions = agenda.find((event) => event.title === "Fiche d'exercices sur les fractions");
   const quiz = agenda.find((event) => event.title === "Quiz de vocabulaire, unité 4");
   if (!fractions || !quiz) throw new Error("dataset coursework missing from the agenda");
+  await step(
+    "every synced deadline names the Classroom course it comes from",
+    agenda.every((event) => event.course !== null) && quiz.course?.name === "Anglais 5e C",
+    agenda.map(({ title, course }) => [title, course?.name]),
+  );
   const removed = await call(`/events/${fractions.id}`, "DELETE");
   const edited = await call(`/events/${quiz.id}`, "PATCH", { title: "Quiz unité 4, relu" });
   const editResync = await syncDue(new Date(now + 2 * HOUR_MS));
@@ -542,6 +549,7 @@ run(async () => {
     children: await rowsIn(childAccount, eq(childAccount.userId, family.userId)),
     events: await rowsIn(agendaEvent, eq(agendaEvent.userId, family.userId)),
     seen: await rowsIn(seenAnnouncement, inArray(seenAnnouncement.childId, childIds)),
+    courses: await rowsIn(classroomCourse, inArray(classroomCourse.childId, childIds)),
     alerts: await rowsIn(alert, eq(alert.userId, family.userId)),
     deliveries: await rowsIn(alertDelivery, eq(alertDelivery.alertId, due.id)),
     pushSubscriptions: await rowsIn(pushSubscription, eq(pushSubscription.userId, family.userId)),

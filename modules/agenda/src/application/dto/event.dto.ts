@@ -5,9 +5,15 @@ import type { ChecklistItems } from "../../domain/value-objects/event-checklist.
 import type { EventSourceValue } from "../../domain/value-objects/event-source.vo";
 import type { EventStatusValue } from "../../domain/value-objects/event-status.vo";
 
+export interface EventCourseDto {
+  id: string;
+  name: string;
+}
+
 export interface EventDto {
   id: string;
   childId: string;
+  course: EventCourseDto | null;
   title: string;
   description: string;
   category: EventCategoryValue;
@@ -89,12 +95,13 @@ export const checklistChangeBodySchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-export function toEventDto(event: AgendaEvent): EventDto {
+export function toEventDto(event: AgendaEvent, course: EventCourseDto | null): EventDto {
   const deadline = event.get("deadline").value;
 
   return {
     id: event.id.value,
     childId: event.get("childId"),
+    course,
     title: event.get("title").value,
     description: event.get("description").value,
     category: event.get("category").value,

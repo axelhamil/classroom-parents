@@ -25,7 +25,14 @@ const CLASSROOM_DISABLED = "@ClassroomApiDisabled";
 const RATE_LIMIT_REASONS = new Set(["rateLimitExceeded", "userRateLimitExceeded"]);
 
 const coursesPage = z.object({
-  courses: z.array(z.object({ id: z.string().min(1) })).optional(),
+  courses: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().optional(),
+      }),
+    )
+    .optional(),
   nextPageToken: z.string().optional(),
 });
 
@@ -138,6 +145,15 @@ const MESSAGES: Record<ClassroomErrorCode, string> = {
 const failure = <T>(code: ClassroomErrorCode) =>
   Result.fail<T, ClassroomError>({ code, message: MESSAGES[code] });
 
+function filled(text: string | undefined): Option<string> {
+  const trimmed = text?.trim() ?? "";
+  return trimmed.length > 0 ? Option.some(trimmed) : Option.none();
+}
+
+function toCourse(course: { id: string; name?: string }): Course {
+  return { id: course.id, name: filled(course.name) };
+}
+
 async function jsonBody(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -180,7 +196,7 @@ export class GoogleClassroomClient implements IClassroomClient {
         "/courses",
         coursesPage,
         { studentId: "me", courseStates: "ACTIVE", pageSize: COURSE_PAGE_SIZE },
-        (body) => ({ rows: (body.courses ?? []).map(({ id }) => ({ id })), more: true }),
+        (body) => ({ rows: (body.courses ?? []).map(toCourse), more: true }),
       ),
     );
   }

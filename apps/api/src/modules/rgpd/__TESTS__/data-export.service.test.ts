@@ -7,7 +7,8 @@ import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
 import { NoOpInstrumentation } from "../../../shared/services/noop-instrumentation";
-import type { UserDataSnapshot } from "../application/dto/user-data-export.dto";
+import type { CollectedEvent, UserDataSnapshot } from "../application/dto/user-data-export.dto";
+import type { CourseName, ICourseNames } from "../application/ports/course-names.port";
 import type { DataExportAccount, IRgpdRepository } from "../application/ports/rgpd.port";
 import type { IUserDataReader } from "../application/ports/user-data-reader.port";
 import { DataExportService } from "../application/services/data-export.service";
@@ -41,6 +42,32 @@ const snapshot: UserDataSnapshot = {
   sync: [],
 };
 
+function collected(id: string, courseId: string | null): CollectedEvent {
+  return {
+    id,
+    childId: "c1",
+    source: courseId ? "announcement" : "manual",
+    courseId,
+    announcementUrl: null,
+    title: `Échéance ${id}`,
+    description: "",
+    category: "homework",
+    deadlineDate: "2026-11-19",
+    deadlineTime: null,
+    deadlineAt: "2026-11-19T22:59:00.000Z",
+    receivedAt: "2026-11-10T08:00:00.000Z",
+    status: "confirmed",
+    done: false,
+    checklist: { done: [], removed: [], extra: [] },
+    editedAt: null,
+    editedFields: [],
+    deletedAt: null,
+    withdrawnAt: null,
+    createdAt: "2026-11-10T08:00:00.000Z",
+    reminders: null,
+  };
+}
+
 function account(lastDataExportAt: Option<Date>): DataExportAccount {
   return {
     name: "Parent",
@@ -53,6 +80,7 @@ function account(lastDataExportAt: Option<Date>): DataExportAccount {
 interface Fixture {
   repo: PortMock<IRgpdRepository>;
   reader: PortMock<IUserDataReader>;
+  courseNames: PortMock<ICourseNames>;
   outbox: PortMock<IOutboxRepository>;
   uow: UnitOfWorkMock;
   service: DataExportService;
@@ -68,17 +96,26 @@ function fixture(lastDataExportAt: Option<Date> = Option.none()): Fixture {
   const reader = mockPort<IUserDataReader>();
   reader.collect.mockImplementation(async () => Result.ok(snapshot));
 
+  const courseNames = mockPort<ICourseNames>();
+  courseNames.namesOf.mockImplementation(async () =>
+    Result.ok<CourseName[], AppError>([
+      { childId: "c1", courseId: "maths", name: "Mathématiques 4e B" },
+    ]),
+  );
+
   const outbox = mockPort<IOutboxRepository>();
   const uow = mockUnitOfWork();
 
   return {
     repo,
     reader,
+    courseNames,
     outbox,
     uow,
     service: new DataExportService(
       repo,
       reader,
+      courseNames,
       uow.unitOfWork,
       outbox,
       new NoOpInstrumentation(),
@@ -106,6 +143,7 @@ describe("DataExportService.requestExport", () => {
         createdAt: "2026-09-01T07:00:00.000Z",
       },
       ...snapshot,
+      events: [],
     });
     expect(f.reader.collect).toHaveBeenCalledWith("u1");
     expect(f.repo.markDataExported).toHaveBeenCalledWith("u1", NOW);
@@ -140,6 +178,40 @@ describe("DataExportService.requestExport", () => {
 
     expect(result.isSuccess).toBe(true);
     expect(f.repo.markDataExported).toHaveBeenCalledWith("u1", NOW);
+  });
+
+  it("given deadlines from Classroom and one added by hand, each carries the course name the parent sees in the app", async () => {
+    const f = fixture();
+    f.reader.collect.mockImplementation(async () =>
+      Result.ok({
+        ...snapshot,
+        events: [collected("e1", "maths"), collected("e2", "maths"), collected("e3", null)],
+      }),
+    );
+
+    const result = await f.service.requestExport({ userId: "u1" });
+
+    expect(f.courseNames.namesOf).toHaveBeenCalledWith([{ childId: "c1", courseId: "maths" }]);
+    expect(result.getValue().document.events.map(({ id, course }) => [id, course])).toEqual([
+      ["e1", { id: "maths", name: "Mathématiques 4e B" }],
+      ["e2", { id: "maths", name: "Mathématiques 4e B" }],
+      ["e3", null],
+    ]);
+  });
+
+  it("given the course names cannot be read, refuses an incomplete export and rolls the request back", async () => {
+    const f = fixture();
+    f.reader.collect.mockImplementation(async () =>
+      Result.ok({ ...snapshot, events: [collected("e1", "maths")] }),
+    );
+    f.courseNames.namesOf.mockImplementation(async () =>
+      Result.fail<CourseName[], AppError>({ code: "SYNC_PROVIDER_FAILURE", message: "db" }),
+    );
+
+    const result = await f.service.requestExport({ userId: "u1" });
+
+    expect(result.getError().code).toBe("SYNC_PROVIDER_FAILURE");
+    expect(f.uow.outcome()).toBe("rolled_back");
   });
 
   it("given the data cannot be read, rolls the request back so the parent can retry at once", async () => {

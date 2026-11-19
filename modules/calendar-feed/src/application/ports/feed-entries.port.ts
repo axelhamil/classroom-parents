@@ -6,6 +6,7 @@ export interface FeedEntry {
   title: string;
   description: string;
   categoryLabel: string;
+  courseName: Option<string>;
   deadlineDate: string;
   deadlineTime: Option<string>;
   classroomUrl: Option<string>;

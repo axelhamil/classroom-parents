@@ -8,9 +8,11 @@ import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
 import type { EventPatch } from "../application/dto/event.dto";
 import type { IAlertPlanner } from "../application/ports/alert-planner.port";
+import type { ICourseNames } from "../application/ports/course-names.port";
 import type { AgendaError, IEventRepository } from "../application/ports/event-repository.port";
 import type { IVisibleChildren } from "../application/ports/visible-children.port";
 import { EventEditService } from "../application/services/event-edit.service";
+import { EventPresenter } from "../application/services/event-presenter";
 import type { AgendaEvent } from "../domain/event.aggregate";
 import {
   type AgendaEventOverrides,
@@ -42,6 +44,11 @@ beforeEach(() => {
   children = mockPort<IVisibleChildren>();
   children.idsOf.mockResolvedValue(Result.ok([CHILD]));
   uow = mockUnitOfWork();
+  const courseNames = mockPort<ICourseNames>();
+  courseNames.namesOf.mockResolvedValue(
+    Result.ok([{ childId: CHILD, courseId: "course-1", name: "Mathématiques 4e B" }]),
+  );
+  const instrumentation = mockInstrumentation();
 
   repo.save.mockResolvedValue(Result.ok());
   repo.listAnnouncementsOn.mockResolvedValue(Result.ok([]));
@@ -56,7 +63,8 @@ beforeEach(() => {
     planner,
     uow.unitOfWork,
     outbox,
-    mockInstrumentation(),
+    new EventPresenter(courseNames, instrumentation),
+    instrumentation,
     () => NOW,
   );
 });
@@ -66,6 +74,7 @@ describe("edit", () => {
     const result = await service.edit(PARENT, event.id.value, { deadlineDate: "2026-11-26" });
 
     expect(result.getValue()).toMatchObject({
+      course: { id: "course-1", name: "Mathématiques 4e B" },
       deadlineDate: "2026-11-26",
       deadlineAt: "2026-11-26T22:59:00.000Z",
       editedFields: ["deadline"],

@@ -13,4 +13,4 @@ A parent's private ICS subscription link (`GET /calendar/<secret>.ics`), one per
 ## Ports
 
 - `IFeedChildren`: the parent's visible child ids, to refuse a scope naming a child that is not theirs.
-- `IFeedEntries`: confirmed events from 30 days back onwards with child label, category label and planned reminder times, bound in `apps/api/src/composition/bindings.ts` (`feedEntriesFor`) over the agenda's visibility rules and the alerts table (`apps/api/src/queries/feed-alarms.query.ts`).
+- `IFeedEntries`: confirmed events from 30 days back onwards with child label, category label, course name and planned reminder times, bound in `apps/api/src/composition/bindings.ts` (`feedEntriesFor`) over the agenda's visibility rules and the alerts table (`apps/api/src/queries/feed-alarms.query.ts`).

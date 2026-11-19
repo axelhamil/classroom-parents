@@ -3,10 +3,12 @@ import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
 import type { IAlertPlanner } from "./application/ports/alert-planner.port";
 import type { IChildOwnership } from "./application/ports/child-ownership.port";
+import type { ICourseNames } from "./application/ports/course-names.port";
 import type { IEventRepository } from "./application/ports/event-repository.port";
 import type { IVisibleChildren } from "./application/ports/visible-children.port";
 import { EventEditService } from "./application/services/event-edit.service";
 import { EventIngestService } from "./application/services/event-ingest.service";
+import { EventPresenter } from "./application/services/event-presenter";
 import { EventQueryService } from "./application/services/event-query.service";
 import { DrizzleEventRepository } from "./infrastructure/repositories/drizzle-event.repository";
 
@@ -17,6 +19,7 @@ export interface AgendaPrerequisites {
   IAlertPlanner: IAlertPlanner;
   IChildOwnership: IChildOwnership;
   IVisibleChildren: IVisibleChildren;
+  ICourseNames: ICourseNames;
 }
 
 export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
@@ -25,6 +28,7 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
       "IEventRepository",
       (c): IEventRepository => new DrizzleEventRepository(c.IInstrumentation),
     )
+    .add("EventPresenter", (c) => new EventPresenter(c.ICourseNames, c.IInstrumentation))
     .add(
       "EventIngestService",
       (c) =>
@@ -46,11 +50,18 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
           c.IAlertPlanner,
           c.ITransactionService,
           c.IOutboxRepository,
+          c.EventPresenter,
           c.IInstrumentation,
         ),
     )
     .add(
       "EventQueryService",
-      (c) => new EventQueryService(c.IEventRepository, c.IVisibleChildren, c.IInstrumentation),
+      (c) =>
+        new EventQueryService(
+          c.IEventRepository,
+          c.IVisibleChildren,
+          c.EventPresenter,
+          c.IInstrumentation,
+        ),
     ),
 );

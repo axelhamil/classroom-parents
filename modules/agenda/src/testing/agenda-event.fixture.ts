@@ -17,6 +17,7 @@ export interface AgendaEventOverrides {
   deadlineDate?: string;
   deadlineTime?: string;
   source?: "announcement" | "coursework";
+  withoutCourse?: boolean;
 }
 
 export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
@@ -28,7 +29,7 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
         overrides.source === "coursework" ? EventSource.coursework() : EventSource.announcement(),
       announcementId: "announcement-1",
       ordinal: 0,
-      courseId: Option.some("course-1"),
+      courseId: overrides.withoutCourse ? Option.none() : Option.some("course-1"),
       announcementUrl: Option.some("https://classroom.google.com/c/course-1/p/announcement-1"),
       title: EventTitle.create("Contrôle de maths").getValue(),
       description: EventDescription.create("Chapitre 3").getValue(),

@@ -35,6 +35,7 @@ const entry: FeedEntry = {
   title: "Contrôle de maths",
   description: "Chapitre 3",
   categoryLabel: "Évaluation",
+  courseName: Option.none(),
   deadlineDate: "2026-11-19",
   deadlineTime: Option.none(),
   classroomUrl: Option.some("https://classroom.google.com/c/abc/p/def"),

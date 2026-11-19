@@ -120,6 +120,7 @@ function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] 
   ].join(" · ");
   const url = webUrl(entry.classroomUrl);
   const description = [
+    entry.courseName.map((name) => `Cours : ${name}`).unwrapOr(""),
     entry.description.trim(),
     url.map((href) => `Classroom : ${href}`).unwrapOr(""),
   ]

@@ -41,6 +41,7 @@ export {
   type Transaction,
 } from "./config";
 export { dbOperationFailure } from "./db-failure";
+export { excluded } from "./excluded";
 export {
   claimedSet,
   dbClockNow,

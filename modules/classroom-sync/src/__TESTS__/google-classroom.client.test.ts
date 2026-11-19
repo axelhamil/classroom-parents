@@ -55,12 +55,20 @@ beforeEach(() => {
 });
 
 describe("GoogleClassroomClient", () => {
-  it("lists the active courses the child follows as a student", async () => {
-    answers.push(json(200, { courses: [{ id: "c1", name: "Maths" }, { id: "c2" }] }));
+  it("lists the active courses the child follows as a student, with the name Classroom gives them", async () => {
+    answers.push(
+      json(200, {
+        courses: [{ id: "c1", name: " Maths 4e B " }, { id: "c2" }, { id: "c3", name: " " }],
+      }),
+    );
 
     const result = await client.listCourses("ya29.token", open);
 
-    expect(result.getValue()).toEqual([{ id: "c1" }, { id: "c2" }]);
+    expect(result.getValue().map(({ id, name }) => [id, name.toUndefined()])).toEqual([
+      ["c1", "Maths 4e B"],
+      ["c2", undefined],
+      ["c3", undefined],
+    ]);
     expect(requests[0]?.searchParams.get("studentId")).toBe("me");
     expect(requests[0]?.searchParams.get("courseStates")).toBe("ACTIVE");
   });

@@ -24,6 +24,7 @@ export interface ReadScope {
 
 export interface Course {
   id: string;
+  name: Option<string>;
 }
 
 export interface Announcement {
