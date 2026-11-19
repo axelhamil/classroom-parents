@@ -44,6 +44,7 @@ export default {
     addDialog: {
       title: "Nouvelle échéance",
       description: "Ce que l'école n'a pas publié : un rendez-vous, une sortie, un document.",
+      loading: "Chargement du formulaire",
       child: "Enfant",
       childPlaceholder: "Choisir un enfant",
       submit: "Ajouter",

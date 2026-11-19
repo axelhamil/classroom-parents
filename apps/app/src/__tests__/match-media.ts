@@ -35,3 +35,12 @@ export function ensureResizeObserver(): void {
     },
   );
 }
+
+export function ensureAnimationsSkipped(): void {
+  if (document.querySelector("style[data-animations-skipped]")) return;
+
+  const style = document.createElement("style");
+  style.dataset.animationsSkipped = "";
+  style.textContent = "*, *::before, *::after { animation-name: none !important; }";
+  document.head.append(style);
+}

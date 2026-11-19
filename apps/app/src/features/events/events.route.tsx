@@ -12,6 +12,7 @@ import { DashboardGrid } from "../../shared/dashboard/dashboard-grid";
 import { CategoryFilter } from "../../shared/events/category-filter";
 import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
 import { Screen } from "../../shared/layout/screen";
+import { reflow } from "../../shared/motion/reflow";
 import { QueryState } from "../../shared/query/query-state";
 import { ScreenTour } from "../../shared/tour/screen-tour";
 import { calendarEventsQueryOptions } from "./api/events.queries";
@@ -196,7 +197,12 @@ function FamilyHome({ family, now, editing }: FamilyHomeProps) {
         onReset={home.reset}
         header={
           family.length > 1 && (
-            <FamilyRow family={family} events={loaded} value={childId} onChange={selectChild} />
+            <FamilyRow
+              family={family}
+              events={loaded}
+              value={childId}
+              onChange={(next) => reflow(document.querySelector("main"), () => selectChild(next))}
+            />
           )
         }
       />

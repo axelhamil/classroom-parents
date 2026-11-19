@@ -119,34 +119,21 @@ describe("devices card", () => {
     expect(writesTo(calls)).toEqual([{ path: "/api/auth/revoke-other-sessions", body: {} }]);
   });
 
-  it("a long list keeps this device on top and the others in a keyboard scrollable list", async () => {
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(72);
-    vi.spyOn(Element.prototype, "clientHeight", "get").mockReturnValue(360);
+  it("this device stays on top and every other one is listed with the page, without a scroller of its own", async () => {
     givenSessions([
       session("s-1", "token-1", IPHONE, "2026-11-12T08:00:00.000Z"),
-      ...Array.from({ length: 24 }, (_, index) =>
+      ...Array.from({ length: 9 }, (_, index) =>
         session(`s-${index + 2}`, `token-${index + 2}`, WINDOWS_CHROME, "2026-11-10T19:30:00.000Z"),
       ),
     ]);
     await renderAppAt("/settings");
 
     const card = await screen.findByRole("region", { name: "Appareils connectés" });
-    const others = await within(card).findByRole("region", { name: "Vos autres appareils" });
-    const shownOthers = await within(others).findAllByRole("listitem");
+    const others = await within(card).findByRole("list", { name: "Vos autres appareils" });
 
     expect(within(card).getByText("Cet appareil")).toBeTruthy();
     expect(within(others).queryByText("Cet appareil")).toBeNull();
-    expect(others.tabIndex).toBe(0);
-    expect(shownOthers.length).toBeGreaterThan(0);
-    expect(shownOthers.length).toBeLessThan(24);
-    vi.unstubAllGlobals();
+    expect(within(others).getAllByRole("listitem")).toHaveLength(9);
+    expect(within(card).queryByRole("region", { name: "Vos autres appareils" })).toBeNull();
   });
 });

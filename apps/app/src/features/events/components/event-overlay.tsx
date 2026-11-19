@@ -1,10 +1,11 @@
 import { TypographyDisplay } from "@packages/ui/components/ui/typography";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveOverlay } from "../../../shared/layout/responsive-overlay";
+import { arrive } from "../../../shared/motion/deadline-morph";
 import { QueryState } from "../../../shared/query/query-state";
-import { eventQueryOptions } from "../api/events.queries";
+import { calendarEventOf, eventQueryOptions } from "../api/events.queries";
 import { EventDetailBody, EventDetailSkeleton } from "./event-detail-body";
 import { EventEyebrow, EventOrigin } from "./event-when";
 
@@ -26,11 +27,16 @@ export interface EventOverlayProps {
 
 export function EventOverlay({ eventId, onClose }: EventOverlayProps) {
   const { t } = useTranslation("events");
-  const query = useQuery(eventQueryOptions(eventId));
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    ...eventQueryOptions(eventId),
+    placeholderData: () => calendarEventOf(queryClient, eventId),
+  });
   const event = query.data;
   const [targets] = useState(() =>
     focusTargets(document.activeElement instanceof HTMLElement ? document.activeElement : null),
   );
+  useLayoutEffect(arrive, []);
 
   return (
     <ResponsiveOverlay

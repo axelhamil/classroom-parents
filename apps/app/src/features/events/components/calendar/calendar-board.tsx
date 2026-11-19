@@ -2,7 +2,7 @@ import { CalendarPeriod } from "@packages/ui/components/ui/calendar-day";
 import { Tabs, TabsContent } from "@packages/ui/components/ui/tabs";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HourglassIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import {
@@ -10,6 +10,9 @@ import {
   EventBoardSkeleton,
   isFirstSyncRunning,
 } from "../../../../shared/events/event-board";
+import { preloadOverlayFrame } from "../../../../shared/layout/responsive-overlay";
+import { usePrefetchWhenIdle } from "../../../../shared/perf/prefetch-when-idle";
+import { preloadable } from "../../../../shared/perf/preloadable";
 import { QueryState } from "../../../../shared/query/query-state";
 import { calendarEventsQueryOptions } from "../../api/events.queries";
 import {
@@ -25,10 +28,9 @@ import {
 import { useShareDays } from "../../hooks/use-share-days";
 import { type SwipeStep, useSwipe } from "../../hooks/use-swipe";
 import { schoolMoment } from "../../week";
-import { AddEventDialog } from "./add-event-dialog";
+import { AddEventDialog, preloadAddEventForm } from "./add-event-dialog";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
-import { MonthView } from "./month-view";
 import { OverdueButton } from "./overdue-button";
 import { PeriodEmpty } from "./period-empty";
 import { WeekStrip } from "./week-strip";
@@ -45,6 +47,12 @@ export interface CalendarBoardProps {
 }
 
 type Direction = "none" | "forward" | "back";
+
+const { Component: MonthView, preload: preloadMonthView } = preloadable(() =>
+  import("./month-view").then((module) => module.MonthView),
+);
+
+const OPENED_ON_DEMAND = [preloadOverlayFrame, preloadAddEventForm, preloadMonthView];
 
 function useNeighbourPrefetch(view: CalendarView, anchor: string): void {
   const queryClient = useQueryClient();
@@ -73,6 +81,7 @@ export function CalendarBoard({
     placeholderData: keepPreviousData,
   });
   useNeighbourPrefetch(view, anchor);
+  usePrefetchWhenIdle(OPENED_ON_DEMAND);
   const [motion, setMotion] = useState<{ direction: Direction; turn: number }>({
     direction: "none",
     turn: 0,
@@ -170,12 +179,14 @@ export function CalendarBoard({
                         />
                       ))}
                     {candidate === "month" && (
-                      <MonthView
-                        {...viewProps}
-                        anchor={anchor}
-                        onSelect={select}
-                        emptyPeriod={periodEmpty}
-                      />
+                      <Suspense fallback={<EventBoardSkeleton label={t("calendar.loading")} />}>
+                        <MonthView
+                          {...viewProps}
+                          anchor={anchor}
+                          onSelect={select}
+                          emptyPeriod={periodEmpty}
+                        />
+                      </Suspense>
                     )}
                   </CalendarPeriod>
                 )

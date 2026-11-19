@@ -5,9 +5,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@packages/ui/components/ui/dialog";
+import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
+import { Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
-import { AddEventForm } from "../../forms/add-event-form";
+import { preloadable } from "../../../../shared/perf/preloadable";
+
+const { Component: AddEventForm, preload: preloadAddEventForm } = preloadable(() =>
+  import("../../forms/add-event-form").then((module) => module.AddEventForm),
+);
+
+export { preloadAddEventForm };
 
 export interface AddEventDialogProps {
   date: string | null;
@@ -27,7 +35,19 @@ export function AddEventDialog({ date, family, childId, onClose }: AddEventDialo
           <DialogTitle>{t("calendar.addDialog.title")}</DialogTitle>
           <DialogDescription>{t("calendar.addDialog.description")}</DialogDescription>
         </DialogHeader>
-        {date && <AddEventForm family={family} childId={childId} date={date} onAdded={onClose} />}
+        {date && (
+          <Suspense
+            fallback={
+              <SkeletonGroup label={t("calendar.addDialog.loading")} className="gap-4">
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+                <Skeleton className="h-24" />
+              </SkeletonGroup>
+            }
+          >
+            <AddEventForm family={family} childId={childId} date={date} onAdded={onClose} />
+          </Suspense>
+        )}
       </DialogContent>
     </Dialog>
   );

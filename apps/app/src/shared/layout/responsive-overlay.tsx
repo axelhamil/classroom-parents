@@ -1,33 +1,15 @@
 import { Button } from "@packages/ui/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@packages/ui/components/ui/dialog";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@packages/ui/components/ui/drawer";
 import { Item, ItemActions, ItemContent, ItemTitle } from "@packages/ui/components/ui/item";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@packages/ui/components/ui/sheet";
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, type ReactNode, Suspense, useContext, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { TABLET_QUERY, useMediaQuery } from "./use-media-query";
+import { preloadable } from "../perf/preloadable";
+
+const { Component: OverlayFrame, preload: preloadOverlayFrame } = preloadable(() =>
+  import("./overlay-frame").then((module) => module.OverlayFrame),
+);
+
+export { preloadOverlayFrame };
 
 export interface UndoOffer {
   id: string;
@@ -102,98 +84,25 @@ function UndoStatus({ offer, onUndo }: UndoStatusProps) {
   );
 }
 
-interface OverlayFrameProps extends Omit<ResponsiveOverlayProps, "returnFocus" | "onClose"> {
-  closeLabel: string;
-  status: ReactNode;
-  onOpenChange: (open: boolean) => void;
-  onCloseAutoFocus: (event: Event) => void;
-}
-
-function OverlayFrame({
-  eyebrow,
-  title,
-  description,
-  descriptionHidden = false,
-  closeLabel,
-  docked,
-  status,
-  onOpenChange,
-  onCloseAutoFocus,
-  children,
-}: OverlayFrameProps) {
-  const tablet = useMediaQuery(TABLET_QUERY);
-  const descriptionClass = descriptionHidden ? "sr-only" : undefined;
-
-  if (!tablet)
-    return (
-      <Drawer open autoFocus onOpenChange={onOpenChange}>
-        <DrawerContent onCloseAutoFocus={onCloseAutoFocus}>
-          <DrawerHeader>
-            {eyebrow}
-            <DrawerTitle className="wrap-anywhere">{title}</DrawerTitle>
-            <DrawerDescription className={descriptionClass}>{description}</DrawerDescription>
-          </DrawerHeader>
-          <div className="flex min-h-0 flex-col gap-6 overflow-y-auto px-4">{children}</div>
-          {status}
-          <DrawerFooter>
-            <DrawerClose asChild>
-              <Button type="button" variant="outline">
-                {closeLabel}
-              </Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
-    );
-
-  if (docked === "sheet")
-    return (
-      <Sheet open onOpenChange={onOpenChange}>
-        <SheetContent size="lg" closeLabel={closeLabel} onCloseAutoFocus={onCloseAutoFocus}>
-          <SheetHeader>
-            {eyebrow}
-            <SheetTitle className="pr-8 wrap-anywhere">{title}</SheetTitle>
-            <SheetDescription className={descriptionClass}>{description}</SheetDescription>
-          </SheetHeader>
-          <SheetBody className="gap-6">
-            {children}
-            {status}
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
-    );
-
-  return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent
-        closeLabel={closeLabel}
-        onCloseAutoFocus={onCloseAutoFocus}
-        className="flex flex-col"
-      >
-        <DialogHeader>
-          {eyebrow}
-          <DialogTitle className="wrap-anywhere">{title}</DialogTitle>
-          <DialogDescription className={descriptionClass}>{description}</DialogDescription>
-        </DialogHeader>
-        {children}
-        {status}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function ResponsiveOverlay({ returnFocus, onClose, ...frame }: ResponsiveOverlayProps) {
   const { t } = useTranslation("common");
+  const [open, setOpen] = useState(true);
+  const closing = useRef(false);
   const [offer, setOffer] = useState<UndoOffer | null>(null);
   const [channel] = useState<UndoChannel>(() => ({
     offer: setOffer,
     withdraw: (id) => setOffer((current) => (current?.id === id ? null : current)),
   }));
-  const onOpenChange = (open: boolean) => {
-    if (!open) onClose();
+  const onOpenChange = (next: boolean) => {
+    if (next) return;
+
+    closing.current = true;
+    setOpen(false);
   };
-  const onCloseAutoFocus = (event: Event) =>
+  const onCloseAutoFocus = (event: Event) => {
     focusFirstConnected(event, [...returnFocus(), ...pageHeading()]);
+    if (closing.current) onClose();
+  };
   const undo = () => {
     offer?.undo();
     setOffer(null);
@@ -201,13 +110,16 @@ export function ResponsiveOverlay({ returnFocus, onClose, ...frame }: Responsive
 
   return (
     <OverlayUndoContext value={channel}>
-      <OverlayFrame
-        {...frame}
-        closeLabel={t("actions.close")}
-        status={<UndoStatus offer={offer} onUndo={undo} />}
-        onOpenChange={onOpenChange}
-        onCloseAutoFocus={onCloseAutoFocus}
-      />
+      <Suspense fallback={null}>
+        <OverlayFrame
+          {...frame}
+          open={open}
+          closeLabel={t("actions.close")}
+          status={<UndoStatus offer={offer} onUndo={undo} />}
+          onOpenChange={onOpenChange}
+          onCloseAutoFocus={onCloseAutoFocus}
+        />
+      </Suspense>
     </OverlayUndoContext>
   );
 }

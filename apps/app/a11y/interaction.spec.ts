@@ -276,6 +276,27 @@ test.describe("signed in", () => {
     await expect(trigger).toBeFocused();
   });
 
+  // A busy main thread moves the focus only after the arrow key is already up: the
+  // press and release are dispatched in one task so the release always wins that race.
+  test("checks the swatch an arrow reaches even when the key is released before the focus moves", async ({
+    page,
+  }) => {
+    const { dialog } = await openCustomizeDialog(page);
+
+    const blue = dialog.getByRole("radio", { name: "Bleu" });
+    await tabTo(page, blue);
+    await blue.evaluate((swatch) => {
+      for (const type of ["keydown", "keyup"]) {
+        swatch.dispatchEvent(new KeyboardEvent(type, { key: "ArrowRight", bubbles: true }));
+      }
+    });
+
+    const violet = dialog.getByRole("radio", { name: "Violet" });
+    await expect(violet).toBeFocused();
+    await expect(violet).toHaveAttribute("aria-checked", "true");
+    await expect(blue).toHaveAttribute("aria-checked", "false");
+  });
+
   for (const colorScheme of COLOR_SCHEMES) {
     test(`outlines the chosen swatch at 3:1 and passes axe in the dialog (${colorScheme})`, async ({
       page,

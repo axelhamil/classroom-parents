@@ -29,7 +29,7 @@ export function PrivacyLinksCard() {
     <SectionCard title={t("links.title")} description={t("links.description")}>
       <ul className="flex flex-col gap-2">
         {LINKS.map(({ to, key, icon: Icon }) => (
-          <li key={to} className="animate-enter">
+          <li key={to}>
             <Item variant="outline" size="sm" asChild>
               <Link to={to}>
                 <ItemMedia>

@@ -1,5 +1,5 @@
 import { Button } from "@packages/ui/components/ui/button";
-import { ListRow, ListRowAction } from "@packages/ui/components/ui/list-row";
+import { ListRowAction } from "@packages/ui/components/ui/list-row";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, SearchCheckIcon } from "lucide-react";
@@ -9,8 +9,11 @@ import type { EventItem } from "../../../shared/api/queries/events";
 import { EventCard } from "../../../shared/events/event-card";
 import type { ChildHue } from "../../../shared/format/child-hue";
 import { ResponsiveOverlay } from "../../../shared/layout/responsive-overlay";
+import { VirtualList } from "../../../shared/virtual/virtual-list";
 import { useConfirmEvent } from "../hooks/use-confirm-event";
 import { ReviewReasons } from "./review-reasons";
+
+const REVIEW_ROW_HEIGHT = 260;
 
 export interface ReviewListProps {
   events: readonly EventItem[];
@@ -70,9 +73,15 @@ function ReviewList({ events, childLabel, childColor }: ReviewListProps) {
 
   return (
     <ScrollRegion variant="list" label={t("review.title")}>
-      <ul className="flex flex-col gap-3">
-        {events.map((event) => (
-          <ListRow key={event.id} variant="plain" className="flex-col items-stretch">
+      <VirtualList
+        items={events}
+        keyOf={(event) => event.id}
+        scroller="region"
+        estimatedRowHeight={REVIEW_ROW_HEIGHT}
+        rowClassName="flex-col items-stretch pb-3"
+      >
+        {(event) => (
+          <>
             <EventCard
               event={event}
               childLabel={childLabel(event.childId)}
@@ -95,9 +104,9 @@ function ReviewList({ events, childLabel, childColor }: ReviewListProps) {
                 </Link>
               </Button>
             </ListRowAction>
-          </ListRow>
-        ))}
-      </ul>
+          </>
+        )}
+      </VirtualList>
     </ScrollRegion>
   );
 }
