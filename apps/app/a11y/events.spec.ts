@@ -158,11 +158,20 @@ test.describe("the calendar on a phone", () => {
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
       await page.goto("/");
 
-      await expect(page.getByRole("heading", { level: 2, name: "À vérifier" })).toBeVisible();
+      const review = page.getByRole("button", { name: "1 date à vérifier" });
+      await expect(review).toHaveAttribute("aria-haspopup", "dialog");
       await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
       await expect(page.getByRole("link", { name: REVIEW_EVENT.title, exact: true })).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
+
+      await review.click();
+      const dialog = page.getByRole("dialog", { name: "1 date à vérifier" });
+      await expect(dialog.getByRole("button", { name: "C'est bon" })).toBeVisible();
+      await expect(dialog.getByRole("link", { name: "Modifier" })).toBeVisible();
+      expect(await blockingViolations(page)).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(review).toBeFocused();
     });
 
     test(`a late deadline waits folded above the week and opens in a drawer (${colorScheme})`, async ({

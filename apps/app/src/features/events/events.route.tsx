@@ -18,7 +18,7 @@ import { BlockedChildrenNotice } from "./components/blocked-children-notice";
 import { CalendarBoard, type CalendarPlace } from "./components/calendar/calendar-board";
 import { EventOverlay } from "./components/event-overlay";
 import { NextSchoolBriefing } from "./components/next-school-briefing";
-import { ReviewCard } from "./components/review-card";
+import { ReviewLine } from "./components/review-line";
 import { type HomeSearch, homeSearchSchema } from "./events.schema";
 import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
 import { useNow } from "./hooks/use-now";
@@ -144,13 +144,6 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
-      {toReview.length > 0 && (
-        <ReviewCard
-          events={toReview}
-          childLabel={(id) => childLabelOf(family, id)}
-          childColor={(id) => childHue(family, id)}
-        />
-      )}
       <CalendarBoard
         family={family}
         childId={childId}
@@ -158,7 +151,16 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
         place={place}
         onPlaceChange={setSearch}
         now={now}
-        briefing={<NextSchoolBriefing family={family} childId={childId} now={now} />}
+        briefing={
+          <div className="flex min-w-0 flex-col gap-3 md:sticky md:top-briefing-top">
+            <NextSchoolBriefing family={family} childId={childId} now={now} />
+            <ReviewLine
+              events={toReview}
+              childLabel={(id) => childLabelOf(family, id)}
+              childColor={(id) => childHue(family, id)}
+            />
+          </div>
+        }
         tour={!search.event && <ScreenTour screen="home" userId={user.id} />}
       />
     </div>

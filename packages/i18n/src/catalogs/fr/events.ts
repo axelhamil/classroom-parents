@@ -178,6 +178,8 @@ export default {
   },
   review: {
     title: "À vérifier",
+    count_one: "{{count}} date à vérifier",
+    count_other: "{{count}} dates à vérifier",
     description:
       "Ces dates ont été lues avec un doute. Confirmez-les pour programmer leurs rappels.",
     confirm: "C'est bon",

@@ -151,6 +151,13 @@ export function CalendarBoard({
       <div className="flex flex-col gap-4 md:grid md:grid-cols-[var(--spacing-briefing-panel)_minmax(0,1fr)] md:items-start md:gap-6">
         {briefing}
         <div className="@container flex min-w-0 flex-col gap-4">
+          <OverdueButton
+            family={family}
+            childId={childId}
+            now={now}
+            today={today}
+            before={period.from}
+          />
           <CalendarToolbar
             view={view}
             anchor={anchor}
@@ -161,13 +168,6 @@ export function CalendarBoard({
             onAdd={() => setAdding(anchor)}
             onShare={() => shareDays(days)}
             onSubscribe={() => setSubscribing(true)}
-          />
-          <OverdueButton
-            family={family}
-            childId={childId}
-            now={now}
-            today={today}
-            before={period.from}
           />
           {CALENDAR_VIEWS.map((candidate) => (
             <TabsContent key={candidate} value={candidate}>

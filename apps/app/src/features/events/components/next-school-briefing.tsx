@@ -52,7 +52,7 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
       aria-labelledby={titleId}
       data-jump={moment.focus}
       tabIndex={-1}
-      className="max-h-briefing-phone md:sticky md:top-briefing-top md:max-h-briefing-panel-height"
+      className="max-h-briefing-phone md:max-h-briefing-panel-height"
     >
       <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
       {query.data && !isFirstSyncRunning(watched) && (
