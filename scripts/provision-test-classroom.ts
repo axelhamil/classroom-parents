@@ -8,6 +8,7 @@ import {
   type ClassTemplate,
   type DayWords,
   type LifeAction,
+  type TemplateAccount,
   type TemplateDue,
   type TemplateText,
 } from "./test-classroom-template";
@@ -30,6 +31,8 @@ export interface ProvisionConfig {
   domain: string;
   anchor: string;
   keyFile: string | undefined;
+  teacher: string | undefined;
+  students: string[] | undefined;
 }
 
 type ConfigResult = { ok: true; config: ProvisionConfig } | { ok: false; error: string };
@@ -115,11 +118,12 @@ interface DateContext {
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const LOCAL_PART = /^[a-z0-9][a-z0-9._-]*$/;
 
-function listOfDomains(value: string | undefined): string[] {
+function listOf(value: string | undefined): string[] {
   return (value ?? "")
     .split(",")
-    .map((domain) => domain.trim().toLowerCase())
+    .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 }
 
@@ -135,12 +139,36 @@ function isInside(path: string, root: string): boolean {
   return !fromRoot.startsWith("..") && !isAbsolute(fromRoot);
 }
 
+type CastResult =
+  | { ok: true; teacher: string | undefined; students: string[] | undefined }
+  | { ok: false; error: string };
+
+function readCast(env: Record<string, string | undefined>, template: ClassTemplate): CastResult {
+  const teacher = env.TEST_CLASSROOM_TEACHER?.trim().toLowerCase() || undefined;
+  const studentList = env.TEST_CLASSROOM_STUDENTS?.trim() || undefined;
+  const students = listOf(studentList);
+  const pupils = template.students.map((student) => student.localPart);
+  const unknown = students.find((student) => !pupils.includes(student));
+
+  if (teacher !== undefined && !LOCAL_PART.test(teacher))
+    return { ok: false, error: `TEST_CLASSROOM_TEACHER "${teacher}" is no account local part` };
+  if (studentList !== undefined && students.length === 0)
+    return { ok: false, error: "TEST_CLASSROOM_STUDENTS names no pupil, unset it to enroll all" };
+  if (unknown !== undefined)
+    return {
+      ok: false,
+      error: `TEST_CLASSROOM_STUDENTS "${unknown}" is no pupil of the template (${pupils.join(", ")})`,
+    };
+
+  return { ok: true, teacher, students: studentList === undefined ? undefined : students };
+}
+
 export function readConfig(
   env: Record<string, string | undefined>,
-  { dryRun, repoRoot }: { dryRun: boolean; repoRoot: string },
+  { dryRun, repoRoot, template }: { dryRun: boolean; repoRoot: string; template: ClassTemplate },
 ): ConfigResult {
   const domain = env.TEST_CLASSROOM_DOMAIN?.trim().toLowerCase() ?? "";
-  const allowed = listOfDomains(env.TEST_CLASSROOM_ALLOWED_DOMAINS);
+  const allowed = listOf(env.TEST_CLASSROOM_ALLOWED_DOMAINS);
   const anchor = env.TEST_CLASSROOM_ANCHOR?.trim() ?? "";
   const keyFile = env.TEST_CLASSROOM_SERVICE_ACCOUNT_FILE?.trim() || undefined;
 
@@ -158,7 +186,35 @@ export function readConfig(
   if (keyFile !== undefined && isInside(keyFile, repoRoot))
     return { ok: false, error: "keep the service account key outside the repository" };
 
-  return { ok: true, config: { domain, anchor, keyFile } };
+  const cast = readCast(env, template);
+  if (!cast.ok) return cast;
+
+  const { teacher, students } = cast;
+
+  return { ok: true, config: { domain, anchor, keyFile, teacher, students } };
+}
+
+function soleTeacher(template: ClassTemplate, localPart: string): TemplateAccount {
+  const known = template.courses.find((course) => course.teacher.localPart === localPart);
+
+  return known?.teacher ?? { localPart, givenName: localPart, familyName: "" };
+}
+
+export function castTemplate(
+  template: ClassTemplate,
+  { teacher, students }: Pick<ProvisionConfig, "teacher" | "students">,
+): ClassTemplate {
+  const owner = teacher === undefined ? undefined : soleTeacher(template, teacher);
+
+  return {
+    ...template,
+    courses: owner
+      ? template.courses.map((course) => ({ ...course, teacher: owner }))
+      : template.courses,
+    students: students
+      ? template.students.filter((student) => students.includes(student.localPart))
+      : template.students,
+  };
 }
 
 function dayOf(anchor: string, day: number): Date {
@@ -706,11 +762,11 @@ function googleClassroom(tokenFor: (subject: string) => Promise<string>): Classr
 
       return (await listAll(as, "/courses", "courses", query)).map(asCourse);
     },
-    async createCourse(as, course) {
+    async createCourse(as, { name, section, description }) {
       return asCourse(
         await call(as, "/courses", {
           method: "POST",
-          body: { ...course, ownerId: "me", courseState: "ACTIVE" },
+          body: { name, section, description, ownerId: "me", courseState: "ACTIVE" },
         }),
       );
     },
@@ -732,9 +788,14 @@ function googleClassroom(tokenFor: (subject: string) => Promise<string>): Classr
     },
     async pendingInvitation(as, courseId, student) {
       const query = new URLSearchParams({ courseId, userId: student });
-      const invitations = await listAll(as, "/invitations", "invitations", query);
+      try {
+        const invitations = await listAll(as, "/invitations", "invitations", query);
 
-      return invitations.map((invitation) => text(invitation, "id")).find(Boolean);
+        return invitations.map((invitation) => text(invitation, "id")).find(Boolean);
+      } catch (error) {
+        if (error instanceof GoogleError && error.status === 404) return undefined;
+        throw error;
+      }
     },
     async invite(as, courseId, student) {
       const invitation = await call(as, "/invitations", {
@@ -821,16 +882,21 @@ function stepArgument(argv: string[]): number | undefined {
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const dryRun = argv.includes("--dry-run");
-  const result = readConfig(process.env, { dryRun, repoRoot: resolve(import.meta.dir, "..") });
+  const result = readConfig(process.env, {
+    dryRun,
+    repoRoot: resolve(import.meta.dir, ".."),
+    template: CLASS_TEMPLATE,
+  });
   if (!result.ok) {
     console.error(`refused: ${result.error} (see docs/DEPLOY.md, Test Classroom)`);
     process.exit(1);
   }
 
   const { config } = result;
+  const template = castTemplate(CLASS_TEMPLATE, config);
   const step = stepArgument(argv);
-  const life = step === undefined ? undefined : planLifeStep(CLASS_TEMPLATE, step, config);
-  const plan = planClass(CLASS_TEMPLATE, { ...config, now: new Date() });
+  const life = step === undefined ? undefined : planLifeStep(template, step, config);
+  const plan = planClass(template, { ...config, now: new Date() });
 
   if (dryRun) {
     for (const line of life ? life.map(describeLifeAction) : describePlan(plan)) console.log(line);

@@ -4,6 +4,7 @@ import {
   applyLifeStep,
   type ClassroomGateway,
   type CourseworkPlan,
+  castTemplate,
   type DuePlan,
   planClass,
   planLifeStep,
@@ -150,18 +151,28 @@ const courseNamed = (fake: FakeClassroom, fragment: string): FakeCourse => {
 
 describe("provision-test-classroom config", () => {
   it("runs on a demo domain that the allow list names", () => {
-    const result = readConfig(ENV, { dryRun: false, repoRoot: REPO_ROOT });
+    const result = readConfig(ENV, {
+      dryRun: false,
+      repoRoot: REPO_ROOT,
+      template: CLASS_TEMPLATE,
+    });
 
     expect(result).toEqual({
       ok: true,
-      config: { domain: DOMAIN, anchor: ANCHOR, keyFile: ENV.TEST_CLASSROOM_SERVICE_ACCOUNT_FILE },
+      config: {
+        domain: DOMAIN,
+        anchor: ANCHOR,
+        keyFile: ENV.TEST_CLASSROOM_SERVICE_ACCOUNT_FILE,
+        teacher: undefined,
+        students: undefined,
+      },
     });
   });
 
   it("refuses a domain that the allow list does not name", () => {
     const result = readConfig(
       { ...ENV, TEST_CLASSROOM_DOMAIN: "real-school.example" },
-      { dryRun: false, repoRoot: REPO_ROOT },
+      { dryRun: false, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE },
     );
 
     expect(result.ok).toBe(false);
@@ -170,7 +181,7 @@ describe("provision-test-classroom config", () => {
   it("refuses to run without an allow list rather than trusting any domain", () => {
     const result = readConfig(
       { ...ENV, TEST_CLASSROOM_ALLOWED_DOMAINS: "" },
-      { dryRun: true, repoRoot: REPO_ROOT },
+      { dryRun: true, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE },
     );
 
     expect(result).toEqual({ ok: false, error: expect.stringContaining("TEST_CLASSROOM_ALLOWED") });
@@ -179,7 +190,7 @@ describe("provision-test-classroom config", () => {
   it("refuses an anchor that is not a Monday, since the texts name weekdays from it", () => {
     const result = readConfig(
       { ...ENV, TEST_CLASSROOM_ANCHOR: "2026-11-17" },
-      { dryRun: true, repoRoot: REPO_ROOT },
+      { dryRun: true, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE },
     );
 
     expect(result).toEqual({ ok: false, error: expect.stringContaining("Monday") });
@@ -188,7 +199,7 @@ describe("provision-test-classroom config", () => {
   it("refuses a service account key stored inside the repository", () => {
     const result = readConfig(
       { ...ENV, TEST_CLASSROOM_SERVICE_ACCOUNT_FILE: `${REPO_ROOT}/secrets/key.json` },
-      { dryRun: false, repoRoot: REPO_ROOT },
+      { dryRun: false, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE },
     );
 
     expect(result).toEqual({ ok: false, error: expect.stringContaining("outside") });
@@ -197,8 +208,78 @@ describe("provision-test-classroom config", () => {
   it("plans a dry run without any credential", () => {
     const { TEST_CLASSROOM_SERVICE_ACCOUNT_FILE: _key, ...withoutKey } = ENV;
 
-    expect(readConfig(withoutKey, { dryRun: true, repoRoot: REPO_ROOT }).ok).toBe(true);
-    expect(readConfig(withoutKey, { dryRun: false, repoRoot: REPO_ROOT }).ok).toBe(false);
+    expect(
+      readConfig(withoutKey, { dryRun: true, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE }).ok,
+    ).toBe(true);
+    expect(
+      readConfig(withoutKey, { dryRun: false, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE }).ok,
+    ).toBe(false);
+  });
+
+  it("refuses to enroll a pupil the template does not define", () => {
+    const result = readConfig(
+      { ...ENV, TEST_CLASSROOM_STUDENTS: "eleve.jade, eleve.lou" },
+      { dryRun: true, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE },
+    );
+
+    expect(result).toEqual({ ok: false, error: expect.stringContaining("eleve.lou") });
+  });
+});
+
+describe("provision-test-classroom on a small demo domain", () => {
+  const SMALL_ENV = {
+    ...ENV,
+    TEST_CLASSROOM_TEACHER: "prof.maths",
+    TEST_CLASSROOM_STUDENTS: "eleve.jade",
+  };
+
+  const smallPlan = () => {
+    const result = readConfig(SMALL_ENV, {
+      dryRun: true,
+      repoRoot: REPO_ROOT,
+      template: CLASS_TEMPLATE,
+    });
+    if (!result.ok) throw new Error(result.error);
+    const template = castTemplate(CLASS_TEMPLATE, result.config);
+
+    return {
+      template,
+      plan: planClass(template, { domain: DOMAIN, anchor: ANCHOR, now: BEFORE_ANCHOR }),
+    };
+  };
+
+  it("gives every course and every life step to the single teacher account", () => {
+    const { template, plan: classPlan } = smallPlan();
+    const life = planLifeStep(template, 1, { domain: DOMAIN, anchor: ANCHOR });
+
+    expect(classPlan.courses.map((course) => course.name)).toEqual(
+      plan().courses.map((course) => course.name),
+    );
+    expect(new Set(classPlan.courses.map((course) => course.owner))).toEqual(
+      new Set([`prof.maths@${DOMAIN}`]),
+    );
+    expect(life.every((action) => action.owner === `prof.maths@${DOMAIN}`)).toBe(true);
+  });
+
+  it("enrolls only the pupils it names, once per course, even on a second run", async () => {
+    const fake = new FakeClassroom();
+    await provision(smallPlan().plan, fake);
+
+    const writes = await provision(smallPlan().plan, fake);
+
+    expect(fake.courses).toHaveLength(6);
+    expect(
+      fake.courses.every((course) => [...course.students].join() === `eleve.jade@${DOMAIN}`),
+    ).toBe(true);
+    expect(writes).toEqual([]);
+  });
+
+  it("plans the template unchanged when no override is set", () => {
+    const result = readConfig(ENV, { dryRun: true, repoRoot: REPO_ROOT, template: CLASS_TEMPLATE });
+    if (!result.ok) throw new Error(result.error);
+    const cast = castTemplate(CLASS_TEMPLATE, result.config);
+
+    expect(planClass(cast, { domain: DOMAIN, anchor: ANCHOR, now: BEFORE_ANCHOR })).toEqual(plan());
   });
 });
 
