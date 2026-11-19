@@ -361,6 +361,43 @@ test.describe("event overlay focus", () => {
     await expect(sticker).toBeFocused();
   });
 
+  for (const width of [390, 1440]) {
+    test(`a deadline opened low in the agenda keeps the page where it was (${width} px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 500 });
+      await page.clock.setFixedTime(todayAt("09:00"));
+      await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+      await page.goto("/");
+
+      const card = page.locator("main a[href^='/events/']").last();
+      await card.scrollIntoViewIfNeeded();
+      const scrolled = await page.evaluate(() => window.scrollY);
+      expect(scrolled).toBeGreaterThan(0);
+      await page.evaluate(() => {
+        document.querySelector("main")?.setAttribute("data-before-open", "");
+      });
+
+      await card.click();
+      const overlay = page.getByRole("dialog");
+      await expect(overlay).toBeVisible();
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+      await expect(page.locator("main[data-before-open]")).toHaveCount(1);
+
+      await page.keyboard.press("Escape");
+      await expect(overlay).toBeHidden();
+      await expect(card).toBeFocused();
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+
+      await card.click();
+      await expect(overlay).toBeVisible();
+      await page.goBack();
+      await expect(overlay).toBeHidden();
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+      await expect(page.locator("main[data-before-open]")).toHaveCount(1);
+    });
+  }
+
   test("the drawer takes focus on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });

@@ -15,6 +15,7 @@ export function EventLink({ eventId, ...props }: EventLinkProps) {
       to="/"
       search={(prev) => ({ ...prev, event: eventId })}
       mask={{ to: "/events/$eventId", params: { eventId } }}
+      resetScroll={false}
       viewTransition={{ types: ["deadline-open"] }}
       onClick={(event) => departFrom(event.currentTarget)}
       {...props}
