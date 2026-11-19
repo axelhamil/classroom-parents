@@ -34,7 +34,7 @@ import { emitEvent } from "@packages/outbox/event-emitter";
 import { classroomCourse } from "../schemas/classroom-course.schema";
 import { seenAnnouncement } from "../schemas/seen-announcement.schema";
 import type {
-  ExtractedDeadline,
+  ExtractedAnnouncement,
   IAnnouncementExtractor,
 } from "../src/application/ports/announcement-extractor.port";
 import type { IChildSyncState } from "../src/application/ports/child-sync-state.port";
@@ -75,15 +75,18 @@ const classroom: IClassroomClient = {
 const extractor: IAnnouncementExtractor = {
   extract: async ({ text }) => {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    return Result.ok<ExtractedDeadline[], AppError>([
-      {
-        title: text,
-        description: "",
-        category: "homework",
-        deadlineDate: "2030-01-20",
-        needsReview: false,
-      },
-    ]);
+    return Result.ok<ExtractedAnnouncement, AppError>({
+      deadlines: [
+        {
+          title: text,
+          description: "",
+          category: "homework",
+          deadlineDate: "2030-01-20",
+          needsReview: false,
+        },
+      ],
+      amendments: [],
+    });
   },
 };
 

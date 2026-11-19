@@ -1,4 +1,4 @@
-import { and, eq, lt, not, or, type SQL } from "@packages/drizzle";
+import { and, eq, isNull, lt, not, or, type SQL } from "@packages/drizzle";
 import { agendaEvent } from "./event.schema";
 
 export interface DismissedRetention {
@@ -17,7 +17,7 @@ export function dismissedEventBefore(retention: DismissedRetention): SQL | undef
       lt(agendaEvent.withdrawnAt, retention.dismissedBefore),
     ),
     or(
-      not(eq(agendaEvent.source, "coursework")),
+      and(not(eq(agendaEvent.source, "coursework")), isNull(agendaEvent.withdrawnAt)),
       lt(agendaEvent.deadlineDate, retention.courseworkDayBefore),
     ),
   );

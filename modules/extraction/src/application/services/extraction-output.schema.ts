@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AMENDMENT_KINDS } from "../../domain/extracted-event";
 import { extractionCategorySchema } from "../../domain/value-objects/extraction-category.vo";
 
 const extractedCandidateSchema = z.object({
@@ -17,7 +18,24 @@ const extractedCandidateSchema = z.object({
   evidenceQuote: z.string().describe("Verbatim sentence of the announcement supporting the event"),
 });
 
-export const extractionOutputSchema = z.object({ events: z.array(extractedCandidateSchema) });
+const amendmentCandidateSchema = z.object({
+  kind: z.enum(AMENDMENT_KINDS),
+  reference: z
+    .string()
+    .describe("French noun phrase naming the earlier deadline as its title would read"),
+  referenceDate: z.iso
+    .date()
+    .nullable()
+    .describe(
+      "YYYY-MM-DD of the earlier deadline, only when written in the announcement, else null",
+    ),
+});
+
+export const extractionOutputSchema = z.object({
+  events: z.array(extractedCandidateSchema),
+  amends: z.array(amendmentCandidateSchema),
+});
 
 export type ExtractedCandidate = z.infer<typeof extractedCandidateSchema>;
+export type AmendmentCandidate = z.infer<typeof amendmentCandidateSchema>;
 export type ExtractionOutput = z.infer<typeof extractionOutputSchema>;

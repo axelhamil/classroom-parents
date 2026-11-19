@@ -217,6 +217,33 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     return Result.ok();
   }
 
+  supersede(now: Date): Result<boolean, EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+    if (this._props.withdrawnAt.isSome()) return Result.ok(false);
+    if (this._props.source.value !== "announcement" || this._props.editedFields.length > 0)
+      return Result.ok(false);
+
+    this._props.withdrawnAt = Option.some(now);
+    return Result.ok(true);
+  }
+
+  restore(): Result<boolean, EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+    if (this._props.source.value !== "announcement" || this._props.withdrawnAt.isNone())
+      return Result.ok(false);
+
+    this._props.withdrawnAt = Option.none();
+    return Result.ok(true);
+  }
+
+  flagForReview(): Result<boolean, EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+    if (this.needsReview()) return Result.ok(false);
+
+    this._props.status = EventStatus.of(true);
+    return Result.ok(true);
+  }
+
   withdraw(now: Date): Result<void, EventRefusal> {
     if (this._props.deletedAt.isSome()) return Result.fail("deleted");
     if (this._props.withdrawnAt.isSome()) return Result.fail("withdrawn");

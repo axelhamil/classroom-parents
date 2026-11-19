@@ -15,8 +15,19 @@ export interface ExtractedDeadline {
   needsReview: boolean;
 }
 
+export interface ExtractedAmendment {
+  kind: "moved" | "cancelled";
+  reference: string;
+  referenceDate?: string;
+}
+
+export interface ExtractedAnnouncement {
+  deadlines: ExtractedDeadline[];
+  amendments: ExtractedAmendment[];
+}
+
 export interface IAnnouncementExtractor {
-  extract(request: ExtractionRequest): Promise<Result<ExtractedDeadline[], AppError>>;
+  extract(request: ExtractionRequest): Promise<Result<ExtractedAnnouncement, AppError>>;
 }
 
 const OUTAGE_SUFFIXES = ["_PROVIDER_FAILURE", "_RATE_LIMITED"] as const;

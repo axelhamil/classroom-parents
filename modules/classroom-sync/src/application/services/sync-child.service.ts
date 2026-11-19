@@ -305,7 +305,7 @@ export class SyncChildService {
       return this.recordFailure(lease, announcement, attempt, now);
     }
 
-    const deadlines = extracted.getValue();
+    const { deadlines, amendments } = extracted.getValue();
     const committed = await this.transactions.run(async (): Promise<Result<number, AppError>> => {
       const recorded = await this.recordVerdict(
         lease,
@@ -314,7 +314,7 @@ export class SyncChildService {
         now,
       );
       if (recorded.isFailure) return Result.fail(recorded.getError());
-      if (!recorded.getValue() || deadlines.length === 0) return Result.ok(0);
+      if (!recorded.getValue() || deadlines.length + amendments.length === 0) return Result.ok(0);
 
       const ingested = await this.events.ingest({
         userId: input.userId,
@@ -326,6 +326,7 @@ export class SyncChildService {
           publishedAt: announcement.publishedAt,
         },
         events: deadlines,
+        amendments,
       });
       return ingested.map(({ created }) => created);
     });

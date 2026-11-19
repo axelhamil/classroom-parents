@@ -7,7 +7,7 @@
  * child to `blocked_by_school` and tells the parent's stream, a reconnect brings it back;
  * an unregistered linked account is discarded; a disconnection erases the child and its
  * events; the first sync plans a default alert for each live upcoming deadline but none
- * for one a coursework shadows or the parent deleted, and a due alert reaches the
+ * for an announcement hidden behind the coursework of the same work or one the parent deleted, and a due alert reaches the
  * parent's push subscription once, signing a phone out from another device removes only the
  * phone's push subscription, the reminders of a child being disconnected answer not
  * found; the account wipe revokes Google and leaves no row of
@@ -158,6 +158,7 @@ function shadowedAnnouncement(): SQL {
       .where(
         and(
           eq(agendaEvent.source, "announcement"),
+          isNotNull(agendaEvent.withdrawnAt),
           eq(coursework.source, "coursework"),
           isNull(coursework.deletedAt),
           isNull(coursework.withdrawnAt),
@@ -312,7 +313,7 @@ run(async () => {
     ),
   };
   await step(
-    "the sync plans default alerts, none on a deadline a coursework shadows or the parent deleted",
+    "the sync plans default alerts, none on an announcement the coursework of the same work hides or the parent deleted",
     planned.pending > 0 &&
       planned.shadowedAnnouncements > 0 &&
       planned.onShadowed === 0 &&

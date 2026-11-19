@@ -272,7 +272,10 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     const extractor = announcementExtractorFor({
       extract: async (input) => {
         received = input;
-        return Result.ok([extracted]);
+        return Result.ok({
+          events: [extracted],
+          amendments: [{ kind: "moved" as const, reference: "Évaluation de fractions" }],
+        });
       },
     });
 
@@ -287,27 +290,31 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
       publishedAt: PUBLISHED_AT,
       childNames: ["Léa", "Léa Martin"],
     });
-    expect(result.getValue()).toEqual([
-      {
-        title: "Évaluation de fractions",
-        description: "Réviser le chapitre 3",
-        category: "assessment",
-        deadlineDate: "2026-11-19",
-        deadlineTime: "08:30",
-        needsReview: true,
-      },
-    ]);
+    expect(result.getValue()).toEqual({
+      deadlines: [
+        {
+          title: "Évaluation de fractions",
+          description: "Réviser le chapitre 3",
+          category: "assessment",
+          deadlineDate: "2026-11-19",
+          deadlineTime: "08:30",
+          needsReview: true,
+        },
+      ],
+      amendments: [{ kind: "moved", reference: "Évaluation de fractions" }],
+    });
   });
 
   it("leaves the time out when the announcement gives none", async () => {
     const { deadlineTime: _dropped, ...withoutTime } = extracted;
     const extractor = announcementExtractorFor({
-      extract: async () => Result.ok([{ ...withoutTime, needsReview: false }]),
+      extract: async () =>
+        Result.ok({ events: [{ ...withoutTime, needsReview: false }], amendments: [] }),
     });
 
     const [deadline] = (
       await extractor.extract({ text: "x", publishedAt: PUBLISHED_AT, childNames: [] })
-    ).getValue();
+    ).getValue().deadlines;
 
     expect(deadline).toEqual({
       title: extracted.title,
@@ -345,7 +352,7 @@ describe("sync IEventIngest bound to the agenda", () => {
     const ingest = eventIngestFor({
       ingest: async (input) => {
         received = input;
-        return Result.ok({ created: 2, skipped: 1 });
+        return Result.ok({ created: 2, skipped: 1, flagged: 0 });
       },
       ingestCoursework: async () =>
         Result.ok({ created: 0, updated: 0, rejected: 0, withdrawn: 0 }),
@@ -365,6 +372,9 @@ describe("sync IEventIngest bound to the agenda", () => {
           needsReview: false,
         },
       ],
+      amendments: [
+        { kind: "cancelled" as const, reference: "Piscine", referenceDate: "2026-11-19" },
+      ],
     };
 
     const result = await ingest.ingest(request);
@@ -376,7 +386,7 @@ describe("sync IEventIngest bound to the agenda", () => {
   it("forwards a coursework batch with its completeness and answers created", async () => {
     let received: unknown;
     const ingest = eventIngestFor({
-      ingest: async () => Result.ok({ created: 0, skipped: 0 }),
+      ingest: async () => Result.ok({ created: 0, skipped: 0, flagged: 0 }),
       ingestCoursework: async (input) => {
         received = input;
         return Result.ok({ created: 3, updated: 1, rejected: 0, withdrawn: 1 });
@@ -410,7 +420,7 @@ describe("sync IEventIngest bound to the agenda", () => {
   it("forwards the active courses and answers how many were withdrawn", async () => {
     let received: unknown;
     const ingest = eventIngestFor({
-      ingest: async () => Result.ok({ created: 0, skipped: 0 }),
+      ingest: async () => Result.ok({ created: 0, skipped: 0, flagged: 0 }),
       ingestCoursework: async () =>
         Result.ok({ created: 0, updated: 0, rejected: 0, withdrawn: 0 }),
       withdrawCourseworkOutside: async (input) => {
@@ -443,6 +453,7 @@ describe("sync IEventIngest bound to the agenda", () => {
           childId: "c",
           announcement: { id: "a", courseId: "c", url: "u", publishedAt: PUBLISHED_AT },
           events: [],
+          amendments: [],
         })
       ).getError().code,
       (

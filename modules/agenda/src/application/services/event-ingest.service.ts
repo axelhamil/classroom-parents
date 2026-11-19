@@ -6,10 +6,13 @@ import {
   Result,
   traced,
 } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { AgendaEvent, type EventField } from "../../domain/event.aggregate";
+import { amendedEvent } from "../../domain/services/amended-event";
+import { type AmendmentKind, EventAmendment } from "../../domain/value-objects/event-amendment.vo";
 import { EventCategory } from "../../domain/value-objects/event-category.vo";
 import type { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
@@ -24,7 +27,7 @@ import {
   childNotFound,
   type IEventRepository,
 } from "../ports/event-repository.port";
-import { alertAnnouncementsOn, courseDayOf, dayLeftBy } from "./alert-planning";
+import { type AnnouncementReconciler, courseDayOf } from "./announcement-reconciler";
 import {
   parseClassroomCategory,
   parseComputedDeadline,
@@ -42,16 +45,24 @@ export interface IngestedEvent {
   needsReview: boolean;
 }
 
+export interface IngestedAmendment {
+  kind: AmendmentKind;
+  reference: string;
+  referenceDate?: string;
+}
+
 export interface IngestInput {
   userId: string;
   childId: string;
   announcement: { id: string; courseId: string; url: string; publishedAt: Date };
   events: IngestedEvent[];
+  amendments: IngestedAmendment[];
 }
 
 export interface IngestOutput {
   created: number;
   skipped: number;
+  flagged: number;
 }
 
 export interface IngestedCoursework {
@@ -106,6 +117,7 @@ export class EventIngestService {
     private readonly alerts: IAlertPlanner,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
+    private readonly reconciler: AnnouncementReconciler,
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
@@ -114,24 +126,117 @@ export class EventIngestService {
     return traced(this.instrumentation, "EventIngestService > ingest", async () => {
       const built = this.build(input);
       if (built.isFailure) return Result.fail(built.getError());
+      const amendments = this.parseAmendments(input.amendments);
 
       const owned = await this.children.isOwnedBy(input.userId, input.childId);
       if (owned.isFailure) return Result.fail(owned.getError());
       if (!owned.getValue()) return Result.fail(childNotFound);
 
       return this.transactions.run(async () => {
-        const outcome: IngestOutput = { created: 0, skipped: 0 };
-        for (const event of built.getValue()) {
-          const stored = await this.store(event);
-          if (stored.isFailure)
-            return Result.fail<IngestOutput, AgendaError | AppError>(stored.getError());
+        const stored = await this.storeAll(built.getValue());
+        if (stored.isFailure) return Result.fail<IngestOutput, IngestError>(stored.getError());
 
-          if (stored.getValue()) outcome.created += 1;
-          else outcome.skipped += 1;
-        }
-        return Result.ok<IngestOutput, AgendaError | AppError>(outcome);
+        const reconciled = await this.reconciler.reconcile(
+          input.userId,
+          this.daysOf(built.getValue()),
+          { actorUserId: null, now: this.clock() },
+        );
+        if (reconciled.isFailure)
+          return Result.fail<IngestOutput, IngestError>(reconciled.getError());
+
+        const flagged = await this.flagAmended(input, built.getValue(), amendments);
+        return flagged.map((count) => ({ ...stored.getValue(), flagged: count }));
       });
     });
+  }
+
+  private async storeAll(
+    events: AgendaEvent[],
+  ): Promise<Result<Omit<IngestOutput, "flagged">, IngestError>> {
+    const outcome = { created: 0, skipped: 0 };
+    for (const event of events) {
+      const stored = await this.store(event);
+      if (stored.isFailure) return Result.fail(stored.getError());
+
+      if (stored.getValue()) outcome.created += 1;
+      else outcome.skipped += 1;
+    }
+    return Result.ok(outcome);
+  }
+
+  private parseAmendments(amendments: IngestedAmendment[]): EventAmendment[] {
+    return amendments.flatMap((amendment) => {
+      const parsed = EventAmendment.create(amendment);
+      if (parsed.isSuccess) return [parsed.getValue()];
+
+      this.instrumentation.capture(new Error(`amendment ignored: ${parsed.getError()}`));
+      return [];
+    });
+  }
+
+  private async flagAmended(
+    input: IngestInput,
+    created: AgendaEvent[],
+    amendments: EventAmendment[],
+  ): Promise<Result<number, IngestError>> {
+    if (amendments.length === 0) return Result.ok(0);
+
+    const { announcement } = input;
+    const candidates = await this.events.lockLiveAnnouncements(
+      input.userId,
+      { childId: input.childId, courseId: announcement.courseId },
+      shiftInstant(announcement.publishedAt, -1),
+    );
+    if (candidates.isFailure) return Result.fail(candidates.getError());
+
+    const by = {
+      announcementId: announcement.id,
+      newDates: created.map((event) => event.get("deadline").value.date),
+    };
+    let flagged = 0;
+    for (const amendment of amendments) {
+      const target = amendedEvent(candidates.getValue(), amendment, by);
+      if (target.isNone()) continue;
+
+      const applied = await this.flag(target.unwrap(), amendment, announcement.id);
+      if (applied.isFailure) return Result.fail(applied.getError());
+      if (applied.getValue()) flagged += 1;
+    }
+    return Result.ok(flagged);
+  }
+
+  private async flag(
+    event: AgendaEvent,
+    amendment: EventAmendment,
+    amendingAnnouncementId: string,
+  ): Promise<Result<boolean, IngestError>> {
+    const flagged = event.flagForReview();
+    if (flagged.isFailure || !flagged.getValue()) return Result.ok(false);
+
+    const saved = await this.events.save(event);
+    if (saved.isFailure) return Result.fail(saved.getError());
+
+    const cancelled = await this.alerts.cancel(event.id.value, null);
+    if (cancelled.isFailure) return Result.fail(cancelled.getError());
+
+    await emitEvent(this.outbox, EventTypes.EVENT_FLAGGED, "event", event.id.value, {
+      userId: event.get("userId"),
+      childId: event.get("childId"),
+      eventId: event.id.value,
+      reason: amendment.value.kind,
+      reference: amendment.value.reference,
+      amendingAnnouncementId,
+      actorUserId: null,
+    });
+    return Result.ok(true);
+  }
+
+  private daysOf(events: AgendaEvent[]): CourseDay[] {
+    return events.flatMap((event) =>
+      courseDayOf(event)
+        .map((day) => [day])
+        .unwrapOr([]),
+    );
   }
 
   async ingestCoursework(
@@ -163,6 +268,14 @@ export class EventIngestService {
         if (locked.isFailure)
           return Result.fail<CourseworkIngestOutput, IngestError>(locked.getError());
 
+        const days = [
+          ...this.daysOf(locked.getValue()),
+          ...parsed.map(({ deadline }) => ({
+            childId: input.childId,
+            courseId: input.courseId,
+            deadlineDate: deadline.value.date,
+          })),
+        ];
         const storedById = new Map(
           locked.getValue().map((event) => [event.get("announcementId"), event]),
         );
@@ -174,14 +287,18 @@ export class EventIngestService {
           if (applied.getValue() === "created") outcome.created += 1;
           if (applied.getValue() === "updated") outcome.updated += 1;
         }
-        if (!input.complete) return Result.ok<CourseworkIngestOutput, IngestError>(outcome);
 
-        const withdrawn = await this.withdrawLive(
-          input,
-          { courseId: input.courseId },
-          input.presentIds,
-        );
-        return withdrawn.map((count) => ({ ...outcome, withdrawn: count }));
+        const withdrawn = input.complete
+          ? await this.withdrawLive(input, { courseId: input.courseId }, input.presentIds)
+          : Result.ok<AgendaEvent[], IngestError>([]);
+        if (withdrawn.isFailure)
+          return Result.fail<CourseworkIngestOutput, IngestError>(withdrawn.getError());
+
+        const reconciled = await this.reconcileAfterSync(input.userId, [
+          ...days,
+          ...this.daysOf(withdrawn.getValue()),
+        ]);
+        return reconciled.map(() => ({ ...outcome, withdrawn: withdrawn.getValue().length }));
       });
     });
   }
@@ -203,30 +320,40 @@ export class EventIngestService {
             { outsideCourseIds: input.activeCourseIds, dueFrom: this.clock() },
             [],
           );
-          return withdrawn.map((count) => ({ withdrawn: count }));
+          if (withdrawn.isFailure)
+            return Result.fail<CourseworkWithdrawOutput, IngestError>(withdrawn.getError());
+
+          const reconciled = await this.reconcileAfterSync(
+            input.userId,
+            this.daysOf(withdrawn.getValue()),
+          );
+          return reconciled.map(() => ({ withdrawn: withdrawn.getValue().length }));
         });
       },
     );
+  }
+
+  private reconcileAfterSync(userId: string, days: CourseDay[]): Promise<Result<void, AppError>> {
+    return this.reconciler.reconcile(userId, days, { actorUserId: null, now: this.clock() });
   }
 
   private async withdrawLive(
     { userId, childId }: { userId: string; childId: string },
     courses: CourseworkCourses,
     presentIds: string[],
-  ): Promise<Result<number, IngestError>> {
+  ): Promise<Result<AgendaEvent[], IngestError>> {
     const live = await this.events.lockLiveCoursework(userId, childId, courses);
     if (live.isFailure) return Result.fail(live.getError());
 
     const listed = new Set(presentIds);
-    let withdrawn = 0;
+    const withdrawn: AgendaEvent[] = [];
     for (const event of live.getValue()) {
       if (listed.has(event.get("announcementId"))) continue;
-      const day = courseDayOf(event);
       if (event.withdraw(this.clock()).isFailure) continue;
 
-      const saved = await this.saveFollowed(event, ["withdrawn"], day);
+      const saved = await this.saveFollowed(event, ["withdrawn"]);
       if (saved.isFailure) return Result.fail(saved.getError());
-      withdrawn += 1;
+      withdrawn.push(event);
     }
     return Result.ok(withdrawn);
   }
@@ -269,33 +396,21 @@ export class EventIngestService {
     }
 
     const event = stored.unwrap();
-    const day = courseDayOf(event);
     const followed = event.followCoursework({ title, deadline, done: item.done });
     if (followed.isFailure || followed.getValue().length === 0) return Result.ok("unchanged");
 
-    return this.saveFollowed(event, followed.getValue(), day);
+    return this.saveFollowed(event, followed.getValue());
   }
 
   private async saveFollowed(
     event: AgendaEvent,
     fields: EventField[],
-    day: Option<CourseDay>,
   ): Promise<Result<CourseworkOutcome, IngestError>> {
     const saved = await this.events.save(event);
     if (saved.isFailure) return Result.fail(saved.getError());
 
     const alerted = await this.realert(event, fields);
     if (alerted.isFailure) return Result.fail(alerted.getError());
-
-    const left = dayLeftBy(event, day);
-    if (left.isSome()) {
-      const unmasked = await alertAnnouncementsOn(this.events, this.alerts, {
-        userId: event.get("userId"),
-        day: left.unwrap(),
-        actorUserId: null,
-      });
-      if (unmasked.isFailure) return Result.fail(unmasked.getError());
-    }
 
     await emitEvent(this.outbox, EventTypes.EVENT_UPDATED, "event", event.id.value, {
       userId: event.get("userId"),
