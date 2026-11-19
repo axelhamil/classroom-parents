@@ -192,6 +192,28 @@ describe("RgpdService", () => {
     });
   });
 
+  describe("deletionPreflight", () => {
+    it("given a fresh session, lets the parent confirm right away", async () => {
+      const f = fixture();
+
+      const result = await f.service().deletionPreflight({ userId: "u1", sessionId: "s1" });
+
+      expect(result.getValue()).toEqual({ reauthRequired: false });
+    });
+
+    it("given a session older than the fresh age, asks to sign in again before confirming", async () => {
+      const f = fixture();
+      f.repo.findSessionStart.mockImplementation(async () =>
+        Result.ok(Option.some(new Date(NOW.getTime() - 25 * HOUR))),
+      );
+
+      const result = await f.service().deletionPreflight({ userId: "u1", sessionId: "s1" });
+
+      expect(result.getValue()).toEqual({ reauthRequired: true });
+      expect(f.repo.markPendingDeletion).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cancelAccountDeletion", () => {
     it("given the grace period has elapsed, refuses the cancellation and clears nothing", async () => {
       const f = fixture({

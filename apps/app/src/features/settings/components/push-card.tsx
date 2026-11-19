@@ -1,24 +1,16 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLabel,
-} from "@packages/ui/components/ui/field";
 import { Hint } from "@packages/ui/components/ui/hint";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
-import { Switch } from "@packages/ui/components/ui/switch";
-import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
+import { SwitchField } from "@packages/ui/components/ui/switch-field";
+import { TypographyP } from "@packages/ui/components/ui/typography";
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellOff, BellRing, Mail } from "lucide-react";
-import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { setLockScreenMutationOptions } from "../../../shared/api/mutations/set-lock-screen";
-import { defaultRemindersQueryOptions } from "../../../shared/api/queries/default-reminders";
 import { lockScreenQueryOptions } from "../../../shared/api/queries/lock-screen";
 import { pushStatusQueryOptions } from "../../../shared/api/queries/push-status";
 import { InstallButton } from "../../../shared/pwa/install-button";
@@ -29,7 +21,6 @@ import {
   type PushSubscriptionState,
   usePushSubscription,
 } from "../../../shared/pwa/use-push-subscription";
-import { useReminderLabel } from "../../../shared/reminders/use-reminder-label";
 
 interface PushCardProps {
   userId: string;
@@ -49,7 +40,6 @@ export function PushCard({ userId }: PushCardProps) {
       description={t("push.description")}
       data-tour="settings-push"
     >
-      <DefaultRemindersSummary userId={userId} />
       {needsInstall ? <InstallGuide /> : null}
       <InstallButton />
       <PushControl push={push} needsInstall={needsInstall} />
@@ -61,29 +51,6 @@ export function PushCard({ userId }: PushCardProps) {
         </Alert>
       ) : null}
     </SectionCard>
-  );
-}
-
-const LOCALE = "fr-FR";
-const LIST_FORMAT = new Intl.ListFormat(LOCALE, { type: "conjunction" });
-
-function inSentence(label: string): string {
-  return label.charAt(0).toLocaleLowerCase(LOCALE) + label.slice(1);
-}
-
-function DefaultRemindersSummary({ userId }: PushCardProps) {
-  const { t } = useTranslation("settings");
-  const label = useReminderLabel();
-  const defaults = useQuery(defaultRemindersQueryOptions(userId));
-  if (!defaults.isSuccess) return null;
-  if (defaults.data.length === 0) return <TypographyMuted>{t("push.noDefaults")}</TypographyMuted>;
-
-  return (
-    <TypographyMuted>
-      {t("push.defaults", {
-        reminders: LIST_FORMAT.format(defaults.data.map((reminder) => inSentence(label(reminder)))),
-      })}
-    </TypographyMuted>
   );
 }
 
@@ -153,7 +120,6 @@ function PushControl({ push, needsInstall }: PushControlProps) {
 
 function LockScreenSwitch({ userId }: PushCardProps) {
   const { t } = useTranslation("settings");
-  const id = useId();
   const queryClient = useQueryClient();
   const details = useQuery(lockScreenQueryOptions(userId));
   const save = useMutation({
@@ -165,20 +131,12 @@ function LockScreenSwitch({ userId }: PushCardProps) {
 
   const shown = save.isPending ? save.variables : details.data;
   return (
-    <Field orientation="horizontal">
-      <Switch
-        id={id}
-        checked={shown}
-        disabled={save.isPending}
-        onCheckedChange={(checked) => save.mutate(checked)}
-        aria-describedby={`${id}-description`}
-      />
-      <FieldContent>
-        <FieldLabel htmlFor={id}>{t("push.lockScreen")}</FieldLabel>
-        <FieldDescription id={`${id}-description`}>
-          {shown ? t("push.lockScreenShown") : t("push.lockScreenHidden")}
-        </FieldDescription>
-      </FieldContent>
-    </Field>
+    <SwitchField
+      label={t("push.lockScreen")}
+      description={shown ? t("push.lockScreenShown") : t("push.lockScreenHidden")}
+      checked={shown}
+      disabled={save.isPending}
+      onCheckedChange={(checked) => save.mutate(checked)}
+    />
   );
 }

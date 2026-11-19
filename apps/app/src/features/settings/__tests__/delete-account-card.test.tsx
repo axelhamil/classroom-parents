@@ -37,6 +37,7 @@ function givenServer(initiallyPending: string | null) {
             ? session(pendingUntil)
             : cachedCookie,
         ),
+      "GET /me/delete/preflight": () => json({ reauthRequired: false }),
       "POST /me/delete": () => {
         pendingUntil = UNTIL;
         return json({ pendingDeletionUntil: UNTIL });
@@ -53,7 +54,7 @@ async function renderSettingsDeletion(): Promise<void> {
   await renderWithProviders(
     <>
       <DeletionPendingBanner />
-      <DeleteAccountCard />
+      <DeleteAccountCard userId="user-1" />
     </>,
   );
 }
@@ -90,9 +91,25 @@ describe("DeleteAccountCard", () => {
       expect(localStorage.getItem("user:user-1:family:child")).toBeNull();
     });
 
-    it("given a session older than 24 hours, when the parent confirms, then it asks to sign in again with Google and sends them back to the settings", async () => {
+    it("given a session older than 24 hours, when the parent asks to delete, then it asks to sign in again before any confirmation", async () => {
+      const calls = stubApi(
+        byRoute({ "GET /me/delete/preflight": () => json({ reauthRequired: true }) }),
+      );
+      await renderSettingsDeletion();
+
+      await userEvent.setup().click(screen.getByRole("button", { name: "Supprimer mon compte" }));
+
+      expect(
+        await screen.findByRole("button", { name: "Me reconnecter avec Google" }),
+      ).toBeTruthy();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(calls.some((call) => call.method === "POST")).toBe(false);
+    });
+
+    it("given the session aged past 24 hours while the confirmation was open, when the parent confirms, then it asks to sign in again with Google and sends them back to the settings", async () => {
       const calls = stubApi(
         byRoute({
+          "GET /me/delete/preflight": () => json({ reauthRequired: false }),
           "POST /me/delete": () =>
             json({ error: { code: "ACCOUNT_REAUTH_REQUIRED", message: "reauth" } }, 403),
           "POST /api/auth/sign-in/social": () =>

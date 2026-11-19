@@ -5,6 +5,7 @@ import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldAlert, Trash2 } from "lucide-react";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../../../shared/api/queries/session";
 import { useGoogleReauth } from "../../rgpd/hooks/use-google-reauth";
@@ -14,16 +15,17 @@ const RETURN_PATH = "/settings";
 const GOOGLE_CANCELLED = "access_denied";
 
 export interface DeleteAccountCardProps {
+  userId: string;
   reauthError?: string;
 }
 
-export function DeleteAccountCard({ reauthError }: DeleteAccountCardProps) {
+export function DeleteAccountCard({ userId, reauthError }: DeleteAccountCardProps) {
   const { data: session } = useQuery(sessionQueryOptions);
   const until = session?.user.pendingDeletionUntil;
 
   if (until) return <ScheduledDeletion until={new Date(until)} />;
 
-  return <RequestDeletion reauthError={reauthError} />;
+  return <RequestDeletion userId={userId} reauthError={reauthError} />;
 }
 
 interface ScheduledDeletionProps {
@@ -50,9 +52,10 @@ function reauthMessageKey(reauthError: string | undefined) {
   return "deletion.reauthCallbackFailed";
 }
 
-function RequestDeletion({ reauthError }: DeleteAccountCardProps) {
+function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
   const { t } = useTranslation(["settings", "common"]);
-  const deletion = useRequestDeletion();
+  const deletion = useRequestDeletion(userId);
+  const trigger = useRef<HTMLButtonElement>(null);
   const reauth = useGoogleReauth(RETURN_PATH);
   const reauthRequired = deletion.reauthRequired || reauthError !== undefined;
 
@@ -79,25 +82,33 @@ function RequestDeletion({ reauthError }: DeleteAccountCardProps) {
           </Button>
         </>
       ) : (
-        <DestructiveActionDialog
-          trigger={
-            <Button
-              type="button"
-              variant="outline"
-              className="self-start"
-              disabled={deletion.isPending}
-            >
-              <Trash2 />
-              {deletion.isPending ? t("deletion.submitting") : t("deletion.action")}
-            </Button>
-          }
-          title={t("deletion.dialogTitle")}
-          description={t("deletion.dialogDescription")}
-          actionLabel={t("deletion.confirm")}
-          cancelLabel={t("common:actions.cancel")}
-          isPending={deletion.isPending}
-          onConfirm={deletion.request}
-        />
+        <>
+          <Button
+            ref={trigger}
+            type="button"
+            variant="outline"
+            className="self-start"
+            disabled={deletion.isPending}
+            onClick={deletion.start}
+          >
+            <Trash2 />
+            {deletion.isPending ? t("deletion.submitting") : t("deletion.action")}
+          </Button>
+          <DestructiveActionDialog
+            open={deletion.confirming}
+            onOpenChange={deletion.setConfirming}
+            title={t("deletion.dialogTitle")}
+            description={t("deletion.dialogDescription")}
+            actionLabel={t("deletion.confirm")}
+            cancelLabel={t("common:actions.cancel")}
+            isPending={deletion.isPending}
+            onConfirm={deletion.request}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              trigger.current?.focus();
+            }}
+          />
+        </>
       )}
     </SectionCard>
   );
