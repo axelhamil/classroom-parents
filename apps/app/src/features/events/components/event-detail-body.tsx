@@ -53,7 +53,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
 
   return (
     <>
-      <EventWhen event={event} hue={child ? childHue(family, child.id) : 1} now={new Date()} />
+      <EventWhen event={event} hue={child ? childHue(family, child.id) : 1} />
       {event.status === "needs_review" && <EventReview event={event} />}
       <EventActions event={event} child={child} />
       {event.description && <EventDescription description={event.description} />}

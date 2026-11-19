@@ -1,5 +1,5 @@
-import type { EventItem } from "../../shared/api/queries/events";
-import type { EventCategory } from "../../shared/events/event-labels";
+import type { EventItem } from "../api/queries/events";
+import type { EventCategory } from "../events/event-labels";
 
 export const CHECKLIST_DEFAULTS = {
   swimming: [

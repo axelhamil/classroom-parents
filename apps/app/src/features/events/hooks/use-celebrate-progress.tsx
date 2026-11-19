@@ -1,23 +1,23 @@
-import { mondayOf } from "@packages/ddd-kit/days";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import {
   readStoredValue,
   userStorageKey,
   writeStoredValue,
 } from "@packages/web-kit/storage/use-stored-value";
-import { useIsMutating, useQuery } from "@tanstack/react-query";
+import { useIsMutating } from "@tanstack/react-query";
 import { CheckCheckIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Route as ProtectedRoute } from "../../../router/_protected";
+import { isDueWithin } from "../../../shared/agenda/deadline-facts";
+import type { SchoolClock } from "../../../shared/agenda/school-clock";
+import { calendarWeek } from "../../../shared/agenda/windows";
 import { markEventDoneMutationOptions } from "../../../shared/api/mutations/mark-event-done";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
-import { schoolToday } from "../../../shared/format/school-today";
-import { calendarEventsQueryOptions } from "../api/events.queries";
-import { weekAhead } from "../week";
+import { dayLabelFrom, inSentence } from "../../../shared/format/deadline-label";
+import { useHomeEvents } from "./use-home-events";
 
 const celebratedSchema = z.object({ days: z.array(z.string()), weeks: z.array(z.string()) });
 
@@ -37,13 +37,15 @@ interface Progress {
   weekDone: boolean;
 }
 
-export function useCelebrateProgress(now: Date): void {
+/** Celebrates a day, or the calendar week (Monday to Sunday), the parent just finished ticking. */
+export function useCelebrateProgress(clock: SchoolClock): void {
   const { t } = useTranslation("events");
   const { user } = ProtectedRoute.useRouteContext();
-  const query = useQuery(calendarEventsQueryOptions(weekAhead(schoolToday(now))));
+  const query = useHomeEvents(clock);
   const toggling = useIsMutating({ mutationKey: markEventDoneMutationOptions.mutationKey }) > 0;
-  const loaded = query.data ?? [];
-  const week = mondayOf(schoolToday(now));
+  const range = calendarWeek.range(clock);
+  const loaded = (query.data ?? []).filter((event) => isDueWithin(event, range));
+  const week = range.from;
   const progress: Progress | null =
     query.isSuccess && !toggling
       ? {
@@ -67,7 +69,7 @@ export function useCelebrateProgress(now: Date): void {
     const freshWeek = progress.weekDone && !before.weekDone;
     if (freshDays.length === 0 && !freshWeek) return;
 
-    const today = schoolToday(now);
+    const { today } = clock;
     const stored = readStoredValue(key, celebratedSchema, NONE);
     const days = freshDays.filter((day) => !stored.days.includes(day));
     const weekDone = freshWeek && !stored.weeks.includes(week);
@@ -81,7 +83,7 @@ export function useCelebrateProgress(now: Date): void {
     const day = days.at(-1);
     const message = weekDone
       ? t("celebration.week")
-      : t("celebration.day", { day: inSentence(dayLabel(day ?? today, now)) });
+      : t("celebration.day", { day: inSentence(dayLabelFrom(day ?? today, today)) });
 
     toast.success(message, {
       id: weekDone ? `celebration:week:${week}` : `celebration:day:${day ?? today}`,

@@ -1,4 +1,3 @@
-import { wallTimeLabel } from "@packages/i18n";
 import { Badge } from "@packages/ui/components/ui/badge";
 import {
   CalendarEntry,
@@ -11,9 +10,13 @@ import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { DeadlineCategory } from "@packages/ui/components/ui/deadline-sheet";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { isOverdue, needsReview } from "../../../../shared/agenda/deadline-facts";
+import type { SchoolClock } from "../../../../shared/agenda/school-clock";
+import { useSchoolClock } from "../../../../shared/agenda/school-clock-context";
+import { whenOf } from "../../../../shared/agenda/when";
+import { WhenMeta } from "../../../../shared/agenda/when-meta";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
-import { CountdownBadge, withoutImminent } from "../../../../shared/events/event-card";
 import {
   CATEGORY_ICONS,
   CATEGORY_LABEL_KEYS,
@@ -21,15 +24,11 @@ import {
 } from "../../../../shared/events/event-labels";
 import { EventLink } from "../../../../shared/events/event-link";
 import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
-import { countdownOf, dayLabel, deadlineLabel } from "../../../../shared/format/deadline-label";
-import { isOverdue } from "../../calendar";
 import { useToggleDone } from "../../hooks/use-toggle-done";
 
 export interface CalendarEventRowProps {
   event: EventItem;
   family: readonly ChildDto[];
-  now: Date;
-  today: string;
   dated?: boolean;
   withChild?: boolean;
   compact?: boolean;
@@ -37,19 +36,16 @@ export interface CalendarEventRowProps {
   children?: ReactNode;
 }
 
-function stateOf(event: EventItem, now: Date, today: string) {
+function stateOf(event: EventItem, clock: SchoolClock) {
   if (event.done) return "done";
-  if (isOverdue(event, today)) return "overdue";
-  const countdown = countdownOf(event.deadlineDate, event.deadlineTime, now);
+  if (isOverdue(event, clock.today)) return "overdue";
 
-  return countdown && countdown.kind !== "soon" ? "urgent" : "open";
+  return whenOf(event, clock, { dated: true }).badge?.tone === "urgent" ? "urgent" : "open";
 }
 
 export function CalendarEventRow({
   event,
   family,
-  now,
-  today,
   dated = false,
   withChild = true,
   compact = false,
@@ -58,15 +54,16 @@ export function CalendarEventRow({
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
+  const clock = useSchoolClock();
   const CategoryIcon = CATEGORY_ICONS[event.category];
   const hue = childHue(family, event.childId);
   const childLabel = withChild && family.length > 1 ? childLabelOf(family, event.childId) : "";
-  const status = stateOf(event, now, today);
+  const status = stateOf(event, clock);
   const state = compact && status === "overdue" ? "open" : status;
-  const countdown =
-    withCountdown && (state === "open" || state === "urgent")
-      ? withoutImminent(countdownOf(event.deadlineDate, event.deadlineTime, now))
-      : null;
+  const when = whenOf(event, clock, {
+    dated,
+    withBadge: withCountdown && (state === "open" || state === "urgent"),
+  });
 
   return (
     <CalendarEntry hue={hue} state={state} density={compact ? "compact" : "comfortable"}>
@@ -87,8 +84,7 @@ export function CalendarEventRow({
               {t(CATEGORY_LABEL_KEYS[event.category])}
             </span>
           </DeadlineCategory>
-          {dated && <span>{dayLabel(event.deadlineDate, now)}</span>}
-          {event.deadlineTime && <span>{wallTimeLabel(event.deadlineTime)}</span>}
+          <WhenMeta when={when} clock={clock} />
           {childLabel && (
             <span className="flex min-w-0 items-center gap-1">
               <ChildAvatar name={childLabel} tone={hue} size="xs" />
@@ -96,11 +92,7 @@ export function CalendarEventRow({
             </span>
           )}
           {state === "overdue" && <Badge variant="destructive">{t("calendar.overdue")}</Badge>}
-          <CountdownBadge
-            countdown={countdown}
-            label={deadlineLabel(event.deadlineDate, event.deadlineTime, now)}
-            deadlineTime={event.deadlineTime}
-          />
+          {needsReview(event) && <Badge variant="review">{t("review.title")}</Badge>}
         </CalendarEntryMeta>
         {children}
       </CalendarEntryBody>

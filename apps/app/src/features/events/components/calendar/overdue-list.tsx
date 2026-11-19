@@ -16,7 +16,6 @@ export interface OverdueListProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
   now: Date;
-  today: string;
 }
 
 function byDate(events: readonly EventItem[]): [string, EventItem[]][] {
@@ -27,7 +26,7 @@ function byDate(events: readonly EventItem[]): [string, EventItem[]][] {
   return [...groups];
 }
 
-export function OverdueList({ events, family, now, today }: OverdueListProps) {
+export function OverdueList({ events, family, now }: OverdueListProps) {
   const { t } = useTranslation("events");
   const groupId = useId();
 
@@ -42,7 +41,7 @@ export function OverdueList({ events, family, now, today }: OverdueListProps) {
             <CalendarDayList>
               {due.map((event) => (
                 <li key={event.id}>
-                  <CalendarEventRow event={event} family={family} now={now} today={today} compact />
+                  <CalendarEventRow event={event} family={family} compact />
                 </li>
               ))}
             </CalendarDayList>

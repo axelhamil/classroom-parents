@@ -114,6 +114,28 @@ describe("event reminders", () => {
 
     expect(await screen.findByText("Non planifié")).toBeDefined();
     expect(screen.queryByText(/^Envoi/)).toBeNull();
+    expect(
+      screen.getByText("Son heure était déjà passée quand l'échéance est arrivée."),
+    ).toBeDefined();
+  });
+
+  it("given a confirmed deadline whose reminder is not planned yet, then it says why instead of a bare state (14)", async () => {
+    givenReminders({
+      customized: false,
+      reminders: [
+        {
+          reminder: { kind: "days_before", days: 2, time: "18:00" },
+          dueAt: "2099-03-26T17:00:00.000Z",
+          status: "unplanned",
+          fits: true,
+        },
+      ],
+    });
+    await renderReminders();
+
+    const [row] = await screen.findAllByRole("listitem");
+    expect(row?.textContent).toContain("En attente de programmation.");
+    expect(row?.textContent).toContain("Non planifié");
   });
 
   it("given the parent removes one reminder and adds a same day one, then the whole list is sent", async () => {

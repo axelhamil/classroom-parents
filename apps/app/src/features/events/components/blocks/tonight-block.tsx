@@ -8,22 +8,19 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
-import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import { BackpackIcon } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { type DayPlan, tonightView } from "../../../../shared/agenda/views";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
 import { childHue } from "../../../../shared/format/child-hue";
-import { dayLabel, inSentence } from "../../../../shared/format/deadline-label";
-import { schoolToday } from "../../../../shared/format/school-today";
-import { calendarEventsQueryOptions } from "../../api/events.queries";
-import { type DayPlan, tomorrowPlan } from "../../day-plan";
+import { dayLabelFrom, inSentence } from "../../../../shared/format/deadline-label";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useChecklist } from "../../hooks/use-checklist";
-import { weekAhead } from "../../week";
+import { useHomeEvents } from "../../hooks/use-home-events";
 import { ChecklistRows } from "../prepare-checklist";
 import { BlockPanel } from "./block-panel";
 import { ShowMoreButton, useShowMore } from "./show-more";
@@ -36,11 +33,11 @@ function tonightNote(plan: DayPlan, day: string, t: TFunction<"home">): string {
   return t("blocks.tonight.empty", { day });
 }
 
-function TonightBlock({ family, childId, now, title, rows }: HomeBlockProps) {
+function TonightBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
-  const query = useQuery(calendarEventsQueryOptions(weekAhead(schoolToday(now))));
-  const plan = tomorrowPlan(query.data ?? [], now, childId);
-  const day = inSentence(dayLabel(plan.day, now));
+  const query = useHomeEvents(clock);
+  const plan = tonightView(query.data ?? [], clock, childId);
+  const day = inSentence(dayLabelFrom(plan.day, clock.today));
 
   return (
     <BlockPanel

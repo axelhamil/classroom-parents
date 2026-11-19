@@ -1,37 +1,37 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { z } from "zod";
-import { CALENDAR_KEY } from "../api/queries/events";
-import { schoolToday } from "../format/school-today";
-
-interface DayEvent {
-  id: string;
-  deadlineDate: string;
-  done: boolean;
-}
+import type { SchoolClock } from "../agenda/school-clock";
+import { badgeCount, badgeRange } from "../agenda/views";
+import type { DateRange } from "../agenda/windows";
+import { CALENDAR_KEY, type EventItem } from "../api/queries/events";
 
 const calendarRangeSchema = z.tuple([z.string(), z.string(), z.string(), z.string()]);
 
-function coversDay(queryKey: readonly unknown[], day: string): boolean {
+function covers(queryKey: readonly unknown[], { from, to }: DateRange): boolean {
   const range = calendarRangeSchema.safeParse(queryKey);
   if (!range.success) return false;
 
-  const [, , from, to] = range.data;
+  const [, , loadedFrom, loadedTo] = range.data;
 
-  return from <= day && day <= to;
+  return loadedFrom <= from && to <= loadedTo;
 }
 
-export function openDeadlinesOn(queryClient: QueryClient, day: string): number | undefined {
+/** The badge count from the calendar already loaded, or undefined while no load covers the days it needs. */
+export function badgeCountFromCache(
+  queryClient: QueryClient,
+  clock: SchoolClock,
+): number | undefined {
+  const needed = badgeRange(clock);
   const covering = queryClient
-    .getQueriesData<DayEvent[]>({ queryKey: CALENDAR_KEY })
-    .filter(([queryKey, events]) => events !== undefined && coversDay(queryKey, day));
+    .getQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY })
+    .filter(([queryKey, events]) => events !== undefined && covers(queryKey, needed));
   if (covering.length === 0) return undefined;
 
-  const open = covering
-    .flatMap(([, events]) => events ?? [])
-    .filter((event) => event.deadlineDate === day && !event.done);
+  const loaded = covering.flatMap(([, events]) => events ?? []);
+  const unique = [...new Map(loaded.map((event) => [event.id, event])).values()];
 
-  return new Set(open.map((event) => event.id)).size;
+  return badgeCount(unique, clock);
 }
 
 function showOnIcon(count: number): void {
@@ -40,7 +40,8 @@ function showOnIcon(count: number): void {
   void shown.catch(() => undefined);
 }
 
-export function useAppBadge(): void {
+/** Shows on the app icon the number the home's briefing counts as open, for the same school day. */
+export function useAppBadge(clock: SchoolClock): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export function useAppBadge(): void {
 
     let shown: number | undefined;
     const refresh = () => {
-      const count = openDeadlinesOn(queryClient, schoolToday(new Date()));
+      const count = badgeCountFromCache(queryClient, clock);
       if (count === undefined || count === shown) return;
 
       shown = count;
@@ -57,5 +58,5 @@ export function useAppBadge(): void {
 
     refresh();
     return queryClient.getQueryCache().subscribe(refresh);
-  }, [queryClient]);
+  }, [queryClient, clock]);
 }

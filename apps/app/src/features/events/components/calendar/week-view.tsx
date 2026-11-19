@@ -1,8 +1,8 @@
 import { CalendarWeek } from "@packages/ui/components/ui/calendar-day";
+import type { SchoolClock } from "../../../../shared/agenda/school-clock";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { TABLET_QUERY, useMediaQuery } from "../../../../shared/layout/use-media-query";
 import type { CalendarDay } from "../../calendar";
-import type { SchoolMoment } from "../../week";
 import { CalendarDaySection } from "./calendar-day-section";
 
 export interface WeekViewProps {
@@ -10,7 +10,7 @@ export interface WeekViewProps {
   family: readonly ChildDto[];
   now: Date;
   today: string;
-  briefed: SchoolMoment | null;
+  briefed: Pick<SchoolClock, "today" | "focus"> | null;
   onAdd: (date: string) => void;
 }
 

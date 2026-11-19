@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { nextSevenDays } from "../../shared/agenda/windows";
 import type { ChildDto } from "../../shared/api/queries/children";
 import type { DashboardBlock } from "../../shared/dashboard/dashboard-block";
 import type { HomeBlock } from "../../shared/dashboard/dashboard-layout";
@@ -57,13 +58,16 @@ export interface HomeRegistry {
 
 export function useHomeRegistry(family: readonly ChildDto[]): HomeRegistry {
   const { t } = useTranslation("home");
-  const shared = HOME_BLOCKS.map(({ titleKey, descriptionKey, ...block }) => ({
+  const shared = HOME_BLOCKS.map(({ titleKey, descriptionKey, windowDays, ...block }) => ({
     ...block,
     title: t(titleKey),
-    description: t(descriptionKey),
+    description: t(descriptionKey, { days: windowDays }),
   }));
   const perChild = family.map((child) =>
-    childBlock(child, t("blocks.child.description", { child: child.label })),
+    childBlock(
+      child,
+      t("blocks.child.description", { child: child.label, days: nextSevenDays.days }),
+    ),
   );
 
   return { blocks: [...shared, ...perChild], defaults: DEFAULT_LAYOUT };

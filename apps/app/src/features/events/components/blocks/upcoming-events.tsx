@@ -1,91 +1,56 @@
-import { shiftDate } from "@packages/ddd-kit/days";
-import { useQuery } from "@tanstack/react-query";
-import { BusIcon, type LucideIcon, PenLineIcon } from "lucide-react";
+import { BusIcon, ClipboardCheckIcon, type LucideIcon, PenLineIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { EventCategory } from "../../../../shared/events/event-labels";
-import { schoolToday } from "../../../../shared/format/school-today";
-import { calendarEventsQueryOptions } from "../../api/events.queries";
-import type { HomeBlockContext, HomeBlockDefinition, HomeBlockProps } from "../../home-block";
+import { type DeadlineKind, upcomingByKind } from "../../../../shared/agenda/views";
+import { nextTwoWeeks } from "../../../../shared/agenda/windows";
+import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
+import { useHomeEvents } from "../../hooks/use-home-events";
+import { EventSteps } from "../prepare-checklist";
 import { BlockPanel } from "./block-panel";
-import { EventRows, forChild } from "./event-rows";
+import { EventRows } from "./event-rows";
 
-export const UPCOMING_DAYS = 14;
+const ICONS: Record<DeadlineKind, LucideIcon> = {
+  assessments: ClipboardCheckIcon,
+  documents: PenLineIcon,
+  outings: BusIcon,
+};
 
-export function upcomingWindow(today: string, days = UPCOMING_DAYS) {
-  return { from: today, to: shiftDate(today, days - 1) };
+function isDeadlineKind(id: string): id is DeadlineKind {
+  return id in ICONS;
 }
 
-export interface UpcomingEventsProps extends HomeBlockContext {
-  title: string;
-  rows: number;
-  icon: LucideIcon;
-  categories: readonly EventCategory[];
-  empty: string;
-}
+function UpcomingBlock({ blockId, family, childId, clock, title, rows }: HomeBlockProps) {
+  const { t } = useTranslation("home");
+  const query = useHomeEvents(clock);
+  if (!isDeadlineKind(blockId)) return null;
 
-export function UpcomingEvents({
-  family,
-  childId,
-  now,
-  title,
-  rows,
-  icon,
-  categories,
-  empty,
-}: UpcomingEventsProps) {
-  const today = schoolToday(now);
-  const query = useQuery(calendarEventsQueryOptions(upcomingWindow(today)));
-  const due = forChild(query.data ?? [], childId).filter(
-    (event) => !event.done && categories.includes(event.category),
-  );
+  const due = upcomingByKind(query.data ?? [], clock, blockId, childId);
+  const empty = t(`blocks.${blockId}.empty`, { days: nextTwoWeeks.days });
 
   return (
-    <BlockPanel title={title} icon={icon} note={query.isSuccess && due.length === 0 && empty}>
+    <BlockPanel
+      title={title}
+      icon={ICONS[blockId]}
+      note={query.isSuccess && due.length === 0 && empty}
+    >
       {due.length > 0 && (
-        <EventRows events={due} family={family} now={now} today={today} rows={rows} />
+        <EventRows
+          events={due}
+          family={family}
+          rows={rows}
+          steps={blockId === "assessments" ? (event) => <EventSteps event={event} /> : undefined}
+        />
       )}
     </BlockPanel>
   );
 }
 
-const UPCOMING_CATEGORIES = {
-  documents: ["document_due"],
-  outings: ["school_trip", "swimming"],
-} as const satisfies Record<string, readonly EventCategory[]>;
-
-type UpcomingBlockId = keyof typeof UPCOMING_CATEGORIES;
-
-function isUpcoming(id: string): id is UpcomingBlockId {
-  return id in UPCOMING_CATEGORIES;
-}
-
-function UpcomingBlock({ blockId, title, rows, ...context }: HomeBlockProps) {
-  const { t } = useTranslation("home");
-  if (!isUpcoming(blockId)) return null;
-
-  return (
-    <UpcomingEvents
-      {...context}
-      title={title}
-      rows={rows}
-      icon={ICONS[blockId]}
-      categories={UPCOMING_CATEGORIES[blockId]}
-      empty={t(`blocks.${blockId}.empty`)}
-    />
-  );
-}
-
-const ICONS: Record<UpcomingBlockId, LucideIcon> = {
-  documents: PenLineIcon,
-  outings: BusIcon,
-};
-
-/** Documents and outings are one list of the coming two weeks, cut by category. */
-export function upcomingBlock(id: UpcomingBlockId): HomeBlockDefinition {
+/** Assessments, documents and outings are one list of the coming two weeks, cut by kind. */
+export function upcomingBlock(id: DeadlineKind): HomeBlockDefinition {
   return {
     id,
     titleKey: `blocks.${id}.title`,
     descriptionKey: `blocks.${id}.description`,
+    windowDays: nextTwoWeeks.days,
     icon: ICONS[id],
     sizes: { w: [3, 4, 6, 8], h: [1, 2, 3] },
     defaultSize: { w: 4, h: 1 },

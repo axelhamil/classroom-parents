@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { HourglassIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSchoolClock } from "../../../../shared/agenda/school-clock-context";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import {
   BoardEmpty,
@@ -27,7 +28,6 @@ import {
 } from "../../calendar";
 import { useShareDays } from "../../hooks/use-share-days";
 import { type SwipeStep, useSwipe } from "../../hooks/use-swipe";
-import { schoolMoment } from "../../week";
 import { AddEventDialog, preloadAddEventForm } from "./add-event-dialog";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
@@ -41,7 +41,6 @@ export interface CalendarBoardProps {
   childId: string | null;
   place: CalendarPlace;
   onPlaceChange: (place: CalendarPlace) => void;
-  now: Date;
   briefingShown: boolean;
   overdueShown: boolean;
 }
@@ -70,11 +69,12 @@ export function CalendarBoard({
   childId,
   place,
   onPlaceChange,
-  now,
   briefingShown,
   overdueShown,
 }: CalendarBoardProps) {
   const { t } = useTranslation("events");
+  const clock = useSchoolClock();
+  const { now } = clock;
   const { view, today, anchor, period } = placePeriod(place, now);
   const query = useQuery({
     ...calendarEventsQueryOptions(period),
@@ -132,15 +132,7 @@ export function CalendarBoard({
         <WeekStrip days={days} family={family} now={now} today={today} />
       )}
       <div className="@container flex min-w-0 flex-col gap-4">
-        {!overdueShown && (
-          <OverdueButton
-            family={family}
-            childId={childId}
-            now={now}
-            today={today}
-            before={period.from}
-          />
-        )}
+        {!overdueShown && <OverdueButton family={family} childId={childId} before={period.from} />}
         <CalendarToolbar
           view={view}
           anchor={anchor}
@@ -173,10 +165,7 @@ export function CalendarBoard({
                   >
                     {candidate === "week" &&
                       (periodEmpty ?? (
-                        <WeekView
-                          {...viewProps}
-                          briefed={briefingShown ? schoolMoment(now) : null}
-                        />
+                        <WeekView {...viewProps} briefed={briefingShown ? clock : null} />
                       ))}
                     {candidate === "month" && (
                       <Suspense fallback={<EventBoardSkeleton label={t("calendar.loading")} />}>

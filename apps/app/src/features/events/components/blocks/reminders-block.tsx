@@ -1,24 +1,18 @@
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@packages/ui/components/ui/item";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { BellRingIcon } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { watchedForReminders } from "../../../../shared/agenda/views";
+import { nextSevenDays } from "../../../../shared/agenda/windows";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import { EventLink } from "../../../../shared/events/event-link";
 import { instantLabel } from "../../../../shared/format/deadline-label";
-import { schoolToday } from "../../../../shared/format/school-today";
-import {
-  calendarEventsQueryOptions,
-  type EventReminders,
-  eventRemindersQueryOptions,
-} from "../../api/events.queries";
+import { type EventReminders, eventRemindersQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
-import { weekAhead } from "../../week";
+import { useHomeEvents } from "../../hooks/use-home-events";
 import { BlockPanel } from "./block-panel";
-import { forChild } from "./event-rows";
 import { ShowMoreButton, useShowMore } from "./show-more";
-
-const WATCHED_EVENTS = 5;
 
 interface Ringing {
   key: string;
@@ -34,13 +28,12 @@ function ringingOf(event: EventItem, reply: EventReminders | undefined, now: Dat
   );
 }
 
-function RemindersBlock({ childId, now, title, rows }: HomeBlockProps) {
+function RemindersBlock({ childId, clock, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const listId = useId();
-  const calendar = useQuery(calendarEventsQueryOptions(weekAhead(schoolToday(now))));
-  const watched = forChild(calendar.data ?? [], childId)
-    .filter((event) => !event.done)
-    .slice(0, WATCHED_EVENTS);
+  const { now } = clock;
+  const calendar = useHomeEvents(clock);
+  const watched = watchedForReminders(calendar.data ?? [], clock, childId);
   const replies = useQueries({
     queries: watched.map((event) => eventRemindersQueryOptions(event.id)),
   });
@@ -54,7 +47,9 @@ function RemindersBlock({ childId, now, title, rows }: HomeBlockProps) {
     <BlockPanel
       title={title}
       icon={BellRingIcon}
-      note={settled && ringing.length === 0 && t("blocks.reminders.empty")}
+      note={
+        settled && ringing.length === 0 && t("blocks.reminders.empty", { days: nextSevenDays.days })
+      }
     >
       {ringing.length > 0 && (
         <>
@@ -83,6 +78,7 @@ export const remindersBlock: HomeBlockDefinition = {
   id: "reminders",
   titleKey: "blocks.reminders.title",
   descriptionKey: "blocks.reminders.description",
+  windowDays: nextSevenDays.days,
   icon: BellRingIcon,
   sizes: { w: [3, 4, 6], h: [1, 2, 3] },
   defaultSize: { w: 4, h: 1 },

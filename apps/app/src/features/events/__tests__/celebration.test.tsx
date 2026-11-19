@@ -31,7 +31,7 @@ describe("celebrating a day made ready", () => {
     at("2026-11-12T17:30:00.000Z");
     givenCalendar(
       [CHILD],
-      [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-16", "Exposé")],
+      [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-14", "Exposé")],
     );
     await renderAppAt("/");
 
@@ -56,7 +56,7 @@ describe("celebrating a day made ready", () => {
     at("2026-11-12T17:30:00.000Z");
     const homework = deadline(1, "2026-11-13", "Lire le chapitre 2");
     const path = `/events/${homework.id}`;
-    givenCalendar([CHILD], [homework, deadline(2, "2026-11-16", "Exposé")], {
+    givenCalendar([CHILD], [homework, deadline(2, "2026-11-14", "Exposé")], {
       detail: homework,
     });
     await renderAppAt(path);
@@ -73,7 +73,7 @@ describe("celebrating a day made ready", () => {
     at("2026-11-12T17:30:00.000Z");
     givenCalendar(
       [CHILD],
-      [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-16", "Exposé")],
+      [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-14", "Exposé")],
       { refuseFirstDone: true },
     );
     await renderAppAt("/");

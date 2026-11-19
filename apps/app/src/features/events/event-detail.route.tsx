@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useSchoolClock } from "../../shared/agenda/school-clock-context";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
 import { eventQueryOptions } from "./api/events.queries";
@@ -8,7 +9,6 @@ import { EventDetailBody, EventDetailSkeleton } from "./components/event-detail-
 import { EventNotFound, isEventGone } from "./components/event-not-found";
 import { EventEyebrow, EventOrigin } from "./components/event-when";
 import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
-import { useNow } from "./hooks/use-now";
 
 export const Route = createFileRoute("/_protected/_shell/events/$eventId")({
   component: EventDetailPage,
@@ -19,7 +19,7 @@ function EventDetailPage() {
   const { eventId } = Route.useParams();
   const navigate = useNavigate();
   const query = useQuery(eventQueryOptions(eventId));
-  useCelebrateProgress(useNow());
+  useCelebrateProgress(useSchoolClock());
 
   if (isEventGone(query)) return <EventNotFound />;
 
