@@ -7,7 +7,10 @@ import type { RgpdService } from "./application/services/rgpd.service";
 export interface RgpdRoutesDeps {
   routeGuards: RouteGuards;
   accountDeleteRateLimit: RouteGuard;
-  RgpdService: Pick<RgpdService, "requestAccountDeletion" | "cancelAccountDeletion">;
+  RgpdService: Pick<
+    RgpdService,
+    "deletionPreflight" | "requestAccountDeletion" | "cancelAccountDeletion"
+  >;
   DataExportService: Pick<DataExportService, "requestExport">;
 }
 
@@ -15,6 +18,15 @@ export function createRgpdRoutes(deps: RgpdRoutesDeps) {
   const { routeGuards: g } = deps;
 
   return new Hono<RouteEnv>()
+    .get("/delete/preflight", g.requireAuth, async (c) => {
+      const session = g.currentSession(c);
+      const result = await deps.RgpdService.deletionPreflight({
+        userId: session.userId,
+        sessionId: session.id,
+      });
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
     .post("/delete", g.requireAuth, deps.accountDeleteRateLimit, async (c) => {
       const session = g.currentSession(c);
       const result = await deps.RgpdService.requestAccountDeletion({

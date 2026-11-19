@@ -18,6 +18,7 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /children/:id": { consumer: "apps/app/src/features/children/api/children.mutations.ts" },
   "DELETE /events/:id": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "DELETE /me/delete": { consumer: "apps/app/src/shared/api/mutations/cancel-account-deletion.ts" },
+  "GET /me/delete/preflight": { consumer: "apps/app/src/features/rgpd/api/rgpd.queries.ts" },
   "GET /calendar-feed": { consumer: "apps/app/src/features/events/api/events.queries.ts" },
   "POST /calendar-feed": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "DELETE /calendar-feed": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
@@ -48,8 +49,10 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /events/:eventId/reminders": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
   },
-  "GET /reminders/digest": { uiLess: "dormant-by-design" },
-  "PUT /reminders/digest": { uiLess: "dormant-by-design" },
+  "GET /reminders/digest": { consumer: "apps/app/src/features/settings/api/settings.queries.ts" },
+  "PUT /reminders/digest": {
+    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
+  },
   "GET /reminders/defaults": { consumer: "apps/app/src/shared/api/queries/default-reminders.ts" },
   "PUT /reminders/defaults": {
     consumer: "apps/app/src/shared/api/mutations/set-default-reminders.ts",

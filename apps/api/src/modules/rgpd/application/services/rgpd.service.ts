@@ -21,6 +21,10 @@ export interface RequestAccountDeletionOutput {
   pendingDeletionUntil: string;
 }
 
+export interface DeletionPreflightOutput {
+  reauthRequired: boolean;
+}
+
 export interface CancelAccountDeletionInput {
   userId: string;
 }
@@ -121,6 +125,20 @@ export class RgpdService {
           );
 
         return Result.ok({ pendingDeletionUntil: until.toISOString() });
+      },
+    );
+  }
+
+  async deletionPreflight(
+    input: RequestAccountDeletionInput,
+  ): Promise<Result<DeletionPreflightOutput, RgpdError>> {
+    return this.instrumentation.startSpan(
+      { name: "RgpdService > deletionPreflight", op: "function" },
+      async () => {
+        const fresh = await this.isSessionFresh(input);
+        if (fresh.isFailure) return Result.fail(fresh.getError());
+
+        return Result.ok({ reauthRequired: !fresh.getValue() });
       },
     );
   }
@@ -372,6 +390,19 @@ export class RgpdService {
   private async ensureFreshSession(
     input: RequestAccountDeletionInput,
   ): Promise<Result<void, RgpdError>> {
+    const fresh = await this.isSessionFresh(input);
+    if (fresh.isFailure) return Result.fail(fresh.getError());
+    if (fresh.getValue()) return Result.ok();
+
+    return Result.fail({
+      code: "ACCOUNT_REAUTH_REQUIRED",
+      message: "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
+    });
+  }
+
+  private async isSessionFresh(
+    input: RequestAccountDeletionInput,
+  ): Promise<Result<boolean, RgpdError>> {
     const startResult = await this.rgpd.findSessionStart(input.userId, input.sessionId);
     if (startResult.isFailure) return Result.fail(startResult.getError());
 
@@ -379,12 +410,8 @@ export class RgpdService {
     const fresh =
       start.isSome() &&
       this.clock().getTime() - start.unwrap().getTime() < this.settings.freshSessionMaxAgeMs;
-    if (fresh) return Result.ok();
 
-    return Result.fail({
-      code: "ACCOUNT_REAUTH_REQUIRED",
-      message: "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
-    });
+    return Result.ok(fresh);
   }
 
   private async revokeChildTokens(userId: string): Promise<void> {

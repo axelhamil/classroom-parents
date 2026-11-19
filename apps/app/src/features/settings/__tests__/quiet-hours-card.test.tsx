@@ -48,6 +48,22 @@ describe("quiet hours card", () => {
     expect(await screen.findByText("Heures calmes enregistrées")).toBeDefined();
   });
 
+  it("given quiet hours turned off, when the parent turns them on, then the server defaults, 21 h to 7 h, are saved at once", async () => {
+    const calls = givenQuietHours({ enabled: false, start: "23:00", end: "06:00" });
+    await renderWithProviders(<QuietHoursCard userId="user-1" />);
+
+    fireEvent.click(await screen.findByRole("switch", { name: "Respecter les heures calmes" }));
+
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === "PUT")?.body).toEqual({
+        enabled: true,
+        start: "21:00",
+        end: "07:00",
+      }),
+    );
+    expect(await screen.findByLabelText("Début")).toHaveProperty("value", "21:00");
+  });
+
   it("given the same start and end, then the form refuses them", async () => {
     const calls = givenQuietHours({ enabled: true, start: "21:00", end: "07:00" });
     await renderWithProviders(<QuietHoursCard userId="user-1" />);

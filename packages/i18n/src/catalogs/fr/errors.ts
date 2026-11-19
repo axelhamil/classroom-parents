@@ -322,6 +322,8 @@ export default {
     loadLockScreen: "Échec du chargement du choix d'écran verrouillé",
     setLockScreen: "Échec de l'enregistrement du choix d'écran verrouillé",
     setQuietHours: "Échec de l'enregistrement des heures calmes",
+    loadDigest: "Échec du chargement du choix de résumé du dimanche",
+    setDigest: "Échec de l'enregistrement du choix de résumé du dimanche",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",
     cancelAccountDeletion: "Échec de l'annulation",

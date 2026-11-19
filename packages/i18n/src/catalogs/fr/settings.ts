@@ -56,9 +56,6 @@ export default {
   push: {
     title: "Notifications sur ce téléphone",
     description: "Une notification à chaque rappel de vos échéances, même application fermée.",
-    defaults: "Rappels par défaut : {{reminders}}.",
-    noDefaults:
-      "Aucun rappel par défaut : seules les échéances dont vous avez choisi les rappels envoient une alerte.",
     enabled: "Activées",
     enabledBody: "Ce téléphone reçoit les alertes de vos échéances.",
     enable: "Activer les alertes",
@@ -100,11 +97,22 @@ export default {
     loading: "Chargement des rappels par défaut",
     saved: "Rappels par défaut enregistrés",
   },
+  digest: {
+    title: "Résumé du dimanche",
+    description:
+      "Chaque dimanche vers 18 h, une seule notification fait le point sur la semaine qui commence : le nombre d'échéances de chaque enfant et la prochaine à rendre. Sans appareil qui reçoit vos alertes, il arrive par e-mail. Semaine sans échéance, rien n'est envoyé.",
+    enabled: "Recevoir le résumé du dimanche",
+    on: "Vous le recevez chaque dimanche soir.",
+    off: "Vous ne le recevez plus. Les rappels de chaque échéance continuent d'arriver.",
+    loading: "Chargement du résumé du dimanche",
+  },
   quietHours: {
     title: "Heures calmes",
     description:
       "Aucune alerte ne sonne pendant ces heures : elle arrive à leur fin, ou juste avant si l'échéance tombe pendant la nuit.",
     enabled: "Respecter les heures calmes",
+    on: "Les alertes de la nuit attendent la fin des heures calmes.",
+    off: "Les alertes sonnent à toute heure.",
     start: "Début",
     end: "Fin",
     loading: "Chargement des heures calmes",

@@ -7,6 +7,7 @@ import { AppearanceCard } from "./components/appearance-card";
 import { DefaultRemindersCard } from "./components/default-reminders-card";
 import { DeleteAccountCard } from "./components/delete-account-card";
 import { DevicesCard } from "./components/devices-card";
+import { DigestCard } from "./components/digest-card";
 import { PrivacyLinksCard } from "./components/privacy-links-card";
 import { PushCard } from "./components/push-card";
 import { QuietHoursCard } from "./components/quiet-hours-card";
@@ -30,6 +31,7 @@ function SettingsPage() {
           <PushCard userId={user.id} />
           <DefaultRemindersCard userId={user.id} />
           <QuietHoursCard userId={user.id} />
+          <DigestCard userId={user.id} />
           <AppearanceCard />
           <TourCard userId={user.id} />
         </div>
@@ -37,7 +39,10 @@ function SettingsPage() {
           <DevicesCard userId={user.id} currentSessionToken={sessionToken} />
           <PrivacyLinksCard />
           <AccountCard user={user} />
-          <DeleteAccountCard reauthError={reauth ? (error ?? reauth) : undefined} />
+          <DeleteAccountCard
+            userId={user.id}
+            reauthError={reauth ? (error ?? reauth) : undefined}
+          />
         </div>
       </div>
       <ScreenTour screen="settings" userId={user.id} />
