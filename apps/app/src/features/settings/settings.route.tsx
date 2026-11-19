@@ -11,6 +11,7 @@ import { DigestCard } from "./components/digest-card";
 import { PrivacyLinksCard } from "./components/privacy-links-card";
 import { PushCard } from "./components/push-card";
 import { QuietHoursCard } from "./components/quiet-hours-card";
+import { SchoolHolidaysCard } from "./components/school-holidays-card";
 import { TourCard } from "./components/tour-card";
 import { settingsSearchSchema } from "./settings.schema";
 
@@ -32,6 +33,7 @@ function SettingsPage() {
           <DefaultRemindersCard userId={user.id} />
           <QuietHoursCard userId={user.id} />
           <DigestCard userId={user.id} />
+          <SchoolHolidaysCard userId={user.id} />
           <AppearanceCard />
           <TourCard userId={user.id} />
         </div>

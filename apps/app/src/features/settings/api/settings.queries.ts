@@ -27,3 +27,16 @@ export function digestQueryOptions(userId: string) {
     },
   });
 }
+
+const $schoolZone = api["school-calendar"].zone.$get;
+
+export function schoolZoneQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: ["school-calendar", "zone", userId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await $schoolZone({}, { init: { signal } });
+      if (!res.ok) await throwApiError(res, "loadSchoolZone");
+      return res.json();
+    },
+  });
+}

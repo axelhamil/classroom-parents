@@ -7,9 +7,9 @@
  *    temporary CHECK constraint on `email_message.to_address`, dropped again in cleanup.
  * 2. A completed wipe revokes the child tokens while the user still exists, deletes the user row
  *    (sessions, accounts, children with their color and picture, events hand-added ones included,
- *    reminders, the calendar feed and the Sunday digest choice and history follow by FK
- *    cascade), purges every outbox row whose payload names
- *    the user as `userId` or `actorUserId`, keeps other users' rows, and leaves exactly one
+ *    reminders, the calendar feed, the Sunday digest choice and history and the school zone
+ *    choice follow by FK cascade), purges every outbox row whose payload names the user as
+ *    `userId` or `actorUserId`, keeps other users' rows, and leaves exactly one
  *    `USER_DELETED` without any email.
  * 3. A pending deletion inside its grace period is not returned by the sweep query.
  * 4. A parent signed in with Google only (no password) can request the deletion from a fresh
@@ -33,6 +33,7 @@ import {
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedChild } from "@modules/children/schemas/testing/seed-child";
+import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type IInstrumentation, Result } from "@packages/ddd-kit";
 import {
   authSchema,
@@ -173,6 +174,7 @@ async function seedFamilyData(id: string): Promise<void> {
   await db
     .insert(alertWeeklyDigest)
     .values({ userId: id, weekStart: "2030-03-04", expiresAt: at, status: "sent" });
+  await db.insert(schoolZonePreference).values({ userId: id, zone: "zone-b", updatedAt: at });
 }
 
 async function familyRowsLeft(id: string): Promise<Record<string, number>> {
@@ -202,6 +204,12 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
     ),
     digestWeeks: await tally(
       db.select({ total: count() }).from(alertWeeklyDigest).where(eq(alertWeeklyDigest.userId, id)),
+    ),
+    schoolZones: await tally(
+      db
+        .select({ total: count() })
+        .from(schoolZonePreference)
+        .where(eq(schoolZonePreference.userId, id)),
     ),
   };
 }
@@ -390,7 +398,7 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
   const familyLeft = await familyRowsLeft(erasedId);
   check(
-    "its children, events, reminders, calendar feed and Sunday digest rows are deleted",
+    "its children, events, reminders, calendar feed, Sunday digest and school zone rows are deleted",
     Object.values(familyLeft).every((total) => total === 0),
     familyLeft,
   );

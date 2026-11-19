@@ -16,6 +16,7 @@ import {
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
+import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type AppError, type IInstrumentation, Result } from "@packages/ddd-kit";
 import { and, asc, count, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
 import type { UserDataSnapshot } from "../modules/rgpd/application/dto/user-data-export.dto";
@@ -136,6 +137,10 @@ export class UserDataQuery implements IUserDataReader {
           .from(alertAccessLoss)
           .where(eq(alertAccessLoss.userId, userId))
           .orderBy(asc(alertAccessLoss.dueAt));
+        const [schoolZone] = await exec
+          .select({ zone: schoolZonePreference.zone, updatedAt: schoolZonePreference.updatedAt })
+          .from(schoolZonePreference)
+          .where(eq(schoolZonePreference.userId, userId));
 
         const seen = await exec
           .select({ childId: seenAnnouncement.childId, total: count() })
@@ -226,6 +231,9 @@ export class UserDataQuery implements IUserDataReader {
             sentAt: iso(warning.sentAt),
             closedAt: iso(warning.closedAt),
           })),
+          schoolZone: schoolZone
+            ? { zone: schoolZone.zone, chosenAt: schoolZone.updatedAt.toISOString() }
+            : null,
           sync: children.map((child) => ({
             childId: child.id,
             status: child.status,

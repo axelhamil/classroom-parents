@@ -108,6 +108,11 @@ export interface ExportedAccessLossWarning {
   closedAt: string | null;
 }
 
+export interface ExportedSchoolZone {
+  zone: string;
+  chosenAt: string;
+}
+
 export interface ExportedQuietHours {
   enabled: boolean;
   start: string;
@@ -131,6 +136,7 @@ export interface UserDataSnapshot {
   calendarFeed: ExportedCalendarFeed | null;
   weeklyDigest: ExportedWeeklyDigest;
   accessLossWarnings: ExportedAccessLossWarning[];
+  schoolZone: ExportedSchoolZone | null;
   sync: ExportedSyncState[];
 }
 

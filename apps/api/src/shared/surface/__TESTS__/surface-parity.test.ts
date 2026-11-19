@@ -70,6 +70,8 @@ describe("surface parity", () => {
     "/reminders/*",
     "/calendar-feed",
     "/calendar-feed/*",
+    "/school-calendar",
+    "/school-calendar/*",
   ]);
 
   it("has no ALL-method route besides the documented BetterAuth mount and known middleware", () => {
