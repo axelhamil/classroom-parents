@@ -13,6 +13,8 @@ export interface ExtractedDeadline {
   deadlineDate: string;
   deadlineTime?: string;
   needsReview: boolean;
+  reviewReasons: string[];
+  evidenceQuote?: string;
 }
 
 export interface ExtractedAmendment {

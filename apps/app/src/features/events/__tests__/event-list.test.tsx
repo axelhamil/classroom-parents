@@ -22,6 +22,7 @@ const EVENT = {
   deadlineTime: "08:30",
   deadlineAt: "2026-11-19T07:30:00.000Z",
   status: "confirmed",
+  reviewReasons: [],
   source: "announcement",
   done: false,
   announcementUrl: "https://classroom.google.com/c/abc/p/def",

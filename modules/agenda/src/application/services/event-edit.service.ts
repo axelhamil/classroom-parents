@@ -132,7 +132,7 @@ export class EventEditService {
           const event = found.getValue();
           if (!event.needsReview()) return Result.ok(event);
 
-          if (event.confirm().isFailure) return Result.fail(eventNotFound);
+          if (event.confirm(this.clock()).isFailure) return Result.fail(eventNotFound);
           const saved = await this.events.save(event);
           if (saved.isFailure) return Result.fail(saved.getError());
 

@@ -45,6 +45,7 @@ function extracted(overrides: Partial<IngestedEvent> = {}): IngestedEvent {
     category: "assessment",
     deadlineDate: "2026-11-19",
     needsReview: false,
+    reviewReasons: [],
     ...overrides,
   };
 }
@@ -194,6 +195,37 @@ describe("ingest", () => {
         },
       },
     ]);
+  });
+
+  it("given an event read with a doubt, then its reasons and its source sentence, cleaned of hidden characters, are kept for the parent", async () => {
+    await ingest([
+      extracted({
+        needsReview: true,
+        reviewReasons: ["weekday_mismatch", "weekday_mismatch"],
+        evidenceQuote: "Contrôle de maths jeudi\u202E 19   novembre\u200B",
+      }),
+    ]);
+
+    const row = [...stored.values()][0];
+    expect(row?.get("reviewReasons").value).toEqual(["weekday_mismatch"]);
+    expect(
+      row
+        ?.get("evidenceQuote")
+        .map((quote) => quote.value)
+        .toNull(),
+    ).toBe("Contrôle de maths jeudi 19 novembre");
+  });
+
+  it("given a review reason the agenda does not know, then the event is still stored for review without it", async () => {
+    const result = await ingest([
+      extracted({ needsReview: true, reviewReasons: ["moon_phase"], evidenceQuote: "   " }),
+    ]);
+
+    const row = [...stored.values()][0];
+    expect(result.getValue().created).toBe(1);
+    expect(row?.needsReview()).toBe(true);
+    expect(row?.get("reviewReasons").value).toEqual([]);
+    expect(row?.get("evidenceQuote").isNone()).toBe(true);
   });
 
   it("given a confident event, then its default alert is planned once with its deadline", async () => {
@@ -700,6 +732,12 @@ describe("an announcement that amends an earlier deadline", () => {
     const earlier = announcementRow(assessmentOn9th.id);
     expect(result.getValue()).toEqual({ created: 1, skipped: 0, flagged: 1 });
     expect(earlier?.needsReview()).toBe(true);
+    expect(
+      earlier
+        ?.get("amendReason")
+        .map((reason) => reason.value)
+        .toNull(),
+    ).toBe("moved");
     expect(earlier?.get("deadline").value.date).toBe("2026-12-09");
     expect(earlier?.get("withdrawnAt").isNone()).toBe(true);
     expect(announcementRow(announcement.id)?.needsReview()).toBe(false);
@@ -727,6 +765,12 @@ describe("an announcement that amends an earlier deadline", () => {
     const outing = announcementRow(outingOn9th.id);
     expect(result.getValue()).toEqual({ created: 0, skipped: 0, flagged: 1 });
     expect(outing?.needsReview()).toBe(true);
+    expect(
+      outing
+        ?.get("amendReason")
+        .map((reason) => reason.value)
+        .toNull(),
+    ).toBe("cancelled");
     expect(outing?.get("deletedAt").isNone()).toBe(true);
     expect(announcementRow(assessmentOn9th.id)?.needsReview()).toBe(false);
   });
@@ -749,6 +793,24 @@ describe("an announcement that amends an earlier deadline", () => {
     ]);
 
     expect(result.getValue().flagged).toBe(0);
+    expect(eventsOfType(EventTypes.EVENT_FLAGGED)).toEqual([]);
+  });
+
+  it("given the parent confirmed the earlier deadline, then a later correction leaves it confirmed and announces nothing", async () => {
+    await seed();
+    announcementRow(assessmentOn9th.id)?.confirm(new Date());
+
+    const result = await ingest(
+      [extracted({ title: "Évaluation sur la respiration", deadlineDate: "2026-12-08" })],
+      announcement,
+      [{ kind: "moved", reference: "Évaluation sur la respiration" }],
+    );
+
+    const earlier = announcementRow(assessmentOn9th.id);
+    expect(result.getValue().flagged).toBe(0);
+    expect(earlier?.needsReview()).toBe(false);
+    expect(earlier?.get("amendReason").isNone()).toBe(true);
+    expect(planner.cancel).not.toHaveBeenCalled();
     expect(eventsOfType(EventTypes.EVENT_FLAGGED)).toEqual([]);
   });
 

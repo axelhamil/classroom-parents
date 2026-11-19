@@ -52,6 +52,10 @@ export const REVIEW_EVENT = {
   deadlineDate: inDays(1),
   deadlineAt: `${inDays(1)}T07:00:00.000Z`,
   status: "needs_review",
+  reviewReasons: ["weekday_mismatch", "relative_holiday"],
+  amendReason: "moved",
+  evidenceQuote:
+    "Sortie au musée des Arts et Métiers jeudi 26 avant les vacances, autorisation signée à rapporter vendredi matin.",
   source: "announcement",
   done: false,
   announcementUrl: "https://classroom.google.com/c/abc/p/def",

@@ -142,6 +142,7 @@ function extracted(overrides: Partial<IngestedEvent> = {}): IngestedEvent {
     category: "assessment",
     deadlineDate: "2030-01-20",
     needsReview: false,
+    reviewReasons: [],
     ...overrides,
   };
 }
@@ -643,6 +644,48 @@ run(async () => {
       JSON.stringify(flaggedOuting[0]).includes(`"reason":"cancelled"`) &&
       JSON.stringify(flaggedOuting[0]).includes(`"actorUserId":null`) &&
       (await outboxOf(assessment.id, "agenda.event.flagged")).length === 1,
+  );
+  await step(
+    "each amended deadline keeps why it went back to review",
+    assessment.amendReason === "moved" && outing.amendReason === "cancelled",
+  );
+
+  const aNina = await createChild(a, "nina");
+  await ingest(a, aNina, "ann-nina-test", [
+    extracted({
+      title: "Évaluation de géographie",
+      deadlineDate: "2030-02-05",
+      needsReview: true,
+      reviewReasons: ["weekday_mismatch"],
+      evidenceQuote: "Évaluation de géographie jeudi 5 février",
+    }),
+  ]);
+  const [doubtful] = await rowsOf(aNina, "ann-nina-test");
+  if (!doubtful) throw new Error("nina doubtful row missing");
+  await step(
+    "a deadline read with a doubt stores its reasons and its source sentence",
+    doubtful.status === "needs_review" &&
+      doubtful.reviewReasons.join() === "weekday_mismatch" &&
+      doubtful.evidenceQuote === "Évaluation de géographie jeudi 5 février",
+  );
+  const confirmed = await edits.confirm(a, doubtful.id);
+  const corrected2 = await ingest(
+    a,
+    aNina,
+    "ann-nina-correction",
+    [extracted({ title: "Évaluation de géographie", deadlineDate: "2030-02-06" })],
+    [{ kind: "moved", reference: "Évaluation de géographie" }],
+  );
+  const [frozen] = await rowsOf(aNina, "ann-nina-test");
+  await step(
+    "a deadline the parent confirmed is never sent back to review by a later correction",
+    confirmed.isSuccess &&
+      corrected2.isSuccess &&
+      corrected2.getValue().flagged === 0 &&
+      frozen?.status === "confirmed" &&
+      frozen.confirmedByParentAt !== null &&
+      frozen.amendReason === null &&
+      (await outboxOf(doubtful.id, "agenda.event.flagged")).length === 0,
   );
 
   const aIris = await createChild(a, "iris");

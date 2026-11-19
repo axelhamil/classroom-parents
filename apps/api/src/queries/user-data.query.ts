@@ -177,6 +177,10 @@ export class UserDataQuery implements IUserDataReader {
             deadlineAt: event.deadlineAt.toISOString(),
             receivedAt: event.receivedAt.toISOString(),
             status: event.status,
+            reviewReasons: event.reviewReasons,
+            evidenceQuote: event.evidenceQuote,
+            amendReason: event.amendReason,
+            confirmedByParentAt: iso(event.confirmedByParentAt),
             done: event.done,
             checklist: {
               done: event.checklist.done,

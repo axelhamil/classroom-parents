@@ -1,5 +1,6 @@
+import { Option, truncateOnWord } from "@packages/ddd-kit";
 import { DAY_MS, weekdayOf } from "@packages/ddd-kit/days";
-import type { ReviewReason } from "../../domain/extracted-event";
+import { EVIDENCE_QUOTE_MAX, type ReviewReason } from "@packages/events/agenda-contract";
 import type { ExtractedCandidate } from "./extraction-output.schema";
 import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
 
@@ -95,6 +96,13 @@ function citedWeekdays(expression: string): string[] {
   const words = new Set(expression.split(/[^a-z]+/));
 
   return FRENCH_WEEKDAYS.filter((weekday) => words.has(weekday));
+}
+
+export function verifiedQuote(quote: string, source: string): Option<string> {
+  const normalized = normalizeForMatch(quote);
+  if (normalized === "" || !normalizeForMatch(source).includes(normalized)) return Option.none();
+
+  return Option.some(truncateOnWord(quote, EVIDENCE_QUOTE_MAX));
 }
 
 function quotesAreInSource(candidate: ExtractedCandidate, source: string): boolean {

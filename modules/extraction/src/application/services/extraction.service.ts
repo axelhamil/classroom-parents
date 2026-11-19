@@ -6,6 +6,7 @@ import {
   truncateOnWord,
   utcToZonedWall,
 } from "@packages/ddd-kit";
+import type { ReviewReason } from "@packages/events/agenda-contract";
 import {
   EXTRACTED_DESCRIPTION_MAX,
   EXTRACTED_TITLE_MAX,
@@ -13,12 +14,11 @@ import {
   type ExtractedEvent,
   type ExtractionConfidence,
   type ExtractionResult,
-  type ReviewReason,
 } from "../../domain/extracted-event";
 import { ExtractionCategory } from "../../domain/value-objects/extraction-category.vo";
 import type { ExtractionError, ILanguageModel, ModelTier } from "../ports/language-model.port";
 import { sanitizeAnnouncement } from "./announcement-sanitizer";
-import { frenchWeekdayOf, reviewReasonsFor } from "./extraction-checks";
+import { frenchWeekdayOf, reviewReasonsFor, verifiedQuote } from "./extraction-checks";
 import {
   type AmendmentCandidate,
   type ExtractedCandidate,
@@ -97,12 +97,22 @@ function normalizedTime(raw: string | null): Result<Option<string>, "TIME_UNREAD
   return Result.ok(Option.some(`${String(hours).padStart(2, "0")}:${match[2]}`));
 }
 
+const NOT_ESCALATED: readonly ReviewReason[] = [
+  "relative_holiday",
+  "title_missing",
+  "time_unreadable",
+];
+
 function escalationReasons(event: ExtractedEvent): ReviewReason[] {
-  return event.reviewReasons.filter((reason) => reason !== "relative_holiday");
+  return event.reviewReasons.filter((reason) => !NOT_ESCALATED.includes(reason));
 }
 
 function forReview(event: ExtractedEvent): ExtractedEvent {
-  return { ...event, needsReview: true };
+  return {
+    ...event,
+    needsReview: true,
+    reviewReasons: [...event.reviewReasons, "second_reading_failed"],
+  };
 }
 
 function toAmendment(candidate: AmendmentCandidate): ExtractedAmendment[] {
@@ -199,9 +209,12 @@ export class ExtractionService {
         message: "Le modèle a renvoyé une catégorie inconnue.",
       });
 
-    const reviewReasons = reviewReasonsFor(candidate, { source, publishedOn });
     const title = truncateOnWord(candidate.title, EXTRACTED_TITLE_MAX);
     const time = normalizedTime(candidate.deadlineTime);
+    const reviewReasons = [
+      ...reviewReasonsFor(candidate, { source, publishedOn }),
+      ...this.fieldReasons(title, time.isFailure),
+    ];
     const event: ExtractedEvent = {
       title: title || category.getValue().label(),
       description: truncate(candidate.description, EXTRACTED_DESCRIPTION_MAX),
@@ -211,14 +224,35 @@ export class ExtractionService {
         candidate.confidence,
         reviewReasons.includes("relative_holiday"),
       ),
-      needsReview: reviewReasons.length > 0 || title === "" || time.isFailure,
+      needsReview: reviewReasons.length > 0,
       reviewReasons,
     };
 
-    const deadlineTime = time.unwrapOr(Option.none());
-
     return Result.ok(
-      deadlineTime.isSome() ? { ...event, deadlineTime: deadlineTime.unwrap() } : event,
+      this.withOptionalFields(event, time.unwrapOr(Option.none()), candidate, source),
     );
+  }
+
+  private fieldReasons(title: string, timeUnreadable: boolean): ReviewReason[] {
+    const reasons: ReviewReason[] = [];
+    if (title === "") reasons.push("title_missing");
+    if (timeUnreadable) reasons.push("time_unreadable");
+
+    return reasons;
+  }
+
+  private withOptionalFields(
+    event: ExtractedEvent,
+    deadlineTime: Option<string>,
+    candidate: ExtractedCandidate,
+    source: string,
+  ): ExtractedEvent {
+    const quote = verifiedQuote(candidate.evidenceQuote, source);
+
+    return {
+      ...event,
+      ...(deadlineTime.isSome() ? { deadlineTime: deadlineTime.unwrap() } : {}),
+      ...(quote.isSome() ? { evidenceQuote: quote.unwrap() } : {}),
+    };
   }
 }

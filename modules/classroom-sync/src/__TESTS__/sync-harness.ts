@@ -57,6 +57,7 @@ export function deadline(title: string): ExtractedDeadline {
     category: "homework",
     deadlineDate: "2026-11-19",
     needsReview: false,
+    reviewReasons: [],
   };
 }
 

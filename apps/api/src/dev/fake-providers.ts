@@ -17,8 +17,9 @@ import {
   type DatasetChildKey,
 } from "@modules/extraction/eval/classroom-dataset";
 import { fakeSchoolCalendarSource } from "@modules/school-calendar/testing/fake-school-calendar.source";
-import { Option, Result } from "@packages/ddd-kit";
+import { Option, Result, truncateOnWord } from "@packages/ddd-kit";
 import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
+import { EVIDENCE_QUOTE_MAX } from "@packages/events/agenda-contract";
 import { requireLocalDatabase } from "@packages/test/db-check";
 import { datasetShiftDays, daysBetween, demoChild, demoRefreshToken } from "./demo-dataset";
 
@@ -181,6 +182,8 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
           deadlineDate: shiftDate(event.deadlineDate, shift),
           ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
           needsReview: event.needsReview ?? false,
+          reviewReasons: event.needsReview ? ["low_confidence"] : [],
+          evidenceQuote: truncateOnWord(known.text, EVIDENCE_QUOTE_MAX),
         })),
         amendments: (known.expectedAmends ?? []).map(({ referenceDate, ...amendment }) =>
           referenceDate === undefined

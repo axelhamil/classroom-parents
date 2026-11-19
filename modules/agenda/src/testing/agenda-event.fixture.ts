@@ -8,6 +8,7 @@ import { EventDescription } from "../domain/value-objects/event-description.vo";
 import { EventSource } from "../domain/value-objects/event-source.vo";
 import { EventStatus, type EventStatusValue } from "../domain/value-objects/event-status.vo";
 import { EventTitle } from "../domain/value-objects/event-title.vo";
+import { ReviewReasons } from "../domain/value-objects/review-reasons.vo";
 
 export const PARENT = "parent-1";
 export const CHILD = "0196a000-0000-7000-8000-000000000001";
@@ -40,6 +41,10 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       ).getValue(),
       receivedAt: new Date("2026-11-09T07:00:00.000Z"),
       status: EventStatus.create(overrides.status ?? "confirmed").getValue(),
+      reviewReasons: ReviewReasons.none(),
+      evidenceQuote: Option.none(),
+      amendReason: Option.none(),
+      confirmedByParentAt: Option.none(),
       done: false,
       checklist: EventChecklist.empty(),
       editedAt: Option.none(),

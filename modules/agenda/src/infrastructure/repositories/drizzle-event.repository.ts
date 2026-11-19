@@ -33,6 +33,7 @@ import {
 } from "../../application/ports/event-repository.port";
 import { AgendaEvent } from "../../domain/event.aggregate";
 import { EventId } from "../../domain/event-id";
+import { AmendReason } from "../../domain/value-objects/amend-reason.vo";
 import { EventCategory } from "../../domain/value-objects/event-category.vo";
 import { EventChecklist } from "../../domain/value-objects/event-checklist.vo";
 import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
@@ -40,6 +41,8 @@ import { EventDescription } from "../../domain/value-objects/event-description.v
 import { EventSource } from "../../domain/value-objects/event-source.vo";
 import { EventStatus } from "../../domain/value-objects/event-status.vo";
 import { EventTitle } from "../../domain/value-objects/event-title.vo";
+import { EvidenceQuote } from "../../domain/value-objects/evidence-quote.vo";
+import { ReviewReasons } from "../../domain/value-objects/review-reasons.vo";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
 
@@ -51,6 +54,15 @@ type Order = "asc" | "desc";
 
 type Read = "plain" | "locked" | "chronological" | "latest";
 
+function optionalValue<T, V>(
+  raw: V | null,
+  create: (value: V) => Result<T, string>,
+): Result<Option<T>, string> {
+  if (raw === null) return Result.ok(Option.none());
+
+  return create(raw).map((value) => Option.some(value));
+}
+
 function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const id = EventId.parse(row.id);
   const title = EventTitle.create(row.title);
@@ -61,6 +73,9 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
     row.deadlineTime?.slice(0, 5),
   );
   const status = EventStatus.create(row.status);
+  const reviewReasons = ReviewReasons.create(row.reviewReasons);
+  const evidenceQuote = optionalValue(row.evidenceQuote, (quote) => EvidenceQuote.create(quote));
+  const amendReason = optionalValue(row.amendReason, (kind) => AmendReason.create(kind));
   const source = EventSource.create(row.source);
   const stored = row.checklist;
   const checklist = EventChecklist.create({
@@ -75,6 +90,9 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   if (category.isFailure) return Result.fail(category.getError());
   if (deadline.isFailure) return Result.fail(deadline.getError());
   if (status.isFailure) return Result.fail(status.getError());
+  if (reviewReasons.isFailure) return Result.fail(reviewReasons.getError());
+  if (evidenceQuote.isFailure) return Result.fail(evidenceQuote.getError());
+  if (amendReason.isFailure) return Result.fail(amendReason.getError());
 
   return Result.ok(
     AgendaEvent.reconstitute(
@@ -92,6 +110,10 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         deadline: deadline.getValue(),
         receivedAt: row.receivedAt,
         status: status.getValue(),
+        reviewReasons: reviewReasons.getValue(),
+        evidenceQuote: evidenceQuote.getValue(),
+        amendReason: amendReason.getValue(),
+        confirmedByParentAt: Option.fromNullable(row.confirmedByParentAt),
         done: row.done,
         checklist: checklist.getValue(),
         editedAt: Option.fromNullable(row.editedAt),
@@ -116,6 +138,16 @@ function mutableColumns(event: AgendaEvent) {
     deadlineTime: deadline.time ?? null,
     deadlineAt: deadline.at,
     status: event.get("status").value,
+    reviewReasons: event.get("reviewReasons").value,
+    evidenceQuote: event
+      .get("evidenceQuote")
+      .map((quote) => quote.value)
+      .toNull(),
+    amendReason: event
+      .get("amendReason")
+      .map((reason) => reason.value)
+      .toNull(),
+    confirmedByParentAt: event.get("confirmedByParentAt").toNull(),
     done: event.get("done"),
     checklist: event.get("checklist").value,
     editedAt: event.get("editedAt").toNull(),

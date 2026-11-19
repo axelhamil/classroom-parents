@@ -22,6 +22,7 @@ function pastEvent(index: number, deadlineDate: string, title: string) {
     deadlineDate,
     deadlineAt: `${deadlineDate}T22:59:00.000Z`,
     status: "confirmed",
+    reviewReasons: [],
     source: "announcement",
     done: false,
     announcementUrl: "https://classroom.google.com/c/abc/p/def",

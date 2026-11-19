@@ -8,7 +8,7 @@ test.describe("event detail on a phone", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
 
   for (const colorScheme of COLOR_SCHEMES) {
-    test(`sheet, five reminders in every state, their editor and actions (${colorScheme})`, async ({
+    test(`sheet, why to verify, five reminders in every state, their editor and actions (${colorScheme})`, async ({
       page,
     }) => {
       await showColorScheme(page, colorScheme);
@@ -16,6 +16,8 @@ test.describe("event detail on a phone", () => {
       await page.goto(`/events/${REVIEW_EVENT.id}`);
 
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(REVIEW_EVENT.title);
+      await expect(page.getByRole("region", { name: "Pourquoi à vérifier" })).toBeVisible();
+      await expect(page.getByText(REVIEW_EVENT.evidenceQuote)).toBeVisible();
       await expect(page.getByText("3 jours avant, à 18 h")).toBeVisible();
       await expect(page.getByText("Non planifié")).toBeVisible();
       await expect(page.getByRole("link", { name: "Ouvrir dans Classroom" })).toHaveAttribute(

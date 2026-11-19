@@ -83,6 +83,7 @@ const extractor: IAnnouncementExtractor = {
           category: "homework",
           deadlineDate: "2030-01-20",
           needsReview: false,
+          reviewReasons: [],
         },
       ],
       amendments: [],

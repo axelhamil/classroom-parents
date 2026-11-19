@@ -66,6 +66,7 @@ describe("ExtractionService.extract", () => {
         confidence: "high",
         needsReview: false,
         reviewReasons: [],
+        evidenceQuote: MATHS_TEST,
       },
     ]);
     expect(requests().map((request) => request.tier)).toEqual(["fast"]);
@@ -186,8 +187,12 @@ describe("ExtractionService.extract", () => {
     const result = await extract(MATHS_TEST);
 
     expect(result.getValue().events).toMatchObject([
-      { title: "Évaluation de maths", needsReview: true },
-      { title: "Devoir", needsReview: true, reviewReasons: ["low_confidence"] },
+      { title: "Évaluation de maths", needsReview: true, reviewReasons: ["second_reading_failed"] },
+      {
+        title: "Devoir",
+        needsReview: true,
+        reviewReasons: ["low_confidence", "second_reading_failed"],
+      },
     ]);
   });
 
@@ -211,7 +216,11 @@ describe("ExtractionService.extract", () => {
 
     const [event] = (await extract(MATHS_TEST)).getValue().events;
 
-    expect(event).toMatchObject({ title: "Évaluation", needsReview: true });
+    expect(event).toMatchObject({
+      title: "Évaluation",
+      needsReview: true,
+      reviewReasons: ["title_missing"],
+    });
   });
 
   it("normalizes a time written with seconds and drops an unreadable one for review", async () => {
@@ -227,6 +236,22 @@ describe("ExtractionService.extract", () => {
     expect(withSeconds).toMatchObject({ deadlineTime: "08:30", needsReview: false });
     expect(unreadable?.deadlineTime).toBeUndefined();
     expect(unreadable?.needsReview).toBe(true);
+    expect(unreadable?.reviewReasons).toEqual(["time_unreadable"]);
+  });
+
+  it("keeps no source sentence the announcement does not contain, and says so", async () => {
+    const invented = candidate({
+      evidenceQuote: "Évaluation de maths jeudi, apportez une calculatrice",
+    });
+    answers(
+      Result.ok({ amends: [], events: [invented] }),
+      Result.ok({ amends: [], events: [invented] }),
+    );
+
+    const [event] = (await extract(MATHS_TEST)).getValue().events;
+
+    expect(event?.evidenceQuote).toBeUndefined();
+    expect(event?.reviewReasons).toEqual(["quote_not_in_text"]);
   });
 
   it("reports a rate limit of the provider", async () => {

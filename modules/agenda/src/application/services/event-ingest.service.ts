@@ -18,6 +18,8 @@ import type { EventDeadline } from "../../domain/value-objects/event-deadline.vo
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventSource } from "../../domain/value-objects/event-source.vo";
 import type { EventTitle } from "../../domain/value-objects/event-title.vo";
+import type { EvidenceQuote } from "../../domain/value-objects/evidence-quote.vo";
+import { ReviewReasons } from "../../domain/value-objects/review-reasons.vo";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
 import {
@@ -32,6 +34,8 @@ import {
   parseClassroomCategory,
   parseComputedDeadline,
   parseDescription,
+  parseEvidenceQuote,
+  parseReviewReasons,
   parseTitle,
 } from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
@@ -43,6 +47,8 @@ export interface IngestedEvent {
   deadlineDate: string;
   deadlineTime?: string;
   needsReview: boolean;
+  reviewReasons: string[];
+  evidenceQuote?: string;
 }
 
 export interface IngestedAmendment {
@@ -103,6 +109,11 @@ export interface CourseworkWithdrawOutput {
 type IngestError = AgendaError | AppError;
 
 type CourseworkOutcome = "created" | "updated" | "unchanged";
+
+interface ReviewEvidence {
+  reviewReasons: ReviewReasons;
+  evidenceQuote: Option<EvidenceQuote>;
+}
 
 interface ParsedCoursework {
   item: IngestedCoursework;
@@ -210,7 +221,7 @@ export class EventIngestService {
     amendment: EventAmendment,
     amendingAnnouncementId: string,
   ): Promise<Result<boolean, IngestError>> {
-    const flagged = event.flagForReview();
+    const flagged = event.flagForReview(amendment.value.kind);
     if (flagged.isFailure || !flagged.getValue()) return Result.ok(false);
 
     const saved = await this.events.save(event);
@@ -387,6 +398,8 @@ export class EventIngestService {
         category: EventCategory.create("homework").getValue(),
         deadline,
         receivedAt: this.clock(),
+        reviewReasons: ReviewReasons.none(),
+        evidenceQuote: Option.none(),
         needsReview: false,
         done: item.done,
         now: this.clock(),
@@ -460,6 +473,7 @@ export class EventIngestService {
           category: category.getValue(),
           deadline: deadline.getValue(),
           receivedAt: input.announcement.publishedAt,
+          ...this.evidenceOf(raw),
           needsReview: raw.needsReview,
           done: false,
           now,
@@ -467,6 +481,25 @@ export class EventIngestService {
       );
     }
     return Result.ok(built);
+  }
+
+  private evidenceOf(raw: IngestedEvent): ReviewEvidence {
+    return {
+      reviewReasons: this.kept(parseReviewReasons(raw.reviewReasons)).unwrapOr(
+        ReviewReasons.none(),
+      ),
+      evidenceQuote:
+        raw.evidenceQuote === undefined
+          ? Option.none()
+          : this.kept(parseEvidenceQuote(raw.evidenceQuote)),
+    };
+  }
+
+  private kept<T>(parsed: Result<T, string>): Option<T> {
+    if (parsed.isSuccess) return Option.some(parsed.getValue());
+
+    this.instrumentation.capture(new Error(`review evidence ignored: ${parsed.getError()}`));
+    return Option.none();
   }
 
   private async store(event: AgendaEvent): Promise<Result<boolean, AgendaError | AppError>> {
