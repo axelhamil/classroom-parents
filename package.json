@@ -34,6 +34,7 @@
     "@modules/children": "workspace:*",
     "@modules/classroom-sync": "workspace:*",
     "@modules/extraction": "workspace:*",
+    "@modules/school-calendar": "workspace:*",
     "@packages/ddd-kit": "workspace:*",
     "@packages/typescript-config": "workspace:*",
     "dependency-cruiser": "^18.7.0",

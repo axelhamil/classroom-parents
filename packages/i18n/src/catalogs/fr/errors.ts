@@ -29,6 +29,11 @@ export default {
       "Cette échéance n'a pas d'heure : choisissez un rappel en jours avant, à une heure précise.",
     ALERT_QUIET_HOURS_INVALID:
       "Les heures calmes vont d'une heure à une autre, différente. Choisissez deux heures distinctes.",
+    SCHOOL_CALENDAR_ZONE_INVALID:
+      "Cette zone scolaire n'existe pas. Choisissez la zone A, B, C, la Corse ou un département d'outre-mer.",
+    SCHOOL_CALENDAR_RANGE_INVALID: "Choisissez une période de 400 jours au plus.",
+    SCHOOL_CALENDAR_UNAVAILABLE:
+      "Le calendrier officiel ne répond pas pour le moment. Les vacances s'afficheront dès son retour.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",
     ACCOUNT_REAUTH_REQUIRED:
       "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
@@ -156,6 +161,9 @@ export default {
     setQuietHours: "Échec de l'enregistrement des heures calmes",
     loadDigest: "Échec du chargement du choix de résumé du dimanche",
     setDigest: "Échec de l'enregistrement du choix de résumé du dimanche",
+    loadSchoolZone: "Échec du chargement de la zone scolaire",
+    setSchoolZone: "Échec de l'enregistrement de la zone scolaire",
+    loadSchoolCalendar: "Échec du chargement des vacances scolaires",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",
     cancelAccountDeletion: "Échec de l'annulation",

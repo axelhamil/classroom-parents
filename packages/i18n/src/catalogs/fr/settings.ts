@@ -118,6 +118,30 @@ export default {
     loading: "Chargement des heures calmes",
     saved: "Heures calmes enregistrées",
   },
+  schoolHolidays: {
+    title: "Vacances scolaires",
+    description:
+      "Choisissez la zone de l'école pour voir les vacances et les jours fériés dans votre agenda.",
+    academy: "Académie",
+    academyPlaceholder: "Trouver ma zone par l'académie",
+    academyHint: "L'académie propose sa zone, vous gardez le dernier mot.",
+    zone: "Zone",
+    zones: {
+      none: "Aucune zone",
+      "zone-a": "Zone A",
+      "zone-b": "Zone B",
+      "zone-c": "Zone C",
+      corse: "Corse",
+      guadeloupe: "Guadeloupe",
+      guyane: "Guyane",
+      martinique: "Martinique",
+      mayotte: "Mayotte",
+      reunion: "La Réunion",
+    },
+    missing: "Aucune zone choisie : les vacances ne s'affichent pas encore.",
+    loading: "Chargement de la zone scolaire",
+    saved: "Zone scolaire enregistrée",
+  },
   install: {
     title: "Installer sur l'iPhone",
     description:

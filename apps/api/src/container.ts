@@ -54,6 +54,7 @@ import {
 } from "./composition/bindings";
 import { deliveryModule, runtimeModule } from "./composition/delivery";
 import { fakeProviderBindings } from "./composition/fake-bindings";
+import { schoolCalendarContainer } from "./composition/school-calendar";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import type { IUserDataReader } from "./modules/rgpd/application/ports/user-data-reader.port";
@@ -260,3 +261,5 @@ export const di = container()
     ),
   )
   .build();
+
+export const schoolCalendar = schoolCalendarContainer(di);

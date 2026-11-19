@@ -1,0 +1,36 @@
+{
+  "name": "@modules/school-calendar",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./school-calendar.module": "./src/school-calendar.module.ts",
+    "./application/*": "./src/application/*.ts",
+    "./testing/*": "./src/testing/*.ts",
+    "./schemas/*": "./schemas/*.ts",
+    "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts"
+  },
+  "scripts": {
+    "test": "bun test --isolate",
+    "type-check": "tsc --noEmit",
+    "check": "biome check .",
+    "check:school-calendar-db": "bun --env-file=../../packages/drizzle/.env scripts/check-school-calendar-db.ts"
+  },
+  "dependencies": {
+    "@packages/ddd-kit": "workspace:*",
+    "@packages/drizzle": "workspace:*",
+    "@packages/events": "workspace:*",
+    "@packages/http": "workspace:*",
+    "@packages/outbox": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.14",
+    "inwire": "^4.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@packages/test": "workspace:*",
+    "@packages/typescript-config": "workspace:*",
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}

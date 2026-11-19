@@ -23,6 +23,13 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "POST /calendar-feed": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "DELETE /calendar-feed": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "GET /calendar/:file": { uiLess: "external-client" },
+  "GET /school-calendar": { consumer: "apps/app/src/shared/api/queries/school-calendar.ts" },
+  "GET /school-calendar/zone": {
+    consumer: "apps/app/src/features/settings/api/settings.queries.ts",
+  },
+  "PUT /school-calendar/zone": {
+    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
+  },
   "GET /children": { consumer: "apps/app/src/shared/api/queries/children.ts" },
   "GET /children/link-config": {
     consumer: "apps/app/src/shared/children/child-link.queries.ts",

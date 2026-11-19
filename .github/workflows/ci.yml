@@ -168,6 +168,12 @@ jobs:
         # hold against Postgres. Seeds and removes its probes.
         run: pnpm --filter @modules/classroom-sync check:sync-db
 
+      - name: Check the school calendar against a real database
+        # The jsonb cache served when the official source is down, the zone choice and its
+        # event in one transaction, and the cascade on account deletion are SQL. The source is
+        # the module's fake. Removes its probe parent and cache keys.
+        run: pnpm --filter @modules/school-calendar check:school-calendar-db
+
       - name: Check the sent email retention sweep against a real database
         # The batched delete, its lease and its heartbeat are SQL. Removes its probes.
         run: pnpm --filter api check:email-retention

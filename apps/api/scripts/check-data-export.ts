@@ -2,10 +2,11 @@
  * Proves against a real Postgres what the mocked ports of `data-export.service.test.ts` cannot:
  * the export reads only the requesting parent's rows (the owner filter lives in the host query),
  * keeps withdrawn, deleted and hand-added events, the child color and picture, the calendar feed
- * (never its secret) and the Sunday digest choice and history, with the default choice for a
- * parent who never made one; each Classroom deadline carries its course name read through the
- * same port as the api, a hand-added one none; it never carries a token or a push key, and the 24 h limit is held
- * by the stored request date, so a second request is refused and leaves one event.
+ * (never its secret), the Sunday digest choice and history, with the default choice for a
+ * parent who never made one, and the school zone choice; each Classroom deadline carries its
+ * course name read through the same port as the api, a hand-added one none; it never carries a
+ * token or a push key, and the 24 h limit is held by the stored request date, so a second
+ * request is refused and leaves one event.
  */
 
 import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
@@ -29,6 +30,7 @@ import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
+import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import {
   and,
   authSchema,
@@ -156,6 +158,7 @@ async function family(name: string): Promise<{ userId: string; childId: string }
     lastFetchedAt: NOW,
   });
   await db.insert(alertDigestPreference).values({ userId, enabled: false, updatedAt: NOW });
+  await db.insert(schoolZonePreference).values({ userId, zone: "zone-b", updatedAt: NOW });
   await db.insert(pushLockScreen).values({ userId, details: true, updatedAt: NOW });
   await db
     .insert(alertQuietHours)
@@ -274,6 +277,11 @@ run(async () => {
       document.weeklyDigest.weeks[0]?.weekStart === "2030-03-04" &&
       document.weeklyDigest.weeks[0]?.status === "sent",
     document.weeklyDigest,
+  );
+  await step(
+    "the school zone choice comes along",
+    document.schoolZone?.zone === "zone-b" && document.schoolZone.chosenAt === NOW.toISOString(),
+    document.schoolZone,
   );
   await step(
     "the lock screen choice comes along",

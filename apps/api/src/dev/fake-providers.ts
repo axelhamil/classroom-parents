@@ -16,6 +16,7 @@ import {
   DATASET_COURSEWORK,
   type DatasetChildKey,
 } from "@modules/extraction/eval/classroom-dataset";
+import { fakeSchoolCalendarSource } from "@modules/school-calendar/testing/fake-school-calendar.source";
 import { Option, Result } from "@packages/ddd-kit";
 import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
 import { requireLocalDatabase } from "@packages/test/db-check";
@@ -202,6 +203,7 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
     classroom,
     extractor,
     push,
+    schoolCalendar: fakeSchoolCalendarSource(),
     pushed: (): readonly FakePush[] => pushes,
     refreshTokenOf: demoRefreshToken,
     blockSchool: (key: DatasetChildKey) => blocked.add(key),
