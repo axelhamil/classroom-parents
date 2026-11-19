@@ -128,7 +128,7 @@ export default {
     linkChild: "Échec de l'ajout du compte de votre enfant",
     syncChild: "Échec du lancement de la lecture de Classroom",
     reconnectChild: "Échec de la reconnexion du compte",
-    renameChild: "Échec de l'enregistrement du prénom",
+    editChild: "Échec de l'enregistrement des changements",
     disconnectChild: "Échec de la déconnexion",
     discardLinkedAccount: "Échec du retrait du lien Google",
     loadEvents: "Échec du chargement des échéances",

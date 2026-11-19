@@ -61,12 +61,12 @@ export default {
   },
   name: {
     title: "Comment s'appelle votre enfant ?",
-    description: "Le prénom affiché sur ses échéances. Vous seul le voyez.",
+    description: "Le prénom et la couleur affichés sur ses échéances. Vous seul les voyez.",
     label: "Prénom affiché",
     hint: "Repris de son profil Google, vous pouvez le changer.",
     next: "Continuer",
     saving: "Enregistrement…",
-    failed: "Le prénom n'a pas pu être enregistré. Réessayez.",
+    failed: "Ces choix n'ont pas pu être enregistrés. Réessayez.",
   },
   analysis: {
     title: "Lecture de Classroom",

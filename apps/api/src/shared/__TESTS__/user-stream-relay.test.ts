@@ -75,6 +75,21 @@ describe("user stream relay", () => {
     expect(published).toEqual([{ userId: "parent", message: { type: "children.changed" } }]);
   });
 
+  it("tells the parent their children changed when a child takes another color", async () => {
+    const { relay, published } = relayWithSink();
+
+    await relay.handle(
+      delivered("child.account.color_changed", {
+        userId: "parent",
+        actorUserId: "parent",
+        childId: "c1",
+        color: 3,
+      }),
+    );
+
+    expect(published).toEqual([{ userId: "parent", message: { type: "children.changed" } }]);
+  });
+
   it("names the synced child and refreshes the agenda when a sync finishes", async () => {
     const { relay, published } = relayWithSink();
 

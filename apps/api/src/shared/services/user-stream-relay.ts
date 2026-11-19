@@ -22,6 +22,7 @@ const AGENDA_TYPES: ReadonlySet<string> = new Set([
 const CHILDREN_TYPES: ReadonlySet<string> = new Set([
   EventTypes.CHILD_CONNECTED,
   EventTypes.CHILD_RENAMED,
+  EventTypes.CHILD_COLOR_CHANGED,
   EventTypes.CHILD_DISCONNECT_REQUESTED,
   EventTypes.CHILD_DISCONNECTED,
   EventTypes.CHILD_NEEDS_RECONNECT,

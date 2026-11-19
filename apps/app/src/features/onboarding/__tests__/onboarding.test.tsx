@@ -64,7 +64,7 @@ describe("guided first child onboarding", () => {
       },
       [`POST /sync/${CHILD_ID}`]: { status: 202, body: { status: "started" } },
       "GET /children": () => ({ body: family }),
-      [`PATCH /children/${CHILD_ID}`]: { body: { ...LEA, label: "Léa-Rose" } },
+      [`PATCH /children/${CHILD_ID}`]: { body: { ...LEA, label: "Léa-Rose", color: 3 } },
       "GET /events": { body: { items: [] } },
     });
 
@@ -77,12 +77,15 @@ describe("guided first child onboarding", () => {
 
     await userEvent.clear(field);
     await userEvent.type(field, "Léa-Rose");
+    await userEvent.click(
+      screen.getByRole("radio", { name: frCatalog.children.customize.hues.violet }),
+    );
     await userEvent.click(screen.getByRole("button", { name: copy.name.next }));
 
     expect(await heading(copy.analysis.title)).toBeTruthy();
     expect(screen.getByText("Étape 5 sur 8")).toBeTruthy();
     expect(calls.filter((call) => call.method === "PATCH").map((call) => call.body)).toEqual([
-      { label: "Léa-Rose" },
+      { label: "Léa-Rose", color: 3 },
     ]);
     expect(posts(calls, "/children")).toHaveLength(1);
   });

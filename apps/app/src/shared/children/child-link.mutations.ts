@@ -10,12 +10,12 @@ import { linkConfigQueryOptions } from "./child-link.queries";
 
 const $register = api.children.$post;
 const $sync = api.sync[":childId"].$post;
-const $rename = api.children[":id"].$patch;
+const $edit = api.children[":id"].$patch;
 const $discard = api.children.linkable[":linkedAccountId"].discard.$post;
 
 type RegisteredChild = InferResponseType<typeof $register, 201>;
-type RenamedChild = InferResponseType<typeof $rename, 200>;
-export type RenameChildInput = { id: string } & InferRequestType<typeof $rename>["json"];
+export type EditedChild = InferResponseType<typeof $edit, 200>;
+export type EditChildInput = { id: string; changes: InferRequestType<typeof $edit>["json"] };
 
 export type AddChildEntry = "/onboarding" | "/children/new";
 
@@ -85,11 +85,11 @@ export const syncChildMutationOptions = mutationOptions({
   onSettled: () => queryClient.invalidateQueries({ queryKey: childrenQueryOptions.queryKey }),
 });
 
-export const renameChildMutationOptions = mutationOptions({
-  mutationKey: ["children", "rename"] as const,
-  mutationFn: async ({ id, label }: RenameChildInput): Promise<RenamedChild> => {
-    const res = await $rename({ param: { id }, json: { label } });
-    if (!res.ok) await throwApiError(res, "renameChild");
+export const editChildMutationOptions = mutationOptions({
+  mutationKey: ["children", "edit"] as const,
+  mutationFn: async ({ id, changes }: EditChildInput): Promise<EditedChild> => {
+    const res = await $edit({ param: { id }, json: changes });
+    if (!res.ok) await throwApiError(res, "editChild");
     return res.json();
   },
 });
