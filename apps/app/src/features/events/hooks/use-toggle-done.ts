@@ -2,9 +2,9 @@ import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { markEventDoneMutationOptions } from "../../../shared/api/mutations/mark-event-done";
 import { EVENTS_KEY } from "../../../shared/api/queries/events";
 import { useUndoChannel } from "../../../shared/layout/responsive-overlay";
-import { markEventDoneMutationOptions } from "../api/events.mutations";
 import { patchCachedEvent } from "../api/events.queries";
 
 export function useToggleDone() {

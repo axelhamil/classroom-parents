@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../api/queries/session";
+import { captureError } from "../observability/sentry";
+import { forgetOfflineData } from "../offline/query-persistence";
 import { releasePushSubscription } from "../pwa/release-push-subscription";
 import { broadcastAuthChange } from "./auth-broadcast";
 import { authClient } from "./auth-client";
@@ -24,6 +26,7 @@ export function useSignOut() {
       toastSuccess(t("userMenu.signedOutToast"));
       const signedOut = queryClient.getQueryData(sessionQueryOptions.queryKey);
       if (signedOut) clearUserStorage(signedOut.user.id);
+      void forgetOfflineData().catch((error: unknown) => captureError(error, { area: "offline" }));
       queryClient.setQueryData(sessionQueryOptions.queryKey, null);
 
       broadcastAuthChange({ identityChanged: true });

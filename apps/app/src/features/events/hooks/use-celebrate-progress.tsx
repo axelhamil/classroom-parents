@@ -12,10 +12,10 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Route as ProtectedRoute } from "../../../router/_protected";
+import { markEventDoneMutationOptions } from "../../../shared/api/mutations/mark-event-done";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
-import { markEventDoneMutationOptions } from "../api/events.mutations";
 import { calendarEventsQueryOptions } from "../api/events.queries";
 import { weekAhead } from "../week";
 

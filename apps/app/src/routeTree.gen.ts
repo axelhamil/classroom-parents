@@ -27,6 +27,7 @@ import { Route as featuresSettingsSettingsDotrouteRouteImport } from './features
 import { Route as featuresChildrenLinkErrorDotrouteRouteImport } from './features/children/link-error.route'
 import { Route as featuresOnboardingNewChildDotrouteRouteImport } from './features/onboarding/new-child.route'
 import { Route as featuresEventsEventDetailDotrouteRouteImport } from './features/events/event-detail.route'
+import { Route as featuresEventsEventNewDotrouteRouteImport } from './features/events/event-new.route'
 import { Route as featuresPrivacyPrivacyDotrouteRouteImport } from './features/privacy/privacy.route'
 import { Route as featuresEventsPrintWeekDotrouteRouteImport } from './features/events/print-week.route'
 import { Route as featuresEventsEventEditDotrouteRouteImport } from './features/events/event-edit.route'
@@ -133,6 +134,12 @@ const featuresEventsEventDetailDotrouteRoute =
     path: '/events/$eventId',
     getParentRoute: () => routerShellRoute,
   } as any)
+const featuresEventsEventNewDotrouteRoute =
+  featuresEventsEventNewDotrouteRouteImport.update({
+    id: '/events/new',
+    path: '/events/new',
+    getParentRoute: () => routerShellRoute,
+  } as any)
 const featuresPrivacyPrivacyDotrouteRoute =
   featuresPrivacyPrivacyDotrouteRouteImport.update({
     id: '/settings/privacy',
@@ -168,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
+  '/events/new': typeof featuresEventsEventNewDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
   '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
@@ -188,6 +196,7 @@ export interface FileRoutesByTo {
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
+  '/events/new': typeof featuresEventsEventNewDotrouteRoute
   '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
   '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
@@ -212,6 +221,7 @@ export interface FileRoutesById {
   '/_protected/_shell/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/_protected/_shell/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/_protected/_shell/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
+  '/_protected/_shell/events/new': typeof featuresEventsEventNewDotrouteRoute
   '/_protected/_shell/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
   '/_protected/_shell/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/_protected/_shell/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
@@ -234,6 +244,7 @@ export interface FileRouteTypes {
     | '/children/link-error'
     | '/children/new'
     | '/events/$eventId'
+    | '/events/new'
     | '/settings/privacy'
     | '/week/print'
     | '/events/$eventId/edit'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/children/link-error'
     | '/children/new'
     | '/events/$eventId'
+    | '/events/new'
     | '/settings/privacy'
     | '/week/print'
     | '/events/$eventId/edit'
@@ -277,6 +289,7 @@ export interface FileRouteTypes {
     | '/_protected/_shell/children/link-error'
     | '/_protected/_shell/children/new'
     | '/_protected/_shell/events/$eventId'
+    | '/_protected/_shell/events/new'
     | '/_protected/_shell/settings/privacy'
     | '/_protected/_shell/week/print'
     | '/_protected/_shell/events/$eventId/edit'
@@ -421,6 +434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof featuresEventsEventDetailDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
+    '/_protected/_shell/events/new': {
+      id: '/_protected/_shell/events/new'
+      path: '/events/new'
+      fullPath: '/events/new'
+      preLoaderRoute: typeof featuresEventsEventNewDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
     '/_protected/_shell/settings/privacy': {
       id: '/_protected/_shell/settings/privacy'
       path: '/settings/privacy'
@@ -465,6 +485,7 @@ interface routerShellRouteChildren {
   featuresChildrenLinkErrorDotrouteRoute: typeof featuresChildrenLinkErrorDotrouteRoute
   featuresOnboardingNewChildDotrouteRoute: typeof featuresOnboardingNewChildDotrouteRoute
   featuresEventsEventDetailDotrouteRoute: typeof featuresEventsEventDetailDotrouteRoute
+  featuresEventsEventNewDotrouteRoute: typeof featuresEventsEventNewDotrouteRoute
   featuresPrivacyPrivacyDotrouteRoute: typeof featuresPrivacyPrivacyDotrouteRoute
   featuresEventsPrintWeekDotrouteRoute: typeof featuresEventsPrintWeekDotrouteRoute
   featuresEventsEventEditDotrouteRoute: typeof featuresEventsEventEditDotrouteRoute
@@ -481,6 +502,7 @@ const routerShellRouteChildren: routerShellRouteChildren = {
     featuresOnboardingNewChildDotrouteRoute,
   featuresEventsEventDetailDotrouteRoute:
     featuresEventsEventDetailDotrouteRoute,
+  featuresEventsEventNewDotrouteRoute: featuresEventsEventNewDotrouteRoute,
   featuresPrivacyPrivacyDotrouteRoute: featuresPrivacyPrivacyDotrouteRoute,
   featuresEventsPrintWeekDotrouteRoute: featuresEventsPrintWeekDotrouteRoute,
   featuresEventsEventEditDotrouteRoute: featuresEventsEventEditDotrouteRoute,

@@ -35,6 +35,10 @@ export default {
   deletionBanner: {
     title: "Votre compte va être supprimé",
   },
+  offline: {
+    withData: "Hors ligne, données du {{day}} à {{time}}",
+    withoutData: "Hors ligne",
+  },
   queryState: {
     loadError: "Le chargement n'a pas abouti. Vérifiez la connexion, puis réessayez.",
   },

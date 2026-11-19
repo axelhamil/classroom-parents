@@ -6,6 +6,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { appHosting } from "./src/hosting/app-hosting";
+import { precacheManifest } from "./src/hosting/precache-manifest";
 import { parseAppEnv } from "./src/shared/env.schema";
 
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
@@ -28,6 +29,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
       }),
       react(),
       tailwindcss(),
+      precacheManifest(),
       sentryAuthToken && sentryOrg && sentryProject
         ? sentryVitePlugin({
             authToken: sentryAuthToken,

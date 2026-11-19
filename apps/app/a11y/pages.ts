@@ -27,6 +27,7 @@ export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
   { name: "children, every state", path: "/children", prepare: stubChildrenApi },
   { name: "onboarding", path: "/onboarding" },
   { name: "add a child", path: "/children/new" },
+  { name: "add a deadline", path: "/events/new", prepare: stubChildrenApi },
   { name: "child link refused", path: "/children/link-error", prepare: stubChildrenApi },
   { name: "not found (signed in)", path: "/no-such-page" },
 ];

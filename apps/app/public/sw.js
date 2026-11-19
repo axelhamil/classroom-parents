@@ -33,12 +33,101 @@ function readNotification(data) {
   }
 }
 
-self.addEventListener("install", () => {
+// The build writes /sw-precache.js (version + file list). Its bytes change with every
+// deploy, which is what makes the browser install a new worker; in dev it is absent and
+// the worker only relays push.
+const SHELL_CACHE_PREFIX = "keepupkids-shell-";
+const SHELL = "/index.html";
+const NAVIGATION_TIMEOUT_MS = 4000;
+
+function loadPrecache() {
+  try {
+    self.importScripts("/sw-precache.js");
+  } catch {
+    return null;
+  }
+
+  const manifest = self.PRECACHE;
+  const valid =
+    typeof manifest?.version === "string" &&
+    Array.isArray(manifest.urls) &&
+    manifest.urls.every((url) => typeof url === "string");
+
+  return valid ? { cacheName: SHELL_CACHE_PREFIX + manifest.version, urls: manifest.urls } : null;
+}
+
+const precache = loadPrecache();
+
+async function fillPrecache() {
+  const cache = await self.caches.open(precache.cacheName);
+
+  try {
+    await cache.addAll(precache.urls.map((url) => new Request(url, { cache: "reload" })));
+  } catch {
+    await self.caches.delete(precache.cacheName);
+  }
+}
+
+async function dropOtherVersions() {
+  const names = await self.caches.keys();
+  const stale = names.filter(
+    (name) => name.startsWith(SHELL_CACHE_PREFIX) && name !== precache?.cacheName,
+  );
+
+  await Promise.all(stale.map((name) => self.caches.delete(name)));
+}
+
+self.addEventListener("install", (event) => {
   self.skipWaiting();
+  if (precache) event.waitUntil(fillPrecache());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([dropOtherVersions(), self.clients.claim()]));
+});
+
+// A navigation request cannot be rebuilt with a signal, so the timeout races the fetch
+// instead of aborting it.
+async function fetchWithin(request, timeoutMs) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("navigation timed out")), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([self.fetch(request), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// HTML is never served from the cache while the network answers: a deploy is picked up
+// on the next open, and the cached shell only stands in when the network fails or hangs.
+async function networkFirstShell(request) {
+  try {
+    return await fetchWithin(request, NAVIGATION_TIMEOUT_MS);
+  } catch (error) {
+    const shell = await self.caches.match(SHELL, { cacheName: precache.cacheName });
+    if (shell) return shell;
+
+    throw error;
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await self.caches.match(request, { cacheName: precache.cacheName });
+
+  return cached ?? self.fetch(request);
+}
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (!precache || request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (request.mode === "navigate") return event.respondWith(networkFirstShell(request));
+  if (precache.urls.includes(url.pathname)) event.respondWith(cacheFirst(request));
 });
 
 self.addEventListener("push", (event) => {

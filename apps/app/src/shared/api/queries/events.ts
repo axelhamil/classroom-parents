@@ -8,6 +8,8 @@ export const EVENTS_PAGE_SIZE = 50;
 
 export const EVENTS_KEY = ["events"] as const;
 
+export const CALENDAR_KEY = [...EVENTS_KEY, "calendar"] as const;
+
 const $list = api.events.$get;
 
 export type EventItem = InferResponseType<typeof $list, 200>["items"][number];
