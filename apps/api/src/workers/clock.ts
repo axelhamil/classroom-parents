@@ -85,7 +85,7 @@ export type ClockDeps = Pick<
   SyncWorkerDeps,
   "SyncDueChildrenService" | "ChildConnectionService" | "IInstrumentation"
 > &
-  Pick<AlertWorkerDeps, "AlertDispatchService" | "WeeklyDigestService"> &
+  Pick<AlertWorkerDeps, "AlertDispatchService" | "WeeklyDigestService" | "AccessLossAlertService"> &
   RgpdWorkerDeps & { DeliveryDrain: Pick<DeliveryDrain, "outbox" | "emails"> };
 
 export interface ClockSettings {

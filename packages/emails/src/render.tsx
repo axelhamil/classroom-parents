@@ -3,6 +3,7 @@ import { render } from "@react-email/render";
 import type { TFunction } from "i18next";
 import type { ComponentType } from "react";
 import { I18nextProvider } from "react-i18next";
+import { AccessLost } from "./components/access-lost";
 import { AlertGroup, alertGroupSubject } from "./components/alert-group";
 import { AlertReminder } from "./components/alert-reminder";
 import { ApiTokenLeaked } from "./components/api-token-leaked";
@@ -59,6 +60,10 @@ const TEMPLATES: { [K in EmailTemplateKey]: TemplateEntry<K> } = {
   },
   alert_group: { component: AlertGroup, subject: alertGroupSubject },
   weekly_digest: { component: WeeklyDigest, subject: (t) => t("subjects.weeklyDigest") },
+  access_lost: {
+    component: AccessLost,
+    subject: (t, v) => t("subjects.accessLost", { childLabel: v.childLabel }),
+  },
 };
 
 export const EMAIL_TEMPLATE_KEYS = Object.keys(TEMPLATES) as EmailTemplateKey[];

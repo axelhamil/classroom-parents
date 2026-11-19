@@ -39,6 +39,7 @@ const snapshot: UserDataSnapshot = {
   quietHours: null,
   lockScreen: { details: false, chosenAt: null },
   weeklyDigest: { enabled: true, chosenAt: null, weeks: [] },
+  accessLossWarnings: [],
   sync: [],
 };
 

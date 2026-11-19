@@ -31,13 +31,19 @@ export class QuietHours extends ValueObject<QuietHoursValue> {
     return wallTime > start && wallTime < end;
   }
 
+  ringAfter(time: AlertTime): Result<AlertTime> {
+    if (!this.silences(time.value.time)) return Result.ok(time);
+
+    return this.endAfter(time);
+  }
+
   shift(time: AlertTime, deadlineAt: Date, now: Date): Result<AlertTime> {
     const { date, time: wall } = time.value;
     if (!this.silences(wall)) return Result.ok(time);
 
     const { start, end } = this.value;
     const overnight = start > end;
-    const after = AlertTime.before(date, overnight && wall > start ? -1 : 0, end);
+    const after = this.endAfter(time);
     if (after.isFailure) return after;
     if (after.getValue().value.at.getTime() < deadlineAt.getTime()) return after;
 
@@ -46,6 +52,13 @@ export class QuietHours extends ValueObject<QuietHoursValue> {
     if (before.getValue().isAfter(now)) return before;
 
     return Result.ok(time);
+  }
+
+  private endAfter({ value: { date, time } }: AlertTime): Result<AlertTime> {
+    const { start, end } = this.value;
+    const overnight = start > end;
+
+    return AlertTime.before(date, overnight && time > start ? -1 : 0, end);
   }
 
   protected validate(value: QuietHoursValue): Result<QuietHoursValue> {

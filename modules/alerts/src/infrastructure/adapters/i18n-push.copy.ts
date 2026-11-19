@@ -11,6 +11,18 @@ export class I18nPushCopy implements IPushCopy {
     return i18n.getFixedT(DEFAULT_LOCALE, "push")("discreet.week", { count });
   }
 
+  async forAccessLoss(childLabel: string, { details }: PushCopyOptions): Promise<PushText> {
+    const i18n = await i18nFor(DEFAULT_LOCALE);
+    const t = i18n.getFixedT(DEFAULT_LOCALE, "push");
+    if (!details)
+      return {
+        title: i18n.getFixedT(DEFAULT_LOCALE, "common")("brand"),
+        body: t("accessLoss.discreetBody"),
+      };
+
+    return { title: t("accessLoss.title"), body: t("accessLoss.body", { childLabel }) };
+  }
+
   async forAlerts(contexts: AlertContext[], { details }: PushCopyOptions): Promise<PushText> {
     const i18n = await i18nFor(DEFAULT_LOCALE);
     const t = i18n.getFixedT(DEFAULT_LOCALE, "push");

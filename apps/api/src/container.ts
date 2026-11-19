@@ -2,8 +2,6 @@ import { agendaModule } from "@modules/agenda/agenda.module";
 import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
 import type { ICourseNames } from "@modules/agenda/application/ports/course-names.port";
 import { alertsModule } from "@modules/alerts/alerts.module";
-import type { IAlertContextReader } from "@modules/alerts/application/ports/alert-context-reader.port";
-import type { IDigestAudience } from "@modules/alerts/application/ports/digest-audience.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import { calendarFeedModule } from "@modules/calendar-feed/calendar-feed.module";
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
@@ -37,6 +35,7 @@ import {
 } from "@packages/outbox/outbox-dispatcher";
 import { container, defineModule } from "inwire";
 import { Resend } from "resend";
+import { alertQueriesModule } from "./composition/alert-queries";
 import {
   alertPlannerFor,
   announcementExtractorFor,
@@ -59,8 +58,6 @@ import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
 import type { IUserDataReader } from "./modules/rgpd/application/ports/user-data-reader.port";
 import { rgpdModule } from "./modules/rgpd/module";
-import { AlertContextQuery } from "./queries/alert-context.query";
-import { DigestAudienceQuery } from "./queries/digest-audience.query";
 import { FeedAlarmsQuery } from "./queries/feed-alarms.query";
 import { UpcomingAlertsQuery } from "./queries/upcoming-alerts.query";
 import { UserDataQuery } from "./queries/user-data.query";
@@ -211,11 +208,7 @@ export const di = container()
   .addModule(agendaPorts)
   .addModule(agendaModule)
   .add("IEventDeadlines", (c) => eventDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
-  .add(
-    "IAlertContextReader",
-    (c): IAlertContextReader => new AlertContextQuery(c.IInstrumentation, env.APP_ORIGIN),
-  )
-  .add("IDigestAudience", (c): IDigestAudience => new DigestAudienceQuery(c.IInstrumentation))
+  .addModule(alertQueriesModule(env.APP_ORIGIN))
   .add("IDigestDeadlines", (c) => digestDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
   .addModule(alertsModule)
   .add("IFeedChildren", (c) => visibleChildrenFor(c.ChildConnectionService))

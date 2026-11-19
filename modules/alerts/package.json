@@ -13,7 +13,8 @@
     "test": "bun test --isolate",
     "type-check": "tsc --noEmit",
     "check": "biome check .",
-    "check:alert-db": "bun --env-file=../../packages/drizzle/.env scripts/check-alert-db.ts"
+    "check:alert-db": "bun --env-file=../../packages/drizzle/.env scripts/check-alert-db.ts",
+    "check:access-loss-db": "bun --env-file=../../packages/drizzle/.env scripts/check-access-loss-db.ts"
   },
   "dependencies": {
     "@packages/ddd-kit": "workspace:*",

@@ -21,10 +21,18 @@ export interface DigestEmailContent {
   appUrl: string;
 }
 
+export interface AccessLossEmailContent {
+  accessAlertId: string;
+  childLabel: string;
+  childrenUrl: string;
+}
+
 export interface IAlertEmailSender {
   send(to: string, content: AlertEmailContent): Promise<Result<void, AppError>>;
 
   sendGroup(to: string, content: AlertGroupEmailContent): Promise<Result<void, AppError>>;
 
   sendDigest(to: string, content: DigestEmailContent): Promise<Result<void, AppError>>;
+
+  sendAccessLoss(to: string, content: AccessLossEmailContent): Promise<Result<void, AppError>>;
 }

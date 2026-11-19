@@ -5,6 +5,11 @@ import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
 import type { AlertsSettings } from "./application/config/alerts-settings";
 import { SEND_TIMEOUT_MS } from "./application/config/dispatch-budget";
+import {
+  onChildAccessLost,
+  onChildReconnected,
+} from "./application/event-handlers/on-child-access-changed";
+import type { IAccessLossContextReader } from "./application/ports/access-loss-context.port";
 import type { IAlertContextReader } from "./application/ports/alert-context-reader.port";
 import type { IAlertEmailSender } from "./application/ports/alert-email-sender.port";
 import type { IAlertRepository } from "./application/ports/alert-repository.port";
@@ -15,6 +20,7 @@ import type { IPushSender } from "./application/ports/push-sender.port";
 import type { IPushSubscriptionRepository } from "./application/ports/push-subscription-repository.port";
 import type { IReminderSettingsRepository } from "./application/ports/reminder-settings.port";
 import type { IWeeklyDigestRepository } from "./application/ports/weekly-digest-repository.port";
+import { AccessLossAlertService } from "./application/services/access-loss-alert.service";
 import { AlertDispatchService } from "./application/services/alert-dispatch.service";
 import { AlertPlanningService } from "./application/services/alert-planning.service";
 import { DigestPreferenceService } from "./application/services/digest-preference.service";
@@ -24,6 +30,7 @@ import { WeeklyDigestService } from "./application/services/weekly-digest.servic
 import { I18nPushCopy } from "./infrastructure/adapters/i18n-push.copy";
 import { ResendAlertEmailSender } from "./infrastructure/adapters/resend-alert-email.sender";
 import { WebPushSender } from "./infrastructure/adapters/web-push.sender";
+import { DrizzleAccessLossRepository } from "./infrastructure/repositories/drizzle-access-loss.repository";
 import { DrizzleAlertRepository } from "./infrastructure/repositories/drizzle-alert.repository";
 import { DrizzlePushSubscriptionRepository } from "./infrastructure/repositories/drizzle-push-subscription.repository";
 import { DrizzleReminderSettingsRepository } from "./infrastructure/repositories/drizzle-reminder-settings.repository";
@@ -40,6 +47,7 @@ export interface AlertsPrerequisites {
   IAlertContextReader: IAlertContextReader;
   IDigestAudience: IDigestAudience;
   IDigestDeadlines: IDigestDeadlines;
+  IAccessLossContextReader: IAccessLossContextReader;
   alertsSettings: AlertsSettings;
 }
 
@@ -142,6 +150,25 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.IInstrumentation,
         ),
     )
+    .add(
+      "AccessLossAlertService",
+      (c) =>
+        new AccessLossAlertService(
+          new DrizzleAccessLossRepository(c.IInstrumentation),
+          c.IReminderSettingsRepository,
+          c.IAccessLossContextReader,
+          c.IPushSubscriptionRepository,
+          c.IPushSender,
+          c.IAlertEmailSender,
+          c.IPushCopy,
+          c.ITransactionService,
+          c.IOutboxRepository,
+          c.IInstrumentation,
+          c.alertsSettings.appOrigin,
+        ),
+    )
+    .add("onChildAccessLost", (c) => onChildAccessLost(c))
+    .add("onChildReconnected", (c) => onChildReconnected(c))
     .add(
       "PushSubscriptionService",
       (c) =>

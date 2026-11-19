@@ -1,4 +1,5 @@
 import { DISPATCH_BATCH } from "@modules/alerts/application/config/dispatch-budget";
+import type { AccessLossAlertService } from "@modules/alerts/application/services/access-loss-alert.service";
 import type { AlertDispatchService } from "@modules/alerts/application/services/alert-dispatch.service";
 import type { WeeklyDigestService } from "@modules/alerts/application/services/weekly-digest.service";
 import type { IInstrumentation, ILogger } from "@packages/ddd-kit";
@@ -11,6 +12,7 @@ export const ALERT_TICK_MS = 30_000;
 export interface AlertWorkerDeps {
   AlertDispatchService: Pick<AlertDispatchService, "runOnce">;
   WeeklyDigestService: Pick<WeeklyDigestService, "runOnce">;
+  AccessLossAlertService: Pick<AccessLossAlertService, "runOnce">;
   IInstrumentation: IInstrumentation;
 }
 
@@ -52,14 +54,37 @@ export function drainWeeklyDigests(
   );
 }
 
+export function drainAccessLossAlerts(
+  deps: Pick<AlertWorkerDeps, "AccessLossAlertService">,
+  signal: AbortSignal,
+  logger: ILogger,
+  clock: () => number = Date.now,
+): Promise<JobOutcome> {
+  return drain(
+    {
+      run: (now) => deps.AccessLossAlertService.runOnce(now),
+      drained: (claimed) => claimed < DISPATCH_BATCH,
+      label: "access loss alert",
+      budgetMs: ALERT_TICK_MS,
+    },
+    signal,
+    logger,
+    clock,
+  );
+}
+
 export function alertsPass(
-  deps: Pick<AlertWorkerDeps, "AlertDispatchService" | "WeeklyDigestService">,
+  deps: Pick<
+    AlertWorkerDeps,
+    "AlertDispatchService" | "WeeklyDigestService" | "AccessLossAlertService"
+  >,
   signal: AbortSignal,
   logger: ILogger,
 ): Promise<JobOutcome> {
   return inSequence([
     ["dispatch", () => drainDueAlerts(deps, signal, logger)],
     ["digest", () => drainWeeklyDigests(deps, signal, logger)],
+    ["access loss", () => drainAccessLossAlerts(deps, signal, logger)],
   ]);
 }
 

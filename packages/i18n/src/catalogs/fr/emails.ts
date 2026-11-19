@@ -18,6 +18,7 @@ export default {
     alertGroup_one: "Rappel : {{count}} échéance à venir",
     alertGroup_other: "Rappel : {{count}} échéances à venir",
     weeklyDigest: "Votre semaine",
+    accessLost: "Reconnectez le compte de {{childLabel}}",
   },
   layout: {
     footer: "Si vous n'attendiez pas cet e-mail, vous pouvez l'ignorer.",
@@ -95,6 +96,10 @@ export default {
   },
   weeklyDigest: {
     cta: "Voir mes échéances",
+  },
+  accessLost: {
+    body: "Google ne nous donne plus accès au compte Classroom de {{childLabel}} : ses nouvelles échéances ne nous parviennent plus. Reconnectez son compte pour continuer à les recevoir.",
+    cta: "Reconnecter le compte",
   },
   notificationDigest: {
     intro: "Voici un résumé de votre activité récente dans la catégorie {{category}} :",

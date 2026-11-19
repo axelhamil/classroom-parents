@@ -1,4 +1,9 @@
 export default {
+  accessLoss: {
+    title: "Accès Google perdu",
+    body: "Reconnectez le compte de {{childLabel}} pour continuer à recevoir ses échéances.",
+    discreetBody: "Un compte enfant est à reconnecter pour continuer à recevoir ses échéances.",
+  },
   alert: {
     body: "{{childLabel}}, échéance {{deadline}}",
   },

@@ -1,3 +1,4 @@
+import type { AccessLossAlertService } from "@modules/alerts/application/services/access-loss-alert.service";
 import type { AlertDispatchService } from "@modules/alerts/application/services/alert-dispatch.service";
 import type { WeeklyDigestService } from "@modules/alerts/application/services/weekly-digest.service";
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
@@ -35,6 +36,7 @@ export interface DeliveryPrerequisites {
   ChildConnectionService: ChildConnectionService;
   AlertDispatchService: AlertDispatchService;
   WeeklyDigestService: WeeklyDigestService;
+  AccessLossAlertService: AccessLossAlertService;
   RgpdService: RgpdService;
 }
 
@@ -115,6 +117,7 @@ export const deliveryModule = (settings: DeliverySettings, handlers: EventHandle
               ChildConnectionService: c.ChildConnectionService,
               AlertDispatchService: c.AlertDispatchService,
               WeeklyDigestService: c.WeeklyDigestService,
+              AccessLossAlertService: c.AccessLossAlertService,
               RgpdService: c.RgpdService,
               ITransactionService: c.ITransactionService,
               IInstrumentation: c.IInstrumentation,
