@@ -2,6 +2,7 @@ import { createEventsRoutes } from "@modules/agenda/infrastructure/http/events.r
 import { createAlertsRoutes } from "@modules/alerts/infrastructure/http/alerts.routes";
 import { createPushRoutes } from "@modules/alerts/infrastructure/http/push.routes";
 import { createRemindersRoutes } from "@modules/alerts/infrastructure/http/reminders.routes";
+import { createAssistantRoutes } from "@modules/assistant/infrastructure/http/assistant.routes";
 import { createCalendarRoutes } from "@modules/calendar-feed/infrastructure/http/calendar.routes";
 import { createCalendarFeedRoutes } from "@modules/calendar-feed/infrastructure/http/calendar-feed.routes";
 import { createChildrenRoutes } from "@modules/children/infrastructure/http/children.routes";
@@ -15,7 +16,7 @@ import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { auth } from "./auth";
 import { routeGuards } from "./composition/route-guards";
-import { di, schoolCalendar } from "./container";
+import { assistant, di, schoolCalendar } from "./container";
 import { healthRoutes } from "./modules/health/routes";
 import { createRgpdRoutes } from "./modules/rgpd/routes";
 import { env, FRONT_ORIGINS } from "./shared/env";
@@ -92,6 +93,8 @@ const CSRF_GUARDED_PATHS = [
   "/calendar-feed/*",
   "/school-calendar",
   "/school-calendar/*",
+  "/assistant",
+  "/assistant/*",
 ] as const;
 
 // BetterAuth's credential and token-consuming endpoints, each on its own tight,
@@ -181,6 +184,10 @@ const routes = app
       routeGuards,
       SchoolCalendarService: schoolCalendar.SchoolCalendarService,
     }),
+  )
+  .route(
+    "/assistant",
+    createAssistantRoutes({ routeGuards, PreferenceService: assistant.PreferenceService }),
   )
   .route("/stream", createUserStreamRoutes(routeDeps));
 

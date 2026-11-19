@@ -36,6 +36,7 @@ import {
 import { container, defineModule } from "inwire";
 import { Resend } from "resend";
 import { alertQueriesModule } from "./composition/alert-queries";
+import { assistantContainer } from "./composition/assistant";
 import {
   alertPlannerFor,
   announcementExtractorFor,
@@ -222,10 +223,12 @@ export const di = container()
     ),
   )
   .addModule(calendarFeedModule)
-  .addModule(llmModule)
+  .addModule(llmModule(() => assistant.AiQuotaService))
   .addModule(extractionModule)
   .add("IChildAccessTokens", (c) => childAccessTokensFor(c.GoogleAccessService))
-  .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))
+  .add("IAnnouncementExtractor", (c) =>
+    announcementExtractorFor(c.ExtractionService, () => assistant.PreferenceService),
+  )
   .add("IEventIngest", (c) => eventIngestFor(c.EventIngestService))
   .add("IDueChildren", (c) => dueChildrenFor(c.ChildSyncService))
   .add("IChildSyncState", (c) => childSyncStateFor(c.ChildSyncService))
@@ -260,8 +263,11 @@ export const di = container()
         },
       },
       (): Record<string, unknown> => di,
+      () => assistant.AiUsageWatchService,
     ),
   )
   .build();
 
 export const schoolCalendar = schoolCalendarContainer(di);
+
+export const assistant = assistantContainer(di, env, logger);

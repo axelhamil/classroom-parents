@@ -52,6 +52,8 @@ For each: Node.js 26.x, "Include files outside the Root Directory" on (the build
 | `RESEND_API_KEY`, `RESEND_FROM` | `KeepUpKids <alertes@<domain>>` | yes | step 7 |
 | `ANTHROPIC_API_KEY` | | yes | step 8 |
 | `AI_DISABLED_FEATURES` | `announcement_extraction` | no | step 8, switches a model feature off without a code change |
+| `AI_ALERT_EMAIL` | `ops@<domain>` | no | operator mailbox for AI alerts: a family at 80 % of its monthly cap, abnormal global spend, invalid model outputs above 5 % over 1 h; unset, the alerts only reach the logs and Sentry |
+| `AI_DAILY_SPEND_CAP_USD` | `20` (default) | no | global spend cap per day; above it, or above 2 times the mean of the 7 previous days, the on-demand features are cut and announcement extraction runs on Haiku only |
 | `CRON_SECRET` | 64 hex characters | yes | step 9 |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | `production` | no | Sentry |
 | `BETTER_AUTH_SECRETS` | | no | only to rotate `BETTER_AUTH_SECRET` (linked Google tokens are sealed with it) |
@@ -97,7 +99,7 @@ Verified sending domain (SPF, DKIM, DMARC), EU region, live key in `RESEND_API_K
 
 One Anthropic workspace per environment, each with its own key, spend cap and rate limit:
 
-- [ ] `prod`: key in `ANTHROPIC_API_KEY` as a sensitive Vercel variable, spend cap set, zero data retention asked before real minors' data (no Batch nor Files API, both outside it).
+- [ ] `prod`: key in `ANTHROPIC_API_KEY` as a sensitive Vercel variable, spend cap set, zero data retention in force before real minors' data (no Batch nor Files API, both outside it). Ask for it from the Anthropic account (Console, or the sales contact if the form is missing) naming the `prod` workspace, archive the written confirmation with the DPA, and ask again whenever the production workspace changes.
 - [ ] `eval-ci`: key in the GitHub secret `ANTHROPIC_API_KEY_EVAL`, read by `.github/workflows/ai-eval.yml` only, spend cap a few dollars a month (one gated run costs under 0.30 $). Without it (or on a fork) the job skips with a notice instead of failing.
 - [ ] `dev`: personal keys, never a production one.
 - [ ] Every key expires and is rotated at 90 days; the admin key stays outside the app.

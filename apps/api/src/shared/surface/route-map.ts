@@ -30,6 +30,15 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "PUT /school-calendar/zone": {
     consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
   },
+  "GET /assistant/preferences": {
+    consumer: "apps/app/src/features/settings/api/settings.queries.ts",
+  },
+  "PUT /assistant/preferences/language-and-region": {
+    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
+  },
+  "PUT /assistant/preferences/extraction": {
+    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
+  },
   "GET /children": { consumer: "apps/app/src/shared/api/queries/children.ts" },
   "GET /children/link-config": {
     consumer: "apps/app/src/shared/children/child-link.queries.ts",

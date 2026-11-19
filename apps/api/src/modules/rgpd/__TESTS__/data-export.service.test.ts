@@ -42,6 +42,8 @@ const snapshot: UserDataSnapshot = {
   weeklyDigest: { enabled: true, chosenAt: null, weeks: [] },
   accessLossWarnings: [],
   schoolZone: null,
+  assistantPreferences: null,
+  aiUsage: [],
   sync: [],
 };
 

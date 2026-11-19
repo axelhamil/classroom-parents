@@ -6,7 +6,12 @@ import type { LlmError } from "./llm-error";
  * Every product feature that may call a model. Closed on purpose: the cost journal, the
  * budgets and the kill switch key on it, so a new caller is a reviewed change of this list.
  */
-export const LLM_FEATURES = ["announcement_extraction"] as const;
+export const LLM_FEATURES = [
+  "announcement_extraction",
+  "document_reading",
+  "quick_add",
+  "translation",
+] as const;
 export type LlmFeature = (typeof LLM_FEATURES)[number];
 
 /**

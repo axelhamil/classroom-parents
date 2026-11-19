@@ -8,6 +8,7 @@ import { failed, type Job, type JobOutcome, succeeded } from "./job";
 import { startPeriodic } from "./periodic";
 import {
   sweepAiCallJournal,
+  sweepAiUsage,
   sweepDeliveredOutbox,
   sweepEventHistory,
   sweepExtractionResults,
@@ -97,6 +98,10 @@ export function sweepJobs(
     {
       name: "extraction-result-retention",
       run: async () => sweepOutcome(await sweepExtractionResults(retention)),
+    },
+    {
+      name: "ai-usage-retention",
+      run: async () => sweepOutcome(await sweepAiUsage(retention)),
     },
     {
       name: "event-history-retention",

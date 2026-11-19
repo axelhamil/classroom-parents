@@ -155,6 +155,13 @@
       "when": 1795106000890,
       "tag": "0021_extraction_cache_and_preparation",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795107064812,
+      "tag": "0022_assistant",
+      "breakpoints": true
     }
   ]
 }

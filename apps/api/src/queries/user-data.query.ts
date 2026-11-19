@@ -13,6 +13,7 @@ import {
   alertDigestPreference,
   alertWeeklyDigest,
 } from "@modules/alerts/schemas/weekly-digest.schema";
+import { aiUsage, assistantPreference } from "@modules/assistant/schemas/assistant.schema";
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
@@ -142,6 +143,28 @@ export class UserDataQuery implements IUserDataReader {
           .from(schoolZonePreference)
           .where(eq(schoolZonePreference.userId, userId));
 
+        const [preferences] = await exec
+          .select({
+            locale: assistantPreference.locale,
+            timeZone: assistantPreference.timeZone,
+            country: assistantPreference.country,
+            extractionEnabled: assistantPreference.extractionEnabled,
+            updatedAt: assistantPreference.updatedAt,
+          })
+          .from(assistantPreference)
+          .where(eq(assistantPreference.userId, userId));
+        const usage = await exec
+          .select({
+            month: aiUsage.month,
+            feature: aiUsage.feature,
+            calls: aiUsage.calls,
+            escalations: aiUsage.escalations,
+            costMicroUsd: aiUsage.costMicroUsd,
+          })
+          .from(aiUsage)
+          .where(eq(aiUsage.userId, userId))
+          .orderBy(asc(aiUsage.month), asc(aiUsage.feature));
+
         const seen = await exec
           .select({ childId: seenAnnouncement.childId, total: count() })
           .from(seenAnnouncement)
@@ -244,6 +267,16 @@ export class UserDataQuery implements IUserDataReader {
           schoolZone: schoolZone
             ? { zone: schoolZone.zone, chosenAt: schoolZone.updatedAt.toISOString() }
             : null,
+          assistantPreferences: preferences
+            ? {
+                locale: preferences.locale,
+                timeZone: preferences.timeZone,
+                country: preferences.country,
+                extractionEnabled: preferences.extractionEnabled,
+                chosenAt: preferences.updatedAt.toISOString(),
+              }
+            : null,
+          aiUsage: usage,
           sync: children.map((child) => ({
             childId: child.id,
             status: child.status,

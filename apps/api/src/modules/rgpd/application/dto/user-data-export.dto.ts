@@ -137,6 +137,22 @@ export interface ExportedLockScreen {
   chosenAt: string | null;
 }
 
+export interface ExportedAssistantPreferences {
+  locale: string | null;
+  timeZone: string | null;
+  country: string | null;
+  extractionEnabled: boolean;
+  chosenAt: string;
+}
+
+export interface ExportedAiUsage {
+  month: string;
+  feature: string;
+  calls: number;
+  escalations: number;
+  costMicroUsd: number;
+}
+
 export interface UserDataSnapshot {
   children: ExportedChild[];
   events: CollectedEvent[];
@@ -149,6 +165,8 @@ export interface UserDataSnapshot {
   weeklyDigest: ExportedWeeklyDigest;
   accessLossWarnings: ExportedAccessLossWarning[];
   schoolZone: ExportedSchoolZone | null;
+  assistantPreferences: ExportedAssistantPreferences | null;
+  aiUsage: ExportedAiUsage[];
   sync: ExportedSyncState[];
 }
 

@@ -163,6 +163,27 @@ export default {
     loading: "Chargement de la zone scolaire",
     saved: "Zone scolaire enregistrée",
   },
+  languageAndRegion: {
+    title: "Langue et région",
+    description: "Votre langue, votre fuseau horaire et votre pays.",
+    language: "Langue",
+    languageHint:
+      "L'interface reste en français pour l'instant. La langue choisie servira aux traductions à venir.",
+    timeZone: "Fuseau horaire",
+    country: "Pays",
+    fromDevice: "Valeurs proposées par cet appareil. Enregistrez pour les garder.",
+    loading: "Chargement de la langue et de la région",
+    saved: "Langue et région enregistrées",
+  },
+  aiReading: {
+    title: "Intelligence artificielle",
+    description:
+      "Anthropic (modèles Claude), sous-traitant, lit le texte des annonces de vos enfants pour en tirer les dates, sans s'en servir pour entraîner ses modèles.",
+    enabled: "Lecture des annonces par l'IA",
+    on: "Les annonces sont lues automatiquement pour en tirer les échéances.",
+    off: "Seuls les devoirs Classroom restent lus, sans IA. Plus aucune annonce n'est envoyée au modèle.",
+    loading: "Chargement du choix de lecture par l'IA",
+  },
   install: {
     title: "Installer sur l'iPhone",
     description:
@@ -241,8 +262,8 @@ export default {
       body: "L'utilisation des données reçues des API Google respecte la politique Google API Services User Data Policy, y compris ses exigences d'usage limité (Limited Use). Ces données servent uniquement à afficher les échéances de vos enfants et à vous prévenir : jamais de publicité, de revente, ni d'entraînement de modèles d'IA.",
     },
     ai: {
-      title: "Extraction par Anthropic",
-      body: "Le texte d'une annonce est envoyé à Anthropic (modèles Claude), sous-traitant, pour en extraire les dates. Anthropic n'utilise pas ces données pour entraîner ses modèles. Les devoirs Classroom, eux, sont lus sans IA.",
+      title: "Lecture des annonces par l'IA",
+      body: "Le texte d'une annonce est envoyé à Anthropic (modèles Claude), sous-traitant, pour en extraire les dates. Anthropic n'utilise pas ces données pour entraîner ses modèles. Les devoirs Classroom, eux, sont lus sans IA. Vous pouvez désactiver la lecture des annonces par l'IA dans Réglages.",
     },
     dataSources: {
       title: "Sous-traitants",

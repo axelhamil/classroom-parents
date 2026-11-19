@@ -150,6 +150,7 @@ describe("ClockService", () => {
         AlertDispatchService: dispatch,
         WeeklyDigestService: digest,
         AccessLossAlertService: accessLoss,
+        AiUsageWatchService: { watch: async () => Result.ok({ alerts: 0, families: 0 }) },
         RgpdService: mockPort<RgpdService>(),
         ITransactionService: mockPort<IUnitOfWork>(),
         IInstrumentation: instrumentation,

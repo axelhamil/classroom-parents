@@ -30,6 +30,7 @@ import {
   alertDigestPreference,
   alertWeeklyDigest,
 } from "@modules/alerts/schemas/weekly-digest.schema";
+import { aiUsage, assistantPreference } from "@modules/assistant/schemas/assistant.schema";
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedChild } from "@modules/children/schemas/testing/seed-child";
@@ -175,6 +176,17 @@ async function seedFamilyData(id: string): Promise<void> {
     .insert(alertWeeklyDigest)
     .values({ userId: id, weekStart: "2030-03-04", expiresAt: at, status: "sent" });
   await db.insert(schoolZonePreference).values({ userId: id, zone: "zone-b", updatedAt: at });
+  await db
+    .insert(assistantPreference)
+    .values({ userId: id, locale: "ar", extractionEnabled: false, updatedAt: at });
+  await db.insert(aiUsage).values({
+    userId: id,
+    month: "2030-03-01",
+    feature: "translation",
+    calls: 3,
+    escalations: 0,
+    costMicroUsd: 900,
+  });
 }
 
 async function familyRowsLeft(id: string): Promise<Record<string, number>> {
@@ -211,6 +223,13 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
         .from(schoolZonePreference)
         .where(eq(schoolZonePreference.userId, id)),
     ),
+    assistantPreferences: await tally(
+      db
+        .select({ total: count() })
+        .from(assistantPreference)
+        .where(eq(assistantPreference.userId, id)),
+    ),
+    aiUsage: await tally(db.select({ total: count() }).from(aiUsage).where(eq(aiUsage.userId, id))),
   };
 }
 

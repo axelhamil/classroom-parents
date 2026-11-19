@@ -44,3 +44,27 @@ export const setSchoolZoneMutationOptions = mutationOptions({
     return res.json();
   },
 });
+
+const $setLanguageAndRegion = api.assistant.preferences["language-and-region"].$put;
+
+export type LanguageAndRegionChoice = InferRequestType<typeof $setLanguageAndRegion>["json"];
+
+export const setLanguageAndRegionMutationOptions = mutationOptions({
+  mutationKey: ["assistant", "preferences", "language-and-region", "set"] as const,
+  mutationFn: async (choice: LanguageAndRegionChoice) => {
+    const res = await $setLanguageAndRegion({ json: choice });
+    if (!res.ok) await throwApiError(res, "setLanguageAndRegion");
+    return res.json();
+  },
+});
+
+const $setExtraction = api.assistant.preferences.extraction.$put;
+
+export const setExtractionMutationOptions = mutationOptions({
+  mutationKey: ["assistant", "preferences", "extraction", "set"] as const,
+  mutationFn: async (enabled: boolean) => {
+    const res = await $setExtraction({ json: { enabled } });
+    if (!res.ok) await throwApiError(res, "setExtraction");
+    return res.json();
+  },
+});

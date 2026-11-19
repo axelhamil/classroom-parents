@@ -142,11 +142,22 @@ export function digestDeadlinesFor(
   };
 }
 
+const NOTHING_READ = { deadlines: [], amendments: [] };
+
+interface ExtractionConsent {
+  extractionEnabled(userId: string): Promise<Result<boolean, AppError>>;
+}
+
 export function announcementExtractorFor(
   extraction: Pick<ExtractionService, "extract">,
+  preferences: () => ExtractionConsent,
 ): IAnnouncementExtractor {
   return {
     extract: async (request) => {
+      const enabled = await preferences().extractionEnabled(request.userId);
+      if (enabled.isFailure) return Result.fail(enabled.getError());
+      if (!enabled.getValue()) return Result.ok(NOTHING_READ);
+
       const extracted = await extraction.extract(request);
 
       return extracted.map(({ events, amendments }) => ({

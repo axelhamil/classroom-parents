@@ -21,6 +21,7 @@ import type { ISweepRunStore } from "../shared/ports/sweep-run.port";
 import { BackgroundWork } from "../shared/services/background-work";
 import { NotificationStreamHub } from "../shared/services/notification-stream-hub";
 import { PgUserStreamPublisher, userStreamRelay } from "../shared/services/user-stream-relay";
+import type { AiUsageWorkerDeps } from "../workers/ai-usage-worker";
 import { ClockService } from "../workers/clock";
 import { DeliveryDrain } from "../workers/delivery";
 import type { RgpdWorkerSettings } from "../workers/rgpd-worker";
@@ -61,7 +62,13 @@ export interface DeliverySettings {
 
 export type EventHandlerSource = () => Record<string, unknown>;
 
-export const deliveryModule = (settings: DeliverySettings, handlers: EventHandlerSource) =>
+export type AiUsageWatchSource = () => AiUsageWorkerDeps["AiUsageWatchService"];
+
+export const deliveryModule = (
+  settings: DeliverySettings,
+  handlers: EventHandlerSource,
+  aiUsageWatch: AiUsageWatchSource,
+) =>
   defineModule<DeliveryPrerequisites>()((b) =>
     b
       .add(
@@ -118,6 +125,7 @@ export const deliveryModule = (settings: DeliverySettings, handlers: EventHandle
               AlertDispatchService: c.AlertDispatchService,
               WeeklyDigestService: c.WeeklyDigestService,
               AccessLossAlertService: c.AccessLossAlertService,
+              AiUsageWatchService: { watch: () => aiUsageWatch().watch() },
               RgpdService: c.RgpdService,
               ITransactionService: c.ITransactionService,
               IInstrumentation: c.IInstrumentation,

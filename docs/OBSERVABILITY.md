@@ -116,6 +116,12 @@ export class DrizzleFooRepository implements IFooRepository {
 
 Applied to: `DrizzleOutboxRepository`, `DrizzleEmailQueue`, `DrizzleRgpdRepository`, `DrizzleSweepRunStore`. Use-case / application services are not wrapped, they orchestrate repos that already are.
 
+## AI cost and failure signals
+
+- Every model call is one `ai_call` row (feature, model, prompt version, tokens, cost, outcome, no content) and one span `MeteredLanguageModel > parse|streamParse` carrying `llm.feature`, `llm.model`, `llm.cost_micro_usd`, `llm.outcome`.
+- The `ai-usage` job (clock tick, every 10 min in process mode) sets on its span `ai.family_cost.families`, `ai.family_cost.p50_micro_usd` and `ai.family_cost.p95_micro_usd` for the current month, the cost per family the dashboard charts against the 0.10 $ median and 0.25 $ cap targets.
+- The same job emails `AI_ALERT_EMAIL` (and always logs a warning) once per period: a family past 80 % of its monthly cap, a day spending over `AI_DAILY_SPEND_CAP_USD` or twice the 7 day average, more than 5 % `output_invalid` calls in the last hour (from 20 calls).
+
 ## Manual error reporting
 
 If you need to capture an error explicitly (e.g. background job, ignored promise):

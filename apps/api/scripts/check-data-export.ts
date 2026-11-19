@@ -3,7 +3,8 @@
  * the export reads only the requesting parent's rows (the owner filter lives in the host query),
  * keeps withdrawn, deleted and hand-added events, the child color and picture, the calendar feed
  * (never its secret), the Sunday digest choice and history, with the default choice for a
- * parent who never made one, and the school zone choice; each Classroom deadline carries its
+ * parent who never made one, the school zone choice, the language, region and AI opposition
+ * choices and the AI usage counters; each Classroom deadline carries its
  * course name read through the same port as the api, a hand-added one none; it never carries a
  * token or a push key, and the 24 h limit is held by the stored request date, so a second
  * request is refused and leaves one event.
@@ -26,6 +27,7 @@ import {
   alertDigestPreference,
   alertWeeklyDigest,
 } from "@modules/alerts/schemas/weekly-digest.schema";
+import { aiUsage, assistantPreference } from "@modules/assistant/schemas/assistant.schema";
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
@@ -180,6 +182,22 @@ async function family(name: string): Promise<{ userId: string; childId: string }
   });
   await db.insert(alertDigestPreference).values({ userId, enabled: false, updatedAt: NOW });
   await db.insert(schoolZonePreference).values({ userId, zone: "zone-b", updatedAt: NOW });
+  await db.insert(assistantPreference).values({
+    userId,
+    locale: "pt",
+    timeZone: "Europe/Lisbon",
+    country: "PT",
+    extractionEnabled: name !== "a",
+    updatedAt: NOW,
+  });
+  await db.insert(aiUsage).values({
+    userId,
+    month: "2030-03-01",
+    feature: "document_reading",
+    calls: name === "a" ? 4 : 9,
+    escalations: 1,
+    costMicroUsd: 7_000,
+  });
   await db.insert(pushLockScreen).values({ userId, details: true, updatedAt: NOW });
   await db
     .insert(alertQuietHours)
@@ -324,6 +342,16 @@ run(async () => {
     "the school zone choice comes along",
     document.schoolZone?.zone === "zone-b" && document.schoolZone.chosenAt === NOW.toISOString(),
     document.schoolZone,
+  );
+  await step(
+    "the language, region and AI opposition choices and the family's AI usage come along, its own only",
+    document.assistantPreferences?.locale === "pt" &&
+      document.assistantPreferences.timeZone === "Europe/Lisbon" &&
+      document.assistantPreferences.extractionEnabled === false &&
+      document.aiUsage.length === 1 &&
+      document.aiUsage[0]?.calls === 4 &&
+      document.aiUsage[0]?.month === "2030-03-01",
+    { preferences: document.assistantPreferences, usage: document.aiUsage },
   );
   await step(
     "the lock screen choice comes along",

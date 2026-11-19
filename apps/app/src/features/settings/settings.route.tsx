@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Screen } from "../../shared/layout/screen";
 import { ScreenTour } from "../../shared/tour/screen-tour";
 import { AccountCard } from "./components/account-card";
+import { AiReadingCard } from "./components/ai-reading-card";
 import { AppearanceCard } from "./components/appearance-card";
 import { DefaultRemindersCard } from "./components/default-reminders-card";
 import { DeleteAccountCard } from "./components/delete-account-card";
 import { DevicesCard } from "./components/devices-card";
 import { DigestCard } from "./components/digest-card";
+import { LanguageAndRegionCard } from "./components/language-and-region-card";
 import { PrivacyLinksCard } from "./components/privacy-links-card";
 import { PushCard } from "./components/push-card";
 import { QuietHoursCard } from "./components/quiet-hours-card";
@@ -34,6 +36,8 @@ function SettingsPage() {
           <QuietHoursCard userId={user.id} />
           <DigestCard userId={user.id} />
           <SchoolHolidaysCard userId={user.id} />
+          <LanguageAndRegionCard userId={user.id} />
+          <AiReadingCard userId={user.id} />
           <AppearanceCard />
           <TourCard userId={user.id} />
         </div>

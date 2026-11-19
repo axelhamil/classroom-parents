@@ -34,6 +34,8 @@ export default {
     SCHOOL_CALENDAR_RANGE_INVALID: "Choisissez une période de 400 jours au plus.",
     SCHOOL_CALENDAR_UNAVAILABLE:
       "Le calendrier officiel ne répond pas pour le moment. Les vacances s'afficheront dès son retour.",
+    ASSISTANT_PREFERENCE_INVALID:
+      "Cette langue, ce fuseau horaire ou ce pays n'est pas reconnu. Choisissez une valeur de la liste.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",
     ACCOUNT_REAUTH_REQUIRED:
       "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
@@ -163,6 +165,9 @@ export default {
     setDigest: "Échec de l'enregistrement du choix de résumé du dimanche",
     loadSchoolZone: "Échec du chargement de la zone scolaire",
     setSchoolZone: "Échec de l'enregistrement de la zone scolaire",
+    loadAssistantPreferences: "Échec du chargement de la langue et de la région",
+    setLanguageAndRegion: "Échec de l'enregistrement de la langue et de la région",
+    setExtraction: "Échec de l'enregistrement du choix de lecture par l'IA",
     loadSchoolCalendar: "Échec du chargement des vacances scolaires",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",

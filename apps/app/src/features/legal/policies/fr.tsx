@@ -70,6 +70,18 @@ export function PrivacyPolicyBody(): ReactElement {
             selon ses propres règles.
           </li>
           <li>
+            Vos préférences : langue, fuseau horaire, pays et choix de laisser l'IA lire les
+            annonces.
+          </li>
+          <li>
+            L'usage de l'IA par votre compte : pour chaque mois et chaque fonction, le nombre
+            d'appels, d'escalades vers un modèle plus puissant et leur coût. Aucun contenu.
+          </li>
+          <li>
+            Un journal technique de chaque appel au modèle : fonction, modèle, coût, issue et une
+            empreinte de ce qui a été envoyé, jamais le contenu lui-même.
+          </li>
+          <li>
             Les sessions de connexion (adresse IP, navigateur) et les e-mails que nous vous
             envoyons.
           </li>
@@ -83,7 +95,8 @@ export function PrivacyPolicyBody(): ReactElement {
           légal crée un compte et lie le compte de son enfant, depuis sa propre session ; l'enfant
           n'utilise pas l'application. Pour un enfant de moins de 15 ans, cette liaison relève du
           titulaire de l'autorité parentale. Nous ne faisons ni profilage, ni publicité, ni revente,
-          et nous ne collectons que ce qui sert à afficher les échéances.
+          et nous ne collectons que ce qui sert à afficher les échéances. L'IA ne tire aucune
+          conclusion sur votre enfant : ni note, ni difficulté, ni profil.
         </TypographyP>
       </section>
 
@@ -95,7 +108,16 @@ export function PrivacyPolicyBody(): ReactElement {
             demandez (article 6.1.b du RGPD).
           </li>
           <li>
-            Sécuriser le service et prévenir les abus : intérêt légitime (article 6.1.f du RGPD).
+            Lire les annonces avec l'IA pour en tirer les échéances : exécution du service (article
+            6.1.b du RGPD), avec un droit d'opposition que vous exercez dans Réglages.
+          </li>
+          <li>
+            Lire un document que vous partagez, comprendre une échéance que vous écrivez, traduire
+            ou simplifier une annonce : exécution du service, chaque fois à votre demande.
+          </li>
+          <li>
+            Sécuriser le service et prévenir les abus, dont les quotas d'usage de l'IA : intérêt
+            légitime (article 6.1.f du RGPD).
           </li>
         </TypographyList>
       </section>
@@ -128,14 +150,56 @@ export function PrivacyPolicyBody(): ReactElement {
       </section>
 
       <section className="flex flex-col gap-3">
-        <TypographyH2>Extraction par Anthropic</TypographyH2>
+        <TypographyH2>Intelligence artificielle (Anthropic)</TypographyH2>
         <TypographyP>
-          Pour trouver les dates dans une annonce, son texte et sa date de publication sont envoyés
-          à Anthropic, PBC (modèles Claude), qui agit comme sous-traitant. Anthropic n'utilise pas
-          les données reçues par son API pour entraîner ses modèles et ne les garde que le temps
-          prévu par ses conditions commerciales. Les devoirs Classroom sont lus sans intelligence
-          artificielle.
+          Certaines lectures passent par les modèles Claude d'Anthropic, PBC, qui agit comme
+          sous-traitant. Les devoirs Classroom, eux, sont lus sans intelligence artificielle.
         </TypographyP>
+        <TypographyList>
+          <li>
+            Annonces : leur texte et leur date de publication sont envoyés pour en tirer les
+            échéances, après minimisation. Les prénoms de vos enfants y sont remplacés par
+            [ENFANT_1], [ENFANT_2], et les adresses e-mail, numéros de téléphone et liens en sont
+            retirés.
+          </li>
+          <li>
+            Documents, échéances écrites en langage courant, traductions : envoyés seulement quand
+            vous le demandez, et l'écran vous le dit au moment de l'envoi. Une photo, un PDF ou un
+            texte que vous partagez n'est jamais stocké, ni chez nous ni chez Anthropic.
+          </li>
+          <li>
+            Chez Anthropic : rétention zéro demandée, donc rien n'est gardé après la réponse, et
+            aucun entraînement de ses modèles sur ces données.
+          </li>
+          <li>
+            Ce que nous gardons : la phrase de l'annonce d'où vient une date (jamais plus de 300
+            caractères), conservée avec l'échéance et effacée avec elle ; le journal technique et
+            les compteurs d'usage décrits plus haut, sans aucun contenu.
+          </li>
+          <li>
+            Résultats partagés : quand une annonce a déjà été lue, son résultat est réutilisé plutôt
+            que de la renvoyer au modèle. Ce résultat est rangé sous une empreinte (SHA-256) du
+            texte de l'annonce, sa date de publication, le fuseau horaire et la version de nos
+            instructions au modèle ; il ne contient aucune donnée de votre famille et n'est lié à
+            aucun compte. Il n'est donc pas effacé avec votre compte, mais 60 jours après sa
+            dernière lecture.
+          </li>
+          <li>
+            Opposition : dans Réglages, désactivez « Lecture des annonces par l'IA ». Plus aucune
+            annonce n'est alors envoyée au modèle et seuls les devoirs Classroom restent lus, sans
+            IA.
+          </li>
+          <li>
+            Tout ce que l'IA produit est marqué comme tel, à l'écran et dans les données (règlement
+            européen sur l'IA, article 50). Rien n'est ajouté à votre agenda depuis un document ou
+            une phrase sans votre validation.
+          </li>
+          <li>
+            Quotas : chaque fonction à la demande a un quota mensuel par famille, pour tenir les
+            coûts et prévenir les abus. Quand il est atteint, l'application vous dit à quelle date
+            il revient. Aucun quota ne coupe la lecture des annonces.
+          </li>
+        </TypographyList>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -169,6 +233,19 @@ export function PrivacyPolicyBody(): ReactElement {
             la classe, et seule une famille dont la synchronisation lit déjà ce texte peut l'obtenir
             ; effacée 60 jours après sa dernière lecture, elle ne contient rien qui vous concerne et
             reste donc après la suppression de votre compte.
+          </li>
+          <li>Photos, PDF et textes que vous partagez : jamais conservés.</li>
+          <li>
+            Journal technique des appels au modèle : 90 jours, effacé avec votre compte et compris
+            dans la copie de vos données que vous pouvez obtenir.
+          </li>
+          <li>
+            Compteurs d'usage de l'IA : 13 mois, effacés avec votre compte et compris dans cette
+            même copie.
+          </li>
+          <li>
+            Préférences : tant que votre compte existe, effacées avec lui et comprises dans cette
+            même copie.
           </li>
           <li>Compte et enfants liés : tant que votre compte existe.</li>
           <li>Échéances : 12 mois après leur date, puis effacées avec leurs rappels et alertes.</li>
@@ -215,9 +292,9 @@ export function PrivacyPolicyBody(): ReactElement {
         <TypographyH2>Vos droits</TypographyH2>
         <TypographyP>
           Vous disposez des droits d'accès, de rectification, d'effacement, de limitation,
-          d'opposition et de portabilité. La suppression du compte se fait dans Réglages ; pour les
-          autres droits, écrivez à <ContactLink />. Vous pouvez aussi saisir la CNIL (cnil.fr). Le
-          détail est sur la page{" "}
+          d'opposition et de portabilité. La suppression du compte et l'opposition à la lecture des
+          annonces par l'IA se font dans Réglages ; pour les autres droits, écrivez à{" "}
+          <ContactLink />. Vous pouvez aussi saisir la CNIL (cnil.fr). Le détail est sur la page{" "}
           <TextLink asChild>
             <Link to="/legal/data-rights">vos droits sur vos données</Link>
           </TextLink>

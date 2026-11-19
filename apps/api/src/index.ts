@@ -4,7 +4,7 @@ import { EventCollector } from "@packages/ddd-kit";
 import { closeDb, closeRateLimitDb } from "@packages/drizzle";
 import { type Server, serve } from "bun";
 import { app } from "./app";
-import { di } from "./container";
+import { assistant, di } from "./container";
 import { buildServerOptions } from "./server-options";
 import { env } from "./shared/env";
 import { logger } from "./shared/logger";
@@ -18,6 +18,7 @@ import {
   TELEMETRY_FLUSH_MARGIN_MS,
   TELEMETRY_FLUSH_TIMEOUT_MS,
 } from "./shared/shutdown";
+import { startAiUsageWorker } from "./workers/ai-usage-worker";
 import { startAlertWorkers } from "./workers/alert-worker";
 import { startRgpdWorkers } from "./workers/rgpd-worker";
 import { startSyncWorkers } from "./workers/sync-worker";
@@ -43,6 +44,11 @@ globalThis.apiPeriodicWorkers = periodicWorkers;
 const periodicLoops = Promise.all([
   startSyncWorkers(di, periodicWorkers.signal, logger),
   startAlertWorkers(di, periodicWorkers.signal, logger),
+  startAiUsageWorker(
+    { AiUsageWatchService: assistant.AiUsageWatchService, IInstrumentation: di.IInstrumentation },
+    periodicWorkers.signal,
+    logger,
+  ),
   startRgpdWorkers(
     di,
     {
