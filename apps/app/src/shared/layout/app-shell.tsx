@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { DeletionPendingBanner } from "../components/deletion-pending-banner";
 import { OfflineBanner } from "../offline/offline-banner";
+import { InstallInvite } from "../pwa/install-invite";
 import { useAppBadge } from "../pwa/use-app-badge";
 import { useNotificationNavigation } from "../pwa/use-notification-navigation";
 import { usePushEndpointSync } from "../pwa/use-push-endpoint-sync";
@@ -60,6 +61,7 @@ export function AppShell({ user, sessionId, children }: AppShellProps) {
       </AppBar>
       <OfflineBanner />
       <DeletionPendingBanner />
+      <InstallInvite />
       {children}
     </div>
   );

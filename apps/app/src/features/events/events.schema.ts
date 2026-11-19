@@ -29,6 +29,16 @@ export const homeSearchSchema = eventFiltersSearchSchema.extend({
 
 export type HomeSearch = z.infer<typeof homeSearchSchema>;
 
+const sharedField = z.string().optional().catch(undefined);
+
+export const newEventSearchSchema = z.object({
+  title: sharedField,
+  text: sharedField,
+  url: sharedField,
+});
+
+export type NewEventSearch = z.infer<typeof newEventSearchSchema>;
+
 export const printWeekSearchSchema = z.object({
   week: z.enum(PRINT_WEEKS).optional().catch(undefined),
 });

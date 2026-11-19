@@ -1,4 +1,5 @@
 import { createSessionQueryOptions } from "@packages/web-kit/api/session-query";
+import { queryOptions } from "@tanstack/react-query";
 import { authClient } from "../../auth/auth-client";
 import { AUTH_QUERY_STALE_TIME_MS } from "../../auth/auth-stale-time";
 import { sessionOrOffline } from "../../offline/offline-session";
@@ -14,9 +15,12 @@ function recheckWhenOnline(): void {
   );
 }
 
-export const sessionQueryOptions = createSessionQueryOptions<SessionData>({
-  getSession: () => sessionOrOffline(() => authClient.getSession(), recheckWhenOnline),
-  staleTime: AUTH_QUERY_STALE_TIME_MS,
+export const sessionQueryOptions = queryOptions({
+  ...createSessionQueryOptions<SessionData>({
+    getSession: () => sessionOrOffline(() => authClient.getSession(), recheckWhenOnline),
+    staleTime: AUTH_QUERY_STALE_TIME_MS,
+  }),
+  networkMode: "always",
 });
 
 export const freshSessionQueryOptions = createSessionQueryOptions<SessionData>({

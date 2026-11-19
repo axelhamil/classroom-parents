@@ -1,8 +1,11 @@
+import { Alert, AlertTitle } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
 import type { UseQueryResult } from "@tanstack/react-query";
+import { WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { isConnectionFailure } from "../offline/connection";
 
 export interface QueryStateProps<T> {
   query: UseQueryResult<T>;
@@ -11,6 +14,17 @@ export interface QueryStateProps<T> {
   isEmpty?: (data: T) => boolean;
   staleMessage?: string;
   children: (data: T) => ReactNode;
+}
+
+function NotYetOffline() {
+  const { t } = useTranslation("common");
+
+  return (
+    <Alert variant="info" role="status">
+      <WifiOffIcon aria-hidden />
+      <AlertTitle>{t("queryState.notYetOffline")}</AlertTitle>
+    </Alert>
+  );
 }
 
 export function QueryState<T>({
@@ -22,7 +36,8 @@ export function QueryState<T>({
   children,
 }: QueryStateProps<T>) {
   const { t } = useTranslation("common");
-  const failure = query.isError && (
+  const shownAnyway = query.data !== undefined && isConnectionFailure(query.error);
+  const failure = query.isError && !shownAnyway && (
     <LoadErrorAlert
       message={
         query.data === undefined
@@ -37,6 +52,7 @@ export function QueryState<T>({
     />
   );
 
+  if (query.data === undefined && query.isPaused) return <NotYetOffline />;
   if (query.data === undefined) return failure || skeleton;
 
   const content = empty !== undefined && isEmpty?.(query.data) ? empty : children(query.data);

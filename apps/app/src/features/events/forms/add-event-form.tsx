@@ -47,14 +47,28 @@ function onlyChildOf(family: readonly ChildDto[]): string {
   return family.length === 1 && only ? only.id : "";
 }
 
+export interface EventDraft {
+  title: string;
+  description: string;
+}
+
+const EMPTY_DRAFT: EventDraft = { title: "", description: "" };
+
 export interface AddEventFormProps {
   family: readonly ChildDto[];
   childId: string | null;
   date: string;
+  draft?: EventDraft;
   onAdded: () => void;
 }
 
-export function AddEventForm({ family, childId, date, onAdded }: AddEventFormProps) {
+export function AddEventForm({
+  family,
+  childId,
+  date,
+  draft = EMPTY_DRAFT,
+  onAdded,
+}: AddEventFormProps) {
   const { t } = useTranslation("events");
   const { t: tErrors } = useTranslation("errors");
   const queryClient = useQueryClient();
@@ -62,8 +76,8 @@ export function AddEventForm({ family, childId, date, onAdded }: AddEventFormPro
     resolver: zodResolver(eventEditSchema),
     defaultValues: {
       childId: childId ?? onlyChildOf(family),
-      title: "",
-      description: "",
+      title: draft.title,
+      description: draft.description,
       deadlineDate: date,
       deadlineTime: "",
     },

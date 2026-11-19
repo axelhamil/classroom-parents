@@ -8,7 +8,9 @@ export interface FamilyGuardArgs {
 }
 
 export async function redirectToOnboardingWithoutChild({ context }: FamilyGuardArgs) {
-  const family = await context.queryClient.ensureQueryData(childrenQueryOptions).catch(() => null);
+  const family = await context.queryClient
+    .ensureQueryData({ ...childrenQueryOptions, networkMode: "offlineFirst", retry: false })
+    .catch(() => null);
   if (family?.length !== 0) return;
 
   const pending = await context.queryClient

@@ -81,8 +81,12 @@ function detectPlatform(userAgent: string, touchPoints: number): InstallPlatform
 }
 
 export function useInstallState(): InstallState {
-  const standalone = useSyncExternalStore(subscribeStandalone, isStandalone);
-  const canPromptInstall = useSyncExternalStore(subscribePrompt, () => installPrompt !== undefined);
+  const standalone = useSyncExternalStore(subscribeStandalone, isStandalone, () => false);
+  const canPromptInstall = useSyncExternalStore(
+    subscribePrompt,
+    () => installPrompt !== undefined,
+    () => false,
+  );
 
   return {
     platform: detectPlatform(navigator.userAgent, navigator.maxTouchPoints),

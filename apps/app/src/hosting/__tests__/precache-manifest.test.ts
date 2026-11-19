@@ -8,12 +8,13 @@ const BUILD = [
   built("assets/index-abc.js"),
   built("assets/index-abc.js.map"),
   built("icons/icon-192.png"),
+  built("screenshots/week-wide.png"),
   built("sw.js"),
   built("sw-precache.js"),
 ];
 
 describe("precache manifest", () => {
-  it("given a build, then it lists every served file but the source maps and the worker itself", () => {
+  it("given a build, then it lists every served file but the source maps, the install screenshots and the worker itself", () => {
     expect(precacheManifestOf(BUILD).urls).toEqual([
       "/assets/index-abc.js",
       "/icons/icon-192.png",

@@ -16,6 +16,8 @@ interface Manifest {
 
 interface WorkerEvent {
   request?: Request;
+  data?: unknown;
+  preloadResponse?: Promise<Response | undefined>;
   waitUntil: (work: Promise<unknown>) => void;
   respondWith: (response: Promise<Response>) => void;
 }
@@ -36,15 +38,23 @@ class FakeCaches {
     return {
       addAll: async (requests: Request[]) => {
         for (const request of requests)
-          store.set(new URL(request.url, ORIGIN).pathname, new Response(`body of ${request.url}`));
+          store.set(
+            new URL(request.url, ORIGIN).pathname,
+            new Response(`body of ${request.url}`, { headers: { Vary: "Origin" } }),
+          );
       },
     };
   }
 
-  async match(request: Request | string, { cacheName }: { cacheName: string }) {
+  async match(
+    request: Request | string,
+    { cacheName, ignoreVary = false }: { cacheName: string; ignoreVary?: boolean },
+  ) {
     const path = new URL(typeof request === "string" ? request : request.url, ORIGIN).pathname;
+    const cached = this.stores.get(cacheName)?.get(path);
+    const variesWithTheRequest = cached?.headers.has("Vary") && !ignoreVary;
 
-    return this.stores.get(cacheName)?.get(path)?.clone();
+    return variesWithTheRequest ? undefined : cached?.clone();
   }
 
   async keys() {
@@ -65,7 +75,13 @@ function startWorker(manifest: Manifest | null, network: (request: Request) => P
     caches,
     fetch,
     clients: { claim: async () => undefined },
-    skipWaiting: async () => undefined,
+    skipWaiting: vi.fn(async () => undefined),
+    registration: {
+      navigationPreload: {
+        enable: vi.fn(async () => undefined),
+        disable: vi.fn(async () => undefined),
+      },
+    },
     importScripts: () => {
       if (!manifest) throw new Error("no precache in dev");
       Object.assign(scope, { PRECACHE: manifest });
@@ -81,12 +97,20 @@ function startWorker(manifest: Manifest | null, network: (request: Request) => P
     await Promise.all(work);
   };
 
-  const request = (path: string, mode: RequestMode = "cors") => {
+  const message = (data: unknown) =>
+    handlers.get("message")?.({ data, waitUntil: () => undefined, respondWith: () => undefined });
+
+  const request = (
+    path: string,
+    mode: RequestMode = "cors",
+    preloadResponse: Promise<Response | undefined> = Promise.resolve(undefined),
+  ) => {
     let answer: Promise<Response> | undefined;
     const target = new Request(new URL(path, ORIGIN));
     Object.defineProperty(target, "mode", { value: mode });
     handlers.get("fetch")?.({
       request: target,
+      preloadResponse,
       waitUntil: () => undefined,
       respondWith: (response) => {
         answer = response;
@@ -96,7 +120,7 @@ function startWorker(manifest: Manifest | null, network: (request: Request) => P
     return answer;
   };
 
-  return { caches, fetch, lifecycle, request };
+  return { caches, fetch, lifecycle, message, request, scope };
 }
 
 const MANIFEST: Manifest = { version: "v2", urls: ["/index.html", "/assets/index-abc.js"] };
@@ -132,7 +156,7 @@ describe("service worker, offline shell", () => {
     expect(await page?.text()).toBe(SHELL_HTML);
   });
 
-  it("given a built asset, when the page asks for it offline, then it comes from the cache", async () => {
+  it("given a built asset served with a Vary header, when the page asks for it offline, then it still comes from the cache", async () => {
     const worker = startWorker(MANIFEST, offline);
     await worker.lifecycle("install");
 
@@ -165,5 +189,39 @@ describe("service worker, offline shell", () => {
     await worker.lifecycle("install");
 
     expect(worker.request("https://api.example.test/events")).toBeUndefined();
+  });
+
+  it("given an open app on the previous version, when the new one installs, then it waits for the parent to accept the reload", async () => {
+    const worker = startWorker(MANIFEST, offline);
+
+    await worker.lifecycle("install");
+
+    expect(worker.scope.skipWaiting).not.toHaveBeenCalled();
+
+    worker.message({ type: "keepupkids:skip-waiting" });
+
+    expect(worker.scope.skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it("given the worker answers navigations, when it activates, then the html request starts while it boots", async () => {
+    const worker = startWorker(MANIFEST, offline);
+
+    await worker.lifecycle("activate");
+
+    expect(worker.scope.registration.navigationPreload.enable).toHaveBeenCalledOnce();
+  });
+
+  it("given a preloaded page, when the app is opened, then it is served without a second request", async () => {
+    const worker = startWorker(MANIFEST, offline);
+    await worker.lifecycle("install");
+
+    const page = await worker.request(
+      "/",
+      "navigate",
+      Promise.resolve(new Response("preloaded html")),
+    );
+
+    expect(await page?.text()).toBe("preloaded html");
+    expect(worker.fetch).not.toHaveBeenCalled();
   });
 });

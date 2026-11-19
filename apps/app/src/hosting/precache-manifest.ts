@@ -7,6 +7,8 @@ const PRECACHE_FILE = "sw-precache.js";
 
 const WORKER_FILES = new Set(["sw.js", PRECACHE_FILE]);
 
+const INSTALL_ONLY_DIR = "screenshots/";
+
 interface PrecacheManifest {
   version: string;
   urls: string[];
@@ -24,7 +26,7 @@ function listFiles(dir: string): string[] {
 }
 
 function isPrecached(path: string): boolean {
-  return !path.endsWith(".map") && !WORKER_FILES.has(path);
+  return !path.endsWith(".map") && !WORKER_FILES.has(path) && !path.startsWith(INSTALL_ONLY_DIR);
 }
 
 export function precacheManifestOf(files: readonly BuiltFile[]): PrecacheManifest {

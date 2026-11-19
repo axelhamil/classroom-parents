@@ -35,12 +35,32 @@ export default {
   deletionBanner: {
     title: "Votre compte va être supprimé",
   },
-  offline: {
-    withData: "Hors ligne, données du {{day}} à {{time}}",
-    withoutData: "Hors ligne",
+  connection: {
+    offline: {
+      withData: "Hors ligne, données du {{day}} à {{time}}",
+      withoutData: "Hors ligne",
+    },
+    unstable: {
+      withData: "Connexion instable, données du {{day}} à {{time}}",
+      withoutData: "Connexion instable",
+    },
+  },
+  installInvite: {
+    title: "Gardez KeepUpKids sur l'écran d'accueil",
+    description:
+      "Elle s'ouvre d'un geste, reste lisible sans réseau et reçoit les alertes plus fiablement.",
+    install: "Installer",
+    howTo: "Voir comment",
+    later: "Plus tard",
+  },
+  newVersion: {
+    ready: "Nouvelle version prête",
+    reload: "Recharger",
   },
   queryState: {
     loadError: "Le chargement n'a pas abouti. Vérifiez la connexion, puis réessayez.",
+    notYetOffline:
+      "Cette page n'a pas encore été ouverte avec du réseau. Elle s'affichera dès son retour.",
   },
   actions: {
     save: "Enregistrer",

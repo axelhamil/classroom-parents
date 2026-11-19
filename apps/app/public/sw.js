@@ -39,6 +39,9 @@ function readNotification(data) {
 const SHELL_CACHE_PREFIX = "keepupkids-shell-";
 const SHELL = "/index.html";
 const NAVIGATION_TIMEOUT_MS = 4000;
+// Built files are named by their hash, so a header such as `Vary: Origin` (a module script
+// carries Origin, the precache request does not) must not stop the cached copy matching.
+const CACHED = { ignoreVary: true };
 
 function loadPrecache() {
   try {
@@ -77,25 +80,48 @@ async function dropOtherVersions() {
   await Promise.all(stale.map((name) => self.caches.delete(name)));
 }
 
+// A new version waits until the parent accepts the reload the app offers, so an open page
+// never runs half on the old build and half on the new one. The very first worker has
+// nothing to replace and activates at once.
+const SKIP_WAITING_MESSAGE = "keepupkids:skip-waiting";
+
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
   if (precache) event.waitUntil(fillPrecache());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(Promise.all([dropOtherVersions(), self.clients.claim()]));
+self.addEventListener("message", (event) => {
+  if (event.data?.type === SKIP_WAITING_MESSAGE) self.skipWaiting();
 });
+
+// Navigation preload starts the HTML request while the worker boots, so network first
+// costs no extra latency. Only useful when the worker answers navigations.
+async function setNavigationPreload() {
+  const preload = self.registration?.navigationPreload;
+  if (!preload) return;
+
+  await (precache ? preload.enable() : preload.disable());
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(Promise.all([dropOtherVersions(), setNavigationPreload(), self.clients.claim()]));
+});
+
+async function freshPage(event) {
+  const preloaded = await event.preloadResponse;
+
+  return preloaded ?? self.fetch(event.request);
+}
 
 // A navigation request cannot be rebuilt with a signal, so the timeout races the fetch
 // instead of aborting it.
-async function fetchWithin(request, timeoutMs) {
+async function within(work, timeoutMs) {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error("navigation timed out")), timeoutMs);
   });
 
   try {
-    return await Promise.race([self.fetch(request), timeout]);
+    return await Promise.race([work, timeout]);
   } finally {
     clearTimeout(timer);
   }
@@ -103,11 +129,11 @@ async function fetchWithin(request, timeoutMs) {
 
 // HTML is never served from the cache while the network answers: a deploy is picked up
 // on the next open, and the cached shell only stands in when the network fails or hangs.
-async function networkFirstShell(request) {
+async function networkFirstShell(event) {
   try {
-    return await fetchWithin(request, NAVIGATION_TIMEOUT_MS);
+    return await within(freshPage(event), NAVIGATION_TIMEOUT_MS);
   } catch (error) {
-    const shell = await self.caches.match(SHELL, { cacheName: precache.cacheName });
+    const shell = await self.caches.match(SHELL, { ...CACHED, cacheName: precache.cacheName });
     if (shell) return shell;
 
     throw error;
@@ -115,7 +141,7 @@ async function networkFirstShell(request) {
 }
 
 async function cacheFirst(request) {
-  const cached = await self.caches.match(request, { cacheName: precache.cacheName });
+  const cached = await self.caches.match(request, { ...CACHED, cacheName: precache.cacheName });
 
   return cached ?? self.fetch(request);
 }
@@ -126,7 +152,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (request.mode === "navigate") return event.respondWith(networkFirstShell(request));
+  if (request.mode === "navigate") return event.respondWith(networkFirstShell(event));
   if (precache.urls.includes(url.pathname)) event.respondWith(cacheFirst(request));
 });
 

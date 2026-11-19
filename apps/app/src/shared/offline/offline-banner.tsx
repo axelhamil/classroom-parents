@@ -2,25 +2,14 @@ import { wallTimeLabel } from "@packages/i18n";
 import { Alert, AlertTitle } from "@packages/ui/components/ui/alert";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { cn } from "@packages/ui/libs/utils.js";
-import { onlineManager, type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { WifiOffIcon } from "lucide-react";
-import { useMemo, useSyncExternalStore } from "react";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
+import { WifiLowIcon, WifiOffIcon } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { EVENTS_KEY } from "../api/queries/events";
+import { useConnection } from "./connection";
 
 const LOCALE = "fr-FR";
-
-function subscribeOnline(onChange: () => void): () => void {
-  return onlineManager.subscribe(() => onChange());
-}
-
-function useOnline(): boolean {
-  return useSyncExternalStore(
-    subscribeOnline,
-    () => onlineManager.isOnline(),
-    () => true,
-  );
-}
 
 function agendaFetchedAt(queryClient: QueryClient): number | undefined {
   const times = queryClient
@@ -50,22 +39,24 @@ export function snapshotLabel(at: Date): SnapshotLabel {
 export function OfflineBanner() {
   const { t } = useTranslation("common");
   const queryClient = useQueryClient();
-  const online = useOnline();
+  const connection = useConnection();
   const fetchedAt = useMemo(
-    () => (online ? undefined : agendaFetchedAt(queryClient)),
-    [online, queryClient],
+    () => (connection === "online" ? undefined : agendaFetchedAt(queryClient)),
+    [connection, queryClient],
   );
 
-  if (online) return null;
+  if (connection === "online") return null;
+
+  const Icon = connection === "offline" ? WifiOffIcon : WifiLowIcon;
 
   return (
     <div className={cn(pageContainerVariants(), "pt-4 print:hidden")}>
       <Alert variant="info" role="status">
-        <WifiOffIcon aria-hidden />
+        <Icon aria-hidden />
         <AlertTitle>
           {fetchedAt === undefined
-            ? t("offline.withoutData")
-            : t("offline.withData", { ...snapshotLabel(new Date(fetchedAt)) })}
+            ? t(`connection.${connection}.withoutData`)
+            : t(`connection.${connection}.withData`, { ...snapshotLabel(new Date(fetchedAt)) })}
         </AlertTitle>
       </Alert>
     </div>

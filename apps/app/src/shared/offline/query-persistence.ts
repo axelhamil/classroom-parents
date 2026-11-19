@@ -3,6 +3,7 @@ import {
   type AsyncStorage,
   type PersistQueryClientOptions,
   persistQueryClientRestore,
+  persistQueryClientSave,
   persistQueryClientSubscribe,
   removeOldestQuery,
 } from "@tanstack/query-persist-client-core";
@@ -51,7 +52,13 @@ function storageOf(persistence: Persistence): AsyncStorage<string> {
   };
 }
 
-function optionsFor(queryClient: QueryClient, persistence: Persistence): PersistQueryClientOptions {
+const WRITE_EVERY_MS = 1000;
+
+function optionsFor(
+  queryClient: QueryClient,
+  persistence: Persistence,
+  throttleTime = WRITE_EVERY_MS,
+): PersistQueryClientOptions {
   return {
     queryClient,
     maxAge: MAX_AGE_MS,
@@ -60,10 +67,11 @@ function optionsFor(queryClient: QueryClient, persistence: Persistence): Persist
       storage: storageOf(persistence),
       key: CACHE_KEY_PREFIX + persistence.userId,
       retry: removeOldestQuery,
+      throttleTime,
     }),
     dehydrateOptions: {
       shouldDehydrateQuery: (query) =>
-        query.state.status === "success" && PERSISTED.some((filters) => matchQuery(filters, query)),
+        query.state.data !== undefined && PERSISTED.some((filters) => matchQuery(filters, query)),
       shouldDehydrateMutation: (mutation) =>
         mutation.state.isPaused && matchMutation({ mutationKey: DONE_KEY }, mutation),
     },
@@ -131,6 +139,17 @@ export function keepQueriesOffline(queryClient: QueryClient, userId: string): Pr
   current = persistence;
 
   return persistence.ready;
+}
+
+/**
+ * Writes the followed parent's agenda now instead of at the next throttled write, for a
+ * reload the app triggers itself (a new version): the reloaded page restores exactly what
+ * was on screen, pending ticks included.
+ */
+export async function saveOfflineNow(queryClient: QueryClient): Promise<void> {
+  if (!current?.active) return;
+
+  await persistQueryClientSave(optionsFor(queryClient, current, 0));
 }
 
 /** Stops persisting and wipes every stored agenda and session of this device, and the app badge. */

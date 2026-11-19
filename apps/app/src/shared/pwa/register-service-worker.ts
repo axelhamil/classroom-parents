@@ -1,4 +1,5 @@
 import { captureError } from "../observability/sentry";
+import { watchForNewVersion } from "./new-version";
 
 const UPDATE_CHECK_EVERY_MS = 60 * 60_000;
 
@@ -19,6 +20,9 @@ export function registerServiceWorker(): void {
 
   navigator.serviceWorker
     .register("/sw.js", { scope: "/", updateViaCache: "none" })
-    .then(checkForUpdatesWhenShown)
+    .then((registration) => {
+      watchForNewVersion(registration);
+      checkForUpdatesWhenShown(registration);
+    })
     .catch((error: unknown) => captureError(error, { area: "service-worker" }));
 }
