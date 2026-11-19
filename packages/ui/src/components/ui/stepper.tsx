@@ -15,7 +15,7 @@ function Stepper({ className, asChild = false, ...props }: StepperProps) {
     <Comp
       data-slot="stepper"
       className={cn(
-        "mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 overflow-x-clip px-4 pt-3 pb-[max(--spacing(6),env(safe-area-inset-bottom))] sm:px-6 md:pt-8",
+        "flex flex-1 flex-col gap-6 overflow-x-clip pt-3 pb-[max(--spacing(6),env(safe-area-inset-bottom))] md:pt-8",
         className,
       )}
       {...props}

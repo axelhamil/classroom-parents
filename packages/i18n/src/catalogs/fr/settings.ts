@@ -3,6 +3,14 @@ export default {
     title: "Réglages",
     description: "Vos alertes, vos appareils et les données de votre famille.",
   },
+  sections: {
+    label: "Sections des réglages",
+    notifications: "Rappels et notifications",
+    region: "Langue, région et IA",
+    appearance: "Apparence",
+    account: "Compte et appareils",
+    privacy: "Données et confidentialité",
+  },
   appearance: {
     title: "Apparence",
     description:

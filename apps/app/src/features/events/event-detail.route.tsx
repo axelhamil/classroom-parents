@@ -28,6 +28,7 @@ function EventDetailPage() {
       eyebrow={query.data && <EventEyebrow event={query.data} />}
       title={query.data?.title ?? t("detail.title")}
       description={query.data && <EventOrigin event={query.data} />}
+      width="reading"
     >
       <QueryState query={query} skeleton={<EventDetailSkeleton />}>
         {(event) => <EventDetailBody event={event} onDeleted={() => void navigate({ to: "/" })} />}

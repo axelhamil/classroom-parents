@@ -90,7 +90,7 @@ function PrintWeekPage() {
   return (
     <main
       className={cn(
-        pageContainerVariants({ width: "app" }),
+        pageContainerVariants({ width: "sheet" }),
         "flex flex-1 flex-col gap-6 pt-2 pb-10 md:pt-4 md:pb-12 print:max-w-none print:p-0",
       )}
     >
