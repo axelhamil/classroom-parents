@@ -1,17 +1,15 @@
 import { daysFrom, shiftDate } from "@packages/ddd-kit/days";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
-import { schoolCalendarQueryOptions } from "../api/queries/school-calendar";
+import {
+  type SchoolCalendarDays,
+  schoolCalendarQueryOptions,
+} from "../api/queries/school-calendar";
 import { daysBetween } from "../format/deadline-label";
 import { DEFAULT_CLOCK_SETTINGS, type SchoolClock, schoolClock } from "./school-clock";
 import { useNow } from "./use-now";
 
 const CLOSED_DAYS_AHEAD = 120;
-
-interface SchoolCalendarDays {
-  holidays: readonly { startsOn: string; endsOn: string }[];
-  bankHolidays: readonly { date: string }[];
-}
 
 export function closedDaysOf(calendar: SchoolCalendarDays): ReadonlySet<string> {
   const holidays = calendar.holidays.flatMap(({ startsOn, endsOn }) =>
@@ -23,7 +21,8 @@ export function closedDaysOf(calendar: SchoolCalendarDays): ReadonlySet<string> 
 
 /**
  * The school clock of this minute for the signed-in parent: their zone's holidays and bank holidays
- * are days off. Until the calendar answers (or offline), weekends are the only days off.
+ * are days off. Until the calendar answers (offline, or in a shape it does not know), weekends are the
+ * only days off.
  */
 export function useLiveSchoolClock(userId: string): SchoolClock {
   const now = useNow();
