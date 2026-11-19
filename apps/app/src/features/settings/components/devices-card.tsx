@@ -11,16 +11,14 @@ import {
   ItemTitle,
 } from "@packages/ui/components/ui/item";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
-import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { Globe, Laptop, LogOut, type LucideIcon, Smartphone } from "lucide-react";
-import { type ComponentProps, useId, useState } from "react";
+import { type ComponentProps, useId } from "react";
 import { useTranslation } from "react-i18next";
 import {
   revokeOtherSessionsMutationOptions,
@@ -33,11 +31,6 @@ import {
   type DeviceKind,
   summarizeUserAgent,
 } from "../device-labels";
-
-const VIRTUALIZE_ABOVE = 20;
-const ESTIMATED_ROW_HEIGHT = 72;
-const ROW_GAP = 8;
-const OVERSCAN_ROWS = 4;
 
 const DEVICE_ICONS: Record<DeviceKind, LucideIcon> = {
   ios: Smartphone,
@@ -151,67 +144,20 @@ interface OtherDevicesProps {
   onRevoked: () => Promise<void>;
 }
 
-function OtherDevices(props: OtherDevicesProps) {
+function OtherDevices({ sessions, locked, onRevoked }: OtherDevicesProps) {
   const { t } = useTranslation("settings");
-  const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
 
   return (
-    <ScrollRegion ref={setScrollElement} label={t("devices.others")} className="@container">
-      {props.sessions.length > VIRTUALIZE_ABOVE ? (
-        scrollElement ? (
-          <VirtualDeviceRows {...props} scrollElement={scrollElement} />
-        ) : null
-      ) : (
-        <ItemGroup className="gap-2">
-          {props.sessions.map((session) => (
-            <DeviceRow
-              key={session.id}
-              session={session}
-              isCurrent={false}
-              locked={props.locked}
-              onRevoked={props.onRevoked}
-            />
-          ))}
-        </ItemGroup>
-      )}
-    </ScrollRegion>
-  );
-}
-
-interface VirtualDeviceRowsProps extends OtherDevicesProps {
-  scrollElement: HTMLElement;
-}
-
-function VirtualDeviceRows({ sessions, locked, onRevoked, scrollElement }: VirtualDeviceRowsProps) {
-  const virtualizer = useVirtualizer({
-    count: sessions.length,
-    getScrollElement: () => scrollElement,
-    estimateSize: () => ESTIMATED_ROW_HEIGHT,
-    gap: ROW_GAP,
-    overscan: OVERSCAN_ROWS,
-    getItemKey: (index) => sessions[index]?.id ?? index,
-  });
-
-  return (
-    <ItemGroup className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-      {virtualizer.getVirtualItems().map((row) => {
-        const session = sessions[row.index];
-        if (!session) return null;
-
-        return (
-          <DeviceRow
-            key={row.key}
-            ref={virtualizer.measureElement}
-            data-index={row.index}
-            className="absolute inset-x-0 top-0"
-            style={{ transform: `translateY(${row.start}px)` }}
-            session={session}
-            isCurrent={false}
-            locked={locked}
-            onRevoked={onRevoked}
-          />
-        );
-      })}
+    <ItemGroup aria-label={t("devices.others")} className="@container gap-2">
+      {sessions.map((session) => (
+        <DeviceRow
+          key={session.id}
+          session={session}
+          isCurrent={false}
+          locked={locked}
+          onRevoked={onRevoked}
+        />
+      ))}
     </ItemGroup>
   );
 }
