@@ -13,6 +13,7 @@ import { CategoryFilter } from "../../shared/events/category-filter";
 import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
+import { ScreenTour } from "../../shared/tour/screen-tour";
 import { calendarEventsQueryOptions } from "./api/events.queries";
 import { placePeriod } from "./calendar";
 import { BlockedChildrenNotice } from "./components/blocked-children-notice";
@@ -73,7 +74,13 @@ function EditHomeButton({ editing, onToggle }: EditHomeButtonProps) {
   const { t } = useTranslation("home");
 
   return (
-    <Button type="button" size="sm" variant={editing ? "default" : "outline"} onClick={onToggle}>
+    <Button
+      type="button"
+      size="sm"
+      variant={editing ? "default" : "outline"}
+      data-tour="home-edit"
+      onClick={onToggle}
+    >
       {editing ? <CheckIcon aria-hidden /> : <LayoutGridIcon aria-hidden />}
       {editing ? t("edit.done") : t("edit.start")}
     </Button>
@@ -134,7 +141,8 @@ function FamilyHome({ family, now, editing }: FamilyHomeProps) {
   const loaded = useQuery(calendarEventsQueryOptions(period)).data ?? [];
   const registry = useHomeRegistry(family);
   const home = useHomeLayout(registry.blocks, registry.defaults);
-  const briefingShown = home.layout.some(({ id, hidden }) => id === "today" && !hidden);
+  const shown = (blockId: string) =>
+    home.layout.some(({ id, hidden }) => id === blockId && !hidden);
   useCelebrateProgress(now);
 
   const setSearch = (next: Partial<HomeSearch>) =>
@@ -176,7 +184,13 @@ function FamilyHome({ family, now, editing }: FamilyHomeProps) {
       <DashboardGrid
         layout={home.layout}
         blocks={registry.blocks}
-        context={{ family, childId, now, briefingShown }}
+        context={{
+          family,
+          childId,
+          now,
+          briefingShown: shown("today"),
+          overdueShown: shown("overdue"),
+        }}
         editing={editing}
         onChange={home.change}
         onReset={home.reset}
@@ -186,6 +200,7 @@ function FamilyHome({ family, now, editing }: FamilyHomeProps) {
           )
         }
       />
+      {!editing && !search.event && <ScreenTour screen="home" userId={user.id} />}
     </div>
   );
 }

@@ -33,12 +33,17 @@ const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
   remindersBlock,
 ];
 
-/** Phone first, for a parent of two: what is due, what to pack tonight, what to check, the week. */
+/**
+ * Phone first, for a parent of two: what is due, what to pack tonight, what to
+ * check, the week. On a wide screen the day takes two thirds and two steps, so
+ * tonight and the dates to check stack beside it, and the week gets the whole
+ * width under them: rows sized by their content then meet without holes.
+ */
 const DEFAULT_LAYOUT: readonly HomeBlock[] = [
-  { id: "today", w: 4, h: 2, hidden: false },
+  { id: "today", w: 8, h: 2, hidden: false },
   { id: "tonight", w: 4, h: 1, hidden: false },
   { id: "review", w: 4, h: 1, hidden: false },
-  { id: "calendar", w: 8, h: 3, hidden: false },
+  { id: "calendar", w: 12, h: 3, hidden: false },
   { id: "overdue", w: 4, h: 1, hidden: false },
   { id: "assessments", w: 4, h: 1, hidden: false },
   { id: "documents", w: 4, h: 1, hidden: false },

@@ -20,7 +20,7 @@ function toPrepare(event: EventItem, day: string): boolean {
   return TO_PACK.includes(event.category) || event.checklist.extra.length > 0;
 }
 
-function TonightBlock({ family, childId, now, title }: HomeBlockProps) {
+function TonightBlock({ family, childId, now, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const today = schoolToday(now);
   const tomorrow = nextSchoolDay(today);
@@ -43,6 +43,7 @@ function TonightBlock({ family, childId, now, title }: HomeBlockProps) {
           family={family}
           now={now}
           today={today}
+          rows={rows}
           steps={(event) => <EventSteps event={event} />}
         />
       )}

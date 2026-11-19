@@ -60,43 +60,47 @@ export default {
     review: {
       title: "À vérifier",
       description: "Les dates lues dans les annonces qui méritent un coup d'œil.",
-      empty: "Rien à vérifier. Une date incertaine lue dans une annonce apparaîtra ici.",
+      empty: "Rien à vérifier",
     },
     tonight: {
       title: "Pour ce soir",
       description: "Ce qu'il faut préparer pour demain : sac, document, affaires de sport.",
-      empty:
-        "Rien à préparer pour {{day}}. Une sortie, la piscine ou un document apparaîtront ici.",
+      empty: "Rien à préparer pour {{day}}",
       day: "À préparer pour {{day}}",
     },
     assessments: {
       title: "Contrôles à réviser",
       description: "Les évaluations des 14 prochains jours.",
-      empty: "Aucune évaluation annoncée dans les 14 prochains jours.",
+      empty: "Aucun contrôle d'ici 14 jours",
+      due: "{{child}}, {{when}}",
+      today: "aujourd'hui",
+      tomorrow: "demain",
+      inDays_one: "dans {{count}} jour",
+      inDays_other: "dans {{count}} jours",
     },
     overdue: {
       title: "En retard",
       description: "Les devoirs des 14 derniers jours qui ne sont pas cochés.",
-      empty: "Rien en retard. Un devoir passé non coché apparaîtra ici.",
+      empty: "Rien en retard",
     },
     documents: {
       title: "À signer, à rendre",
       description: "Les documents à signer ou à rapporter à l'école.",
-      empty: "Aucun document à rendre dans les 14 prochains jours.",
+      empty: "Rien à rendre d'ici 14 jours",
     },
     outings: {
       title: "Sorties et piscine",
       description: "Les sorties scolaires et les séances de piscine à venir.",
-      empty: "Aucune sortie ni séance de piscine dans les 14 prochains jours.",
+      empty: "Aucune sortie d'ici 14 jours",
     },
     child: {
       description: "Le mini agenda de {{child}} sur 7 jours, à sa couleur.",
-      empty: "Rien de prévu pour {{child}} dans les 7 prochains jours.",
+      empty: "Rien de prévu sur 7 jours",
     },
     workload: {
       title: "Charge de la semaine",
       description: "Le nombre d'échéances par jour et par enfant, contrôles en évidence.",
-      empty: "Aucune échéance cette semaine.",
+      empty: "Aucune échéance cette semaine",
       day: "{{weekday}} {{day}}",
       assessment: "dont un contrôle",
       child: "Enfant",
@@ -104,7 +108,7 @@ export default {
     progress: {
       title: "Progression",
       description: "Les échéances de la semaine déjà faites, sur le total.",
-      empty: "Aucune échéance cette semaine.",
+      empty: "Aucune échéance cette semaine",
       summary: "{{done}} faites sur {{total}} cette semaine",
       label: "{{done}} échéances faites sur {{total}} cette semaine",
       allDone: "Toute la semaine est faite.",
@@ -112,7 +116,7 @@ export default {
     reminders: {
       title: "Prochains rappels",
       description: "Les alertes qui vont sonner pour les prochaines échéances, et quand.",
-      empty: "Aucun rappel prévu pour les prochaines échéances. Réglez-les dans Réglages.",
+      empty: "Aucun rappel prévu",
     },
     notes: {
       title: "Pense-bête",
@@ -123,6 +127,8 @@ export default {
       saving: "Enregistrement…",
       failed: "Non enregistré. Réessayez dans un instant.",
     },
-    scroll: "Contenu de {{block}}",
+    more_one: "Voir l'autre",
+    more_other: "Voir les {{count}} autres",
+    less: "Voir moins",
   },
 } as const;

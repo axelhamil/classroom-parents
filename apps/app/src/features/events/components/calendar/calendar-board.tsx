@@ -2,7 +2,7 @@ import { CalendarPeriod } from "@packages/ui/components/ui/calendar-day";
 import { Tabs, TabsContent } from "@packages/ui/components/ui/tabs";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HourglassIcon } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import {
@@ -41,7 +41,7 @@ export interface CalendarBoardProps {
   onPlaceChange: (place: CalendarPlace) => void;
   now: Date;
   briefingShown: boolean;
-  tour: ReactNode;
+  overdueShown: boolean;
 }
 
 type Direction = "none" | "forward" | "back";
@@ -64,7 +64,7 @@ export function CalendarBoard({
   onPlaceChange,
   now,
   briefingShown,
-  tour,
+  overdueShown,
 }: CalendarBoardProps) {
   const { t } = useTranslation("events");
   const { view, today, anchor, period } = placePeriod(place, now);
@@ -123,13 +123,15 @@ export function CalendarBoard({
         <WeekStrip days={days} family={family} now={now} today={today} />
       )}
       <div className="@container flex min-w-0 flex-col gap-4">
-        <OverdueButton
-          family={family}
-          childId={childId}
-          now={now}
-          today={today}
-          before={period.from}
-        />
+        {!overdueShown && (
+          <OverdueButton
+            family={family}
+            childId={childId}
+            now={now}
+            today={today}
+            before={period.from}
+          />
+        )}
         <CalendarToolbar
           view={view}
           anchor={anchor}
@@ -158,7 +160,6 @@ export function CalendarBoard({
                   <CalendarPeriod
                     key={`${candidate}:${motion.turn}`}
                     direction={motion.direction}
-                    data-tour="home-week"
                     {...swipe}
                   >
                     {candidate === "week" &&
@@ -190,7 +191,6 @@ export function CalendarBoard({
         onClose={() => setAdding(null)}
       />
       <CalendarFeedDialog open={subscribing} onOpenChange={setSubscribing} />
-      {query.isSuccess && tour}
     </Tabs>
   );
 }

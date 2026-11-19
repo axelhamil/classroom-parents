@@ -32,14 +32,13 @@ function ProgressBlock({ childId, now, title }: HomeBlockProps) {
     <BlockPanel
       title={title}
       icon={CheckCheckIcon}
-      scroll={false}
       note={query.isSuccess && (total === 0 ? t("blocks.progress.empty") : summary)}
     >
       {total > 0 && (
         <Progress
           value={done}
           max={total}
-          tone={done === total ? "success" : "primary"}
+          tone={done === total ? "success" : "ink"}
           aria-label={t("blocks.progress.label", counts)}
         />
       )}

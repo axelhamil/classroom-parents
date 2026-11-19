@@ -1,6 +1,13 @@
 import { stubChildrenApi } from "./children-fixture";
 import { expect, test } from "./csp";
-import { inDays, LEA, REVIEW_EVENT, serveFamily, todayAt } from "./events-fixtures";
+import {
+  AGENDA_WITHOUT_OVERDUE_BLOCK,
+  inDays,
+  LEA,
+  REVIEW_EVENT,
+  serveFamily,
+  todayAt,
+} from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
 test.use({
@@ -40,7 +47,11 @@ for (const width of [390, 1440]) {
       deadlineDate: inDays(-2),
       deadlineAt: `${inDays(-2)}T07:00:00.000Z`,
     };
-    await serveFamily(page, { children: [LEA], events: [late] });
+    await serveFamily(page, {
+      children: [LEA],
+      events: [late],
+      homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+    });
     await page.goto("/");
 
     const trigger = page.getByRole("button", { name: "En retard, 1 échéance" });

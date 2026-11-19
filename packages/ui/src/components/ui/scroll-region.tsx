@@ -7,9 +7,7 @@ const scrollRegionVariants = cva(
   {
     variants: {
       variant: {
-        region:
-          "scroll-edges -my-scroll-gutter max-h-scroll-region overflow-y-auto py-scroll-gutter",
-        panel: "scroll-fade min-h-0",
+        region: "scroll-fade max-h-scroll-region",
         list: "scroll-fade min-h-0 max-h-scroll-region",
       },
     },

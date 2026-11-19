@@ -21,6 +21,12 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
   }),
 }));
 
+/** The line of late deadlines lives in the Agenda only while the "En retard" block is hidden. */
+const AGENDA_WITHOUT_OVERDUE_BLOCK = [
+  { id: "calendar", w: 12, h: 3, hidden: false },
+  { id: "overdue", w: 4, h: 1, hidden: true },
+];
+
 function search(router: Awaited<ReturnType<typeof renderAppAt>>): Record<string, unknown> {
   return router.state.location.search;
 }
@@ -456,6 +462,7 @@ describe("Accueil, the family calendar", () => {
         deadline(2, "2026-11-09", "Fiche déjà rendue", { done: true }),
         deadline(3, "2026-11-13", "Piscine"),
       ],
+      { homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK },
     );
     await renderAppAt("/");
 
@@ -481,7 +488,9 @@ describe("Accueil, the family calendar", () => {
 
   it("a late deadline ticked in the overlay stays there, done and focused, until it closes", async () => {
     at("2026-11-12T09:00:00.000Z");
-    const stub = givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
+    const stub = givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")], {
+      homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+    });
     await renderAppAt("/");
 
     fireEvent.click(await screen.findByRole("button", { name: "En retard, 1 échéance" }));
@@ -509,7 +518,9 @@ describe("Accueil, the family calendar", () => {
 
   it("a tick in the late deadlines overlay is undone from inside it, the overlay staying open", async () => {
     at("2026-11-12T09:00:00.000Z");
-    const stub = givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
+    const stub = givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")], {
+      homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+    });
     await renderAppAt("/");
 
     fireEvent.click(await screen.findByRole("button", { name: "En retard, 1 échéance" }));
@@ -560,6 +571,7 @@ describe("Accueil, the family calendar", () => {
       Array.from({ length: 60 }, (_, index) =>
         deadline(index + 1, shiftDate("2026-11-11", -(index % 11)), `Retard ${index + 1}`),
       ),
+      { homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK },
     );
     await renderAppAt("/");
 
@@ -572,7 +584,9 @@ describe("Accueil, the family calendar", () => {
 
   it("a deadline late by more than 14 days leaves the line for past deadlines", async () => {
     at("2026-11-12T09:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-10-28", "Autorisation de septembre")]);
+    givenCalendar([CHILD], [deadline(1, "2026-10-28", "Autorisation de septembre")], {
+      homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+    });
     await renderAppAt("/");
 
     await screen.findByRole("tablist", { name: "Vue des échéances" });
@@ -582,7 +596,9 @@ describe("Accueil, the family calendar", () => {
 
   it("a late deadline of a past week the parent goes back to stays on its day, not in the line", async () => {
     at("2026-11-12T09:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
+    givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")], {
+      homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+    });
     await renderAppAt("/?date=2026-11-09");
 
     const tuesday = await waitFor(() => day("Mardi 10 novembre"));

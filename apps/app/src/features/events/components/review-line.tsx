@@ -12,13 +12,21 @@ import { ResponsiveOverlay } from "../../../shared/layout/responsive-overlay";
 import { useConfirmEvent } from "../hooks/use-confirm-event";
 import { ReviewReasons } from "./review-reasons";
 
-export interface ReviewLineProps {
+export interface ReviewListProps {
   events: readonly EventItem[];
   childLabel: (childId: string) => string;
   childColor: (childId: string) => ChildHue;
 }
 
-export function ReviewLine({ events, childLabel, childColor }: ReviewLineProps) {
+export interface ReviewLineProps extends ReviewListProps {
+  stretched?: boolean;
+}
+
+/**
+ * The count of dates to check, opening them in a dialog. `stretched` lays the
+ * trigger over its whole positioned parent: the line of a block is the button.
+ */
+export function ReviewLine({ events, childLabel, childColor, stretched }: ReviewLineProps) {
   const { t } = useTranslation("events");
   const trigger = useRef<HTMLButtonElement>(null);
   const [opened, setOpened] = useState<readonly string[] | null>(null);
@@ -31,12 +39,12 @@ export function ReviewLine({ events, childLabel, childColor }: ReviewLineProps) 
       {events.length > 0 && (
         <Button
           ref={trigger}
-          variant="outline"
-          className="w-full"
+          variant={stretched ? "ghost" : "outline"}
+          className={stretched ? "ms-auto after:absolute after:inset-0" : "w-full"}
           aria-haspopup="dialog"
           onClick={() => setOpened(events.map((event) => event.id))}
         >
-          <SearchCheckIcon aria-hidden />
+          {!stretched && <SearchCheckIcon aria-hidden />}
           {title}
           <ChevronRightIcon aria-hidden className="ms-auto" />
         </Button>
@@ -56,7 +64,7 @@ export function ReviewLine({ events, childLabel, childColor }: ReviewLineProps) 
   );
 }
 
-function ReviewList({ events, childLabel, childColor }: ReviewLineProps) {
+function ReviewList({ events, childLabel, childColor }: ReviewListProps) {
   const { t } = useTranslation("events");
   const confirm = useConfirmEvent();
 

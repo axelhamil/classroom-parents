@@ -1,11 +1,13 @@
 import type { SortableTransition } from "@dnd-kit/dom/sortable";
 import { useSortable } from "@dnd-kit/react/sortable";
 import {
+  DashboardBandItem,
   DashboardTile,
   DashboardTileContent,
   DashboardTileToolbar,
 } from "@packages/ui/components/ui/dashboard";
 import { useTranslation } from "react-i18next";
+import { CompactTileContext } from "./compact-tile";
 import type { DashboardBlock } from "./dashboard-block";
 import type { BlockAxis, BlockStep, HomeBlock } from "./dashboard-layout";
 import { resizeBlock } from "./dashboard-layout";
@@ -15,15 +17,36 @@ export interface TileProps<Context> {
   block: HomeBlock;
   definition: DashboardBlock<Context>;
   context: Context;
+  onCompact: (compact: boolean) => void;
 }
 
-export function StaticTile<Context>({ block, definition, context }: TileProps<Context>) {
-  const { Component } = definition;
+function TileBody<Context>({ block, definition, context, onCompact }: TileProps<Context>) {
+  const { Component, title } = definition;
 
   return (
-    <DashboardTile w={block.w} h={block.h} data-block={block.id}>
-      <Component {...context} blockId={block.id} title={definition.title} />
+    <CompactTileContext value={onCompact}>
+      <Component {...context} blockId={block.id} title={title} rows={block.h} />
+    </CompactTileContext>
+  );
+}
+
+export function StaticTile<Context>(props: TileProps<Context>) {
+  const { block, definition } = props;
+
+  return (
+    <DashboardTile w={block.w} h={block.h} data-block={block.id} data-tour={definition.tour}>
+      <TileBody {...props} />
     </DashboardTile>
+  );
+}
+
+export function BandTile<Context>(props: TileProps<Context>) {
+  const { block, definition } = props;
+
+  return (
+    <DashboardBandItem data-block={block.id} data-tour={definition.tour}>
+      <TileBody {...props} />
+    </DashboardBandItem>
   );
 }
 
@@ -40,6 +63,7 @@ export function SortableTile<Context>({
   block,
   definition,
   context,
+  onCompact,
   index,
   total,
   transition,
@@ -49,7 +73,7 @@ export function SortableTile<Context>({
 }: SortableTileProps<Context>) {
   const { t } = useTranslation("home");
   const { ref, handleRef, isDragging } = useSortable({ id: block.id, index, transition });
-  const { Component, sizes, title } = definition;
+  const { sizes, title } = definition;
   const resized = (axis: BlockAxis, step: BlockStep) => resizeBlock(block, sizes, axis, step);
   const fits = (axis: BlockAxis) => ({
     1: resized(axis, 1) !== null,
@@ -64,6 +88,7 @@ export function SortableTile<Context>({
       editing
       dragging={isDragging}
       data-block={block.id}
+      data-tour={definition.tour}
     >
       <DashboardTileToolbar aria-label={t("edit.controls", { block: title })}>
         <TileControls
@@ -80,7 +105,7 @@ export function SortableTile<Context>({
         />
       </DashboardTileToolbar>
       <DashboardTileContent inert>
-        <Component {...context} blockId={block.id} title={title} />
+        <TileBody block={block} definition={definition} context={context} onCompact={onCompact} />
       </DashboardTileContent>
     </DashboardTile>
   );

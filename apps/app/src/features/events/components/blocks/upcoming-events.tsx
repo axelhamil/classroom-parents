@@ -1,6 +1,6 @@
 import { shiftDate } from "@packages/ddd-kit/days";
 import { useQuery } from "@tanstack/react-query";
-import { BusIcon, ClipboardCheckIcon, type LucideIcon, PenLineIcon } from "lucide-react";
+import { BusIcon, type LucideIcon, PenLineIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { EventCategory } from "../../../../shared/events/event-labels";
 import { schoolToday } from "../../../../shared/format/school-today";
@@ -17,6 +17,7 @@ export function upcomingWindow(today: string, days = UPCOMING_DAYS) {
 
 export interface UpcomingEventsProps extends HomeBlockContext {
   title: string;
+  rows: number;
   icon: LucideIcon;
   categories: readonly EventCategory[];
   empty: string;
@@ -27,6 +28,7 @@ export function UpcomingEvents({
   childId,
   now,
   title,
+  rows,
   icon,
   categories,
   empty,
@@ -39,13 +41,14 @@ export function UpcomingEvents({
 
   return (
     <BlockPanel title={title} icon={icon} note={query.isSuccess && due.length === 0 && empty}>
-      {due.length > 0 && <EventRows events={due} family={family} now={now} today={today} />}
+      {due.length > 0 && (
+        <EventRows events={due} family={family} now={now} today={today} rows={rows} />
+      )}
     </BlockPanel>
   );
 }
 
 const UPCOMING_CATEGORIES = {
-  assessments: ["assessment"],
   documents: ["document_due"],
   outings: ["school_trip", "swimming"],
 } as const satisfies Record<string, readonly EventCategory[]>;
@@ -56,7 +59,7 @@ function isUpcoming(id: string): id is UpcomingBlockId {
   return id in UPCOMING_CATEGORIES;
 }
 
-function UpcomingBlock({ blockId, title, ...context }: HomeBlockProps) {
+function UpcomingBlock({ blockId, title, rows, ...context }: HomeBlockProps) {
   const { t } = useTranslation("home");
   if (!isUpcoming(blockId)) return null;
 
@@ -64,6 +67,7 @@ function UpcomingBlock({ blockId, title, ...context }: HomeBlockProps) {
     <UpcomingEvents
       {...context}
       title={title}
+      rows={rows}
       icon={ICONS[blockId]}
       categories={UPCOMING_CATEGORIES[blockId]}
       empty={t(`blocks.${blockId}.empty`)}
@@ -72,12 +76,11 @@ function UpcomingBlock({ blockId, title, ...context }: HomeBlockProps) {
 }
 
 const ICONS: Record<UpcomingBlockId, LucideIcon> = {
-  assessments: ClipboardCheckIcon,
   documents: PenLineIcon,
   outings: BusIcon,
 };
 
-/** Assessments, documents and outings are one list of the coming two weeks, cut by category. */
+/** Documents and outings are one list of the coming two weeks, cut by category. */
 export function upcomingBlock(id: UpcomingBlockId): HomeBlockDefinition {
   return {
     id,

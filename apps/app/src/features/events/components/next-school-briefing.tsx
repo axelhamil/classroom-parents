@@ -12,8 +12,7 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
-import { Progress } from "@packages/ui/components/ui/progress";
-import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
+import { Progress, ProgressLegend, ProgressRow } from "@packages/ui/components/ui/progress";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCheckIcon } from "lucide-react";
@@ -29,6 +28,7 @@ import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { calendarEventsQueryOptions, nextEventQueryOptions } from "../api/events.queries";
 import { type SchoolMoment, schoolMoment, weekAhead } from "../week";
+import { ShowMoreButton, useShowMore } from "./blocks/show-more";
 import { CalendarEventRow } from "./calendar/calendar-event-row";
 import { EventSteps } from "./prepare-checklist";
 
@@ -36,9 +36,10 @@ export interface NextSchoolBriefingProps {
   family: readonly ChildDto[];
   childId: string | null;
   now: Date;
+  rows: number;
 }
 
-export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingProps) {
+export function NextSchoolBriefing({ family, childId, now, rows }: NextSchoolBriefingProps) {
   const { t } = useTranslation("events");
   const titleId = useId();
   const moment = schoolMoment(now);
@@ -47,16 +48,8 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
   const watched = childId ? family.filter((child) => child.id === childId) : family;
 
   return (
-    <Briefing
-      aria-labelledby={titleId}
-      data-jump={moment.focus}
-      tabIndex={-1}
-      className="max-h-briefing-phone md:max-h-none md:min-h-0 md:flex-1"
-    >
+    <Briefing aria-labelledby={titleId} data-jump={moment.focus} tabIndex={-1} className="flex-1">
       <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
-      {query.data && !isFirstSyncRunning(watched) && (
-        <WeekStat events={query.data} childId={childId} />
-      )}
       <QueryState
         query={query}
         skeleton={
@@ -73,6 +66,7 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
             family={watched}
             childId={childId}
             now={now}
+            rows={rows}
             moment={moment}
             day={day}
           />
@@ -82,29 +76,51 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
   );
 }
 
-function openIn(events: readonly EventItem[], childId: string | null): EventItem[] {
-  return events.filter((event) => !event.done && (childId === null || event.childId === childId));
-}
-
-interface WeekStatProps {
+interface DayStatProps {
   events: readonly EventItem[];
-  childId: string | null;
+  day: string;
 }
 
-function WeekStat({ events, childId }: WeekStatProps) {
+function DayStat({ events, day }: DayStatProps) {
   const { t } = useTranslation("events");
-  const open = openIn(events, childId);
-  const assessments = open.filter((event) => event.category === "assessment").length;
+  const assessments = events.filter((event) => event.category === "assessment").length;
 
   return (
     <BriefingStat>
       {assessments > 0
-        ? t("briefing.weekWithAssessments", {
-            count: open.length,
+        ? t("briefing.dayWithAssessments", {
+            count: events.length,
+            day,
             assessments: t("briefing.assessments", { count: assessments }),
           })
-        : t("briefing.week", { count: open.length })}
+        : t("briefing.day", { count: events.length, day })}
     </BriefingStat>
+  );
+}
+
+interface DayProgressProps {
+  done: number;
+  total: number;
+  allSet: boolean;
+}
+
+function DayProgress({ done, total, allSet }: DayProgressProps) {
+  const { t } = useTranslation("events");
+  const legendId = useId();
+  const legend = t("briefing.legend", { count: done, total });
+
+  return (
+    <ProgressRow>
+      <Progress
+        value={done}
+        max={total}
+        tone={allSet ? "success" : "ink"}
+        aria-label={t("briefing.progress", { count: done, total })}
+        aria-describedby={legendId}
+        getValueLabel={() => legend}
+      />
+      <ProgressLegend id={legendId}>{legend}</ProgressLegend>
+    </ProgressRow>
   );
 }
 
@@ -128,11 +144,20 @@ interface BriefingBodyProps {
   family: readonly ChildDto[];
   childId: string | null;
   now: Date;
+  rows: number;
   moment: SchoolMoment;
   day: string;
 }
 
-function BriefingBody({ events: loaded, family, childId, now, moment, day }: BriefingBodyProps) {
+function BriefingBody({
+  events: loaded,
+  family,
+  childId,
+  now,
+  rows,
+  moment,
+  day,
+}: BriefingBodyProps) {
   const { t } = useTranslation("events");
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
   const events = dueBy(loaded, moment, childId, shown);
@@ -150,6 +175,7 @@ function BriefingBody({ events: loaded, family, childId, now, moment, day }: Bri
 
   return (
     <>
+      <DayStat events={events} day={day} />
       {allSet ? (
         <BriefingSummary tone="ready">
           <CelebrationStamp>
@@ -160,31 +186,25 @@ function BriefingBody({ events: loaded, family, childId, now, moment, day }: Bri
       ) : (
         <BriefingSummary>{t("briefing.open", { count: open })}</BriefingSummary>
       )}
-      <Progress
-        value={events.length - open}
-        max={events.length}
-        tone={allSet ? "success" : "primary"}
-        aria-label={t("briefing.progress", { count: events.length - open, total: events.length })}
-      />
-      <ScrollRegion variant="panel" label={t("briefing.scroll", { day })}>
-        <BriefingGroups>
-          {family.map((child) => {
-            const due = events.filter((event) => event.childId === child.id);
-            if (due.length === 0) return null;
+      <DayProgress done={events.length - open} total={events.length} allSet={allSet} />
+      <BriefingGroups>
+        {family.map((child) => {
+          const due = events.filter((event) => event.childId === child.id);
+          if (due.length === 0) return null;
 
-            return (
-              <ChildBriefing
-                key={child.id}
-                child={child}
-                events={due}
-                family={family}
-                now={now}
-                moment={moment}
-              />
-            );
-          })}
-        </BriefingGroups>
-      </ScrollRegion>
+          return (
+            <ChildBriefing
+              key={child.id}
+              child={child}
+              events={due}
+              family={family}
+              now={now}
+              rows={rows}
+              moment={moment}
+            />
+          );
+        })}
+      </BriefingGroups>
     </>
   );
 }
@@ -194,11 +214,14 @@ interface ChildBriefingProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
   now: Date;
+  rows: number;
   moment: SchoolMoment;
 }
 
-function ChildBriefing({ child, events, family, now, moment }: ChildBriefingProps) {
+function ChildBriefing({ child, events, family, now, rows, moment }: ChildBriefingProps) {
   const titleId = useId();
+  const listId = useId();
+  const { shown, more } = useShowMore(events, rows);
 
   return (
     <BriefingGroup aria-labelledby={titleId}>
@@ -211,8 +234,8 @@ function ChildBriefing({ child, events, family, now, moment }: ChildBriefingProp
         />
         <BriefingGroupTitle id={titleId}>{child.label}</BriefingGroupTitle>
       </BriefingGroupHeader>
-      <BriefingList>
-        {events.map((event) => (
+      <BriefingList id={listId}>
+        {shown.map((event) => (
           <BriefingItem key={event.id}>
             <CalendarEventRow
               event={event}
@@ -227,6 +250,7 @@ function ChildBriefing({ child, events, family, now, moment }: ChildBriefingProp
           </BriefingItem>
         ))}
       </BriefingList>
+      <ShowMoreButton more={more} controls={listId} />
     </BriefingGroup>
   );
 }
@@ -240,6 +264,7 @@ interface NothingDueProps {
 
 function NothingDue({ family, childId, after, day }: NothingDueProps) {
   const { t } = useTranslation("events");
+  const nextId = useId();
   const next = useQuery(nextEventQueryOptions(childId)).data;
   const upcoming = next && next.deadlineDate > after ? next : null;
 
@@ -247,14 +272,14 @@ function NothingDue({ family, childId, after, day }: NothingDueProps) {
     <>
       <BriefingSummary>{t("briefing.empty", { day })}</BriefingSummary>
       {upcoming && (
-        <ScrollRegion variant="panel" label={t("briefing.next")} className="flex flex-col gap-2">
-          <BriefingGroupTitle>{t("briefing.next")}</BriefingGroupTitle>
+        <BriefingGroup aria-labelledby={nextId}>
+          <BriefingGroupTitle id={nextId}>{t("briefing.next")}</BriefingGroupTitle>
           <EventCard
             event={upcoming}
             childLabel={family.length > 1 ? childLabelOf(family, upcoming.childId) : ""}
             hue={childHue(family, upcoming.childId)}
           />
-        </ScrollRegion>
+        </BriefingGroup>
       )}
     </>
   );

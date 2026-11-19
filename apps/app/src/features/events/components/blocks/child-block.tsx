@@ -12,7 +12,7 @@ import { EventRows, forChild } from "./event-rows";
 
 const CHILD_PREFIX = "child:";
 
-function ChildBlock({ family, now, blockId, title }: HomeBlockProps) {
+function ChildBlock({ family, now, blockId, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const childId = blockId.slice(CHILD_PREFIX.length);
   const today = schoolToday(now);
@@ -26,7 +26,14 @@ function ChildBlock({ family, now, blockId, title }: HomeBlockProps) {
       note={query.isSuccess && due.length === 0 && t("blocks.child.empty", { child: title })}
     >
       {due.length > 0 && (
-        <EventRows events={due} family={family} now={now} today={today} withChild={false} />
+        <EventRows
+          events={due}
+          family={family}
+          now={now}
+          today={today}
+          rows={rows}
+          withChild={false}
+        />
       )}
     </BlockPanel>
   );

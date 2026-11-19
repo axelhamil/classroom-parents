@@ -8,7 +8,7 @@ import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { BlockPanel } from "./block-panel";
 import { EventRows, forChild } from "./event-rows";
 
-function OverdueBlock({ family, childId, now, title }: HomeBlockProps) {
+function OverdueBlock({ family, childId, now, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const today = schoolToday(now);
   const query = useQuery(calendarEventsQueryOptions(overdueWindow(today)));
@@ -22,7 +22,9 @@ function OverdueBlock({ family, childId, now, title }: HomeBlockProps) {
       icon={ClockAlertIcon}
       note={query.isSuccess && late.length === 0 && t("blocks.overdue.empty")}
     >
-      {late.length > 0 && <EventRows events={late} family={family} now={now} today={today} />}
+      {late.length > 0 && (
+        <EventRows events={late} family={family} now={now} today={today} rows={rows} />
+      )}
     </BlockPanel>
   );
 }

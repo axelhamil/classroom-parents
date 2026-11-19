@@ -16,10 +16,12 @@ function ReviewBlock({ family, childId, title }: HomeBlockProps) {
     <BlockPanel
       title={title}
       icon={SearchCheckIcon}
+      line
       note={review.isSuccess && toReview.length === 0 && t("blocks.review.empty")}
     >
       {toReview.length > 0 && (
         <ReviewLine
+          stretched
           events={toReview}
           childLabel={(id) => childLabelOf(family, id)}
           childColor={(id) => childHue(family, id)}
@@ -34,7 +36,7 @@ export const reviewBlock: HomeBlockDefinition = {
   titleKey: "blocks.review.title",
   descriptionKey: "blocks.review.description",
   icon: SearchCheckIcon,
-  sizes: { w: [3, 4, 6], h: [1, 2] },
+  sizes: { w: [3, 4, 6, 8, 12], h: [1] },
   defaultSize: { w: 4, h: 1 },
   Component: ReviewBlock,
 };

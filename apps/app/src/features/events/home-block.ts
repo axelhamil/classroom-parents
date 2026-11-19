@@ -10,6 +10,7 @@ export interface HomeBlockContext {
   childId: string | null;
   now: Date;
   briefingShown: boolean;
+  overdueShown: boolean;
 }
 
 export type HomeBlockProps = HomeBlockContext & BlockIdentity;
@@ -18,5 +19,6 @@ export interface HomeBlockDefinition extends BlockShape {
   titleKey: ParseKeys<"home">;
   descriptionKey: ParseKeys<"home">;
   icon: LucideIcon;
+  tour?: string;
   Component: ComponentType<HomeBlockProps>;
 }

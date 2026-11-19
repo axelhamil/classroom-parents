@@ -5,15 +5,17 @@ import { cn } from "../../libs/utils";
 
 /**
  * A home made of blocks: one column on a phone (order only), six from `md`
- * and twelve from `lg`, rows of one fixed height so a block's size is a
- * number of columns and rows, never a pixel value.
+ * and twelve from `lg`. Rows take the height of their content and the page
+ * scrolls, never a block. Tiles stretch to their row, so a column never shows
+ * a hole between two blocks; placement stays sparse so the screen reads in
+ * the order Tab walks it.
  */
 function Dashboard({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dashboard"
       className={cn(
-        "grid grid-cols-1 gap-4 md:auto-rows-(--dashboard-row-height) md:grid-cols-6 md:gap-5 lg:grid-cols-12",
+        "grid grid-cols-1 gap-4 md:grid-cols-6 md:gap-(--dashboard-gap) lg:grid-cols-12",
         className,
       )}
       {...props}
@@ -22,31 +24,61 @@ function Dashboard({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 /**
+ * The blocks that have nothing more than one line to say, above the grid in
+ * the order of the home: one column on a phone, then equal columns that
+ * share the width. A line takes no cell of the grid, so it never stands
+ * stretched beside a tall block.
+ */
+function DashboardBand({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dashboard-band"
+      className={cn(
+        "grid grid-cols-1 gap-3 md:grid-cols-[repeat(auto-fit,minmax(var(--dashboard-band-column),1fr))]",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** One line of the band; its panel fills it, so a row of lines shares one height. */
+function DashboardBandItem({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div data-slot="dashboard-band-item" className={cn("flex min-w-0", className)} {...props} />
+  );
+}
+
+/**
  * Placement is a static table of classes: Tailwind only ships a class it can
  * read whole in the source. A tablet keeps six columns, so 3 and 4 share a
- * half and 6, 8 and 12 take the full width.
+ * half and 6, 8 and 12 take the full width. The height is a floor of steps,
+ * never a cap; a block drawn as one line (nothing to show) drops it.
  */
-const dashboardTileVariants = cva("flex min-h-0 min-w-0 flex-col gap-2", {
-  variants: {
-    w: {
-      3: "md:col-span-3 lg:col-span-3",
-      4: "md:col-span-3 lg:col-span-4",
-      6: "md:col-span-6 lg:col-span-6",
-      8: "md:col-span-6 lg:col-span-8",
-      12: "md:col-span-6 lg:col-span-12",
+const dashboardTileVariants = cva(
+  "flex min-w-0 flex-col gap-2 md:has-[[data-shape=line]]:row-span-1 md:has-[[data-shape=line]]:min-h-0",
+  {
+    variants: {
+      w: {
+        3: "md:col-span-3 lg:col-span-3",
+        4: "md:col-span-3 lg:col-span-4",
+        6: "md:col-span-6 lg:col-span-6",
+        8: "md:col-span-6 lg:col-span-8",
+        12: "md:col-span-6 lg:col-span-12",
+      },
+      h: {
+        1: "md:min-h-(--dashboard-row-height)",
+        2: "md:row-span-2 md:min-h-(--dashboard-height-2)",
+        3: "md:row-span-3 md:min-h-(--dashboard-height-3)",
+      },
+      editing: {
+        true: "rounded-2xl outline-2 outline-offset-4 outline-border outline-dashed data-dragging:z-10 data-dragging:shadow-float",
+        false: "",
+      },
     },
-    h: {
-      1: "md:row-span-1",
-      2: "md:row-span-2",
-      3: "md:row-span-3",
-    },
-    editing: {
-      true: "rounded-2xl outline-2 outline-offset-4 outline-border outline-dashed data-dragging:z-10 data-dragging:shadow-float",
-      false: "",
-    },
+    defaultVariants: { editing: false },
   },
-  defaultVariants: { editing: false },
-});
+);
 
 interface DashboardTileProps
   extends React.ComponentProps<"div">,
@@ -84,23 +116,27 @@ function DashboardTileContent({ className, ...props }: React.ComponentProps<"div
   return (
     <div
       data-slot="dashboard-tile-content"
-      className={cn("flex min-h-0 min-w-0 flex-1 flex-col", className)}
+      className={cn("flex min-w-0 flex-1 flex-col", className)}
       {...props}
     />
   );
 }
 
 const dashboardPanelVariants = cva(
-  "flex min-h-0 min-w-0 flex-1 flex-col gap-3 rounded-2xl border bg-card p-4 text-card-foreground shadow-rest [--scroll-fade-surface:var(--card)]",
+  "group/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card p-4 text-card-foreground shadow-rest",
   {
     variants: {
+      shape: {
+        box: "flex-col gap-3",
+        line: "flex-row flex-wrap items-center gap-x-3 gap-y-1 py-3",
+      },
       fit: {
-        capped: "max-h-(--dashboard-panel-phone-height) md:max-h-none",
+        card: "",
         natural:
-          "max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none max-md:[--scroll-fade-surface:var(--background)]",
+          "max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none",
       },
     },
-    defaultVariants: { fit: "capped" },
+    defaultVariants: { shape: "box", fit: "card" },
   },
 );
 
@@ -110,14 +146,18 @@ interface DashboardPanelProps
 
 /**
  * A titled block on paper; label it with `aria-labelledby` pointing at its
- * title. `natural` is for a block made of cards of its own (the week): a phone
- * shows it at full width on the page, without a card around the cards.
+ * title. `line` draws it as one row (title, a short sentence, an action) and
+ * lets its tile drop the height the parent picked: an empty block is a line,
+ * not a tall card. `natural` is for a block made of cards of its own (the
+ * week): a phone shows it at full width on the page, without a card around
+ * the cards.
  */
-function DashboardPanel({ className, fit, ...props }: DashboardPanelProps) {
+function DashboardPanel({ className, shape, fit, ...props }: DashboardPanelProps) {
   return (
     <section
       data-slot="dashboard-panel"
-      className={cn(dashboardPanelVariants({ fit }), className)}
+      data-shape={shape ?? "box"}
+      className={cn(dashboardPanelVariants({ shape, fit }), className)}
       {...props}
     />
   );
@@ -141,7 +181,7 @@ function DashboardPanelTitle({ className, ...props }: React.ComponentProps<"h2">
     <h2
       data-slot="dashboard-panel-title"
       className={cn(
-        "min-w-0 flex-1 font-display text-lg leading-tight font-semibold tracking-tight wrap-anywhere",
+        "min-w-0 flex-1 font-display text-lg leading-tight font-semibold tracking-tight wrap-anywhere group-data-[shape=line]/panel:text-base",
         className,
       )}
       {...props}
@@ -162,6 +202,8 @@ function DashboardPanelNote({ className, ...props }: React.ComponentProps<"p">) 
 
 export {
   Dashboard,
+  DashboardBand,
+  DashboardBandItem,
   DashboardPanel,
   DashboardPanelHeader,
   DashboardPanelNote,

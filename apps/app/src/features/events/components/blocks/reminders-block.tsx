@@ -1,6 +1,7 @@
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@packages/ui/components/ui/item";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { BellRingIcon } from "lucide-react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import { EventLink } from "../../../../shared/events/event-link";
@@ -15,6 +16,7 @@ import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { weekAhead } from "../../week";
 import { BlockPanel } from "./block-panel";
 import { forChild } from "./event-rows";
+import { ShowMoreButton, useShowMore } from "./show-more";
 
 const WATCHED_EVENTS = 5;
 
@@ -32,8 +34,9 @@ function ringingOf(event: EventItem, reply: EventReminders | undefined, now: Dat
   );
 }
 
-function RemindersBlock({ childId, now, title }: HomeBlockProps) {
+function RemindersBlock({ childId, now, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
+  const listId = useId();
   const calendar = useQuery(calendarEventsQueryOptions(weekAhead(schoolToday(now))));
   const watched = forChild(calendar.data ?? [], childId)
     .filter((event) => !event.done)
@@ -45,6 +48,7 @@ function RemindersBlock({ childId, now, title }: HomeBlockProps) {
   const ringing = watched
     .flatMap((event, index) => ringingOf(event, replies[index]?.data, now))
     .sort((left, right) => left.dueAt.localeCompare(right.dueAt));
+  const { shown, more } = useShowMore(ringing, rows);
 
   return (
     <BlockPanel
@@ -53,20 +57,23 @@ function RemindersBlock({ childId, now, title }: HomeBlockProps) {
       note={settled && ringing.length === 0 && t("blocks.reminders.empty")}
     >
       {ringing.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {ringing.map(({ key, event, dueAt }) => (
-            <Item key={key} asChild variant="outline" size="sm">
-              <li>
-                <ItemContent>
-                  <ItemTitle>
-                    <EventLink eventId={event.id}>{event.title}</EventLink>
-                  </ItemTitle>
-                  <ItemDescription>{instantLabel(dueAt, now)}</ItemDescription>
-                </ItemContent>
-              </li>
-            </Item>
-          ))}
-        </ul>
+        <>
+          <ul id={listId} className="flex flex-col gap-2">
+            {shown.map(({ key, event, dueAt }) => (
+              <Item key={key} asChild variant="outline" size="sm">
+                <li>
+                  <ItemContent>
+                    <ItemTitle>
+                      <EventLink eventId={event.id}>{event.title}</EventLink>
+                    </ItemTitle>
+                    <ItemDescription>{instantLabel(dueAt, now)}</ItemDescription>
+                  </ItemContent>
+                </li>
+              </Item>
+            ))}
+          </ul>
+          <ShowMoreButton more={more} controls={listId} />
+        </>
       )}
     </BlockPanel>
   );
