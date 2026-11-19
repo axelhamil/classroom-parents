@@ -16,6 +16,8 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        quietDestructive:
+          "text-destructive hover:bg-destructive/10 focus-visible:ring-destructive dark:hover:bg-destructive/15",
         overlay:
           "text-child-foreground hover:bg-child-foreground/15 focus-visible:ring-child-foreground",
         google:
@@ -28,6 +30,7 @@ const buttonVariants = cva(
         lg: "h-12 px-7 text-base has-[>svg]:px-5",
         wrap: "min-h-12 px-5 py-3 text-base whitespace-normal wrap-anywhere",
         cta: "h-14 gap-3.5 px-6 text-lg [&>img]:size-6",
+        tile: "h-auto min-h-touch flex-col gap-1 rounded-xl px-2 py-2.5 text-xs whitespace-normal text-center [&_svg:not([class*='size-'])]:size-5",
         icon: "size-10",
         "icon-xs": "size-7 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",

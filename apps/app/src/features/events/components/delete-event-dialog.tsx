@@ -31,7 +31,7 @@ export function DeleteEventDialog({ eventId, eventTitle, onDeleted }: DeleteEven
   return (
     <DestructiveActionDialog
       trigger={
-        <Button type="button" variant="ghost">
+        <Button type="button" variant="quietDestructive" size="sm">
           <Trash2 aria-hidden />
           {t("delete.trigger")}
         </Button>

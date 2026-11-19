@@ -288,6 +288,45 @@ describe("event detail, family helpers", () => {
     Reflect.deleteProperty(navigator, "share");
   });
 
+  it("says in one sentence whose deadline it is and where it came from", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-06T09:00:00.000Z") });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    stubApi(({ method, url }) => {
+      if (method !== "GET") return undefined;
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname === DETAIL_PATH) return json(EVENT);
+      if (url.pathname === `${DETAIL_PATH}/reminders`)
+        return json({ customized: false, reminders: [] });
+      return undefined;
+    });
+    await renderAppAt(DETAIL_PATH);
+
+    expect(await screen.findByText("Léa, annonce Classroom reçue hier")).toBeDefined();
+  });
+
+  it("names the course between the child and the origin when Classroom gave one", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-06T09:00:00.000Z") });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    stubApi(({ method, url }) => {
+      if (method !== "GET") return undefined;
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname === DETAIL_PATH)
+        return json({ ...EVENT, course: { id: "course-1", name: "Mathématiques" } });
+      if (url.pathname === `${DETAIL_PATH}/reminders`)
+        return json({ customized: false, reminders: [] });
+      return undefined;
+    });
+    await renderAppAt(DETAIL_PATH);
+
+    expect(
+      await screen.findByText("Léa, Mathématiques, annonce Classroom reçue hier"),
+    ).toBeDefined();
+  });
+
   it("an event without a Classroom link offers no Classroom button", async () => {
     givenEvent({ ...EVENT, announcementUrl: "" }, () => json({ customized: false, reminders: [] }));
     await renderAppAt(DETAIL_PATH);

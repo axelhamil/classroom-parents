@@ -66,7 +66,7 @@ export function PrepareChecklist({ event }: PrepareChecklistProps) {
     <section
       aria-labelledby={titleId}
       data-tour="event-detail-prepare"
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-2"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <TypographyH2 id={titleId} variant="section">
@@ -81,8 +81,11 @@ export function PrepareChecklist({ event }: PrepareChecklistProps) {
           </Badge>
         )}
       </div>
-      <TypographyMuted>{total > 0 ? t("prepare.description") : t("prepare.empty")}</TypographyMuted>
-      {total > 0 && <ChecklistRows checklist={checklist} removable />}
+      {total > 0 ? (
+        <ChecklistRows checklist={checklist} removable />
+      ) : (
+        <TypographyMuted>{t("prepare.empty")}</TypographyMuted>
+      )}
       <ChecklistItemForm onAdd={checklist.add} />
     </section>
   );

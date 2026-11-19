@@ -78,8 +78,16 @@ export default {
     progress_one: "{{count}} échéance prête sur {{total}}",
     progress_other: "{{count}} échéances prêtes sur {{total}}",
     empty: "Rien à préparer pour {{day}}.",
-    emptyThenNext: "Rien à préparer pour {{day}}. Prochaine échéance : {{title}}, {{next}}.",
     allSet: "Tout est prêt pour {{day}}.",
+    next: "Prochaine échéance",
+    week_zero: "Aucune échéance sur les 7 prochains jours.",
+    week_one: "{{count}} échéance sur les 7 prochains jours.",
+    week_other: "{{count}} échéances sur les 7 prochains jours.",
+    weekWithAssessments_one: "{{count}} échéance sur les 7 prochains jours, dont {{assessments}}.",
+    weekWithAssessments_other:
+      "{{count}} échéances sur les 7 prochains jours, dont {{assessments}}.",
+    assessments_one: "{{count}} évaluation",
+    assessments_other: "{{count}} évaluations",
   },
   family: {
     all: "Toute la famille",
@@ -95,7 +103,6 @@ export default {
     share: "Partager la semaine",
     shareTitle: "Notre semaine d'école",
     shareDay: "{{day}} :",
-    shareItem: "{{child}} : {{title}}",
     shareNothing: "Rien de prévu cette semaine.",
   },
   print: {
@@ -171,6 +178,8 @@ export default {
   },
   review: {
     title: "À vérifier",
+    count_one: "{{count}} date à vérifier",
+    count_other: "{{count}} dates à vérifier",
     description:
       "Ces dates ont été lues avec un doute. Confirmez-les pour programmer leurs rappels.",
     confirm: "C'est bon",
@@ -185,20 +194,23 @@ export default {
     document_due: "Document à rendre",
     other: "Autre",
   },
-  sources: {
-    announcement: "Annonce",
-    coursework: "Devoir",
-    manual: "Ajouté par vous",
+  origins: {
+    announcement: "annonce Classroom reçue {{when}}",
+    coursework: "devoir Classroom reçu {{when}}",
+    manual: "ajoutée par vous {{when}}",
   },
   detail: {
     done: "C'est fait",
     title: "Échéance",
     loading: "Chargement de l'échéance",
-    deadline: "Pour le",
-    received: "Reçue le",
-    child: "Enfant",
+    receivedToday: "aujourd'hui",
+    receivedYesterday: "hier",
+    receivedOn: "le {{date}}",
+    isDone: "Fait",
+    originOf: "{{who}}, {{origin}}",
     description: "Ce qu'en dit l'annonce",
     openInClassroom: "Ouvrir dans Classroom",
+    openInClassroomShort: "Classroom",
     edit: "Modifier",
     back: "Retour à l'accueil",
     notFound: {
@@ -208,7 +220,6 @@ export default {
   },
   prepare: {
     title: "À préparer",
-    description: "Cochez au fur et à mesure. La liste reste sur ce téléphone.",
     progress: "{{done}} sur {{total}}",
     allSet: "Tout est prêt",
     add: "Ajouter",
@@ -252,6 +263,7 @@ export default {
   },
   agenda: {
     add: "Ajouter à mon agenda",
+    addShort: "Agenda",
     downloaded: "Fichier agenda téléchargé : ouvrez-le pour l'ajouter.",
     done: "Fait",
   },
@@ -262,6 +274,7 @@ export default {
     fromDefaults: "Vos rappels par défaut, réglables dans Réglages.",
     customized: "Rappels choisis pour cette échéance.",
     none: "Aucun rappel pour cette échéance.",
+    next: "Prochain rappel : {{when}}",
     due: "Envoi : {{when}}",
     edit: "Modifier les rappels",
     reset: "Revenir aux rappels par défaut",

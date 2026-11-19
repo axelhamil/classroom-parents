@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
@@ -55,16 +55,16 @@ describe("Accueil around the calendar", () => {
     resetApp();
   });
 
-  it("given an event to review, then the review card offers to confirm it or to edit it", async () => {
+  it("given an event to review, then its line opens the dates to confirm or to edit", async () => {
     givenFamily([CHILD], [{ ...EVENT, status: "needs_review" }]);
     await renderAppAt("/");
 
-    const card = await screen.findByRole("heading", { level: 2, name: "À vérifier" });
-    const region = card.closest("[data-slot=card]");
+    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    const dialog = await screen.findByRole("dialog", { name: "1 date à vérifier" });
 
-    expect(region?.textContent).toContain(EVENT.title);
-    expect(screen.getByRole("button", { name: "C'est bon" })).toBeDefined();
-    expect(screen.getByRole("link", { name: "Modifier" }).getAttribute("href")).toBe(
+    expect(dialog.textContent).toContain(EVENT.title);
+    expect(within(dialog).getByRole("button", { name: "C'est bon" })).toBeDefined();
+    expect(within(dialog).getByRole("link", { name: "Modifier" }).getAttribute("href")).toBe(
       `/events/${EVENT.id}/edit`,
     );
   });
@@ -85,7 +85,15 @@ describe("Accueil around the calendar", () => {
     expect(pointer.getAttribute("href")).toBe("/children");
   });
 
-  it("given an event to review beyond the loaded page, then the review card still lists it", async () => {
+  it("given a child whose Google access was lost, then the notice offers to reconnect at once", async () => {
+    givenFamily([{ ...CHILD, status: "needs_reconnect" }], [EVENT]);
+    await renderAppAt("/");
+
+    expect(await screen.findByRole("button", { name: "Reconnecter" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Voir les enfants" })).toBeNull();
+  });
+
+  it("given an event to review beyond the loaded page, then the review line still lists it", async () => {
     const late = {
       ...EVENT,
       id: "5b1e2d3c-4a5f-4e6d-8c7b-9a0f1e2d3c4b",
@@ -101,9 +109,10 @@ describe("Accueil around the calendar", () => {
     });
     await renderAppAt("/");
 
-    const card = await screen.findByRole("heading", { level: 2, name: "À vérifier" });
+    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    const dialog = await screen.findByRole("dialog", { name: "1 date à vérifier" });
 
-    expect(card.closest("[data-slot=card]")?.textContent).toContain(late.title);
+    expect(dialog.textContent).toContain(late.title);
     expect(eventListRequests(calls).some((query) => query.get("status") === "needs_review")).toBe(
       true,
     );
@@ -119,6 +128,7 @@ describe("Accueil around the calendar", () => {
     });
     await renderAppAt("/");
 
+    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
     fireEvent.click(await screen.findByRole("button", { name: "C'est bon" }));
 
     expect(await screen.findByText("Échéance confirmée")).toBeDefined();

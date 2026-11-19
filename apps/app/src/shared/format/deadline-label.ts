@@ -6,7 +6,7 @@ import { schoolToday } from "./school-today";
 const LOCALE = "fr-FR";
 const copy = frCatalog.common.deadline;
 
-function capitalize(text: string): string {
+export function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase(LOCALE) + text.slice(1);
 }
 

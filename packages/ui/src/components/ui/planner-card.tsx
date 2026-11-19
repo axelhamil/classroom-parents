@@ -12,6 +12,16 @@ const plannerCardVariants = cva(
         false: "bg-card text-card-foreground shadow-rest hover:shadow-raised",
         true: "border-dashed bg-surface-container text-muted-foreground",
       },
+      hue: {
+        1: "bg-child-1-container hover:bg-child-1-container",
+        2: "bg-child-2-container hover:bg-child-2-container",
+        3: "bg-child-3-container hover:bg-child-3-container",
+        4: "bg-child-4-container hover:bg-child-4-container",
+        5: "bg-child-5-container hover:bg-child-5-container",
+        6: "bg-child-6-container hover:bg-child-6-container",
+        7: "bg-child-7-container hover:bg-child-7-container",
+        8: "bg-child-8-container hover:bg-child-8-container",
+      },
     },
     defaultVariants: { muted: false },
   },
@@ -23,14 +33,19 @@ interface PlannerCardProps
   asChild?: boolean;
 }
 
-function PlannerCard({ className, muted, asChild = false, ...props }: PlannerCardProps) {
+/**
+ * A deadline on paper. With a `hue`, the card takes the container of the
+ * child it belongs to: the background says who, nothing else on the card
+ * repeats it in color.
+ */
+function PlannerCard({ className, muted, hue, asChild = false, ...props }: PlannerCardProps) {
   const Comp = asChild ? Slot.Root : "div";
 
   return (
     <Comp
       data-slot="planner-card"
       data-muted={muted ? "" : undefined}
-      className={cn(plannerCardVariants({ muted }), className)}
+      className={cn(plannerCardVariants({ muted, hue }), className)}
       {...props}
     />
   );

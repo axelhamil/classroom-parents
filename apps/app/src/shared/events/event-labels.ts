@@ -21,15 +21,6 @@ export const CATEGORY_LABEL_KEYS = {
   other: "categories.other",
 } as const satisfies Record<EventCategory, string>;
 
-export const CATEGORY_BADGE_VARIANTS = {
-  assessment: "assessment",
-  homework: "homework",
-  school_trip: "schoolTrip",
-  swimming: "swimming",
-  document_due: "documentDue",
-  other: "secondary",
-} as const satisfies Record<EventCategory, string>;
-
 export const CATEGORY_ICONS = {
   assessment: ClipboardCheckIcon,
   homework: BookOpenIcon,
@@ -39,8 +30,17 @@ export const CATEGORY_ICONS = {
   other: NotebookPenIcon,
 } as const satisfies Record<EventCategory, LucideIcon>;
 
-export const SOURCE_LABEL_KEYS = {
-  announcement: "sources.announcement",
-  coursework: "sources.coursework",
-  manual: "sources.manual",
+export const CATEGORY_TONES = {
+  assessment: "assessment",
+  homework: "homework",
+  school_trip: "schoolTrip",
+  swimming: "swimming",
+  document_due: "documentDue",
+  other: "other",
+} as const satisfies Record<EventCategory, string>;
+
+export const ORIGIN_LABEL_KEYS = {
+  announcement: "origins.announcement",
+  coursework: "origins.coursework",
+  manual: "origins.manual",
 } as const satisfies Record<EventItem["source"], string>;

@@ -35,6 +35,7 @@ export function CalendarDaySection({
   const { t } = useTranslation("events");
   const titleId = useId();
   const title = dayLabel(day.date, now);
+  const quiet = day.events.length === 0;
 
   return (
     <CalendarDay
@@ -44,6 +45,7 @@ export function CalendarDaySection({
       layout={layout}
       tone={dayTone(day.date, today)}
       crunch={isCrunchDay(day.date, day.events, today)}
+      quiet={quiet}
     >
       <CalendarDayHeader>
         <CalendarDayTitle id={titleId}>{title}</CalendarDayTitle>
@@ -51,20 +53,27 @@ export function CalendarDaySection({
           <FlameIcon aria-hidden />
           {t("calendar.crunch")}
         </CalendarDayCrunch>
-        {day.events.length === 0 && <CalendarDayEmpty>{t("calendar.dayEmpty")}</CalendarDayEmpty>}
+        {quiet && <CalendarDayEmpty>{t("calendar.dayEmpty")}</CalendarDayEmpty>}
         <IconButton
           variant="ghost"
+          size={quiet ? "icon-sm" : "icon"}
           label={t("calendar.addOn", { day: inSentence(title) })}
           onClick={() => onAdd(day.date)}
         >
           <PlusIcon aria-hidden />
         </IconButton>
       </CalendarDayHeader>
-      {day.events.length > 0 && (
+      {!quiet && (
         <CalendarDayList>
           {day.events.map((event) => (
             <li key={event.id}>
-              <CalendarEventRow event={event} family={family} now={now} today={today} />
+              <CalendarEventRow
+                event={event}
+                family={family}
+                now={now}
+                today={today}
+                withCountdown
+              />
             </li>
           ))}
         </CalendarDayList>

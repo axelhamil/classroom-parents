@@ -33,7 +33,10 @@ function CalendarWeek({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="calendar-week"
-      className={cn("@container/week flex min-w-0 flex-col gap-3", className)}
+      className={cn(
+        "@container/week flex min-w-0 flex-col gap-3 [&>[data-quiet=true]+[data-quiet=true]]:-mt-2",
+        className,
+      )}
       {...props}
     />
   );
@@ -45,7 +48,7 @@ const calendarDayVariants = cva(
     variants: {
       layout: {
         stack: "",
-        row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0 @3xl/week:[&>[data-slot=calendar-day-list]]:grid @3xl/week:[&>[data-slot=calendar-day-list]]:grid-cols-2",
+        row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0",
       },
       tone: {
         default: "",
@@ -57,8 +60,12 @@ const calendarDayVariants = cva(
         true: "[&_[data-slot=calendar-day-crunch]]:inline-flex",
         false: "",
       },
+      quiet: {
+        true: "[&>[data-slot=calendar-day-header]]:min-h-9 [&_[data-slot=calendar-day-title]]:text-sm [&_[data-slot=calendar-day-title]]:font-medium",
+        false: "",
+      },
     },
-    defaultVariants: { layout: "stack", tone: "default", crunch: false },
+    defaultVariants: { layout: "stack", tone: "default", crunch: false, quiet: false },
   },
 );
 
@@ -66,12 +73,18 @@ interface CalendarDayProps
   extends React.ComponentProps<"section">,
     VariantProps<typeof calendarDayVariants> {}
 
-function CalendarDay({ className, layout, tone, crunch, ...props }: CalendarDayProps) {
+/**
+ * One day of the planner. A `quiet` day (nothing due) folds to a thin line,
+ * and quiet days in a row sit close together, so a free weekend takes the
+ * room of one busy day instead of four.
+ */
+function CalendarDay({ className, layout, tone, crunch, quiet, ...props }: CalendarDayProps) {
   return (
     <section
       data-slot="calendar-day"
       data-tone={tone ?? "default"}
-      className={cn(calendarDayVariants({ layout, tone, crunch }), className)}
+      data-quiet={quiet ?? false}
+      className={cn(calendarDayVariants({ layout, tone, crunch, quiet }), className)}
       {...props}
     />
   );

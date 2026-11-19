@@ -1,3 +1,4 @@
+import { TypographyDisplay } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -5,6 +6,7 @@ import { ResponsiveOverlay } from "../../../shared/layout/responsive-overlay";
 import { QueryState } from "../../../shared/query/query-state";
 import { eventQueryOptions } from "../api/events.queries";
 import { EventDetailBody, EventDetailSkeleton } from "./event-detail-body";
+import { EventEyebrow, EventOrigin } from "./event-when";
 
 function focusTargets(opener: HTMLElement | null): HTMLElement[] {
   const headings: HTMLElement[] = [];
@@ -25,6 +27,7 @@ export interface EventOverlayProps {
 export function EventOverlay({ eventId, onClose }: EventOverlayProps) {
   const { t } = useTranslation("events");
   const query = useQuery(eventQueryOptions(eventId));
+  const event = query.data;
   const [targets] = useState(() =>
     focusTargets(document.activeElement instanceof HTMLElement ? document.activeElement : null),
   );
@@ -32,9 +35,10 @@ export function EventOverlay({ eventId, onClose }: EventOverlayProps) {
   return (
     <ResponsiveOverlay
       docked="sheet"
-      title={query.data?.title ?? t("detail.title")}
-      description={t("detail.title")}
-      descriptionHidden
+      eyebrow={event && <EventEyebrow event={event} />}
+      title={<TypographyDisplay>{event?.title ?? t("detail.title")}</TypographyDisplay>}
+      description={event ? <EventOrigin event={event} /> : t("detail.title")}
+      descriptionHidden={!event}
       returnFocus={() => targets}
       onClose={onClose}
     >

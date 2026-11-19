@@ -91,6 +91,12 @@ interface ApiFixtures {
   reminders?: number;
 }
 
+function statusOf(event: unknown): unknown {
+  return typeof event === "object" && event !== null && "status" in event
+    ? event.status
+    : undefined;
+}
+
 function apiPath(request: Request): string | undefined {
   return request.resourceType() === "fetch" ? new URL(request.url()).pathname : undefined;
 }
@@ -105,7 +111,11 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
     if (path === "/events") {
       eventRequests.push(request);
-      return route.fulfill({ json: { items: fixtures.events } });
+      const status = new URL(request.url()).searchParams.get("status");
+      const items = status
+        ? fixtures.events.filter((event) => statusOf(event) === status)
+        : fixtures.events;
+      return route.fulfill({ json: { items } });
     }
     if (path === "/events/calendar") {
       eventRequests.push(request);

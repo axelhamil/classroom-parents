@@ -3,15 +3,21 @@ import { Button } from "@packages/ui/components/ui/button";
 import { ListRow, ListRowContent } from "@packages/ui/components/ui/list-row";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
-import { TypographyH2, TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
+import {
+  TypographyH2,
+  TypographyInline,
+  TypographyMuted,
+  TypographyP,
+} from "@packages/ui/components/ui/typography";
 import { apiErrorFields } from "@packages/web-kit/api/errors/api-error";
 import { formatApiError } from "@packages/web-kit/api/errors/messages";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BellIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { instantLabel } from "../../../shared/format/deadline-label";
+import { inSentence, instantLabel } from "../../../shared/format/deadline-label";
 import { refusedReminder } from "../../../shared/reminders/reminders.schema";
 import { RemindersForm } from "../../../shared/reminders/reminders-form";
 import { useReminderLabel } from "../../../shared/reminders/use-reminder-label";
@@ -132,26 +138,23 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
     );
   }
 
+  const next = nextAmongSeveral(data, now);
+
   return (
     <>
-      <TypographyMuted>
-        {data.customized ? t("reminders.customized") : t("reminders.fromDefaults")}
-      </TypographyMuted>
-      {needsReview && !data.customized ? (
-        <TypographyMuted>{t("reminders.awaitingReview")}</TypographyMuted>
-      ) : null}
+      {next && <TypographyP>{t("reminders.next", { when: next })}</TypographyP>}
       {data.reminders.length === 0 ? (
         <TypographyP>{t("reminders.none")}</TypographyP>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col">
           {data.reminders.map((item) => (
-            <ListRow key={JSON.stringify(item.reminder)} className="items-start">
+            <ListRow key={JSON.stringify(item.reminder)} variant="ruled">
               <ListRowContent className="min-w-0">
-                <TypographyP>{label(item.reminder)}</TypographyP>
+                <TypographyInline size="sm">{label(item.reminder)}</TypographyInline>
                 {item.dueAt && item.status !== "unplanned" ? (
-                  <TypographyMuted>
+                  <TypographyInline size="xs" tone="muted">
                     {t("reminders.due", { when: instantLabel(item.dueAt, now) })}
-                  </TypographyMuted>
+                  </TypographyInline>
                 ) : null}
               </ListRowContent>
               <Badge variant="secondary">{t(REMINDER_STATUS_LABEL_KEYS[item.status])}</Badge>
@@ -159,8 +162,15 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
           ))}
         </ul>
       )}
+      <TypographyMuted>
+        {data.customized ? t("reminders.customized") : t("reminders.fromDefaults")}
+      </TypographyMuted>
+      {needsReview && !data.customized ? (
+        <TypographyMuted>{t("reminders.awaitingReview")}</TypographyMuted>
+      ) : null}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(true)}>
+          <BellIcon aria-hidden />
           {t("reminders.edit")}
         </Button>
         {data.customized ? (
@@ -177,4 +187,12 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
       </div>
     </>
   );
+}
+
+function nextAmongSeveral(data: EventRemindersData, now: Date): string | null {
+  if (data.reminders.length < 2) return null;
+
+  const next = data.reminders.find((item) => item.status === "pending" && item.dueAt);
+
+  return next?.dueAt ? inSentence(instantLabel(next.dueAt, now)) : null;
 }

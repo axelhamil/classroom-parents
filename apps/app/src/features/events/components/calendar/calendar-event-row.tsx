@@ -8,13 +8,19 @@ import {
 } from "@packages/ui/components/ui/calendar-entry";
 import { Checkbox } from "@packages/ui/components/ui/checkbox";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { DeadlineCategory } from "@packages/ui/components/ui/deadline-sheet";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
-import { CATEGORY_ICONS, CATEGORY_LABEL_KEYS } from "../../../../shared/events/event-labels";
+import { CountdownBadge, withoutImminent } from "../../../../shared/events/event-card";
+import {
+  CATEGORY_ICONS,
+  CATEGORY_LABEL_KEYS,
+  CATEGORY_TONES,
+} from "../../../../shared/events/event-labels";
 import { EventLink } from "../../../../shared/events/event-link";
 import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
-import { countdownOf, dayLabel } from "../../../../shared/format/deadline-label";
+import { countdownOf, dayLabel, deadlineLabel } from "../../../../shared/format/deadline-label";
 import { isOverdue } from "../../calendar";
 import { useToggleDone } from "../../hooks/use-toggle-done";
 
@@ -26,6 +32,7 @@ export interface CalendarEventRowProps {
   dated?: boolean;
   withChild?: boolean;
   compact?: boolean;
+  withCountdown?: boolean;
 }
 
 function stateOf(event: EventItem, now: Date, today: string) {
@@ -44,6 +51,7 @@ export function CalendarEventRow({
   dated = false,
   withChild = true,
   compact = false,
+  withCountdown = false,
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
@@ -52,6 +60,10 @@ export function CalendarEventRow({
   const childLabel = withChild && family.length > 1 ? childLabelOf(family, event.childId) : "";
   const status = stateOf(event, now, today);
   const state = compact && status === "overdue" ? "open" : status;
+  const countdown =
+    withCountdown && (state === "open" || state === "urgent")
+      ? withoutImminent(countdownOf(event.deadlineDate, event.deadlineTime, now))
+      : null;
 
   return (
     <CalendarEntry hue={hue} state={state} density={compact ? "compact" : "comfortable"}>
@@ -66,10 +78,12 @@ export function CalendarEventRow({
           <EventLink eventId={event.id}>{event.title}</EventLink>
         </CalendarEntryLink>
         <CalendarEntryMeta>
-          <CategoryIcon aria-hidden />
-          <span className={compact ? "sr-only" : undefined}>
-            {t(CATEGORY_LABEL_KEYS[event.category])}
-          </span>
+          <DeadlineCategory tone={CATEGORY_TONES[event.category]} size="xs">
+            <CategoryIcon aria-hidden />
+            <span className={compact ? "sr-only" : undefined}>
+              {t(CATEGORY_LABEL_KEYS[event.category])}
+            </span>
+          </DeadlineCategory>
           {dated && <span>{dayLabel(event.deadlineDate, now)}</span>}
           {event.deadlineTime && <span>{wallTimeLabel(event.deadlineTime)}</span>}
           {childLabel && (
@@ -79,6 +93,11 @@ export function CalendarEventRow({
             </span>
           )}
           {state === "overdue" && <Badge variant="destructive">{t("calendar.overdue")}</Badge>}
+          <CountdownBadge
+            countdown={countdown}
+            label={deadlineLabel(event.deadlineDate, event.deadlineTime, now)}
+            deadlineTime={event.deadlineTime}
+          />
         </CalendarEntryMeta>
       </CalendarEntryBody>
     </CalendarEntry>

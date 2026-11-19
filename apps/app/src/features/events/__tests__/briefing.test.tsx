@@ -257,15 +257,33 @@ describe("Accueil briefs the next school moment", () => {
     ).toBeDefined();
   });
 
-  it("nothing due reads calm and names the next deadline", async () => {
+  it("nothing due reads calm and opens the next deadline from its card", async () => {
     at(THURSDAY_EVENING);
     givenCalendar([CHILD], [deadline(1, "2026-11-20", "Sortie au musée")]);
     await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
+    expect(await within(tomorrow).findByText("Rien à préparer pour demain.")).toBeDefined();
+    const next = await within(tomorrow).findByRole("region", { name: "Prochaine échéance" });
+    expect(titlesIn(next)).toEqual([expect.stringContaining("Sortie au musée")]);
+  });
+
+  it("counts what the seven days ahead hold, assessments named", async () => {
+    at(THURSDAY_EVENING);
+    givenCalendar(
+      [CHILD],
+      [
+        deadline(1, "2026-11-13", "Sac de piscine", { category: "swimming" }),
+        deadline(2, "2026-11-16", "Évaluation de calcul", { category: "assessment" }),
+        deadline(3, "2026-11-17", "Fiche déjà rendue", { done: true }),
+      ],
+    );
+    await renderAppAt("/");
+
+    const tomorrow = await briefing("Pour demain");
     expect(
       await within(tomorrow).findByText(
-        "Rien à préparer pour demain. Prochaine échéance : Sortie au musée, vendredi 20 novembre.",
+        "2 échéances sur les 7 prochains jours, dont 1 évaluation.",
       ),
     ).toBeDefined();
   });

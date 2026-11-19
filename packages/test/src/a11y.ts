@@ -20,6 +20,7 @@ function formatViolation(violation: Violation): string {
 }
 
 export async function blockingViolations(page: Page, include?: string): Promise<string[]> {
+  await settleAnimations(page);
   const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   const results = await (include ? builder.include(include) : builder).analyze();
 
@@ -65,7 +66,6 @@ export async function audit(
   // lang="en" fail: a membership check would pass on that bug trivially.
   await expect(page.locator("html")).toHaveAttribute("lang", expectedLocale);
 
-  await settleAnimations(page);
   expect(await blockingViolations(page)).toEqual([]);
 }
 

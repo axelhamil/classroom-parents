@@ -185,8 +185,8 @@
   /* Inner gutter of a scroll region: holds the 3px focus ring and the 4px avatar ring (2px offset + 2px ring) its overflow would clip. */
   --scroll-gutter: 0.375rem;
   --scroll-thumb: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
-  /* 18rem at 768 (230px floor), 24rem from 1280: a briefing title keeps 200 to 296px. */
-  --briefing-panel-width: clamp(18rem, 30vw, 24rem);
+  /* One fixed column beside the week from 768: a briefing title keeps 296px, the week keeps 376px at 768. */
+  --briefing-panel-width: 21rem;
   --briefing-panel-top: calc(var(--app-bar-height) + env(safe-area-inset-top) + 1rem);
   /* Fits under the greeting, the toolbar and the family row before any scroll. */
   --briefing-panel-height: calc(100dvh - var(--briefing-panel-top) - 13.5rem);

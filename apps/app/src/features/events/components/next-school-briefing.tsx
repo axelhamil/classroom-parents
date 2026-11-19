@@ -6,6 +6,7 @@ import {
   BriefingGroupTitle,
   BriefingItem,
   BriefingList,
+  BriefingStat,
   BriefingSummary,
   BriefingTitle,
 } from "@packages/ui/components/ui/briefing";
@@ -22,7 +23,8 @@ import type { ChildDto } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import { isFirstSyncRunning } from "../../../shared/events/event-board";
-import { childHue } from "../../../shared/format/child-hue";
+import { EventCard } from "../../../shared/events/event-card";
+import { childHue, childLabelOf } from "../../../shared/format/child-hue";
 import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { calendarEventsQueryOptions, nextEventQueryOptions } from "../api/events.queries";
@@ -50,9 +52,12 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
       aria-labelledby={titleId}
       data-jump={moment.focus}
       tabIndex={-1}
-      className="max-h-briefing-phone md:sticky md:top-briefing-top md:max-h-briefing-panel-height"
+      className="max-h-briefing-phone md:max-h-briefing-panel-height"
     >
       <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
+      {query.data && !isFirstSyncRunning(watched) && (
+        <WeekStat events={query.data} childId={childId} />
+      )}
       <QueryState
         query={query}
         skeleton={
@@ -75,6 +80,32 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
         )}
       </QueryState>
     </Briefing>
+  );
+}
+
+function openIn(events: readonly EventItem[], childId: string | null): EventItem[] {
+  return events.filter((event) => !event.done && (childId === null || event.childId === childId));
+}
+
+interface WeekStatProps {
+  events: readonly EventItem[];
+  childId: string | null;
+}
+
+function WeekStat({ events, childId }: WeekStatProps) {
+  const { t } = useTranslation("events");
+  const open = openIn(events, childId);
+  const assessments = open.filter((event) => event.category === "assessment").length;
+
+  return (
+    <BriefingStat>
+      {assessments > 0
+        ? t("briefing.weekWithAssessments", {
+            count: open.length,
+            assessments: t("briefing.assessments", { count: assessments }),
+          })
+        : t("briefing.week", { count: open.length })}
+    </BriefingStat>
   );
 }
 
@@ -115,7 +146,7 @@ function BriefingBody({ events: loaded, family, childId, now, moment, day }: Bri
     return isFirstSyncRunning(family) ? (
       <BriefingSummary>{t("empty.syncing.title")}</BriefingSummary>
     ) : (
-      <NothingDue childId={childId} now={now} after={moment.focus} day={day} />
+      <NothingDue family={family} childId={childId} after={moment.focus} day={day} />
     );
 
   return (
@@ -212,25 +243,30 @@ function EventPreparation({ event }: EventPreparationProps) {
 }
 
 interface NothingDueProps {
+  family: readonly ChildDto[];
   childId: string | null;
-  now: Date;
   after: string;
   day: string;
 }
 
-function NothingDue({ childId, now, after, day }: NothingDueProps) {
+function NothingDue({ family, childId, after, day }: NothingDueProps) {
   const { t } = useTranslation("events");
   const next = useQuery(nextEventQueryOptions(childId)).data;
+  const upcoming = next && next.deadlineDate > after ? next : null;
 
   return (
-    <BriefingSummary>
-      {next && next.deadlineDate > after
-        ? t("briefing.emptyThenNext", {
-            day,
-            title: next.title,
-            next: inSentence(dayLabel(next.deadlineDate, now)),
-          })
-        : t("briefing.empty", { day })}
-    </BriefingSummary>
+    <>
+      <BriefingSummary>{t("briefing.empty", { day })}</BriefingSummary>
+      {upcoming && (
+        <ScrollRegion variant="panel" label={t("briefing.next")} className="flex flex-col gap-2">
+          <BriefingGroupTitle>{t("briefing.next")}</BriefingGroupTitle>
+          <EventCard
+            event={upcoming}
+            childLabel={family.length > 1 ? childLabelOf(family, upcoming.childId) : ""}
+            hue={childHue(family, upcoming.childId)}
+          />
+        </ScrollRegion>
+      )}
+    </>
   );
 }

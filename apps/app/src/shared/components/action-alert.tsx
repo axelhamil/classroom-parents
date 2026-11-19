@@ -15,13 +15,14 @@ export interface ActionAlertProps {
   title: string;
   description?: ReactNode;
   action?: ReactNode;
+  density?: "default" | "compact";
 }
 
-export function ActionAlert({ tone, title, description, action }: ActionAlertProps) {
+export function ActionAlert({ tone, title, description, action, density }: ActionAlertProps) {
   const Icon = TONE_ICONS[tone];
 
   return (
-    <Alert variant={tone}>
+    <Alert variant={tone} density={density}>
       <Icon aria-hidden />
       <AlertTitle>{title}</AlertTitle>
       {description && <AlertDescription>{description}</AlertDescription>}
