@@ -18,6 +18,10 @@ const calendarEntryVariants = cva(
         7: "bg-child-7-container",
         8: "bg-child-8-container",
       },
+      surface: {
+        tint: "",
+        paper: "bg-surface-container",
+      },
       state: {
         open: "",
         overdue: "border-destructive/60",
@@ -26,13 +30,61 @@ const calendarEntryVariants = cva(
       },
       density: {
         comfortable: "",
-        compact: "py-1.5",
+        compact: "gap-2 px-2 py-1.5 [&_[data-slot=calendar-entry-link]]:line-clamp-3",
       },
     },
-    defaultVariants: { state: "open", density: "comfortable" },
+    compoundVariants: [
+      {
+        surface: "paper",
+        hue: 1,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-1)]",
+      },
+      {
+        surface: "paper",
+        hue: 2,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-2)]",
+      },
+      {
+        surface: "paper",
+        hue: 3,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-3)]",
+      },
+      {
+        surface: "paper",
+        hue: 4,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-4)]",
+      },
+      {
+        surface: "paper",
+        hue: 5,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-5)]",
+      },
+      {
+        surface: "paper",
+        hue: 6,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-6)]",
+      },
+      {
+        surface: "paper",
+        hue: 7,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-7)]",
+      },
+      {
+        surface: "paper",
+        hue: 8,
+        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-8)]",
+      },
+    ],
+    defaultVariants: { surface: "tint", state: "open", density: "comfortable" },
   },
 );
 
+/**
+ * One deadline of the agenda. `surface="tint"` fills it with its child's hue, which tells two
+ * children apart; `surface="paper"` is the neutral card of a family with one child, whose hue
+ * only remains as an edge on the leading side. A border marks a state (urgent, overdue), never
+ * decoration.
+ */
 interface CalendarEntryProps
   extends React.ComponentProps<"div">,
     VariantProps<typeof calendarEntryVariants> {
@@ -42,6 +94,7 @@ interface CalendarEntryProps
 function CalendarEntry({
   className,
   hue,
+  surface,
   state,
   density,
   asChild = false,
@@ -53,7 +106,8 @@ function CalendarEntry({
     <Comp
       data-slot="calendar-entry"
       data-state={state ?? "open"}
-      className={cn(calendarEntryVariants({ hue, state, density }), className)}
+      data-surface={surface ?? "tint"}
+      className={cn(calendarEntryVariants({ hue, surface, state, density }), className)}
       {...props}
     />
   );

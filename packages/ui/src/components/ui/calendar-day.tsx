@@ -29,12 +29,46 @@ function CalendarPeriod({ className, direction, ...props }: CalendarPeriodProps)
   );
 }
 
-function CalendarWeek({ className, ...props }: React.ComponentProps<"div">) {
+const calendarWeekVariants = cva("min-w-0", {
+  variants: {
+    arrangement: {
+      stack: "@container/week flex flex-col gap-3 [&>[data-quiet=true]+[data-quiet=true]]:-mt-2",
+      fil: "flex flex-col [&>*+*]:border-t [&>*+*]:border-border",
+      board:
+        "grid grid-cols-[repeat(5,minmax(0,1fr))_minmax(0,0.9fr)] items-stretch gap-2 [&>*+*:not([data-slot=calendar-weekend])]:shadow-[-0.25rem_0_0_-0.1875rem_var(--border)]",
+    },
+  },
+  defaultVariants: { arrangement: "stack" },
+});
+
+interface CalendarWeekProps
+  extends React.ComponentProps<"div">,
+    VariantProps<typeof calendarWeekVariants> {}
+
+/**
+ * The days of one week. `fil` is the phone's single reading column, a hairline between two days;
+ * `board` is the open planner of a wider screen, five weekday columns and the weekend stacked in
+ * the sixth. The order of the DOM is always the order of the days.
+ */
+function CalendarWeek({ className, arrangement, ...props }: CalendarWeekProps) {
   return (
     <div
       data-slot="calendar-week"
+      data-arrangement={arrangement ?? "stack"}
+      className={cn(calendarWeekVariants({ arrangement }), className)}
+      {...props}
+    />
+  );
+}
+
+/** Saturday and Sunday of a `board`, stacked on a lighter paper. Name it ("Week-end") through `aria-label`. */
+function CalendarWeekend({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      role="group"
+      data-slot="calendar-weekend"
       className={cn(
-        "@container/week flex min-w-0 flex-col gap-3 [&>[data-quiet=true]+[data-quiet=true]]:-mt-2",
+        "flex min-w-0 flex-col gap-2 rounded-xl bg-surface-weekend [&>[data-slot=calendar-day]:not([data-tone=today])]:bg-surface-weekend",
         className,
       )}
       {...props}
@@ -48,6 +82,9 @@ const calendarDayVariants = cva(
     variants: {
       layout: {
         stack: "",
+        rail: "grid scroll-mt-day-strip grid-cols-[var(--spacing-day-rail)_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-none py-3 data-[quiet=true]:py-2 [&>:not([data-slot=calendar-day-mark])]:col-start-2",
+        column:
+          "gap-1.5 rounded-xl bg-card px-1 pb-2 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
         row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0",
       },
       tone: {
@@ -82,9 +119,51 @@ function CalendarDay({ className, layout, tone, crunch, quiet, ...props }: Calen
   return (
     <section
       data-slot="calendar-day"
+      data-layout={layout ?? "stack"}
       data-tone={tone ?? "default"}
       data-quiet={quiet ?? false}
-      className={cn(calendarDayVariants({ layout, tone, crunch, quiet }), className)}
+      className={cn("group/day", calendarDayVariants({ layout, tone, crunch, quiet }), className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * The date of a `rail` or `column` day, its heading: the short weekday and the day number are
+ * what the eye reads (`aria-hidden` parts), the full date is the heading's name (an `sr-only`
+ * part). On a rail it sticks under the strip of days while its deadlines scroll; on a column it
+ * sticks at the top of the planner. Today's number sits in a pill of ink.
+ */
+function CalendarDayMark({ className, ...props }: React.ComponentProps<"h3">) {
+  return (
+    <h3
+      data-slot="calendar-day-mark"
+      className={cn(
+        "z-10 flex bg-card text-foreground group-data-[tone=past]/day:text-muted-foreground",
+        "[&>[data-part=day]]:inline-grid [&>[data-part=day]]:place-items-center [&>[data-part=day]]:rounded-full [&>[data-part=day]]:font-display [&>[data-part=day]]:font-bold [&>[data-part=day]]:tabular-nums",
+        "group-data-[tone=today]/day:[&>[data-part=day]]:bg-primary group-data-[tone=today]/day:[&>[data-part=day]]:text-primary-foreground",
+        "[&>[data-part=weekday]]:text-sm [&>[data-part=weekday]]:font-semibold [&>[data-part=weekday]]:text-muted-foreground group-data-[tone=today]/day:[&>[data-part=weekday]]:text-foreground",
+        "group-data-[layout=rail]/day:sticky group-data-[layout=rail]/day:top-[calc(var(--spacing-app-bar)+var(--spacing-day-strip))] group-data-[layout=rail]/day:row-span-full group-data-[layout=rail]/day:flex-col group-data-[layout=rail]/day:items-center group-data-[layout=rail]/day:self-start",
+        "group-data-[layout=rail]/day:[&>[data-part=day]]:min-w-10 group-data-[layout=rail]/day:[&>[data-part=day]]:h-10 group-data-[layout=rail]/day:[&>[data-part=day]]:px-1 group-data-[layout=rail]/day:[&>[data-part=day]]:text-2xl",
+        "group-data-[quiet=true]/day:[&>[data-part=day]]:h-7 group-data-[quiet=true]/day:[&>[data-part=day]]:text-base group-data-[quiet=true]/day:[&>[data-part=day]]:whitespace-nowrap group-data-[quiet=true]/day:[&>[data-part=day]]:text-muted-foreground group-data-[quiet=true]/day:[&>[data-part=weekday]]:text-xs",
+        "group-data-[layout=column]/day:sticky group-data-[layout=column]/day:top-0 group-data-[layout=column]/day:items-baseline group-data-[layout=column]/day:gap-1.5 group-data-[layout=column]/day:border-b group-data-[layout=column]/day:border-border group-data-[layout=column]/day:bg-inherit group-data-[layout=column]/day:px-0.5 group-data-[layout=column]/day:pt-1 group-data-[layout=column]/day:pb-1.5",
+        "group-data-[layout=column]/day:[&>[data-part=day]]:min-w-7 group-data-[layout=column]/day:[&>[data-part=day]]:px-1 group-data-[layout=column]/day:[&>[data-part=day]]:text-xl",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** The one line under a day's mark: its relative word ("Demain") and, on a full day, its count. */
+function CalendarDayNote({ className, ...props }: React.ComponentProps<"p">) {
+  return (
+    <p
+      data-slot="calendar-day-note"
+      className={cn(
+        "flex min-h-6 min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground",
+        className,
+      )}
       {...props}
     />
   );
@@ -145,7 +224,10 @@ export {
   CalendarDayEmpty,
   CalendarDayHeader,
   CalendarDayList,
+  CalendarDayMark,
+  CalendarDayNote,
   CalendarDayTitle,
   CalendarPeriod,
   CalendarWeek,
+  CalendarWeekend,
 };

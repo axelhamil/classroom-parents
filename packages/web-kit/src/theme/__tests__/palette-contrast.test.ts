@@ -29,6 +29,12 @@ const MODES = ["light", "dark"] as const satisfies readonly ResolvedTheme[];
 const CHILDREN = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const CATEGORIES = ["assessment", "homework", "school-trip", "swimming", "document-due"] as const;
 
+const AGENDA_PAPERS = [
+  "surface-container",
+  "surface-container at 55% over card",
+  "primary at 6% over card",
+] as const;
+
 const TEXT = 4.5;
 const GRAPHIC = 3;
 
@@ -281,9 +287,15 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
       [mark(child), "background", GRAPHIC],
       [mark(child), "card", GRAPHIC],
     ]),
+    // The agenda of a one child family: deadlines on neutral paper, the weekend on a lighter paper, today's column breathed with ink.
+    ...AGENDA_PAPERS.flatMap((paper): Pair[] => [
+      ["foreground", paper, TEXT],
+      ["muted-foreground", paper, TEXT],
+    ]),
     ...CATEGORIES.flatMap((category): Pair[] => [
       [`category-${category}`, `category-${category}-tint`, TEXT],
       [`category-${category}`, "card", TEXT],
+      [`category-${category}`, "surface-container", TEXT],
     ]),
   ];
 }
