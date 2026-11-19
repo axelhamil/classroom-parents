@@ -10,15 +10,16 @@ export interface WeekViewProps {
   family: readonly ChildDto[];
   now: Date;
   today: string;
-  briefed: SchoolMoment;
+  briefed: SchoolMoment | null;
   onAdd: (date: string) => void;
 }
 
 export function WeekView({ days, briefed, ...section }: WeekViewProps) {
   const besideBriefing = useMediaQuery(TABLET_QUERY);
-  const rows = besideBriefing
-    ? days
-    : days.filter((day) => day.date < briefed.today || day.date > briefed.focus);
+  const rows =
+    besideBriefing || !briefed
+      ? days
+      : days.filter((day) => day.date < briefed.today || day.date > briefed.focus);
 
   return (
     <CalendarWeek>

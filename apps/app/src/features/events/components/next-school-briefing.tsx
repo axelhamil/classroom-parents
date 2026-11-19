@@ -28,10 +28,9 @@ import { childHue, childLabelOf } from "../../../shared/format/child-hue";
 import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { calendarEventsQueryOptions, nextEventQueryOptions } from "../api/events.queries";
-import { useChecklist } from "../hooks/use-checklist";
 import { type SchoolMoment, schoolMoment, weekAhead } from "../week";
 import { CalendarEventRow } from "./calendar/calendar-event-row";
-import { ChecklistRows } from "./prepare-checklist";
+import { EventSteps } from "./prepare-checklist";
 
 export interface NextSchoolBriefingProps {
   family: readonly ChildDto[];
@@ -52,7 +51,7 @@ export function NextSchoolBriefing({ family, childId, now }: NextSchoolBriefingP
       aria-labelledby={titleId}
       data-jump={moment.focus}
       tabIndex={-1}
-      className="max-h-briefing-phone md:max-h-briefing-panel-height"
+      className="max-h-briefing-phone md:max-h-none md:min-h-0 md:flex-1"
     >
       <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
       {query.data && !isFirstSyncRunning(watched) && (
@@ -222,24 +221,14 @@ function ChildBriefing({ child, events, family, now, moment }: ChildBriefingProp
               today={moment.today}
               dated={event.deadlineDate !== moment.focus}
               withChild={false}
-            />
-            {!event.done && <EventPreparation event={event} />}
+            >
+              {!event.done && <EventSteps event={event} />}
+            </CalendarEventRow>
           </BriefingItem>
         ))}
       </BriefingList>
     </BriefingGroup>
   );
-}
-
-interface EventPreparationProps {
-  event: EventItem;
-}
-
-function EventPreparation({ event }: EventPreparationProps) {
-  const checklist = useChecklist(event);
-  if (checklist.items.length === 0) return null;
-
-  return <ChecklistRows checklist={checklist} />;
 }
 
 interface NothingDueProps {

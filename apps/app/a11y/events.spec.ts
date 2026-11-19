@@ -38,7 +38,9 @@ async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
   expect(await views.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
 }
 
-async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void> {
+type WeekPlace = "beside" | "under";
+
+async function expectWholeWeekRows(page: Page, place: WeekPlace): Promise<void> {
   const rows = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]");
   await expect(rows).toHaveCount(7);
   const titles = page.locator("[data-slot=calendar-week] [data-slot=calendar-entry-link]");
@@ -57,8 +59,9 @@ async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void>
   expect(Math.min(...widths)).toBeGreaterThanOrEqual(180);
   const briefing = await page.locator("[data-slot=briefing]").boundingBox();
   const week = await page.locator("[data-slot=calendar-week]").boundingBox();
-  expect(briefing && week && briefing.x + briefing.width < week.x).toBe(true);
-  expect(week && week.y < fold / 2).toBe(true);
+  const beside = briefing && week && briefing.x + briefing.width < week.x;
+  const under = briefing && week && briefing.y + briefing.height <= week.y;
+  expect(place === "beside" ? beside : under).toBe(true);
 }
 
 function comingFriday(): string {
@@ -161,7 +164,11 @@ test.describe("the calendar on a phone", () => {
       const review = page.getByRole("button", { name: "1 date à vérifier" });
       await expect(review).toHaveAttribute("aria-haspopup", "dialog");
       await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
-      await expect(page.getByRole("link", { name: REVIEW_EVENT.title, exact: true })).toBeVisible();
+      await expect(
+        page
+          .getByRole("region", { name: "Agenda" })
+          .getByRole("link", { name: REVIEW_EVENT.title, exact: true }),
+      ).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
 
@@ -243,7 +250,7 @@ test.describe("the calendar on a phone", () => {
     await serveFamily(page, { children: [LEA], events: due });
     await page.goto("/");
 
-    const briefing = page.getByRole("region", { name: /^Pour / });
+    const briefing = page.locator("[data-slot=briefing]");
     const scroller = briefing.getByRole("region", { name: /^Échéances à préparer pour / });
     await expect(scroller.getByRole("link", { name: "Piscine 1" })).toBeVisible();
     expect(await scroller.evaluate((region) => region.scrollHeight > region.clientHeight)).toBe(
@@ -310,6 +317,7 @@ test.describe("the calendar on a phone", () => {
 
     const strip = page.getByRole("radiogroup", { name: "Jours de la semaine" });
     await expect(strip.getByRole("radio")).toHaveCount(7);
+    await strip.scrollIntoViewIfNeeded();
     await expect(strip).toBeInViewport();
     const homework = page.getByRole("link", { name: "Exercices 4 à 9 page 112", exact: true });
     await expect(homework).toBeVisible();
@@ -369,12 +377,12 @@ test.describe("event overlay focus", () => {
 test.describe("the week on a tablet", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 768, height: 1024 } });
 
-  test("puts the briefing beside the week, whose rows replace the day strip", async ({ page }) => {
+  test("puts the week under the briefing, whose rows replace the day strip", async ({ page }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    await expectWeekBesideBriefing(page, 1024);
+    await expectWholeWeekRows(page, "under");
     await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeHidden();
     await expectOnePageWithoutOverflow(page);
   });
@@ -394,7 +402,7 @@ test.describe("the week on a desktop", () => {
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    await expectWeekBesideBriefing(page, 900);
+    await expectWholeWeekRows(page, "beside");
     await expectOnePageWithoutOverflow(page);
 
     await page.goto("/settings");

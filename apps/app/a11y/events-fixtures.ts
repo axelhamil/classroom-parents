@@ -116,6 +116,8 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     const path = apiPath(request);
     if (path === "/children") return route.fulfill({ json: fixtures.children });
     if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
+    if (path === "/home/layout") return route.fulfill({ json: { blocks: null } });
+    if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
     if (path === "/events") {
       eventRequests.push(request);
       const status = new URL(request.url()).searchParams.get("status");

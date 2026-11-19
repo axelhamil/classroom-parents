@@ -39,6 +39,10 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "PUT /assistant/preferences/extraction": {
     consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
   },
+  "GET /home/layout": { consumer: "apps/app/src/features/events/api/home.queries.ts" },
+  "PUT /home/layout": { consumer: "apps/app/src/features/events/api/home.mutations.ts" },
+  "GET /home/note": { consumer: "apps/app/src/features/events/api/home.queries.ts" },
+  "PUT /home/note": { consumer: "apps/app/src/features/events/api/home.mutations.ts" },
   "GET /children": { consumer: "apps/app/src/shared/api/queries/children.ts" },
   "GET /children/link-config": {
     consumer: "apps/app/src/shared/children/child-link.queries.ts",

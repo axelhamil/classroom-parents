@@ -200,6 +200,9 @@
   --print-root-size-compact: 8.5pt;
   --print-item-space: 0.5rem;
   --print-item-space-compact: 0.2rem;
+  /* Home grid: one row holds a block title and three lines of a list; a phone stops a long list before it hides the next block. */
+  --dashboard-row-height: 12.5rem;
+  --dashboard-panel-phone-height: 26rem;
 }
 
 .dark {

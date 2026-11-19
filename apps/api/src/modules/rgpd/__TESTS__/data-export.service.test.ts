@@ -45,6 +45,8 @@ const snapshot: UserDataSnapshot = {
   assistantPreferences: null,
   aiUsage: [],
   aiCalls: [],
+  homeLayout: null,
+  homeNote: null,
   sync: [],
 };
 

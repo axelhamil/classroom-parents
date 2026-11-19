@@ -44,6 +44,7 @@ for (const width of [390, 1440]) {
     await page.goto("/");
 
     const trigger = page.getByRole("button", { name: "En retard, 1 échéance" });
+    await trigger.scrollIntoViewIfNeeded();
     const elements = await Promise.all([
       page.getByRole("navigation", { name: "Navigation principale" }).elementHandle(),
       trigger.elementHandle(),
@@ -55,7 +56,8 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("dialog", { name: "En retard, 1 échéance" })).toBeVisible();
 
     expect(await boxes()).toEqual(closed);
+    const scrolled = await page.evaluate(() => window.scrollY);
     await page.mouse.wheel(0, 400);
-    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
   });
 }

@@ -185,6 +185,11 @@ jobs:
         # alert claimed once per period and the cascade on account deletion are SQL. Removes its
         # probe parents.
         run: pnpm --filter @modules/assistant check:assistant-db
+      - name: Check the home layout and note against a real database
+        # The jsonb round trip that makes an identical layout a no-op, the deletes on reset,
+        # each change and its event in one transaction, and the cascade on account deletion
+        # are SQL. Removes its probe parent.
+        run: pnpm --filter @modules/home check:home-db
 
       - name: Check the sent email retention sweep against a real database
         # The batched delete, its lease and its heartbeat are SQL. Removes its probes.

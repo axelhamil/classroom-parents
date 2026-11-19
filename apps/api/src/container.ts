@@ -56,6 +56,7 @@ import {
 } from "./composition/bindings";
 import { deliveryModule, runtimeModule } from "./composition/delivery";
 import { fakeProviderBindings } from "./composition/fake-bindings";
+import { homeContainer } from "./composition/home";
 import { llmModule } from "./composition/llm";
 import { schoolCalendarContainer } from "./composition/school-calendar";
 import { apiSettings } from "./composition/settings";
@@ -276,3 +277,4 @@ export const di = container()
 export const schoolCalendar = schoolCalendarContainer(di);
 
 export const assistant = assistantContainer(di, env, logger);
+export const home = homeContainer(di);

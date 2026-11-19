@@ -7,8 +7,8 @@
  *    temporary CHECK constraint on `email_message.to_address`, dropped again in cleanup.
  * 2. A completed wipe revokes the child tokens while the user still exists, deletes the user row
  *    (sessions, accounts, children with their color and picture, events hand-added ones included,
- *    reminders, the calendar feed, the Sunday digest choice and history and the school zone
- *    choice follow by FK cascade), purges every outbox row whose payload names the user as
+ *    reminders, the calendar feed, the Sunday digest choice and history, the school zone
+ *    choice, the home layout and the home note follow by FK cascade), purges every outbox row whose payload names the user as
  *    `userId` or `actorUserId`, keeps other users' rows, and leaves exactly one
  *    `USER_DELETED` without any email.
  * 3. A pending deletion inside its grace period is not returned by the sweep query.
@@ -34,6 +34,7 @@ import { aiUsage, assistantPreference } from "@modules/assistant/schemas/assista
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedChild } from "@modules/children/schemas/testing/seed-child";
+import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
 import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type IInstrumentation, Result } from "@packages/ddd-kit";
 import {
@@ -202,6 +203,12 @@ async function seedFamilyData(id: string): Promise<void> {
     outcome: "ok",
     latencyMs: 1,
   });
+  await db.insert(homeLayout).values({
+    userId: id,
+    blocks: [{ id: "agenda", w: 8, h: 2, hidden: false }],
+    updatedAt: at,
+  });
+  await db.insert(homeNote).values({ userId: id, body: "Piscine le jeudi", updatedAt: at });
 }
 
 async function familyRowsLeft(id: string): Promise<Record<string, number>> {
@@ -246,6 +253,12 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
     ),
     aiUsage: await tally(db.select({ total: count() }).from(aiUsage).where(eq(aiUsage.userId, id))),
     aiCalls: await tally(db.select({ total: count() }).from(aiCall).where(eq(aiCall.userId, id))),
+    homeLayouts: await tally(
+      db.select({ total: count() }).from(homeLayout).where(eq(homeLayout.userId, id)),
+    ),
+    homeNotes: await tally(
+      db.select({ total: count() }).from(homeNote).where(eq(homeNote.userId, id)),
+    ),
   };
 }
 
@@ -433,7 +446,7 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
   const familyLeft = await familyRowsLeft(erasedId);
   check(
-    "its children, events, reminders, calendar feed, Sunday digest, school zone and AI rows are deleted",
+    "its children, events, reminders, calendar feed, Sunday digest, school zone, AI and home rows are deleted",
     Object.values(familyLeft).every((total) => total === 0),
     familyLeft,
   );

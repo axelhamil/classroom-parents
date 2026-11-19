@@ -131,7 +131,7 @@ function BriefingItem({ className, ...props }: React.ComponentProps<"li">) {
   return (
     <li
       data-slot="briefing-item"
-      className={cn("flex min-w-0 flex-col gap-1 [&>[data-slot=checklist]]:ps-6", className)}
+      className={cn("flex min-w-0 flex-col gap-1", className)}
       {...props}
     />
   );

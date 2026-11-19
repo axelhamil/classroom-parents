@@ -39,11 +39,14 @@ export function schoolMoment(now: Date): SchoolMoment {
   const today = schoolToday(now);
   if (isWeekday(today) && !isEvening(now)) return { today, focus: today };
 
-  const focus =
-    DAYS_TO_NEXT_SCHOOL_DAY.map((offset) => shiftDate(today, offset)).find(isWeekday) ??
-    shiftDate(today, 1);
+  return { today, focus: nextSchoolDay(today) };
+}
 
-  return { today, focus };
+export function nextSchoolDay(today: string): string {
+  return (
+    DAYS_TO_NEXT_SCHOOL_DAY.map((offset) => shiftDate(today, offset)).find(isWeekday) ??
+    shiftDate(today, 1)
+  );
 }
 
 export function weekAhead(today: string): CalendarRange {

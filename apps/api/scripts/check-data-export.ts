@@ -4,7 +4,8 @@
  * keeps withdrawn, deleted and hand-added events, the child color and picture, the calendar feed
  * (never its secret), the Sunday digest choice and history, with the default choice for a
  * parent who never made one, the school zone choice, the language, region and AI opposition
- * choices, the AI usage counters and the AI call journal (no hash, no prompt); each Classroom deadline carries its
+ * choices, the AI usage counters, the AI call journal (no hash, no prompt), the home layout
+ * and the home note (the requester's, never another parent's); each Classroom deadline carries its
  * course name read through the same port as the api, a hand-added one none; it never carries a
  * token or a push key, and the 24 h limit is held by the stored request date, so a second
  * request is refused and leaves one event.
@@ -33,6 +34,7 @@ import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
+import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
 import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import {
   and,
@@ -56,6 +58,7 @@ import { NoOpInstrumentation } from "../src/shared/services/noop-instrumentation
 
 const NOW = new Date("2030-03-10T09:00:00.000Z");
 const SECRET = "probe-secret-token";
+const HOME_BLOCKS = [{ id: "agenda", w: 8, h: 2, hidden: false }];
 const AVATAR = "https://lh3.googleusercontent.com/a/probe-";
 const probe = `check-data-export-${crypto.randomUUID()}`;
 const instrumentation = new NoOpInstrumentation();
@@ -213,6 +216,8 @@ async function family(name: string): Promise<{ userId: string; childId: string }
     outcome: "ok",
     latencyMs: 700,
   });
+  await db.insert(homeLayout).values({ userId, blocks: HOME_BLOCKS, updatedAt: NOW });
+  await db.insert(homeNote).values({ userId, body: `Piscine de ${name}`, updatedAt: NOW });
   await db.insert(pushLockScreen).values({ userId, details: true, updatedAt: NOW });
   await db
     .insert(alertQuietHours)
@@ -377,6 +382,15 @@ run(async () => {
       !JSON.stringify(document.aiCalls).includes("a".repeat(64)) &&
       !JSON.stringify(document.aiCalls).includes("check-1"),
     document.aiCalls,
+    "the home layout comes along",
+    isDeepStrictEqual(document.homeLayout?.blocks, HOME_BLOCKS) &&
+      document.homeLayout?.chosenAt === NOW.toISOString(),
+    document.homeLayout,
+  );
+  await step(
+    "the home note of the requester comes along, never another parent's",
+    document.homeNote?.body === "Piscine de a" && document.homeNote.writtenAt === NOW.toISOString(),
+    document.homeNote,
   );
   await step(
     "the lock screen choice comes along",

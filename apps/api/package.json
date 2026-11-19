@@ -44,6 +44,7 @@
     "@modules/children": "workspace:*",
     "@modules/classroom-sync": "workspace:*",
     "@modules/extraction": "workspace:*",
+    "@modules/home": "workspace:*",
     "@modules/school-calendar": "workspace:*",
     "@noble/ciphers": "^2.4.0",
     "@noble/hashes": "^2.4.0",

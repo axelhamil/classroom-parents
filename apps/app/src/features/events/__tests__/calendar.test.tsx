@@ -87,6 +87,29 @@ describe("Accueil, the family calendar", () => {
     expect(screen.getByRole("button", { name: "Aujourd'hui" }).hasAttribute("disabled")).toBe(true);
   });
 
+  it("on a phone whose parent hid Pour aujourd'hui, the week keeps today instead of losing it", async () => {
+    at("2026-11-12T06:30:00.000Z");
+    givenCalendar(
+      [CHILD],
+      [deadline(1, "2026-11-12", "Fiche à signer", { category: "document_due" })],
+      {
+        homeLayout: [
+          { id: "today", w: 4, h: 2, hidden: true },
+          { id: "calendar", w: 8, h: 3, hidden: false },
+        ],
+      },
+    );
+    await renderAppAt("/");
+
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot=calendar-day-title]")?.textContent).toBe(
+        "Aujourd'hui",
+      ),
+    );
+    expect(within(day("Aujourd'hui")).getByText("Fiche à signer")).toBeDefined();
+    expect(screen.queryByRole("region", { name: "Pour aujourd'hui" })).toBeNull();
+  });
+
   it("beside the briefing on a tablet, the week keeps its seven rows, Friday evening included", async () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query === "(min-width: 48rem)",
@@ -132,8 +155,9 @@ describe("Accueil, the family calendar", () => {
     expect(await within(briefing).findByText("Mot signé")).toBeDefined();
     expect(within(briefing).getByText("Sac de piscine")).toBeDefined();
     await waitFor(() => expect(day("Samedi 14 novembre")).toBeDefined());
-    expect(screen.getAllByText("Mot signé")).toHaveLength(1);
-    expect(screen.getAllByText("Sac de piscine")).toHaveLength(1);
+    const agenda = screen.getByRole("region", { name: "Agenda" });
+    expect(within(agenda).queryByText("Mot signé")).toBeNull();
+    expect(within(agenda).queryByText("Sac de piscine")).toBeNull();
     expect(screen.queryByRole("heading", { level: 3, name: "Aujourd'hui" })).toBeNull();
     expect(screen.queryByRole("heading", { level: 3, name: "Demain" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Ce soir" })).toBeNull();
@@ -393,8 +417,9 @@ describe("Accueil, the family calendar", () => {
 
     fireEvent.click(within(grid).getByRole("button", { name: /10 novembre/ }));
     await waitFor(() => expect(search(router)).toMatchObject({ date: "2026-11-10" }));
-    expect(await screen.findByText("Cahier de liaison à signer")).toBeDefined();
-    expect(screen.getByText("En retard")).toBeDefined();
+    const agenda = screen.getByRole("region", { name: "Agenda" });
+    expect(await within(agenda).findByText("Cahier de liaison à signer")).toBeDefined();
+    expect(within(agenda).getByText("En retard")).toBeDefined();
   });
 
   it("an empty period says so, jumps to the next deadline, offers to add and shows the last read", async () => {

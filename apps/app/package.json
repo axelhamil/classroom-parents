@@ -13,6 +13,8 @@
     "check:journey": "playwright test --config a11y/journey.config.ts"
   },
   "dependencies": {
+    "@dnd-kit/dom": "0.5.3",
+    "@dnd-kit/react": "0.5.3",
     "@hookform/resolvers": "^6.0.1",
     "@packages/ddd-kit": "workspace:*",
     "@packages/events": "workspace:*",

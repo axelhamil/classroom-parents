@@ -206,19 +206,24 @@ describe("Accueil briefs the next school moment", () => {
     expect(ready.className).toContain("animate-none");
   });
 
-  it("lists what to prepare under an open item, ticked from the briefing", async () => {
+  it("lists what to prepare inside the card of its deadline, ticked without opening the deadline", async () => {
     at(THURSDAY_EVENING);
     const stub = givenCalendar(
       [CHILD],
       [deadline(1, "2026-11-13", "Sac de piscine", { category: "swimming" })],
     );
-    await renderAppAt("/");
+    const router = await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
     const swimsuit = await within(tomorrow).findByRole("checkbox", { name: "Maillot de bain" });
+    const card = swimsuit.closest("[data-slot=calendar-entry]");
+    expect(card?.querySelector("a")?.textContent).toBe("Sac de piscine");
+    expect(swimsuit.closest("a, button:not([role=checkbox])")).toBeNull();
     fireEvent.click(swimsuit);
 
     await waitFor(() => expect(swimsuit.getAttribute("aria-checked")).toBe("true"));
+    expect(router.state.location.search).not.toHaveProperty("event");
+    expect(screen.queryByRole("dialog")).toBeNull();
     await waitFor(() =>
       expect(
         stub.calls.some(

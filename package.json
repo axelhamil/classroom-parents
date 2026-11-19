@@ -36,6 +36,7 @@
     "@modules/children": "workspace:*",
     "@modules/classroom-sync": "workspace:*",
     "@modules/extraction": "workspace:*",
+    "@modules/home": "workspace:*",
     "@modules/school-calendar": "workspace:*",
     "@packages/ddd-kit": "workspace:*",
     "@packages/typescript-config": "workspace:*",

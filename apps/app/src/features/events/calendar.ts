@@ -1,5 +1,6 @@
 import { daysFrom, mondayOf, shiftDate } from "@packages/ddd-kit/days";
 import type { EventItem } from "../../shared/api/queries/events";
+import { schoolToday } from "../../shared/format/school-today";
 import type { CalendarRange } from "./api/events.queries";
 
 export const CALENDAR_VIEWS = ["week", "month"] as const;
@@ -41,6 +42,19 @@ export function calendarPeriod(view: CalendarView, anchor: string): CalendarPeri
   const days = daysFrom(periodStart(view, anchor), LENGTHS[view]);
 
   return { from: days[0] ?? anchor, to: days.at(-1) ?? anchor, days };
+}
+
+export interface CalendarPlace {
+  view?: CalendarView;
+  date?: string;
+}
+
+export function placePeriod(place: CalendarPlace, now: Date) {
+  const view = place.view ?? "week";
+  const today = schoolToday(now);
+  const anchor = place.date ?? today;
+
+  return { view, today, anchor, period: calendarPeriod(view, anchor) };
 }
 
 function shiftMonth(anchor: string, step: 1 | -1): string {
