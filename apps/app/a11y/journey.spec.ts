@@ -92,10 +92,20 @@ async function googleAnswersAs(page: Page, identity: Identity): Promise<void> {
 
 const appSyncs: Promise<unknown>[] = [];
 
-function trackAppSyncs(page: Page): void {
-  page.on("request", (request) => {
-    if (request.method() === "POST" && request.url() === `${JOURNEY_API_URL}/sync`)
-      appSyncs.push(request.response().catch(() => null));
+// Playwright itself sends the sync each page load asks for, so its wait ends with the api's
+// answer: the response() of a request whose page navigated away while the answer was on its
+// way never settles, and every later control call would wait for it until the test times out.
+async function trackAppSyncs(page: Page): Promise<void> {
+  await page.route(`${JOURNEY_API_URL}/sync`, async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+
+    const answered = route.fetch();
+    appSyncs.push(answered.catch(() => null));
+    try {
+      await route.fulfill({ response: await answered });
+    } catch {
+      await route.abort().catch(() => undefined);
+    }
   });
 }
 
@@ -176,7 +186,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
 }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
-  trackAppSyncs(page);
+  await trackAppSyncs(page);
   await page.addLocatorHandler(page.locator(TOUR_SELECTOR), (tour) =>
     tour.getByRole("button", { name: "Passer" }).click(),
   );
