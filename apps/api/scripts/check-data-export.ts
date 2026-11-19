@@ -66,6 +66,15 @@ const service = (at: Date) =>
     () => at,
   );
 
+const EVIDENCE = {
+  reviewReasons: ["weekday_mismatch" as const],
+  evidenceQuote: "Devoir à rendre jeudi 12 mars",
+  evidenceStart: 10,
+  evidenceEnd: 39,
+  evidenceBefore: "Bonjour [ENFANT]. ",
+  evidenceAfter: ". Merci.",
+};
+
 async function family(name: string): Promise<{ userId: string; childId: string }> {
   const userId = `${probe}-${name}`;
   const childId = await seedParentWithChild({
@@ -104,6 +113,7 @@ async function family(name: string): Promise<{ userId: string; childId: string }
         withdrawnAt: state === "withdrawn" ? NOW : null,
         deletedAt: state === "deleted" ? NOW : null,
         checklist: { done: [`bag-${state}`], removed: [], extra: [], written: true },
+        ...(state === "kept" ? EVIDENCE : {}),
       })),
     )
     .returning({ id: agendaEvent.id });
@@ -238,6 +248,18 @@ run(async () => {
       document.events.some((e) => e.withdrawnAt !== null) &&
       document.events.some((e) => e.deletedAt !== null),
     document.events.map((e) => e.title),
+  );
+  await step(
+    "the quoted passage is exported with its bounds and the sentences around it",
+    document.events.some(
+      (e) =>
+        e.evidenceQuote === EVIDENCE.evidenceQuote &&
+        e.evidenceStart === EVIDENCE.evidenceStart &&
+        e.evidenceEnd === EVIDENCE.evidenceEnd &&
+        e.evidenceBefore === EVIDENCE.evidenceBefore &&
+        e.evidenceAfter === EVIDENCE.evidenceAfter,
+    ),
+    document.events.map((e) => e.evidenceQuote),
   );
   await step(
     "the preparation checklist is exported as the parent sees it, without bookkeeping",

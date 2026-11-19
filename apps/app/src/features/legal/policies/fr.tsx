@@ -37,12 +37,21 @@ export function PrivacyPolicyBody(): ReactElement {
           </li>
           <li>
             Google Classroom : la liste de ses cours ; le texte des annonces, lu le temps d'en
-            extraire les dates puis jamais conservé (nous gardons seulement l'identifiant et le lien
-            de l'annonce) ; le titre, la date limite et l'état rendu ou non de ses devoirs.
+            extraire les dates puis jamais conservé en entier (nous gardons l'identifiant et le lien
+            de l'annonce, et le court passage décrit ci-dessous) ; le titre, la date limite et
+            l'état rendu ou non de ses devoirs.
           </li>
           <li>
             Les échéances obtenues : titre, courte description (300 caractères à l'extraction),
             catégorie et date, avec les corrections que vous y apportez.
+          </li>
+          <li>
+            Le passage de l'annonce d'où vient la date (jamais plus de 300 caractères), avec la
+            phrase qui le précède et celle qui le suit (jamais plus de 200 caractères chacune), sa
+            position dans l'annonce et les raisons pour lesquelles une date est à vérifier. Les
+            prénoms de vos enfants, les adresses e-mail, les numéros de téléphone et les liens y
+            sont masqués avant tout stockage. Il sert seulement à vous montrer pourquoi une date est
+            à vérifier, pour que vous la contrôliez dans son contexte.
           </li>
           <li>
             Vos alertes : l'heure choisie pour chaque échéance, l'adresse technique d'abonnement aux
@@ -145,7 +154,10 @@ export function PrivacyPolicyBody(): ReactElement {
       <section className="flex flex-col gap-3">
         <TypographyH2>Durées de conservation</TypographyH2>
         <TypographyList>
-          <li>Texte des annonces : aucune conservation après l'extraction.</li>
+          <li>
+            Texte des annonces : aucune conservation en entier après l'extraction ; le passage cité
+            et ses phrases voisines suivent la durée de leur échéance et sont effacés avec elle.
+          </li>
           <li>Compte et enfants liés : tant que votre compte existe.</li>
           <li>Échéances : 12 mois après leur date, puis effacées avec leurs rappels et alertes.</li>
           <li>
@@ -155,8 +167,8 @@ export function PrivacyPolicyBody(): ReactElement {
           </li>
           <li>Enfant retiré : ses accès Google sont révoqués et ses données effacées aussitôt.</li>
           <li>
-            Compte supprimé : effacement complet 7 jours après la demande, délai pendant lequel vous
-            pouvez annuler.
+            Compte supprimé : effacement complet 7 jours après la demande, passages cités compris,
+            délai pendant lequel vous pouvez annuler.
           </li>
           <li>Choix et envois du résumé du dimanche : tant que votre compte existe.</li>
           <li>E-mails envoyés : 7 jours au plus.</li>
