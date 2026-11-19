@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 
@@ -211,6 +211,10 @@ describe("event detail, family helpers", () => {
   });
 
   it("the shared text names the deadline, its date and a link", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-16T09:00:00.000Z") });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const share = vi.fn(async (_payload: ShareData) => undefined);
     Object.defineProperty(navigator, "share", { value: share, configurable: true });
     givenEvent(EVENT, () => json({ customized: false, reminders: [] }));
