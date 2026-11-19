@@ -19,9 +19,9 @@ import { isErrorsKey } from "./errors-key";
 export function applyZodErrorMap(t: TFunction<"errors">): void {
   z.config({
     customError: (issue) => {
-      if (issue.code === "invalid_type" && issue.input === undefined) {
-        return t("validation.required");
-      }
+      const missing = issue.code === "invalid_type" || issue.code === "invalid_value";
+      if (missing && issue.input === undefined) return t("validation.required");
+
       if (issue.code === "too_small") {
         // A string constrained to a minimum of 1 character is semantically
         // "required", not "must be at least 1 character", which matches how a

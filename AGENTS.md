@@ -26,7 +26,7 @@ One guide per app and per package that carries rules of its own. Read the one yo
 | `packages/i18n` | `packages/i18n/CLAUDE.md` | French catalogs, typed keys |
 | `packages/ui` | `packages/ui/CLAUDE.md` | shadcn primitives, theme tokens, composition components |
 | `packages/web-kit` | `packages/web-kit/CLAUDE.md` | what every React app shares: api client, query client, i18n boot, theme, auth broadcast |
-| Other packages | skills below | `emails`, `email` are driven by the matching skill; `sentry-scrub` (see `docs/OBSERVABILITY.md`), `test`, `typescript-config` carry no rules |
+| Other packages | skills below | `emails`, `email` are driven by the matching skill; `icalendar` (the iCalendar writing every calendar export shares), `sentry-scrub` (see `docs/OBSERVABILITY.md`), `test`, `typescript-config` carry no rules |
 
 `.claude/skills/` holds the subsystem playbooks (`auth-server`, `events-outbox`, `compliance-consent`, `email-delivery`) and `feature-slice` for implementing a story end to end.
 

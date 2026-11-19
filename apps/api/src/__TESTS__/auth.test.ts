@@ -147,6 +147,27 @@ describe("a linked child's google account", () => {
     expect(child?.prompt).toBe("select_account consent");
   });
 
+  it("asks Google for each scope once, even when the app sends the configured ones again", async () => {
+    const before = auth.options.hooks.before;
+    const hooked = await before({
+      path: "/link-social",
+      body: { provider: "google-classroom", scopes: child?.scopes },
+    } as never);
+    const provider = (await auth.$context).socialProviders.find(
+      ({ id }) => id === "google-classroom",
+    );
+
+    const url = await provider?.createAuthorizationURL({
+      state: "state",
+      codeVerifier: "v".repeat(43),
+      scopes: hooked?.context?.body?.scopes,
+      redirectURI: "http://api.test/api/auth/oauth2/callback/google-classroom",
+    });
+    const requested = url?.searchParams.get("scope")?.split(" ");
+
+    expect(requested).toEqual(child?.scopes);
+  });
+
   it("keeps no id token at rest", async () => {
     const created = await accountHooks.create?.before?.(
       { idToken: "eyJ.child.jwt" } as never,

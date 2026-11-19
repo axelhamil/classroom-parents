@@ -1,76 +1,26 @@
-import { DAY_MS } from "@packages/ddd-kit/days";
-import { utcDay } from "@packages/i18n";
+import { alarmLines, allDayLines, calendarText, escapeText, utcValue } from "@packages/icalendar";
 
-const LINE_OCTETS = 75;
 const UID_DOMAIN = "echeances-classroom";
 const REVOKE_AFTER_MS = 1000;
 
 export interface IcsDeadline {
   id: string;
-  title: string;
+  summary: string;
   description: string;
   deadlineDate: string;
   deadlineTime?: string | undefined;
   deadlineAt: string;
-}
-
-function escapeText(text: string): string {
-  return text
-    .replaceAll("\\", "\\\\")
-    .replaceAll(";", "\\;")
-    .replaceAll(",", "\\,")
-    .replaceAll(/\r\n|\r|\n/g, "\\n");
-}
-
-function fold(line: string): string {
-  const encoder = new TextEncoder();
-  const parts: string[] = [];
-  let current = "";
-  let octets = 0;
-
-  for (const char of line) {
-    const size = encoder.encode(char).length;
-    const limit = parts.length === 0 ? LINE_OCTETS : LINE_OCTETS - 1;
-    if (octets + size > limit) {
-      parts.push(current);
-      current = "";
-      octets = 0;
-    }
-    current += char;
-    octets += size;
-  }
-  parts.push(current);
-
-  return parts.join("\r\n ");
-}
-
-function utcStamp(instant: Date): string {
-  return instant
-    .toISOString()
-    .replaceAll(/[-:]/g, "")
-    .replace(/\.\d{3}/, "");
-}
-
-function compactDate(date: string): string {
-  return date.replaceAll("-", "");
-}
-
-function nextDay(date: string): string {
-  return new Date(utcDay(date) + DAY_MS).toISOString().slice(0, 10);
+  alarmsAt: readonly Date[];
 }
 
 function timing(deadline: IcsDeadline): string[] {
-  if (deadline.deadlineTime === undefined)
-    return [
-      `DTSTART;VALUE=DATE:${compactDate(deadline.deadlineDate)}`,
-      `DTEND;VALUE=DATE:${compactDate(nextDay(deadline.deadlineDate))}`,
-    ];
+  if (deadline.deadlineTime === undefined) return allDayLines(deadline.deadlineDate);
 
-  return [`DTSTART:${utcStamp(new Date(deadline.deadlineAt))}`];
+  return [`DTSTART:${utcValue(new Date(deadline.deadlineAt))}`];
 }
 
 export function deadlineIcs(deadline: IcsDeadline, stamp: Date): string {
-  const lines = [
+  return calendarText([
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     `PRODID:-//${UID_DOMAIN}//FR`,
@@ -78,16 +28,15 @@ export function deadlineIcs(deadline: IcsDeadline, stamp: Date): string {
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:${deadline.id}@${UID_DOMAIN}`,
-    `DTSTAMP:${utcStamp(stamp)}`,
+    `DTSTAMP:${utcValue(stamp)}`,
     ...timing(deadline),
-    `SUMMARY:${escapeText(deadline.title)}`,
+    `SUMMARY:${escapeText(deadline.summary)}`,
     ...(deadline.description ? [`DESCRIPTION:${escapeText(deadline.description)}`] : []),
     "TRANSP:TRANSPARENT",
+    ...alarmLines(deadline.summary, deadline.alarmsAt),
     "END:VEVENT",
     "END:VCALENDAR",
-  ];
-
-  return `${lines.map(fold).join("\r\n")}\r\n`;
+  ]);
 }
 
 export function icsFileName(title: string): string {

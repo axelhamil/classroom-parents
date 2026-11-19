@@ -12,6 +12,7 @@ import {
   guardChildProvider,
   linkedAccountHooks,
   throughChildProvider,
+  withoutConfiguredScopes,
 } from "./shared/auth/child-accounts";
 import { GOOGLE_IDENTITY_SCOPES } from "./shared/auth/google-scopes";
 import { SESSION_FRESH_AGE_SECONDS } from "./shared/auth/session-freshness";
@@ -87,7 +88,10 @@ const authOptions = {
   },
 
   hooks: {
-    before: createAuthMiddleware(async (ctx) => guardChildProvider(ctx)),
+    before: createAuthMiddleware(async (ctx) => {
+      guardChildProvider(ctx);
+      return withoutConfiguredScopes(ctx);
+    }),
 
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/verify-email") {

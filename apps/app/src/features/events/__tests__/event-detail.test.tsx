@@ -3,6 +3,7 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { EVENT_BASE } from "../../../__tests__/event-fixtures";
+import { CHILD } from "../../../__tests__/family-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({
@@ -70,6 +71,63 @@ describe("event detail reminders", () => {
 
     await screen.findByRole("heading", { level: 1, name: EVENT.title });
     expect(screen.queryByText("Ouvrir dans Classroom")).toBeNull();
+  });
+});
+
+describe("event detail agenda export", () => {
+  afterEach(() => {
+    cleanup();
+    resetApp();
+    vi.unstubAllGlobals();
+  });
+
+  it("given a child and a planned reminder, then the downloaded file names the child and rings with the reminder", async () => {
+    const files: Blob[] = [];
+    vi.stubGlobal(
+      "URL",
+      Object.assign(class extends URL {}, {
+        createObjectURL: (blob: Blob) => {
+          files.push(blob);
+          return "blob:agenda";
+        },
+        revokeObjectURL: () => undefined,
+      }),
+    );
+    stubApi(({ method, url }) => {
+      if (method !== "GET") return undefined;
+      if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname === DETAIL_PATH) return json(EVENT);
+      if (url.pathname === `${DETAIL_PATH}/reminders`)
+        return json({
+          customized: false,
+          reminders: [
+            {
+              reminder: { kind: "days_before", days: 1, time: "18:00" },
+              dueAt: "2026-11-18T17:00:00.000Z",
+              status: "pending",
+              fits: true,
+            },
+            {
+              reminder: { kind: "days_before", days: 2, time: "18:00" },
+              dueAt: "2026-11-17T17:00:00.000Z",
+              status: "skipped",
+              fits: true,
+            },
+          ],
+        });
+      return undefined;
+    });
+
+    await renderAppAt(DETAIL_PATH);
+    await screen.findByRole("heading", { name: "Rappels" });
+    await screen.findAllByText(/18:00|18 h/);
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter à mon agenda" }));
+
+    await waitFor(() => expect(files).toHaveLength(1));
+    const ics = (await files[0]?.text()) ?? "";
+    expect(ics).toContain(`SUMMARY:${CHILD.label} : ${EVENT.title}\r\n`);
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(1);
+    expect(ics).toContain("TRIGGER;VALUE=DATE-TIME:20261118T170000Z\r\n");
   });
 });
 

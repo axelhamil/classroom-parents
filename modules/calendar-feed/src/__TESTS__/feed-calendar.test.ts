@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { Option } from "@packages/ddd-kit";
 import ICAL from "ical.js";
 import type { FeedEntry } from "../application/ports/feed-entries.port";
-import { foldLine, writeFeedCalendar } from "../application/services/feed-calendar";
+import { writeFeedCalendar } from "../application/services/feed-calendar";
 
 const NOW = new Date("2026-11-10T09:00:00.000Z");
 const APP_HOST = "app.example.fr";
@@ -139,13 +139,5 @@ describe("writeFeedCalendar", () => {
     expect(
       eventOf(parse(ics), `${allDay.eventId}@${APP_HOST}`).getFirstPropertyValue("summary"),
     ).toBe(`Léa · ${longTitle}`);
-  });
-});
-
-describe("foldLine", () => {
-  it("given a line of 80 ASCII octets, then the continuation starts with one space", () => {
-    const folded = foldLine("X".repeat(80));
-
-    expect(folded).toBe(`${"X".repeat(75)}\r\n ${"X".repeat(5)}`);
   });
 });

@@ -34,22 +34,7 @@ export default {
       "Le délai d'annulation est passé : la suppression de votre compte est en cours et ne peut plus être annulée.",
     PUSH_SUBSCRIPTION_INVALID:
       "Ce navigateur a fourni un abonnement aux notifications que nous ne pouvons pas utiliser. Réessayez depuis Chrome, Edge, Firefox ou Safari.",
-    ACCOUNT_PASSWORD_REQUIRED: "Confirmez avec votre mot de passe.",
-    ACCOUNT_DELETION_BLOCKED:
-      "Réglez la propriété de vos organisations avant de supprimer votre compte.",
-    ACCOUNT_DELETION_LAST_MANAGER_FORBIDDEN:
-      "Nommez un autre responsable de l'équipe avant de supprimer votre compte.",
     ACCOUNT_DELETION_NOT_FOUND: "Aucune suppression à annuler.",
-    ACCOUNT_PASSWORD_INVALID: "Mot de passe invalide.",
-    TWO_FACTOR_REQUIRED: "Confirmez avec votre mot de passe ou votre code d'authentification.",
-    TWO_FACTOR_INVALID: "Code d'authentification invalide.",
-    SSO_PLAN_REQUIRED: "Votre forfait n'inclut pas le SSO.",
-    ORGANIZATION_SEAT_PAYMENT_REQUIRED:
-      "Cette organisation n'a plus de place libre. Un propriétaire ou un administrateur doit passer à un forfait supérieur ou retirer un membre.",
-    SSO_ORGANIZATION_REQUIRED: "Aucune organisation active.",
-    SCIM_CONNECTION_NOT_FOUND: "Cette organisation n'a aucune connexion d'annuaire à déconnecter.",
-    SCIM_CONNECTION_PROVIDER_FAILURE:
-      "La connexion à l'annuaire n'a pas pu être mise à jour. Réessayez dans un instant.",
     INVALID_EMAIL_OR_PASSWORD: "Adresse e-mail ou mot de passe invalide.",
     INVALID_EMAIL: "Saisissez une adresse e-mail valide.",
     INVALID_PASSWORD: "Mot de passe invalide.",
@@ -78,165 +63,10 @@ export default {
     FAILED_TO_CREATE_SESSION: "Nous n'avons pas pu vous connecter. Veuillez réessayer.",
     REQUEST_INVALID:
       "Certaines informations saisies sont invalides. Vérifiez le formulaire et réessayez.",
-    OTP_NOT_ENABLED: "Les codes à usage unique ne sont pas activés sur ce compte.",
-    OTP_HAS_EXPIRED: "Ce code a expiré. Demandez-en un nouveau.",
-    TOTP_NOT_ENABLED: "Aucune application d'authentification n'est configurée sur ce compte.",
-    TWO_FACTOR_NOT_ENABLED: "La double authentification n'est pas activée sur ce compte.",
-    BACKUP_CODES_NOT_ENABLED: "Aucun code de secours n'est configuré sur ce compte.",
-    INVALID_BACKUP_CODE: "Ce code de secours est invalide ou a déjà été utilisé.",
-    INVALID_CODE:
-      "Ce code est incorrect. Vérifiez votre application d'authentification et réessayez.",
-    TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: "Trop de tentatives. Demandez un nouveau code.",
-    ACCOUNT_TEMPORARILY_LOCKED:
-      "Trop de tentatives échouées. Votre compte est temporairement verrouillé. Réessayez plus tard.",
-    INVALID_TWO_FACTOR_COOKIE: "Cette étape de vérification a expiré. Reconnectez-vous.",
-    CHALLENGE_NOT_FOUND: "Cette tentative de clé d'accès a expiré. Réessayez.",
-    YOU_ARE_NOT_ALLOWED_TO_REGISTER_THIS_PASSKEY:
-      "Cette clé d'accès ne peut pas être enregistrée ici.",
-    FAILED_TO_VERIFY_REGISTRATION: "Nous n'avons pas pu enregistrer cette clé d'accès. Réessayez.",
-    PASSKEY_NOT_FOUND: "Cette clé d'accès n'existe plus.",
-    AUTHENTICATION_FAILED: "Votre appareil n'a pas pu confirmer votre identité. Réessayez.",
-    UNABLE_TO_CREATE_SESSION: "Nous n'avons pas pu vous connecter. Veuillez réessayer.",
-    FAILED_TO_UPDATE_PASSKEY: "Nous n'avons pas pu mettre à jour cette clé d'accès. Réessayez.",
-    PREVIOUSLY_REGISTERED: "Cette clé d'accès est déjà enregistrée sur ce compte.",
-    REGISTRATION_CANCELLED: "La configuration de la clé d'accès a été annulée.",
-    AUTH_CANCELLED: "La connexion par clé d'accès a été annulée.",
-    SESSION_REQUIRED: "Connectez-vous avant d'ajouter une clé d'accès.",
-    YOU_ARE_NOT_ALLOWED_TO_CREATE_A_NEW_ORGANIZATION:
-      "Vous n'avez pas la permission de créer une organisation.",
-    YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS:
-      "Vous avez atteint le nombre maximum d'organisations.",
-    ORGANIZATION_ALREADY_EXISTS: "Une organisation portant ce nom existe déjà.",
-    ORGANIZATION_SLUG_ALREADY_TAKEN: "Cette adresse d'organisation est déjà prise.",
-    ORGANIZATION_NOT_FOUND: "Organisation introuvable.",
-    API_TOKEN_ORGANIZATION_NOT_FOUND:
-      "Basculez sur cette organisation avant de créer un jeton pour elle.",
-    USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION:
-      "Cet utilisateur n'est pas membre de cette organisation.",
-    YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION:
-      "Vous n'avez pas la permission de modifier cette organisation.",
-    YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION:
-      "Vous n'avez pas la permission de supprimer cette organisation.",
-    NO_ACTIVE_ORGANIZATION: "Sélectionnez d'abord une organisation.",
-    USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION:
-      "Cet utilisateur est déjà membre de cette organisation.",
-    MEMBER_NOT_FOUND: "Membre introuvable.",
-    ROLE_NOT_FOUND: "Rôle introuvable.",
-    YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER:
-      "Transférez la propriété avant de partir : vous en êtes l'unique propriétaire.",
-    YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER:
-      "Une organisation doit conserver au moins un propriétaire.",
-    YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER:
-      "Vous n'avez pas la permission de retirer ce membre.",
-    YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER:
-      "Vous n'avez pas la permission de modifier ce membre.",
-    YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION:
-      "Vous n'avez pas la permission d'inviter des personnes dans cette organisation.",
-    USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION: "Cette personne a déjà été invitée.",
-    INVITATION_NOT_FOUND: "Cette invitation n'existe plus.",
-    YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION:
-      "Cette invitation a été envoyée à une autre adresse.",
-    EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION:
-      "Vérifiez votre adresse e-mail avant de répondre à cette invitation.",
-    EMAIL_VERIFICATION_REQUIRED_FOR_INVITATION:
-      "Vérifiez votre adresse e-mail pour consulter vos invitations.",
-    YOU_ARE_NOT_ALLOWED_TO_CANCEL_THIS_INVITATION:
-      "Vous n'avez pas la permission d'annuler cette invitation.",
-    INVITER_IS_NO_LONGER_A_MEMBER_OF_THE_ORGANIZATION:
-      "La personne à l'origine de votre invitation n'est plus membre de cette organisation.",
-    YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE:
-      "Vous n'avez pas la permission d'inviter quelqu'un avec ce rôle.",
-    FAILED_TO_RETRIEVE_INVITATION:
-      "Nous n'avons pas pu charger cette invitation. Veuillez réessayer.",
-    INVITATION_LIMIT_REACHED: "Vous avez atteint la limite d'invitations pour cette organisation.",
-    ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: "Cette organisation a atteint sa limite de membres.",
-    YOU_ARE_NOT_ALLOWED_TO_ACCESS_THIS_ORGANIZATION:
-      "Vous n'avez pas la permission d'accéder à cette organisation.",
-    YOU_ARE_NOT_A_MEMBER_OF_THIS_ORGANIZATION: "Vous n'êtes pas membre de cette organisation.",
-    ADMIN_STAFF_FORBIDDEN: "Cet espace est réservé à l'équipe de la plateforme.",
     ADMIN_REAUTH_REQUIRED:
       "Confirmez cette action avec un code de votre application d'authentification.",
-    ADMIN_STEP_UP_MFA_FORBIDDEN:
-      "Activez l'authentification à deux facteurs pour confirmer cette action.",
-    ADMIN_PASSWORD_RESET_UNAVAILABLE:
-      "L'email de réinitialisation n'a pas pu être envoyé. Les sessions de l'utilisateur ont été fermées, réessayez.",
-    ADMIN_OPS_PROVIDER_FAILURE: "Les données d'exploitation n'ont pas pu être lues. Réessayez.",
-    ADMIN_VIEW_NOT_FOUND: "Cette vue enregistrée n'existe plus.",
-    ADMIN_VIEW_PROVIDER_FAILURE:
-      "Les vues enregistrées n'ont pas pu être lues ou modifiées. Réessayez.",
-    ADMIN_ORG_NOT_FOUND: "Cette organisation n'existe plus.",
-    ADMIN_NOTE_PROVIDER_FAILURE: "Les notes n'ont pas pu être lues ou enregistrées. Réessayez.",
-    PLAN_OVERRIDE_PROVIDER_FAILURE: "Le forfait forcé n'a pas pu être lu ou enregistré. Réessayez.",
-    ADMIN_PLAN_OVERRIDE_NOT_FOUND: "Cette organisation n'a pas de forfait forcé actif.",
-    ADMIN_PLAN_OVERRIDE_ALREADY_SET_CONFLICT:
-      "Un collègue vient de forcer un forfait sur cette organisation. Rechargez et vérifiez.",
-    ADMIN_STRIPE_UNAVAILABLE: "Stripe n'est pas configuré sur cette plateforme.",
-    ADMIN_STRIPE_EVENT_NOT_FOUND:
-      "Cet événement Stripe n'est pas enregistré : il n'est jamais arrivé ou sa ligne a été purgée après la durée de conservation.",
-    ADMIN_STRIPE_REPLAY_BLOCKED:
-      "La plateforme ne traite pas ce type d'événement, le rejouer ne changerait rien.",
-    ADMIN_STRIPE_REPLAY_CONFLICT:
-      "Cet événement a déjà été rejoué ou un collègue est en train de le rejouer. Rechargez la liste.",
-    ADMIN_STRIPE_REPLAY_PROVIDER_FAILURE:
-      "Le rejeu a échoué. La raison figure sur la ligne de l'événement, réessayez une fois corrigée.",
-    STRIPE_EVENT_PROVIDER_FAILURE:
-      "Les événements Stripe n'ont pas pu être lus ou enregistrés. Réessayez.",
-    STRIPE_EVENT_EXPIRED_NOT_FOUND:
-      "Stripe ne détient plus cet événement, il les conserve 30 jours. Renvoyez-le depuis le tableau de bord Stripe si besoin.",
-    STRIPE_PROVIDER_FAILURE: "Stripe n'a pas répondu. Réessayez dans un instant.",
     SWEEP_RUN_PROVIDER_FAILURE: "Les tâches planifiées n'ont pas pu être lues. Réessayez.",
-    ADMIN_STEP_UP_CODE_INVALID:
-      "Ce code n'est pas valide. Vérifiez votre application d'authentification.",
-    ADMIN_STEP_UP_REPLAY_INVALID: "Ce code a déjà servi. Attendez le suivant.",
-    ADMIN_STEP_UP_SESSION_NOT_FOUND: "Cette session est terminée. Reconnectez-vous.",
-    ADMIN_APPROVAL_SUBJECT_DECISION_FORBIDDEN:
-      "Personne ne décide une demande qui concerne son propre compte.",
-    ADMIN_APPROVAL_REQUESTER_LOST_CONFLICT:
-      "Le demandeur n'a plus ce pouvoir, la demande est donc close.",
-    ADMIN_STAFF_ROLE_CHANGED_CONFLICT:
-      "Les accès de cette personne ont changé depuis la demande. Refaites-la.",
-    ADMIN_APPROVAL_ALREADY_PENDING_CONFLICT:
-      "Une autre demande sur cette personne est déjà en attente. Décidez-la ou annulez-la, puis recommencez.",
-    ADMIN_STAFF_GRANT_NOT_HELD_FORBIDDEN:
-      "Vous ne pouvez pas donner une permission que vous n'avez pas. Demandez à un collègue qui la détient.",
-    ADMIN_STAFF_OVERRIDE_EXPIRED_CONFLICT:
-      "La date de fin de ce changement est passée. Recommencez avec une date ultérieure.",
-    ADMIN_APPROVAL_NOT_FOUND: "Cette demande d'approbation n'existe plus.",
-    ADMIN_APPROVAL_SELF_SUBJECT_FORBIDDEN:
-      "Vous ne pouvez pas demander cette action sur votre propre compte.",
-    ADMIN_APPROVAL_SELF_DECISION_FORBIDDEN: "Une autre personne doit trancher cette demande.",
-    ADMIN_APPROVAL_PERMISSION_FORBIDDEN:
-      "Vous n'avez plus la permission requise par cette demande.",
-    ADMIN_APPROVAL_DECIDED_CONFLICT: "Cette demande a déjà été traitée.",
-    ADMIN_APPROVAL_EXPIRED_CONFLICT:
-      "Cette demande a expiré. Refaites-la si elle reste nécessaire.",
-    ADMIN_APPROVAL_PARAMS_INVALID: "La demande enregistrée n'est plus valide.",
-    ADMIN_USER_NOT_FOUND: "Ce compte n'existe plus.",
-    ADMIN_USER_SELF_BAN_FORBIDDEN: "Vous ne pouvez pas suspendre votre propre compte.",
-    ADMIN_IMPERSONATION_FORBIDDEN: "Vous ne pouvez pas voir le produit avec ce compte.",
-    ADMIN_IMPERSONATION_SELF_FORBIDDEN:
-      "Vous êtes déjà connecté avec votre propre compte. Choisissez un autre compte pour voir le produit.",
-    ADMIN_STOP_IMPERSONATION_FORBIDDEN: "L'emprunt d'identité n'a pas pu être arrêté.",
-    ADMIN_STAFF_MFA_FORBIDDEN:
-      "Activez l'authentification à deux facteurs pour utiliser l'espace de l'équipe.",
-    ADMIN_STAFF_PERMISSION_FORBIDDEN: "Votre rôle dans l'équipe ne permet pas cette action.",
-    ADMIN_STAFF_SELF_CHANGE_FORBIDDEN:
-      "Demandez à un autre responsable de modifier votre propre accès.",
-    ADMIN_STAFF_LISTED_FORBIDDEN:
-      "L'accès de cette personne vient de la configuration du serveur. Modifiez plutôt PLATFORM_ADMIN_IDS.",
-    ADMIN_STAFF_LAST_MANAGER_FORBIDDEN:
-      "C'est le dernier responsable. Ajoutez-en un autre avant de modifier cet accès.",
-    ADMIN_STAFF_NOT_FOUND: "Cette personne ne fait pas partie de l'équipe.",
-    ADMIN_STAFF_OVERRIDE_NOT_FOUND: "Ce changement de permission n'existe plus.",
-    ADMIN_USER_STAFF_TARGET_FORBIDDEN:
-      "Seule une personne qui gère l'équipe peut agir sur un de ses membres.",
-    IMPERSONATION_ACTION_FORBIDDEN:
-      "Cette action est indisponible pendant l'emprunt d'identité d'un autre utilisateur.",
-    POLICY_ACCEPTANCE_REQUIRED:
-      "Nos conditions ont été mises à jour. Acceptez la nouvelle version pour continuer.",
     CAPTCHA_REQUIRED: "Validez le captcha, puis réessayez.",
-    SECURITY_GEO_FORBIDDEN:
-      "L'accès n'est pas disponible depuis votre réseau ou votre région. Désactivez tout VPN ou proxy et réessayez, ou contactez le support.",
   },
   byStatus: {
     "400": "Certaines informations saisies sont invalides. Vérifiez le formulaire et réessayez.",

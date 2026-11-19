@@ -13,11 +13,12 @@ describe("deadline .ics export", () => {
     const ics = deadlineIcs(
       {
         id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
-        title: "Piscine, Léa; groupe 2",
+        summary: "Piscine, Léa; groupe 2",
         description,
         deadlineDate: "2026-11-19",
         deadlineTime: undefined,
         deadlineAt: "2026-11-19T22:59:00.000Z",
+        alarmsAt: [],
       },
       STAMP,
     );
@@ -40,11 +41,12 @@ describe("deadline .ics export", () => {
     const ics = deadlineIcs(
       {
         id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
-        title: "Contrôle",
+        summary: "Contrôle",
         description: "",
         deadlineDate: "2026-11-19",
         deadlineTime: "08:30",
         deadlineAt: "2026-11-19T07:30:00.000Z",
+        alarmsAt: [],
       },
       STAMP,
     );
@@ -52,5 +54,27 @@ describe("deadline .ics export", () => {
     expect(ics).toContain("DTSTART:20261119T073000Z\r\n");
     expect(ics).toContain("DTSTAMP:20261112T090000Z\r\n");
     expect(ics).toContain("UID:0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90@");
+  });
+
+  it("rings at each planned reminder, the alarm naming the deadline like the subscribed feed", () => {
+    const ics = deadlineIcs(
+      {
+        id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
+        summary: "Jade : Contrôle d'anglais",
+        description: "",
+        deadlineDate: "2026-11-19",
+        deadlineTime: undefined,
+        deadlineAt: "2026-11-19T22:59:00.000Z",
+        alarmsAt: [new Date("2026-11-17T17:00:00.000Z"), new Date("2026-11-18T17:00:00.000Z")],
+      },
+      STAMP,
+    );
+
+    expect(ics).toContain("SUMMARY:Jade : Contrôle d'anglais\r\n");
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(2);
+    expect(ics).toContain(
+      "BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Jade : Contrôle d'anglais\r\nTRIGGER;VALUE=DATE-TIME:20261117T170000Z\r\nEND:VALARM",
+    );
+    expect(ics).toContain("TRIGGER;VALUE=DATE-TIME:20261118T170000Z\r\n");
   });
 });

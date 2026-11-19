@@ -9,7 +9,6 @@ import {
 import { Separator } from "@packages/ui/components/ui/separator";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyH2, TypographyP } from "@packages/ui/components/ui/typography";
-import { toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CalendarPlusIcon, CheckIcon, ExternalLink, Pencil } from "lucide-react";
@@ -18,13 +17,13 @@ import { useTranslation } from "react-i18next";
 import { Route as ProtectedRoute } from "../../../router/_protected";
 import { childrenQueryOptions } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { deadlineIcs, downloadIcs, icsFileName } from "../../../shared/calendar/ics";
 import { EventBadges } from "../../../shared/events/event-badges";
 import { DeadlineWhen } from "../../../shared/events/event-card";
 import { childHue } from "../../../shared/format/child-hue";
 import { countdownOf, deadlineLabel, inSentence } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
 import { ScreenTour } from "../../../shared/tour/screen-tour";
+import { useAgendaDownload } from "../hooks/use-agenda-download";
 import { useToggleDone } from "../hooks/use-toggle-done";
 import { DeleteEventDialog } from "./delete-event-dialog";
 import { EventReminders } from "./event-reminders";
@@ -59,10 +58,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
   const countdown = event.done ? null : countdownOf(event.deadlineDate, event.deadlineTime, now);
   const toggle = useToggleDone();
 
-  const addToAgenda = () => {
-    downloadIcs(icsFileName(event.title), deadlineIcs(event, now));
-    toastSuccess(t("agenda.downloaded"));
-  };
+  const addToAgenda = useAgendaDownload(event, child);
 
   const sharePayload = () => {
     const title = child

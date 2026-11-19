@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { eventEditSchema } from "../events.schema";
 
 const valid = {
+  childId: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
   title: "Contrôle de maths",
   description: "",
   category: "assessment",

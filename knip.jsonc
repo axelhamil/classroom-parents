@@ -47,6 +47,9 @@
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/icalendar": {
+      "project": ["src/**/*.ts"]
+    },
     "packages/ui": {
       "entry": ["src/**/*.tsx", "src/**/*.ts"],
       "project": ["src/**/*.ts", "src/**/*.tsx"]

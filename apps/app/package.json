@@ -17,6 +17,7 @@
     "@packages/ddd-kit": "workspace:*",
     "@packages/events": "workspace:*",
     "@packages/i18n": "workspace:*",
+    "@packages/icalendar": "workspace:*",
     "@packages/sentry-scrub": "workspace:*",
     "@packages/ui": "workspace:*",
     "@packages/web-kit": "workspace:*",

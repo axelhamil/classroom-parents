@@ -12,7 +12,7 @@ import { AddEventForm } from "../../forms/add-event-form";
 export interface AddEventDialogProps {
   date: string | null;
   family: readonly ChildDto[];
-  childId: string;
+  childId: string | null;
   onClose: () => void;
 }
 

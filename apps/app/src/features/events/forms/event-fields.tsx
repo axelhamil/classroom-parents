@@ -83,10 +83,10 @@ export function EventFields({ control, note = noNote }: EventFieldsProps) {
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t("fields.category")}</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select value={field.value ?? ""} onValueChange={field.onChange}>
               <FormControl>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={t("fields.categoryPlaceholder")} />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>

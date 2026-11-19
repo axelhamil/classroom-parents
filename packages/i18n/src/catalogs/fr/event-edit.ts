@@ -7,6 +7,7 @@ export default {
     title: "Titre",
     description: "Description",
     category: "Type",
+    categoryPlaceholder: "Choisir un type",
     deadlineDate: "Pour le",
     deadlineTime: "Heure (facultative)",
   },

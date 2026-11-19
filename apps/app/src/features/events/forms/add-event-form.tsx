@@ -1,8 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@packages/ui/components/ui/button";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
-import { Form } from "@packages/ui/components/ui/form";
-import { Label } from "@packages/ui/components/ui/label";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@packages/ui/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -15,7 +21,6 @@ import { formatApiError } from "@packages/web-kit/api/errors/messages";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
@@ -25,9 +30,9 @@ import { addEventMutationOptions, type NewEvent } from "../api/events.mutations"
 import { type EventEditInput, eventEditSchema } from "../events.schema";
 import { EventFields, eventFieldOf } from "./event-fields";
 
-function newEventOf(childId: string, values: EventEditInput): NewEvent {
+function newEventOf(values: EventEditInput): NewEvent {
   return {
-    childId,
+    childId: values.childId,
     title: values.title,
     category: values.category,
     deadlineDate: values.deadlineDate,
@@ -36,9 +41,15 @@ function newEventOf(childId: string, values: EventEditInput): NewEvent {
   };
 }
 
+function onlyChildOf(family: readonly ChildDto[]): string {
+  const [only] = family;
+
+  return family.length === 1 && only ? only.id : "";
+}
+
 export interface AddEventFormProps {
   family: readonly ChildDto[];
-  childId: string;
+  childId: string | null;
   date: string;
   onAdded: () => void;
 }
@@ -47,14 +58,12 @@ export function AddEventForm({ family, childId, date, onAdded }: AddEventFormPro
   const { t } = useTranslation("events");
   const { t: tErrors } = useTranslation("errors");
   const queryClient = useQueryClient();
-  const childFieldId = useId();
-  const [child, setChild] = useState(childId);
   const form = useForm<EventEditInput>({
     resolver: zodResolver(eventEditSchema),
     defaultValues: {
+      childId: childId ?? onlyChildOf(family),
       title: "",
       description: "",
-      category: "other",
       deadlineDate: date,
       deadlineTime: "",
     },
@@ -77,27 +86,40 @@ export function AddEventForm({ family, childId, date, onAdded }: AddEventFormPro
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit((values) => mutation.mutate(newEventOf(child, values)))}
+        onSubmit={form.handleSubmit((values) => mutation.mutate(newEventOf(values)))}
         className="flex flex-col gap-4"
         noValidate
       >
         {family.length > 1 && (
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={childFieldId}>{t("calendar.addDialog.child")}</Label>
-            <Select value={child} onValueChange={setChild}>
-              <SelectTrigger id={childFieldId}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {family.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    <ChildAvatar name={member.label} tone={childHue(family, member.id)} size="xs" />
-                    {member.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <FormField
+            control={form.control}
+            name="childId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("calendar.addDialog.child")}</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("calendar.addDialog.childPlaceholder")} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {family.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        <ChildAvatar
+                          name={member.label}
+                          tone={childHue(family, member.id)}
+                          size="xs"
+                        />
+                        {member.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
         <EventFields control={form.control} />
         <Button type="submit" disabled={mutation.isPending} className="self-start">
