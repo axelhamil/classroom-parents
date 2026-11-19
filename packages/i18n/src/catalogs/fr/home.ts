@@ -64,8 +64,11 @@ export default {
     },
     tonight: {
       title: "Pour ce soir",
-      description: "Ce qu'il faut préparer pour demain : sac, document, affaires de sport.",
-      empty: "Rien à préparer pour {{day}}",
+      description:
+        "Ce qu'il reste à faire ce soir pour demain : réviser, vérifier, signer, préparer le sac.",
+      empty: "Rien de prévu {{day}}",
+      ready_one: "Rien à préparer ce soir, {{count}} échéance {{day}}",
+      ready_other: "Rien à préparer ce soir, {{count}} échéances {{day}}",
       day: "À préparer pour {{day}}",
     },
     assessments: {

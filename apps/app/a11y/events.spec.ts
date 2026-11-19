@@ -214,7 +214,7 @@ test.describe("the calendar on a phone", () => {
       await serveFamily(page, { children: [LEA, { ...LEA, ...TOM }], events: [tonight, swimming] });
       await page.goto("/");
 
-      const briefing = page.getByRole("region", { name: /^Pour / });
+      const briefing = page.getByRole("region", { name: "Pour demain", exact: true });
       await expect(briefing.getByRole("region", { name: LEA.label })).toBeVisible();
       await expect(briefing.getByRole("link", { name: tonight.title })).toBeVisible();
       await expectOnePageWithoutOverflow(page);

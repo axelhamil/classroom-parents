@@ -16,24 +16,7 @@ import { EVENTS_KEY, type EventItem } from "../../../shared/api/queries/events";
 import type { EventCategory } from "../../../shared/events/event-labels";
 import { type ChecklistChange, changeChecklistMutationOptions } from "../api/events.mutations";
 import { patchCachedEvent } from "../api/events.queries";
-
-const CHECKLIST_DEFAULTS = {
-  swimming: [
-    "prepare.items.swimming.swimsuit",
-    "prepare.items.swimming.cap",
-    "prepare.items.swimming.towel",
-    "prepare.items.swimming.showerGel",
-  ],
-  school_trip: [
-    "prepare.items.school_trip.lunch",
-    "prepare.items.school_trip.outfit",
-    "prepare.items.school_trip.permission",
-  ],
-  document_due: ["prepare.items.document_due.sign", "prepare.items.document_due.pack"],
-  assessment: ["prepare.items.assessment.revise"],
-  homework: ["prepare.items.homework.check"],
-  other: [],
-} as const satisfies Record<EventCategory, readonly string[]>;
+import { CHECKLIST_DEFAULTS } from "../checklist-defaults";
 
 const localChecklistSchema = z
   .object({
