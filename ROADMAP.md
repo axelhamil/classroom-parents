@@ -22,6 +22,6 @@ One line per task of the V1 implementation plan, ticked in the commit that deliv
 - [x] T17 Deployment preparation (do not deploy)
 - [x] T18 Up to five reminders, by default and per event
 - [x] T19a Realistic class template and test classroom provisioning
-- [ ] T19 End-to-end run against a real Classroom demo domain
+- [x] T19 End-to-end run against a real Classroom demo domain
 - [x] T20 Design pass on the parent's criteria
 - [x] T21 Vercel hosting (request-driven api, static fronts, clock worker, hand-over guide)
