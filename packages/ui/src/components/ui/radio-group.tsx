@@ -1,25 +1,67 @@
 import { CircleIcon } from "lucide-react";
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
-import type * as React from "react";
+import { type ComponentProps, type FocusEvent, type KeyboardEvent, useRef } from "react";
 import { cn } from "../../libs/utils";
 
+const ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+
+type ArrowPress = "none" | "held" | "released";
+
+/**
+ * Checks the radio an arrow key moves the focus to, whatever the timing. The primitive
+ * moves the focus a task after the keydown and checks the radio only if the key is
+ * still down by then: a quick tap on a busy main thread (a dialog still mounting, a
+ * slow phone) moved the focus without the selection. This root finishes the job only
+ * in that late case, so the radio is never checked twice.
+ */
 function RadioGroup({
   className,
+  onKeyDown,
+  onKeyUp,
+  onFocus,
+  onPointerDown,
   ...props
-}: React.ComponentProps<typeof RadioGroupPrimitive.Root>) {
+}: ComponentProps<typeof RadioGroupPrimitive.Root>) {
+  const arrow = useRef<ArrowPress>("none");
+
+  const trackKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    onKeyDown?.(event);
+    arrow.current = ARROW_KEYS.includes(event.key) ? "held" : "none";
+  };
+
+  const trackKeyUp = (event: KeyboardEvent<HTMLDivElement>) => {
+    onKeyUp?.(event);
+    if (arrow.current === "held") arrow.current = "released";
+  };
+
+  const checkLateFocus = (event: FocusEvent<HTMLDivElement>) => {
+    onFocus?.(event);
+    const released = arrow.current === "released";
+    arrow.current = "none";
+    const radio = event.target;
+    if (!released || !(radio instanceof HTMLButtonElement)) return;
+
+    if (radio.getAttribute("role") === "radio" && radio.getAttribute("aria-checked") === "false")
+      radio.click();
+  };
+
   return (
     <RadioGroupPrimitive.Root
       data-slot="radio-group"
       className={cn("grid gap-3", className)}
+      onKeyDown={trackKeyDown}
+      onKeyUp={trackKeyUp}
+      onFocus={checkLateFocus}
+      onPointerDown={(event) => {
+        onPointerDown?.(event);
+        arrow.current = "none";
+      }}
       {...props}
     />
   );
 }
 
-function RadioGroupItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof RadioGroupPrimitive.Item>) {
+function RadioGroupItem({ className, ...props }: ComponentProps<typeof RadioGroupPrimitive.Item>) {
   return (
     <RadioGroupPrimitive.Item
       data-slot="radio-group-item"
