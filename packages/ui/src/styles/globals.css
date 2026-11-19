@@ -49,10 +49,10 @@
   --child-3-container: oklch(0.94 0.035 300);
   --child-4: oklch(0.52 0.17 355);
   --child-4-container: oklch(0.94 0.035 355);
-  --child-5: oklch(0.53 0.16 35);
-  --child-5-container: oklch(0.94 0.035 40);
-  --child-6: oklch(0.5 0.1 75);
-  --child-6-container: oklch(0.94 0.045 80);
+  --child-5: oklch(0.53 0.12 55);
+  --child-5-container: oklch(0.94 0.035 52);
+  --child-6: oklch(0.5 0.1 118);
+  --child-6-container: oklch(0.94 0.045 118);
   --child-7: oklch(0.5 0.12 145);
   --child-7-container: oklch(0.94 0.04 145);
   --child-8: oklch(0.48 0.06 230);
@@ -222,10 +222,10 @@
   --child-3-container: oklch(0.3 0.045 300);
   --child-4: oklch(0.46 0.14 355);
   --child-4-container: oklch(0.3 0.045 355);
-  --child-5: oklch(0.47 0.13 35);
-  --child-5-container: oklch(0.3 0.045 40);
-  --child-6: oklch(0.45 0.08 75);
-  --child-6-container: oklch(0.3 0.04 80);
+  --child-5: oklch(0.47 0.11 55);
+  --child-5-container: oklch(0.3 0.045 45);
+  --child-6: oklch(0.45 0.08 118);
+  --child-6-container: oklch(0.3 0.04 118);
   --child-7: oklch(0.45 0.1 145);
   --child-7-container: oklch(0.3 0.04 145);
   --child-8: oklch(0.44 0.05 230);
@@ -235,8 +235,8 @@
   --child-2-mark: oklch(0.76 0.12 255);
   --child-3-mark: oklch(0.76 0.13 300);
   --child-4-mark: oklch(0.76 0.13 355);
-  --child-5-mark: oklch(0.76 0.12 35);
-  --child-6-mark: oklch(0.76 0.1 75);
+  --child-5-mark: oklch(0.76 0.12 55);
+  --child-6-mark: oklch(0.76 0.1 118);
   --child-7-mark: oklch(0.76 0.11 145);
   --child-8-mark: oklch(0.76 0.06 230);
   --category-assessment: oklch(0.83 0.1 350);
@@ -296,7 +296,7 @@
   --sidebar-ring: var(--ring);
 }
 
-/* Papier: an off-white sheet with no cream in it, blue-black fountain-pen ink, the water-green action. Ink 14.86 on the page, 15.97 on a card, muted 5.35 on the darkest surface, white on action 6.47, input 3.60. */
+/* Papier: an off-white sheet with no cream in it, blue-black fountain-pen ink, and the action drawn in that ink so no child colour can be mistaken for it. Ink 14.86 on the page, 15.97 on a card, muted 5.35 on the darkest surface, white on action 12.71, input 3.60. */
 :root,
 [data-palette="paper"] {
   --background: oklch(0.969 0.005 100);
@@ -308,16 +308,16 @@
   --muted: oklch(0.945 0.006 100);
   --muted-foreground: oklch(0.47 0.025 258);
   --accent: oklch(0.932 0.007 100);
-  --primary: oklch(0.47 0.09 178);
+  --primary: oklch(0.32 0.04 262);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.91 0.045 175);
-  --secondary-foreground: oklch(0.3 0.06 178);
+  --secondary: oklch(0.925 0.012 262);
+  --secondary-foreground: oklch(0.3 0.04 262);
   --border: oklch(0.885 0.008 100);
   --input: oklch(0.6 0.015 250);
   --shadow-color: oklch(0.3 0.03 262);
 }
 
-/* Papier at night: blue-black paper, paper-white ink. Ink 15.19 on the page, muted 6.94 on the lightest surface, action 10.12, input 3.90 on a card. */
+/* Papier at night: blue-black paper, paper-white ink and a paper-white action. Ink 15.19 on the page, muted 6.94 on the lightest surface, action 13.45, input 3.90 on a card. */
 .dark,
 .dark [data-palette="paper"] {
   --background: oklch(0.2 0.014 262);
@@ -329,16 +329,16 @@
   --muted: oklch(0.255 0.016 262);
   --muted-foreground: oklch(0.78 0.014 255);
   --accent: oklch(0.31 0.02 262);
-  --primary: oklch(0.8 0.1 175);
-  --primary-foreground: oklch(0.24 0.045 178);
-  --secondary: oklch(0.34 0.04 178);
-  --secondary-foreground: oklch(0.9 0.04 175);
+  --primary: oklch(0.9 0.02 255);
+  --primary-foreground: oklch(0.22 0.02 262);
+  --secondary: oklch(0.32 0.02 262);
+  --secondary-foreground: oklch(0.92 0.01 255);
   --border: oklch(0.35 0.018 262);
   --input: oklch(0.58 0.018 258);
   --shadow-color: oklch(0.08 0.012 262);
 }
 
-/* Ardoise: a cool grey-blue sheet and slate-blue action; at night the green-black of a school board with chalk-blue action. Light ink 14.02, muted 5.13, white on action 6.81, input 3.46; dark ink 14.33, muted 6.92, action 9.90, input 3.65 on a card, destructive 4.57 on an outline button. */
+/* Ardoise: a cool grey-blue sheet and a graphite action; at night the green-black of a school board with a chalk action. Light ink 14.02, muted 5.13, white on action 12.64, input 3.46; dark ink 14.33, muted 6.92, action 12.73, input 3.65 on a card, destructive 4.57 on an outline button. */
 [data-palette="slate"] {
   --background: oklch(0.955 0.007 240);
   --foreground: oklch(0.25 0.025 245);
@@ -349,10 +349,10 @@
   --muted: oklch(0.932 0.012 240);
   --muted-foreground: oklch(0.47 0.025 245);
   --accent: oklch(0.918 0.013 240);
-  --primary: oklch(0.47 0.1 250);
+  --primary: oklch(0.32 0.035 245);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.91 0.035 248);
-  --secondary-foreground: oklch(0.3 0.06 250);
+  --secondary: oklch(0.915 0.014 240);
+  --secondary-foreground: oklch(0.3 0.035 245);
   --border: oklch(0.87 0.014 240);
   --input: oklch(0.6 0.02 245);
   --shadow-color: oklch(0.3 0.03 245);
@@ -369,16 +369,16 @@
   --muted: oklch(0.265 0.014 200);
   --muted-foreground: oklch(0.79 0.014 200);
   --accent: oklch(0.315 0.016 200);
-  --primary: oklch(0.82 0.08 235);
-  --primary-foreground: oklch(0.24 0.04 245);
-  --secondary: oklch(0.35 0.04 235);
-  --secondary-foreground: oklch(0.9 0.04 235);
+  --primary: oklch(0.9 0.025 220);
+  --primary-foreground: oklch(0.22 0.015 200);
+  --secondary: oklch(0.33 0.018 200);
+  --secondary-foreground: oklch(0.92 0.012 210);
   --border: oklch(0.355 0.014 200);
   --input: oklch(0.57 0.016 200);
   --shadow-color: oklch(0.08 0.01 200);
 }
 
-/* Sauge: a pale sage sheet, green-black ink, moss action. Light ink 14.23, muted 5.22, white on action 6.83, input 3.51; dark ink 14.85, muted 6.80, action 9.82, input 3.70 on a card, destructive 4.62 on an outline button. */
+/* Sauge: a pale sage sheet, green-black ink, the action in that ink. Light ink 14.23, muted 5.22, white on action 12.45, input 3.51; dark ink 14.85, muted 6.80, action 13.21, input 3.70 on a card, destructive 4.62 on an outline button. */
 [data-palette="sage"] {
   --background: oklch(0.962 0.012 145);
   --foreground: oklch(0.25 0.03 165);
@@ -389,10 +389,10 @@
   --muted: oklch(0.94 0.015 145);
   --muted-foreground: oklch(0.47 0.025 160);
   --accent: oklch(0.926 0.016 145);
-  --primary: oklch(0.46 0.09 150);
+  --primary: oklch(0.32 0.04 165);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.91 0.045 148);
-  --secondary-foreground: oklch(0.3 0.06 150);
+  --secondary: oklch(0.915 0.018 150);
+  --secondary-foreground: oklch(0.3 0.04 165);
   --border: oklch(0.88 0.016 145);
   --input: oklch(0.6 0.02 155);
   --shadow-color: oklch(0.3 0.03 160);
@@ -409,16 +409,16 @@
   --muted: oklch(0.26 0.016 155);
   --muted-foreground: oklch(0.78 0.016 150);
   --accent: oklch(0.32 0.02 155);
-  --primary: oklch(0.8 0.1 150);
-  --primary-foreground: oklch(0.24 0.045 155);
-  --secondary: oklch(0.34 0.04 150);
-  --secondary-foreground: oklch(0.9 0.04 150);
+  --primary: oklch(0.9 0.025 150);
+  --primary-foreground: oklch(0.22 0.015 155);
+  --secondary: oklch(0.32 0.02 155);
+  --secondary-foreground: oklch(0.92 0.012 145);
   --border: oklch(0.36 0.016 155);
   --input: oklch(0.57 0.018 155);
   --shadow-color: oklch(0.07 0.01 155);
 }
 
-/* Encre violette: the violet ink of the old school inkwells on a bright sheet. Light ink 15.11, muted 5.34, white on action 7.55, input 3.62; dark ink 15.19, muted 7.06, action 9.79, input 4.04 on a card. */
+/* Encre violette: the violet ink of the old school inkwells on a bright sheet, the action in that ink. Light ink 15.11, muted 5.34, white on action 12.96, input 3.62; dark ink 15.19, muted 7.06, action 13.35, input 4.04 on a card. */
 [data-palette="ink"] {
   --background: oklch(0.968 0.006 300);
   --foreground: oklch(0.24 0.045 290);
@@ -429,10 +429,10 @@
   --muted: oklch(0.943 0.009 300);
   --muted-foreground: oklch(0.47 0.035 292);
   --accent: oklch(0.93 0.011 300);
-  --primary: oklch(0.46 0.14 292);
+  --primary: oklch(0.32 0.07 292);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.92 0.04 295);
-  --secondary-foreground: oklch(0.32 0.09 292);
+  --secondary: oklch(0.92 0.02 295);
+  --secondary-foreground: oklch(0.32 0.07 292);
   --border: oklch(0.88 0.012 300);
   --input: oklch(0.6 0.025 292);
   --shadow-color: oklch(0.3 0.04 290);
@@ -449,10 +449,10 @@
   --muted: oklch(0.255 0.024 290);
   --muted-foreground: oklch(0.79 0.022 295);
   --accent: oklch(0.31 0.03 290);
-  --primary: oklch(0.81 0.1 295);
-  --primary-foreground: oklch(0.25 0.07 292);
-  --secondary: oklch(0.35 0.06 292);
-  --secondary-foreground: oklch(0.91 0.04 295);
+  --primary: oklch(0.9 0.04 295);
+  --primary-foreground: oklch(0.22 0.03 290);
+  --secondary: oklch(0.33 0.02 292);
+  --secondary-foreground: oklch(0.92 0.015 295);
   --border: oklch(0.36 0.026 290);
   --input: oklch(0.59 0.03 292);
   --shadow-color: oklch(0.07 0.015 290);
