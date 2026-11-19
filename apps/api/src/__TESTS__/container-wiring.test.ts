@@ -20,7 +20,12 @@ describe("container wiring", () => {
 
     expect(dispatcher.handlersOf("child.account.connected")).toEqual([
       "user-stream-relay",
+      "alerts-access-loss-rearm",
       "classroom-sync-first-sync",
+    ]);
+    expect(dispatcher.handlersOf("child.account.reconnect_needed")).toEqual([
+      "user-stream-relay",
+      "alerts-access-loss-warn",
     ]);
   });
 });

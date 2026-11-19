@@ -99,6 +99,13 @@
       "when": 1795099876010,
       "tag": "0013_course_names",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795101026305,
+      "tag": "0014_access_loss_alert",
+      "breakpoints": true
     }
   ]
 }

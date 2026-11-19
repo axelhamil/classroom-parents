@@ -1,8 +1,9 @@
 import { type IInstrumentation, type ILogger, Option, Result } from "@packages/ddd-kit";
-import type { IEmailService } from "@packages/email/email.port";
+import type { EmailTemplates, IEmailService, TemplateVariables } from "@packages/email/email.port";
 import type { BatchSender } from "@packages/email/email-delivery-worker";
 import { type RenderedEmail, renderTemplate } from "@packages/emails";
 import type {
+  AccessLossEmailContent,
   AlertEmailContent,
   AlertGroupEmailContent,
   DigestEmailContent,
@@ -57,16 +58,12 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
       { name: "ResendAlertEmailSender > sendGroup" },
       async () => {
         const lines = await alertLines(items, { withChild: true });
-        const queued = await this.queue.sendTemplate(
+        return this.enqueue(
           "alert_group",
           to,
           { itemCount: String(items.length), items: lines.join("\n"), appUrl },
-          { idempotencyKey: groupKey },
+          groupKey,
         );
-        if (queued.isFailure && queued.getError().code !== "EMAIL_ALREADY_QUEUED")
-          return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", queued.getError().message));
-
-        return Result.ok();
       },
     );
   }
@@ -79,6 +76,28 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
           digestId: content.digestId,
         }),
     );
+  }
+
+  async sendAccessLoss(
+    to: string,
+    { accessAlertId, childLabel, childrenUrl }: AccessLossEmailContent,
+  ): Promise<Result<void, AlertsError>> {
+    return this.instrumentation.startSpan({ name: "ResendAlertEmailSender > sendAccessLoss" }, () =>
+      this.enqueue("access_lost", to, { childLabel, childrenUrl }, `access-loss-${accessAlertId}`),
+    );
+  }
+
+  private async enqueue<K extends keyof EmailTemplates>(
+    template: K,
+    to: string,
+    variables: EmailTemplates[K] & TemplateVariables,
+    idempotencyKey: string,
+  ): Promise<Result<void, AlertsError>> {
+    const queued = await this.queue.sendTemplate(template, to, variables, { idempotencyKey });
+    if (queued.isFailure && queued.getError().code !== "EMAIL_ALREADY_QUEUED")
+      return Result.fail(emailFailure("ALERT_PROVIDER_FAILURE", queued.getError().message));
+
+    return Result.ok();
   }
 
   private async deliver(

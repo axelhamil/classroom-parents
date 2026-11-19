@@ -4,6 +4,12 @@ import { defineEventContribution } from "../contribution";
 const AlertRef = z.object({ userId: z.string(), alertId: z.string() });
 const Channel = z.enum(["push", "email"]);
 const DigestRef = z.object({ userId: z.string(), digestId: z.string(), weekStart: z.iso.date() });
+const AccessLossRef = z.object({
+  userId: z.string(),
+  childId: z.string(),
+  accessAlertId: z.string(),
+  actorUserId: z.null(),
+});
 
 export const alertsEvents = defineEventContribution({
   types: {
@@ -25,6 +31,10 @@ export const alertsEvents = defineEventContribution({
     WEEKLY_DIGEST_PREFERENCE_CHANGED: "alert.weekly_digest_preference.changed",
     ALERT_QUIET_HOURS_CHANGED: "alert.quiet_hours.changed",
     ALERT_LOCK_SCREEN_CHANGED: "alert.lock_screen.changed",
+    ACCESS_LOSS_ALERT_SCHEDULED: "alert.access_loss.scheduled",
+    ACCESS_LOSS_ALERT_SENT: "alert.access_loss.sent",
+    ACCESS_LOSS_ALERT_MISSED: "alert.access_loss.missed",
+    ACCESS_LOSS_ALERT_CLOSED: "alert.access_loss.closed",
   },
   payloads: {
     "alert.alert.scheduled": AlertRef.extend({
@@ -88,6 +98,10 @@ export const alertsEvents = defineEventContribution({
       end: z.string(),
     }),
     "alert.lock_screen.changed": z.object({ userId: z.string(), details: z.boolean() }),
+    "alert.access_loss.scheduled": AccessLossRef.extend({ dueAt: z.iso.datetime() }),
+    "alert.access_loss.sent": AccessLossRef.extend({ channel: Channel }),
+    "alert.access_loss.missed": AccessLossRef,
+    "alert.access_loss.closed": AccessLossRef.extend({ cancelled: z.boolean() }),
   },
   retention: {
     "alert.alert.scheduled": "operational",
@@ -108,6 +122,10 @@ export const alertsEvents = defineEventContribution({
     "alert.weekly_digest_preference.changed": "operational",
     "alert.quiet_hours.changed": "operational",
     "alert.lock_screen.changed": "operational",
+    "alert.access_loss.scheduled": "operational",
+    "alert.access_loss.sent": "operational",
+    "alert.access_loss.missed": "operational",
+    "alert.access_loss.closed": "operational",
   },
   visibility: {
     "alert.alert.scheduled": "public",
@@ -128,6 +146,10 @@ export const alertsEvents = defineEventContribution({
     "alert.weekly_digest_preference.changed": "public",
     "alert.quiet_hours.changed": "public",
     "alert.lock_screen.changed": "public",
+    "alert.access_loss.scheduled": "internal",
+    "alert.access_loss.sent": "public",
+    "alert.access_loss.missed": "public",
+    "alert.access_loss.closed": "internal",
   },
   descriptions: {
     "alert.alert.scheduled":
@@ -163,5 +185,13 @@ export const alertsEvents = defineEventContribution({
       "A parent changed the hours during which no alert rings; upcoming alerts were replanned around them.",
     "alert.lock_screen.changed":
       "A parent chose whether push notifications show their children's names and deadline titles on the lock screen.",
+    "alert.access_loss.scheduled":
+      "A child's Classroom access was lost: one warning asking the parent to reconnect was planned, after the quiet hours if they were on.",
+    "alert.access_loss.sent":
+      "The warning that a child's Classroom access was lost reached the parent by web push or, failing that, by email.",
+    "alert.access_loss.missed":
+      "The warning that a child's Classroom access was lost could reach the parent neither by push nor by email, and was given up.",
+    "alert.access_loss.closed":
+      "A child's Classroom access works again: its lost access warning is closed, cancelled if it was not sent yet, and the next loss warns again.",
   },
 });

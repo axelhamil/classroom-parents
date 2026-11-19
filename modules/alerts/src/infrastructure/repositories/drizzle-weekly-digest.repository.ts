@@ -4,7 +4,6 @@ import {
   asc,
   claimedSet,
   db,
-  dbOperationFailure,
   eq,
   inArray,
   isDue,
@@ -21,10 +20,7 @@ import type {
   DigestSettlement,
   IWeeklyDigestRepository,
 } from "../../application/ports/weekly-digest-repository.port";
-
-const dbAttrs = { "db.system.name": "postgresql" } as const;
-
-const repositoryFailure = dbOperationFailure("ALERT_PROVIDER_FAILURE");
+import { type RepositoryTracer, repositoryTracer } from "./repository-tracer";
 
 function fencedBy(lease: DigestLease): SQL | undefined {
   return and(
@@ -57,10 +53,14 @@ export function digestClaimQuery(
 }
 
 export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
+  private readonly tracer: RepositoryTracer;
+
   constructor(
-    private readonly instrumentation: IInstrumentation,
+    instrumentation: IInstrumentation,
     private readonly claimScope?: SQL,
-  ) {}
+  ) {
+    this.tracer = repositoryTracer(instrumentation, "DrizzleWeeklyDigestRepository");
+  }
 
   async plan(
     userIds: string[],
@@ -68,7 +68,7 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
     expiresAt: Date,
   ): Promise<Result<number, AlertsError>> {
     const exec = resolveExecutor();
-    return this.traced("plan", async () => {
+    return this.tracer.method("plan", async () => {
       if (userIds.length === 0) return Result.ok(0);
 
       const query = exec
@@ -76,7 +76,7 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
         .values(userIds.map((userId) => ({ userId, weekStart, expiresAt })))
         .onConflictDoNothing({ target: [alertWeeklyDigest.weekStart, alertWeeklyDigest.userId] })
         .returning({ id: alertWeeklyDigest.id });
-      const planned = await this.query(query);
+      const planned = await this.tracer.query(query);
       return Result.ok(planned.length);
     });
   }
@@ -86,8 +86,10 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
     leaseSeconds: number,
   ): Promise<Result<ClaimedDigest[], AlertsError>> {
     const exec = resolveExecutor();
-    return this.traced("claimDue", async () => {
-      const rows = await this.query(digestClaimQuery(exec, limit, leaseSeconds, this.claimScope));
+    return this.tracer.method("claimDue", async () => {
+      const rows = await this.tracer.query(
+        digestClaimQuery(exec, limit, leaseSeconds, this.claimScope),
+      );
       return Result.ok(
         rows.map((row) => ({
           lease: { digestId: row.id, attempts: row.attempts },
@@ -105,7 +107,7 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
     settlement: DigestSettlement,
   ): Promise<Result<boolean, AlertsError>> {
     const exec = resolveExecutor();
-    return this.traced("settle", async () => {
+    return this.tracer.method("settle", async () => {
       const delivered =
         settlement.status === "sent"
           ? { channel: settlement.channel, sentAt: settlement.at }
@@ -115,33 +117,33 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
         .set({ status: settlement.status, ...delivered, nextAttemptAt: null })
         .where(fencedBy(lease))
         .returning({ id: alertWeeklyDigest.id });
-      const updated = await this.query(query);
+      const updated = await this.tracer.query(query);
       return Result.ok(updated.length === 1);
     });
   }
 
   async addFailure(lease: DigestLease): Promise<Result<boolean, AlertsError>> {
     const exec = resolveExecutor();
-    return this.traced("addFailure", async () => {
+    return this.tracer.method("addFailure", async () => {
       const query = exec
         .update(alertWeeklyDigest)
         .set({ failures: sql`${alertWeeklyDigest.failures} + 1` })
         .where(fencedBy(lease))
         .returning({ id: alertWeeklyDigest.id });
-      const updated = await this.query(query);
+      const updated = await this.tracer.query(query);
       return Result.ok(updated.length === 1);
     });
   }
 
   async enabledFor(userId: string): Promise<Result<Option<boolean>, AlertsError>> {
     const exec = resolveExecutor();
-    return this.traced("enabledFor", async () => {
+    return this.tracer.method("enabledFor", async () => {
       const query = exec
         .select({ enabled: alertDigestPreference.enabled })
         .from(alertDigestPreference)
         .where(eq(alertDigestPreference.userId, userId))
         .limit(1);
-      const rows = await this.query(query);
+      const rows = await this.tracer.query(query);
       return Result.ok(Option.fromNullable(rows[0]).map(({ enabled }) => enabled));
     });
   }
@@ -152,38 +154,14 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
     at: Date,
   ): Promise<Result<void, AlertsError>> {
     const exec = resolveExecutor();
-    return this.traced("saveEnabled", async () => {
+    return this.tracer.method("saveEnabled", async () => {
       const values = { enabled, updatedAt: at };
       const query = exec
         .insert(alertDigestPreference)
         .values({ userId, ...values })
         .onConflictDoUpdate({ target: alertDigestPreference.userId, set: values });
-      await this.query(query);
+      await this.tracer.query(query);
       return Result.ok();
     });
-  }
-
-  private query<T>(query: { toSQL(): { sql: string }; execute(): Promise<T> }): Promise<T> {
-    return this.instrumentation.startSpan(
-      { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
-      () => query.execute(),
-    );
-  }
-
-  private traced<T>(
-    method: string,
-    work: () => Promise<Result<T, AlertsError>>,
-  ): Promise<Result<T, AlertsError>> {
-    return this.instrumentation.startSpan(
-      { name: `DrizzleWeeklyDigestRepository > ${method}` },
-      async () => {
-        try {
-          return await work();
-        } catch (err) {
-          this.instrumentation.capture(err);
-          return Result.fail(repositoryFailure(method, err));
-        }
-      },
-    );
   }
 }

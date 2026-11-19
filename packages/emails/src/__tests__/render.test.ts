@@ -50,6 +50,7 @@ const STUB_VARS = {
     summary: "3 échéances cette semaine : 2 pour Léa, 1 pour Hugo. Prochaine : Piscine lundi.",
     appUrl: "https://x.test/",
   },
+  access_lost: { childLabel: "Jade", childrenUrl: "https://x.test/children" },
 } as const satisfies Record<EmailTemplateKey, unknown>;
 
 describe("renderTemplate", () => {

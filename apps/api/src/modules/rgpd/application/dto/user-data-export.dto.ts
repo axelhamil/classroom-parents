@@ -98,6 +98,15 @@ export interface ExportedWeeklyDigest {
   weeks: ExportedDigestWeek[];
 }
 
+export interface ExportedAccessLossWarning {
+  childId: string;
+  dueAt: string;
+  status: string;
+  channel: string | null;
+  sentAt: string | null;
+  closedAt: string | null;
+}
+
 export interface ExportedQuietHours {
   enabled: boolean;
   start: string;
@@ -120,6 +129,7 @@ export interface UserDataSnapshot {
   lockScreen: ExportedLockScreen;
   calendarFeed: ExportedCalendarFeed | null;
   weeklyDigest: ExportedWeeklyDigest;
+  accessLossWarnings: ExportedAccessLossWarning[];
   sync: ExportedSyncState[];
 }
 

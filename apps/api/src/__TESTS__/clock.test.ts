@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import type { AccessLossAlertService } from "@modules/alerts/application/services/access-loss-alert.service";
 import type { AlertDispatchService } from "@modules/alerts/application/services/alert-dispatch.service";
 import type { WeeklyDigestService } from "@modules/alerts/application/services/weekly-digest.service";
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
@@ -126,6 +127,10 @@ describe("ClockService", () => {
     digest.runOnce.mockResolvedValue(
       Result.ok({ planned: 0, claimed: 0, sent: 0, emailed: 0, skipped: 0, missed: 0 }),
     );
+    const accessLoss = mockPort<AccessLossAlertService>();
+    accessLoss.runOnce.mockResolvedValue(
+      Result.ok({ claimed: 0, sent: 0, emailed: 0, missed: 0, cancelled: 0 }),
+    );
     const delivery = mockPort<Pick<DeliveryDrain, "outbox" | "emails">>();
     delivery.outbox.mockImplementation(async () => {
       const dispatched = outbox.length;
@@ -144,6 +149,7 @@ describe("ClockService", () => {
         ChildConnectionService: connections,
         AlertDispatchService: dispatch,
         WeeklyDigestService: digest,
+        AccessLossAlertService: accessLoss,
         RgpdService: mockPort<RgpdService>(),
         ITransactionService: mockPort<IUnitOfWork>(),
         IInstrumentation: instrumentation,

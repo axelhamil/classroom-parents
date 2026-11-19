@@ -93,6 +93,7 @@ const countingCopy: IPushCopy = {
     return i18nCopy.forAlerts(shown, options);
   },
   forWeek: (count) => i18nCopy.forWeek(count),
+  forAccessLoss: (childLabel, options) => i18nCopy.forAccessLoss(childLabel, options),
 };
 const silentLogger: ILogger = {
   debug: () => undefined,
@@ -111,6 +112,7 @@ const emailSender: IAlertEmailSender = {
     return Result.ok<AppError>();
   },
   sendDigest: async () => Result.ok<AppError>(),
+  sendAccessLoss: async () => Result.ok<AppError>(),
 };
 
 const alive = (userId: string) =>
@@ -711,6 +713,7 @@ run(async () => {
         body: shown.map(({ alertId }) => alertId).join(","),
       }),
       forWeek: async (count) => String(count),
+      forAccessLoss: async (childLabel) => ({ title: "", body: childLabel }),
     },
     deadlines,
     transactions,
@@ -870,6 +873,7 @@ run(async () => {
       return countingCopy.forAlerts(shown, options);
     },
     forWeek: (count) => countingCopy.forWeek(count),
+    forAccessLoss: (childLabel, options) => countingCopy.forAccessLoss(childLabel, options),
   };
   const outrun = new AlertDispatchService(
     alerts,

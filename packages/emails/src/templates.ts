@@ -43,6 +43,10 @@ export type EmailTemplates = {
     summary: string;
     appUrl: string;
   };
+  access_lost: {
+    childLabel: string;
+    childrenUrl: string;
+  };
 };
 
 export type EmailTemplateKey = keyof EmailTemplates;

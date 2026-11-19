@@ -1,6 +1,7 @@
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { DIGEST_ENABLED_BY_DEFAULT } from "@modules/alerts/application/ports/digest-audience.port";
 import { LOCK_SCREEN_DETAILS_BY_DEFAULT } from "@modules/alerts/application/ports/push-subscription-repository.port";
+import { alertAccessLoss } from "@modules/alerts/schemas/access-loss.schema";
 import { alert } from "@modules/alerts/schemas/alert.schema";
 import { pushLockScreen, pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
 import {
@@ -123,6 +124,19 @@ export class UserDataQuery implements IUserDataReader {
           .where(eq(alertWeeklyDigest.userId, userId))
           .orderBy(asc(alertWeeklyDigest.weekStart));
 
+        const accessLossWarnings = await exec
+          .select({
+            childId: alertAccessLoss.childId,
+            dueAt: alertAccessLoss.dueAt,
+            status: alertAccessLoss.status,
+            channel: alertAccessLoss.channel,
+            sentAt: alertAccessLoss.sentAt,
+            closedAt: alertAccessLoss.closedAt,
+          })
+          .from(alertAccessLoss)
+          .where(eq(alertAccessLoss.userId, userId))
+          .orderBy(asc(alertAccessLoss.dueAt));
+
         const seen = await exec
           .select({ childId: seenAnnouncement.childId, total: count() })
           .from(seenAnnouncement)
@@ -205,6 +219,12 @@ export class UserDataQuery implements IUserDataReader {
             chosenAt: iso(digestChoice?.updatedAt ?? null),
             weeks: digestWeeks.map((week) => ({ ...week, sentAt: iso(week.sentAt) })),
           },
+          accessLossWarnings: accessLossWarnings.map((warning) => ({
+            ...warning,
+            dueAt: warning.dueAt.toISOString(),
+            sentAt: iso(warning.sentAt),
+            closedAt: iso(warning.closedAt),
+          })),
           sync: children.map((child) => ({
             childId: child.id,
             status: child.status,
