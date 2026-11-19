@@ -382,6 +382,8 @@ run(async () => {
       !JSON.stringify(document.aiCalls).includes("a".repeat(64)) &&
       !JSON.stringify(document.aiCalls).includes("check-1"),
     document.aiCalls,
+  );
+  await step(
     "the home layout comes along",
     isDeepStrictEqual(document.homeLayout?.blocks, HOME_BLOCKS) &&
       document.homeLayout?.chosenAt === NOW.toISOString(),
