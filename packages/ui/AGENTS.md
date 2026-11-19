@@ -29,4 +29,4 @@ components.json              shadcn config (style new-york, lucide, neutral base
 
 ## Commands
 
-`pnpm ui:add <component>` (root script, runs `shadcn add` inside this package), then `pnpm --filter @packages/ui ui:fix-imports` (shadcn writes `/src/...` and `from "cn"` import paths the package cannot resolve) · `pnpm --filter @packages/ui type-check`. Check the shadcn registry before writing a custom primitive.
+`pnpm icons:generate` (every PNG icon of the app, from `src/assets/public/favicon.svg`: run it in the change that touches the mark or its tile colour, never edit a PNG by hand) · `pnpm ui:add <component>` (root script, runs `shadcn add` inside this package), then `pnpm --filter @packages/ui ui:fix-imports` (shadcn writes `/src/...` and `from "cn"` import paths the package cannot resolve) · `pnpm --filter @packages/ui type-check`. Check the shadcn registry before writing a custom primitive.
