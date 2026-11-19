@@ -16,7 +16,10 @@ interface ProviderBindings {
 
 type FakesSource = Pick<typeof env, "FAKE_PROVIDERS" | "NODE_ENV" | "DATABASE_URL">;
 
-export const fakeProviderBindings = async (source: FakesSource) => {
+export const fakeProviderBindings = async (
+  source: FakesSource,
+  withConsent: (reader: IAnnouncementExtractor) => IAnnouncementExtractor,
+) => {
   if (!source.FAKE_PROVIDERS)
     return defineModule<ProviderBindings>()((b) =>
       b.add("FakeProviders", (): Option<FakeProviders> => Option.none()),
@@ -30,7 +33,7 @@ export const fakeProviderBindings = async (source: FakesSource) => {
     b
       .override("IGoogleOAuthClient", () => fakes.googleOAuth)
       .override("IClassroomClient", () => fakes.classroom)
-      .override("IAnnouncementExtractor", () => fakes.extractor)
+      .override("IAnnouncementExtractor", () => withConsent(fakes.extractor))
       .override("IPushSender", () => fakes.push)
       .add("FakeProviders", (): Option<FakeProviders> => Option.some(fakes)),
   );

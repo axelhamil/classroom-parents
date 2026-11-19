@@ -1,5 +1,6 @@
 import type { IInstrumentation, ILogger } from "@packages/ddd-kit";
 import type { Logger } from "../shared/logger";
+import { type AiUsageWorkerDeps, aiUsageWatchPass } from "./ai-usage-worker";
 import { type AlertWorkerDeps, alertsPass } from "./alert-worker";
 import type { DeliveryDrain } from "./delivery";
 import { failed, type Job, type JobCounts, type JobOutcome } from "./job";
@@ -86,6 +87,7 @@ export type ClockDeps = Pick<
   "SyncDueChildrenService" | "ChildConnectionService" | "IInstrumentation"
 > &
   Pick<AlertWorkerDeps, "AlertDispatchService" | "WeeklyDigestService" | "AccessLossAlertService"> &
+  Pick<AiUsageWorkerDeps, "AiUsageWatchService"> &
   RgpdWorkerDeps & { DeliveryDrain: Pick<DeliveryDrain, "outbox" | "emails"> };
 
 export interface ClockSettings {
@@ -110,6 +112,7 @@ export class ClockService {
           jobs: [
             { name: "sync", run: (signal) => syncPass(deps, signal, logger) },
             { name: "alerts", run: (signal) => alertsPass(deps, signal, logger) },
+            { name: "ai-usage", run: () => aiUsageWatchPass(deps, logger) },
           ],
           budgetMs: budgetMs * PRODUCERS_SHARE,
         },

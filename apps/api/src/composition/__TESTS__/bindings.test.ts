@@ -7,6 +7,10 @@ import type {
 import type { AgendaError } from "@modules/agenda/application/ports/event-repository.port";
 import type { ChildDto } from "@modules/children/application/dto/child.dto";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
+import {
+  isExtractorOutage,
+  isReadingPaused,
+} from "@modules/classroom-sync/application/ports/announcement-extractor.port";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
 import {
   alertPlannerFor,
@@ -256,6 +260,9 @@ describe("alerts IDigestDeadlines bound to the agenda and children", () => {
 });
 
 describe("sync IAnnouncementExtractor bound to extraction", () => {
+  const readingOn = () => ({
+    extractionEnabled: async (): Promise<Result<boolean, AppError>> => Result.ok(true),
+  });
   const extracted = {
     title: "Évaluation de fractions",
     description: "Réviser le chapitre 3",
@@ -280,15 +287,18 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
 
   it("keeps every field the agenda needs, review reasons, quote and time included", async () => {
     let received: unknown;
-    const extractor = announcementExtractorFor({
-      extract: async (input) => {
-        received = input;
-        return Result.ok({
-          events: [extracted],
-          amendments: [{ kind: "moved" as const, reference: "Évaluation de fractions" }],
-        });
+    const extractor = announcementExtractorFor(
+      {
+        extract: async (input) => {
+          received = input;
+          return Result.ok({
+            events: [extracted],
+            amendments: [{ kind: "moved" as const, reference: "Évaluation de fractions" }],
+          });
+        },
       },
-    });
+      readingOn,
+    );
 
     const result = await extractor.extract({
       userId: "parent-a",
@@ -332,13 +342,16 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
 
   it("leaves the time out when the announcement gives none", async () => {
     const { deadlineTime: _dropped, evidence: _unverified, ...withoutTime } = extracted;
-    const extractor = announcementExtractorFor({
-      extract: async () =>
-        Result.ok({
-          events: [{ ...withoutTime, needsReview: false, reviewReasons: [] }],
-          amendments: [],
-        }),
-    });
+    const extractor = announcementExtractorFor(
+      {
+        extract: async () =>
+          Result.ok({
+            events: [{ ...withoutTime, needsReview: false, reviewReasons: [] }],
+            amendments: [],
+          }),
+      },
+      readingOn,
+    );
 
     const [deadline] = (
       await extractor.extract({
@@ -363,10 +376,13 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
   });
 
   it("passes the extraction error code and message through", async () => {
-    const extractor = announcementExtractorFor({
-      extract: async () =>
-        Result.fail({ code: "EXTRACTION_RATE_LIMITED" as const, message: "too many calls" }),
-    });
+    const extractor = announcementExtractorFor(
+      {
+        extract: async () =>
+          Result.fail({ code: "EXTRACTION_RATE_LIMITED" as const, message: "too many calls" }),
+      },
+      readingOn,
+    );
 
     const result = await extractor.extract({
       userId: "parent-a",
@@ -380,6 +396,57 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
       code: "EXTRACTION_RATE_LIMITED",
       message: "too many calls",
     });
+  });
+});
+
+describe("the parent's opposition to the AI reading of announcements", () => {
+  it("given a parent who opposed, then the announcement never reaches the extraction and is reported paused", async () => {
+    let called = false;
+    const extractor = announcementExtractorFor(
+      {
+        extract: async () => {
+          called = true;
+          return Result.ok({ events: [], amendments: [] });
+        },
+      },
+      () => ({
+        extractionEnabled: async (): Promise<Result<boolean, AppError>> => Result.ok(false),
+      }),
+    );
+
+    const result = await extractor.extract({
+      userId: "parent-a",
+      announcementId: "post-1",
+      text: "Évaluation jeudi 19 novembre",
+      publishedAt: PUBLISHED_AT,
+      childNames: ["Léa"],
+    });
+
+    expect(called).toBe(false);
+    expect(isReadingPaused(result.getError())).toBe(true);
+  });
+
+  it("given a preference that cannot be read, then the failure is an outage the next pass retries", async () => {
+    const extractor = announcementExtractorFor(
+      {
+        extract: async () =>
+          Result.fail({ code: "EXTRACTION_PROVIDER_FAILURE" as const, message: "unused" }),
+      },
+      () => ({
+        extractionEnabled: async () =>
+          Result.fail({ code: "ASSISTANT_PROVIDER_FAILURE" as const, message: "down" }),
+      }),
+    );
+
+    const result = await extractor.extract({
+      userId: "parent-a",
+      announcementId: "post-1",
+      text: "x",
+      publishedAt: PUBLISHED_AT,
+      childNames: [],
+    });
+
+    expect(isExtractorOutage(result.getError())).toBe(true);
   });
 });
 

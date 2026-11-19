@@ -42,3 +42,9 @@ const OUTAGE_SUFFIXES = ["_PROVIDER_FAILURE", "_RATE_LIMITED"] as const;
 export function isExtractorOutage({ code }: AppError): boolean {
   return OUTAGE_SUFFIXES.some((suffix) => code.endsWith(suffix));
 }
+
+export const READING_PAUSED_CODE = "ANNOUNCEMENT_READING_DISABLED";
+
+export function isReadingPaused({ code }: AppError): boolean {
+  return code === READING_PAUSED_CODE;
+}

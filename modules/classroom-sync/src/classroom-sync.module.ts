@@ -2,6 +2,7 @@ import type { IBackgroundWork, IInstrumentation, ILogger, IUnitOfWork } from "@p
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { defineModule } from "inwire";
 import { onChildConnected } from "./application/event-handlers/on-child-connected";
+import { onExtractionResumed } from "./application/event-handlers/on-extraction-resumed";
 import type { IAnnouncementExtractor } from "./application/ports/announcement-extractor.port";
 import type { IChildAccessTokens } from "./application/ports/child-access-tokens.port";
 import type { IChildSyncState } from "./application/ports/child-sync-state.port";
@@ -89,5 +90,6 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
           c.IInstrumentation,
         ),
     )
-    .add("onChildConnected", (c) => onChildConnected(c)),
+    .add("onChildConnected", (c) => onChildConnected(c))
+    .add("onExtractionResumed", (c) => onExtractionResumed(c)),
 );

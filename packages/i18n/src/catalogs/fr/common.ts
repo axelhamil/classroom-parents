@@ -163,7 +163,7 @@ export default {
     },
     subProcessors: {
       title: "Registre des sous-traitants",
-      subtitle: "RGPD article 28 · Dernière mise à jour : 14 novembre 2026",
+      subtitle: "RGPD article 28 · Dernière mise à jour : 19 novembre 2026",
       tableCaption: "Prestataires qui traitent des données pour faire fonctionner le service",
       table: {
         name: "Nom",
@@ -179,7 +179,8 @@ export default {
         region: "États-Unis (certifié EU DPF)",
       },
       anthropic: {
-        purpose: "Extraction des dates dans le texte des annonces, sans entraînement des modèles",
+        purpose:
+          "Lecture des annonces (prénoms, e-mails, téléphones et liens retirés), des documents que vous partagez (photo, PDF, texte), des échéances écrites en langage courant et traductions à votre demande ; rétention zéro demandée, sans entraînement des modèles",
         region: "États-Unis (clauses contractuelles types)",
       },
       resend: {

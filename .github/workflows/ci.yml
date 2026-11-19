@@ -179,6 +179,13 @@ jobs:
         # the module's fake. Removes its probe parent and cache keys.
         run: pnpm --filter @modules/school-calendar check:school-calendar-db
 
+      - name: Check the assistant preferences, quotas and alerts against a real database
+        # The additive usage upsert under concurrency, the owner filter between two families,
+        # the quota refused from stored rows, the global spend read from the call journal, the
+        # alert claimed once per period and the cascade on account deletion are SQL. Removes its
+        # probe parents.
+        run: pnpm --filter @modules/assistant check:assistant-db
+
       - name: Check the sent email retention sweep against a real database
         # The batched delete, its lease and its heartbeat are SQL. Removes its probes.
         run: pnpm --filter api check:email-retention

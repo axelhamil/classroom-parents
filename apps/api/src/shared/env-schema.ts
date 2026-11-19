@@ -64,6 +64,8 @@ export const envSchema = z
       .default("")
       .transform(commaList)
       .pipe(z.array(z.enum(LLM_FEATURES))),
+    AI_DAILY_SPEND_CAP_USD: z.coerce.number().positive().default(20),
+    AI_ALERT_EMAIL: z.email().optional(),
     VAPID_PUBLIC_KEY: z
       .string()
       .regex(/^[A-Za-z0-9_-]{87}$/, "unpadded base64url of a 65-byte P-256 public key")

@@ -183,6 +183,9 @@ importers:
       '@modules/alerts':
         specifier: workspace:*
         version: link:modules/alerts
+      '@modules/assistant':
+        specifier: workspace:*
+        version: link:modules/assistant
       '@modules/calendar-feed':
         specifier: workspace:*
         version: link:modules/calendar-feed
@@ -668,6 +671,52 @@ importers:
       '@types/web-push':
         specifier: ^3.6.4
         version: 3.6.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  modules/assistant:
+    dependencies:
+      '@packages/ddd-kit':
+        specifier: workspace:*
+        version: link:../../packages/ddd-kit
+      '@packages/drizzle':
+        specifier: workspace:*
+        version: link:../../packages/drizzle
+      '@packages/events':
+        specifier: workspace:*
+        version: link:../../packages/events
+      '@packages/http':
+        specifier: workspace:*
+        version: link:../../packages/http
+      '@packages/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
+      '@packages/outbox':
+        specifier: workspace:*
+        version: link:../../packages/outbox
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.4)(kysely@0.29.6)(pg@8.23.1)
+      hono:
+        specifier: ^4.13.14
+        version: 4.13.14
+      inwire:
+        specifier: ^4.0.1
+        version: 4.0.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@packages/test':
+        specifier: workspace:*
+        version: link:../../packages/test
+      '@packages/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/bun':
+        specifier: ^1.4.4
+        version: 1.4.4
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

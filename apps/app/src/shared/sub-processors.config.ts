@@ -29,7 +29,8 @@ export const SUB_PROCESSORS: readonly SubProcessor[] = [
   {
     id: "anthropic",
     name: "Anthropic",
-    purpose: "Deadline extraction from announcement text (Claude API, no training on inputs)",
+    purpose:
+      "Claude API: reads announcement text (first names, emails, phone numbers and links removed), the documents a parent shares (photo, PDF, text), deadlines typed in plain language, and translations asked by the parent; zero data retention requested, no Batch nor Files API, no training on inputs",
     region: "US (standard contractual clauses)",
     category: "ai",
     url: "https://www.anthropic.com/legal/privacy",

@@ -30,6 +30,7 @@ import {
   alertDigestPreference,
   alertWeeklyDigest,
 } from "@modules/alerts/schemas/weekly-digest.schema";
+import { aiUsage, assistantPreference } from "@modules/assistant/schemas/assistant.schema";
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedChild } from "@modules/children/schemas/testing/seed-child";
@@ -50,6 +51,7 @@ import {
 import { DrizzleEmailQueue } from "@packages/email/drizzle-email-queue";
 import { QueuedEmailService } from "@packages/email/email.service";
 import { EventTypes } from "@packages/events";
+import { aiCall } from "@packages/llm/schemas/ai-call.schema";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IChildConnections } from "../src/modules/rgpd/application/ports/child-connections.port";
@@ -175,6 +177,31 @@ async function seedFamilyData(id: string): Promise<void> {
     .insert(alertWeeklyDigest)
     .values({ userId: id, weekStart: "2030-03-04", expiresAt: at, status: "sent" });
   await db.insert(schoolZonePreference).values({ userId: id, zone: "zone-b", updatedAt: at });
+  await db
+    .insert(assistantPreference)
+    .values({ userId: id, locale: "ar", extractionEnabled: false, updatedAt: at });
+  await db.insert(aiUsage).values({
+    userId: id,
+    month: "2030-03-01",
+    feature: "translation",
+    calls: 3,
+    escalations: 0,
+    costMicroUsd: 900,
+  });
+  await db.insert(aiCall).values({
+    userId: id,
+    feature: "translation",
+    model: "claude-haiku-5-5",
+    promptVersion: "wipe-1",
+    inputHash: "b".repeat(64),
+    inputTokens: 10,
+    outputTokens: 10,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    costMicroUsd: 900,
+    outcome: "ok",
+    latencyMs: 1,
+  });
 }
 
 async function familyRowsLeft(id: string): Promise<Record<string, number>> {
@@ -211,6 +238,14 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
         .from(schoolZonePreference)
         .where(eq(schoolZonePreference.userId, id)),
     ),
+    assistantPreferences: await tally(
+      db
+        .select({ total: count() })
+        .from(assistantPreference)
+        .where(eq(assistantPreference.userId, id)),
+    ),
+    aiUsage: await tally(db.select({ total: count() }).from(aiUsage).where(eq(aiUsage.userId, id))),
+    aiCalls: await tally(db.select({ total: count() }).from(aiCall).where(eq(aiCall.userId, id))),
   };
 }
 
@@ -398,7 +433,7 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
   const familyLeft = await familyRowsLeft(erasedId);
   check(
-    "its children, events, reminders, calendar feed, Sunday digest and school zone rows are deleted",
+    "its children, events, reminders, calendar feed, Sunday digest, school zone and AI rows are deleted",
     Object.values(familyLeft).every((total) => total === 0),
     familyLeft,
   );

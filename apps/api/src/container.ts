@@ -36,6 +36,7 @@ import {
 import { container, defineModule } from "inwire";
 import { Resend } from "resend";
 import { alertQueriesModule } from "./composition/alert-queries";
+import { assistantContainer } from "./composition/assistant";
 import {
   alertPlannerFor,
   announcementExtractorFor,
@@ -51,6 +52,7 @@ import {
   feedEntriesFor,
   manualSyncGateFor,
   visibleChildrenFor,
+  withExtractionConsent,
 } from "./composition/bindings";
 import { deliveryModule, runtimeModule } from "./composition/delivery";
 import { fakeProviderBindings } from "./composition/fake-bindings";
@@ -222,10 +224,12 @@ export const di = container()
     ),
   )
   .addModule(calendarFeedModule)
-  .addModule(llmModule)
+  .addModule(llmModule(() => assistant.AiQuotaService))
   .addModule(extractionModule)
   .add("IChildAccessTokens", (c) => childAccessTokensFor(c.GoogleAccessService))
-  .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))
+  .add("IAnnouncementExtractor", (c) =>
+    announcementExtractorFor(c.ExtractionService, () => assistant.PreferenceService),
+  )
   .add("IEventIngest", (c) => eventIngestFor(c.EventIngestService))
   .add("IDueChildren", (c) => dueChildrenFor(c.ChildSyncService))
   .add("IChildSyncState", (c) => childSyncStateFor(c.ChildSyncService))
@@ -235,7 +239,11 @@ export const di = container()
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .add("IUserDataReader", (c): IUserDataReader => new UserDataQuery(c.IInstrumentation))
   .addModule(rgpdModule)
-  .addModule(await fakeProviderBindings(env))
+  .addModule(
+    await fakeProviderBindings(env, (reader) =>
+      withExtractionConsent(reader, () => assistant.PreferenceService),
+    ),
+  )
   .addModule(
     deliveryModule(
       {
@@ -260,8 +268,11 @@ export const di = container()
         },
       },
       (): Record<string, unknown> => di,
+      () => assistant.AiUsageWatchService,
     ),
   )
   .build();
 
 export const schoolCalendar = schoolCalendarContainer(di);
+
+export const assistant = assistantContainer(di, env, logger);

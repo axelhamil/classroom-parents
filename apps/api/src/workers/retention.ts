@@ -1,5 +1,6 @@
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { dismissedEventBefore, pastEventBefore } from "@modules/agenda/schemas/event-retention";
+import { aiUsage, aiUsageAlert } from "@modules/assistant/schemas/assistant.schema";
 import { firstSyncedDay } from "@modules/classroom-sync/application/sync-lookback";
 import { extractionResult } from "@modules/extraction/schemas/extraction-result.schema";
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
@@ -49,6 +50,8 @@ export const AI_CALL_RETENTION_LABEL = "sweep-ai-calls";
 export const AI_CALL_RETENTION_DAYS = 90;
 export const EXTRACTION_RESULT_RETENTION_LABEL = "sweep-extraction-results";
 export const EXTRACTION_RESULT_RETENTION_DAYS = 60;
+export const AI_USAGE_RETENTION_LABEL = "sweep-ai-usage";
+export const AI_USAGE_RETENTION_DAYS = 400;
 
 const { emailMessage } = emailSchema;
 const { outboxEvent } = outboxSchema;
@@ -146,6 +149,24 @@ const unreadExtractionResults: PassTarget = {
   idColumn: extractionResult.id,
   orderBy: extractionResult.lastReadAt,
   before: (cutoff) => lt(extractionResult.lastReadAt, cutoff),
+};
+
+const countedAiUsage: PassTarget = {
+  label: "counted",
+  sweep: AI_USAGE_RETENTION_LABEL,
+  table: aiUsage,
+  idColumn: aiUsage.id,
+  orderBy: aiUsage.month,
+  before: (cutoff) => lt(aiUsage.month, cutoff.toISOString().slice(0, 10)),
+};
+
+const sentAiUsageAlerts: PassTarget = {
+  label: "alerted",
+  sweep: AI_USAGE_RETENTION_LABEL,
+  table: aiUsageAlert,
+  idColumn: aiUsageAlert.id,
+  orderBy: aiUsageAlert.sentAt,
+  before: (cutoff) => lt(aiUsageAlert.sentAt, cutoff),
 };
 
 type EventsPurgedPayload = z.infer<(typeof PayloadByEventType)[typeof EventTypes.EVENTS_PURGED]>;
@@ -290,5 +311,12 @@ export function sweepAiCallJournal(deps: RetentionDeps): Promise<SweepResponse> 
 export function sweepExtractionResults(deps: RetentionDeps): Promise<SweepResponse> {
   return sweep(EXTRACTION_RESULT_RETENTION_LABEL, deps, (spans) => [
     retentionPass(unreadExtractionResults, EXTRACTION_RESULT_RETENTION_DAYS, spans, deps.uow),
+  ]);
+}
+
+export function sweepAiUsage(deps: RetentionDeps): Promise<SweepResponse> {
+  return sweep(AI_USAGE_RETENTION_LABEL, deps, (spans) => [
+    retentionPass(countedAiUsage, AI_USAGE_RETENTION_DAYS, spans, deps.uow),
+    retentionPass(sentAiUsageAlerts, AI_USAGE_RETENTION_DAYS, spans, deps.uow),
   ]);
 }
