@@ -5,6 +5,7 @@ import type {
   UpcomingDeadlineDto,
 } from "@modules/agenda/application/dto/event.dto";
 import type { AgendaError } from "@modules/agenda/application/ports/event-repository.port";
+import type { RereadOutput } from "@modules/agenda/application/services/event-reread.service";
 import type { ChildDto } from "@modules/children/application/dto/child.dto";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
 import {
@@ -452,18 +453,23 @@ describe("the parent's opposition to the AI reading of announcements", () => {
 
 describe("sync IEventIngest bound to the agenda", () => {
   const failure: AppError = { code: "EVENT_CHILD_NOT_FOUND", message: "absent" };
+  const nothingReread = Result.ok<RereadOutput, AppError>({ matched: 0, changed: 0, unmatched: 0 });
+  const noReread = { preview: async () => nothingReread, apply: async () => nothingReread };
 
   it("forwards an announcement and answers how many events were created", async () => {
     let received: unknown;
-    const ingest = eventIngestFor({
-      ingest: async (input) => {
-        received = input;
-        return Result.ok({ created: 2, skipped: 1, flagged: 0 });
+    const ingest = eventIngestFor(
+      {
+        ingest: async (input) => {
+          received = input;
+          return Result.ok({ created: 2, skipped: 1, flagged: 0 });
+        },
+        ingestCoursework: async () =>
+          Result.ok({ created: 0, updated: 0, rejected: 0, withdrawn: 0 }),
+        withdrawCourseworkOutside: async () => Result.ok({ withdrawn: 0 }),
       },
-      ingestCoursework: async () =>
-        Result.ok({ created: 0, updated: 0, rejected: 0, withdrawn: 0 }),
-      withdrawCourseworkOutside: async () => Result.ok({ withdrawn: 0 }),
-    });
+      noReread,
+    );
     const request = {
       userId: FAMILY_A,
       childId: LEA,
@@ -494,14 +500,17 @@ describe("sync IEventIngest bound to the agenda", () => {
 
   it("forwards a coursework batch with its completeness and answers created", async () => {
     let received: unknown;
-    const ingest = eventIngestFor({
-      ingest: async () => Result.ok({ created: 0, skipped: 0, flagged: 0 }),
-      ingestCoursework: async (input) => {
-        received = input;
-        return Result.ok({ created: 3, updated: 1, rejected: 0, withdrawn: 1 });
+    const ingest = eventIngestFor(
+      {
+        ingest: async () => Result.ok({ created: 0, skipped: 0, flagged: 0 }),
+        ingestCoursework: async (input) => {
+          received = input;
+          return Result.ok({ created: 3, updated: 1, rejected: 0, withdrawn: 1 });
+        },
+        withdrawCourseworkOutside: async () => Result.ok({ withdrawn: 0 }),
       },
-      withdrawCourseworkOutside: async () => Result.ok({ withdrawn: 0 }),
-    });
+      noReread,
+    );
     const request = {
       userId: FAMILY_A,
       childId: LEA,
@@ -528,15 +537,18 @@ describe("sync IEventIngest bound to the agenda", () => {
 
   it("forwards the active courses and answers how many were withdrawn", async () => {
     let received: unknown;
-    const ingest = eventIngestFor({
-      ingest: async () => Result.ok({ created: 0, skipped: 0, flagged: 0 }),
-      ingestCoursework: async () =>
-        Result.ok({ created: 0, updated: 0, rejected: 0, withdrawn: 0 }),
-      withdrawCourseworkOutside: async (input) => {
-        received = input;
-        return Result.ok({ withdrawn: 4 });
+    const ingest = eventIngestFor(
+      {
+        ingest: async () => Result.ok({ created: 0, skipped: 0, flagged: 0 }),
+        ingestCoursework: async () =>
+          Result.ok({ created: 0, updated: 0, rejected: 0, withdrawn: 0 }),
+        withdrawCourseworkOutside: async (input) => {
+          received = input;
+          return Result.ok({ withdrawn: 4 });
+        },
       },
-    });
+      noReread,
+    );
 
     const result = await ingest.withdrawCourseworkOutside({
       userId: FAMILY_A,
@@ -549,11 +561,14 @@ describe("sync IEventIngest bound to the agenda", () => {
   });
 
   it("passes an agenda failure through on each of the three calls", async () => {
-    const ingest = eventIngestFor({
-      ingest: async () => Result.fail(failure),
-      ingestCoursework: async () => Result.fail(failure),
-      withdrawCourseworkOutside: async () => Result.fail(failure),
-    });
+    const ingest = eventIngestFor(
+      {
+        ingest: async () => Result.fail(failure),
+        ingestCoursework: async () => Result.fail(failure),
+        withdrawCourseworkOutside: async () => Result.fail(failure),
+      },
+      noReread,
+    );
 
     const codes = [
       (

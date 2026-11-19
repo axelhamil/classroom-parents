@@ -11,6 +11,7 @@ import { EventEditService } from "./application/services/event-edit.service";
 import { EventIngestService } from "./application/services/event-ingest.service";
 import { EventPresenter } from "./application/services/event-presenter";
 import { EventQueryService } from "./application/services/event-query.service";
+import { EventRereadService } from "./application/services/event-reread.service";
 import { DrizzleEventRepository } from "./infrastructure/repositories/drizzle-event.repository";
 
 export interface AgendaPrerequisites {
@@ -44,6 +45,17 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
           c.ITransactionService,
           c.IOutboxRepository,
           c.AnnouncementReconciler,
+          c.IInstrumentation,
+        ),
+    )
+    .add(
+      "EventRereadService",
+      (c) =>
+        new EventRereadService(
+          c.IEventRepository,
+          c.IChildOwnership,
+          c.ITransactionService,
+          c.IOutboxRepository,
           c.IInstrumentation,
         ),
     )

@@ -14,6 +14,7 @@
     "build": "node scripts/vercel-build.ts",
     "db:seed": "bun scripts/seed-dev-session.ts",
     "db:seed:demo": "FAKE_PROVIDERS=1 bun scripts/seed-demo.ts",
+    "reread:announcements": "bun scripts/reread-announcements.ts",
     "check:wipe-rollback": "bun scripts/check-wipe-rollback.ts",
     "check:uow-rollback": "bun scripts/check-uow-rollback.ts",
     "check:outbox-lease": "bun scripts/check-outbox-lease.ts",

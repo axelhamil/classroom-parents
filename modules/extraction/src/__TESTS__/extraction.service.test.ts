@@ -84,6 +84,19 @@ beforeEach(() => {
 });
 
 describe("ExtractionService.extract", () => {
+  it("never calls the model on a cache miss when the caller reads through the cache only", async () => {
+    const result = await service.extract({
+      userId: "parent-a",
+      announcementId: "announcement-1",
+      text: MATHS_TEST,
+      publishedAt: MONDAY_9_NOVEMBER_10H_PARIS,
+      cacheOnly: true,
+    });
+
+    expect(result.getError().code).toBe("EXTRACTION_CACHE_ENTRY_NOT_FOUND");
+    expect(model.parse).not.toHaveBeenCalled();
+  });
+
   it("returns a dated assessment with its time when the fast model is sure and every check passes", async () => {
     answers(Result.ok({ amends: [], events: [candidate()] }));
 

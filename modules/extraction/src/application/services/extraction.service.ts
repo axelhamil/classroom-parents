@@ -13,7 +13,7 @@ import type { ExtractionCacheKey, IExtractionCache } from "../ports/extraction-c
 import { type SanitizedAnnouncement, sanitizeWithOffsets } from "./announcement-sanitizer";
 import { mayHoldADeadline } from "./date-signal";
 import { frenchWeekdayOf } from "./extraction-checks";
-import { type ExtractionError, extractionErrorOf } from "./extraction-error";
+import { type ExtractionError, extractionErrorOf, NOT_CACHED } from "./extraction-error";
 import { extractionOutputSchema } from "./extraction-output.schema";
 import { readOutput } from "./extraction-reading";
 
@@ -23,6 +23,7 @@ export interface ExtractInput {
   text: string;
   publishedAt: Date;
   childNames?: readonly string[];
+  cacheOnly?: boolean;
 }
 
 export const EXTRACTION_PROMPT_VERSION = "extraction-3";
@@ -138,6 +139,7 @@ export class ExtractionService {
 
         const source = sanitizeWithOffsets(input.text, input.childNames);
         if (!mayHoldADeadline(source.text)) return Result.ok(NOTHING_TO_READ);
+        if (input.cacheOnly) return Result.fail(NOT_CACHED);
 
         return this.once(key, () =>
           this.read({

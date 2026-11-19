@@ -116,6 +116,21 @@ export class ClassroomReader implements IClassroomReader {
     });
   }
 
+  async recentAnnouncements(
+    { token, scope }: ClassroomAccess,
+    course: Course,
+    now: Date,
+  ): Promise<Result<Announcement[], CourseFailure>> {
+    return this.span("recentAnnouncements", async () => {
+      const listed = await this.withRetry(() =>
+        this.classroom.listAnnouncements(token, course.id, windowStart(now), scope),
+      );
+      if (listed.isFailure) return Result.fail(courseFailure(listed.getError().code));
+
+      return Result.ok(withinWindow(listed.getValue(), now));
+    });
+  }
+
   async profileNames(token: string): Promise<Result<string[], ClassroomError>> {
     return this.span("profileNames", () =>
       this.withRetry(() => this.classroom.profileNames(token)),
@@ -134,7 +149,7 @@ export class ClassroomReader implements IClassroomReader {
     listed: Announcement[],
     now: Date,
   ): Promise<Result<PendingAnnouncement[], CourseFailure>> {
-    const recent = listed.filter(({ publishedAt }) => isWithinWindow(publishedAt, now));
+    const recent = withinWindow(listed, now);
     if (recent.length === 0) return Result.ok([]);
 
     const seen = await this.ledger.findForCourse(
@@ -204,6 +219,10 @@ export class ClassroomReader implements IClassroomReader {
 
     return result;
   }
+}
+
+function withinWindow(listed: Announcement[], now: Date): Announcement[] {
+  return listed.filter(({ publishedAt }) => isWithinWindow(publishedAt, now));
 }
 
 function needsReading(announcement: Announcement, state: Option<LedgerState>, now: Date): boolean {

@@ -7,7 +7,8 @@
     "./classroom-sync.module": "./src/classroom-sync.module.ts",
     "./application/*": "./src/application/*.ts",
     "./schemas/*": "./schemas/*.ts",
-    "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts"
+    "./infrastructure/http/*.routes": "./src/infrastructure/http/*.routes.ts",
+    "./infrastructure/cli/*.command": "./src/infrastructure/cli/*.command.ts"
   },
   "scripts": {
     "test": "bun test --isolate",

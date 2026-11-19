@@ -51,6 +51,7 @@ import {
   eventIngestFor,
   feedEntriesFor,
   manualSyncGateFor,
+  parentChildrenFor,
   visibleChildrenFor,
   withExtractionConsent,
 } from "./composition/bindings";
@@ -231,10 +232,11 @@ export const di = container()
   .add("IAnnouncementExtractor", (c) =>
     announcementExtractorFor(c.ExtractionService, () => assistant.PreferenceService),
   )
-  .add("IEventIngest", (c) => eventIngestFor(c.EventIngestService))
+  .add("IEventIngest", (c) => eventIngestFor(c.EventIngestService, c.EventRereadService))
   .add("IDueChildren", (c) => dueChildrenFor(c.ChildSyncService))
   .add("IChildSyncState", (c) => childSyncStateFor(c.ChildSyncService))
   .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService, c.ChildSyncService))
+  .add("IParentChildren", (c) => parentChildrenFor(c.ChildConnectionService))
   .add("IUpcomingAlerts", (c) => new UpcomingAlertsQuery(c.IInstrumentation))
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))

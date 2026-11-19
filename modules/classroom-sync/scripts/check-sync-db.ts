@@ -116,6 +116,8 @@ const ingest: IEventIngest = {
   },
   ingestCoursework: async () => Result.ok({ created: 0 }),
   withdrawCourseworkOutside: async () => Result.ok({ withdrawn: 0 }),
+  previewReread: async () => Result.ok({ matched: 0, changed: 0, unmatched: 0 }),
+  applyReread: async () => Result.ok({ matched: 0, changed: 0, unmatched: 0 }),
 };
 
 const syncState: IChildSyncState = {

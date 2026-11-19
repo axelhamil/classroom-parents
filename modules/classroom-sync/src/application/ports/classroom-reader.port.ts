@@ -43,5 +43,11 @@ export interface IClassroomReader {
     now: Date,
   ): Promise<Result<CourseRead, CourseFailure>>;
 
+  recentAnnouncements(
+    access: ClassroomAccess,
+    course: Course,
+    now: Date,
+  ): Promise<Result<Announcement[], CourseFailure>>;
+
   profileNames(token: string): Promise<Result<string[], ClassroomError>>;
 }

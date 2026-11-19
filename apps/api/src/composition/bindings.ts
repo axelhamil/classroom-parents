@@ -4,6 +4,7 @@ import type { ICourseNames } from "@modules/agenda/application/ports/course-name
 import type { IVisibleChildren } from "@modules/agenda/application/ports/visible-children.port";
 import type { EventIngestService } from "@modules/agenda/application/services/event-ingest.service";
 import type { EventQueryService } from "@modules/agenda/application/services/event-query.service";
+import type { EventRereadService } from "@modules/agenda/application/services/event-reread.service";
 import type { IDigestDeadlines } from "@modules/alerts/application/ports/digest-audience.port";
 import type { IEventDeadlines } from "@modules/alerts/application/ports/event-deadlines.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
@@ -21,6 +22,7 @@ import type { IChildSyncState } from "@modules/classroom-sync/application/ports/
 import type { IDueChildren } from "@modules/classroom-sync/application/ports/due-children.port";
 import type { IEventIngest } from "@modules/classroom-sync/application/ports/event-ingest.port";
 import type { IManualSyncGate } from "@modules/classroom-sync/application/ports/manual-sync-gate.port";
+import type { IParentChildren } from "@modules/classroom-sync/application/ports/parent-children.port";
 import type { CourseNamesService } from "@modules/classroom-sync/application/services/course-names.service";
 import type { SyncError } from "@modules/classroom-sync/application/sync-error";
 import type { ExtractionService } from "@modules/extraction/application/services/extraction.service";
@@ -201,6 +203,7 @@ export function withExtractionConsent(
 
 export function eventIngestFor(
   agenda: Pick<EventIngestService, "ingest" | "ingestCoursework" | "withdrawCourseworkOutside">,
+  reread: Pick<EventRereadService, "preview" | "apply">,
 ): IEventIngest {
   return {
     ingest: async (request) => (await agenda.ingest(request)).map(({ created }) => ({ created })),
@@ -208,6 +211,8 @@ export function eventIngestFor(
       (await agenda.ingestCoursework(request)).map(({ created }) => ({ created })),
     withdrawCourseworkOutside: async (request) =>
       (await agenda.withdrawCourseworkOutside(request)).map(({ withdrawn }) => ({ withdrawn })),
+    previewReread: (request) => reread.preview(request),
+    applyReread: (request) => reread.apply(request),
   };
 }
 
@@ -245,6 +250,15 @@ export function childSyncStateFor(
     markSyncFailed: async (lease, nextSyncAt) =>
       (await children.markSyncFailed(lease, nextSyncAt)).mapError(withLeaseConflict),
     markNeedsReconnect: (childId, cause) => children.markNeedsReconnect(childId, cause),
+  };
+}
+
+export function parentChildrenFor(connection: Children<"list">): IParentChildren {
+  return {
+    childrenOf: async (userId) =>
+      (await connection.list(userId))
+        .map((listed) => listed.map(({ id, label }) => ({ childId: id, label })))
+        .mapError(asSyncError),
   };
 }
 
