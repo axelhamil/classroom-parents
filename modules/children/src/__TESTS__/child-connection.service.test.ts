@@ -198,8 +198,41 @@ describe("register", () => {
     ]);
   });
 
-  it("given an account missing coursework.me.readonly, then CHILD_SCOPES_MISSING asking for every Classroom authorization", async () => {
-    const withoutCoursework = CLASSROOM_SCOPES.filter((scope) => !scope.includes("coursework"));
+  it("given the scopes exactly as Google grants them, then the child is registered", async () => {
+    const grantedByGoogle = [
+      "https://www.googleapis.com/auth/classroom.courses.readonly",
+      "https://www.googleapis.com/auth/classroom.student-submissions.me.readonly",
+      "https://www.googleapis.com/auth/classroom.announcements.readonly",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "openid",
+    ];
+    linked.find.mockResolvedValue(
+      ok(Option.some(linkedAccount({ grantedScopes: grantedByGoogle }))),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.isSuccess).toBe(true);
+  });
+
+  it("given coursework.me.readonly, the alias of student-submissions.me.readonly, then the child is registered", async () => {
+    const withAlias = CLASSROOM_SCOPES.map((scope) =>
+      scope.replace("student-submissions.me", "coursework.me"),
+    );
+    linked.find.mockResolvedValue(
+      ok(Option.some(linkedAccount({ grantedScopes: ["openid", ...withAlias] }))),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.isSuccess).toBe(true);
+  });
+
+  it("given an account missing student-submissions.me.readonly, then CHILD_SCOPES_MISSING asking for every Classroom authorization", async () => {
+    const withoutCoursework = CLASSROOM_SCOPES.filter(
+      (scope) => !scope.includes("student-submissions"),
+    );
     linked.find.mockResolvedValue(
       ok(Option.some(linkedAccount({ grantedScopes: ["openid", ...withoutCoursework] }))),
     );
