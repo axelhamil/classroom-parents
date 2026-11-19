@@ -281,12 +281,14 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     });
 
     const result = await extractor.extract({
+      userId: "parent-a",
       text: "Évaluation jeudi 19 novembre",
       publishedAt: PUBLISHED_AT,
       childNames: ["Léa", "Léa Martin"],
     });
 
     expect(received).toEqual({
+      userId: "parent-a",
       text: "Évaluation jeudi 19 novembre",
       publishedAt: PUBLISHED_AT,
       childNames: ["Léa", "Léa Martin"],
@@ -325,7 +327,12 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     });
 
     const [deadline] = (
-      await extractor.extract({ text: "x", publishedAt: PUBLISHED_AT, childNames: [] })
+      await extractor.extract({
+        userId: "parent-a",
+        text: "x",
+        publishedAt: PUBLISHED_AT,
+        childNames: [],
+      })
     ).getValue().deadlines;
 
     expect(deadline).toEqual({
@@ -345,6 +352,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     });
 
     const result = await extractor.extract({
+      userId: "parent-a",
       text: "x",
       publishedAt: PUBLISHED_AT,
       childNames: [],

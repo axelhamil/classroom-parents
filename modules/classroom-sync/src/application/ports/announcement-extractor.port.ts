@@ -2,6 +2,7 @@ import type { AppError, Result } from "@packages/ddd-kit";
 import type { EvidencePassage } from "@packages/events/agenda-contract";
 
 export interface ExtractionRequest {
+  userId: string;
   text: string;
   publishedAt: Date;
   childNames: string[];

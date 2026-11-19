@@ -294,6 +294,7 @@ export class SyncChildService {
       return held.getError().code === leaseLost.code ? { kind: "lease_lost" } : { kind: "failed" };
 
     const extracted = await this.extractor.extract({
+      userId: input.userId,
       text: announcement.text,
       publishedAt: announcement.publishedAt,
       childNames,

@@ -6,6 +6,7 @@ import { defineModule } from "inwire";
 import type { RgpdSettings } from "../modules/rgpd/application/config/rgpd-settings";
 import { SESSION_FRESH_AGE_SECONDS } from "../shared/auth/session-freshness";
 import type { env } from "../shared/env";
+import type { LlmSettings } from "./llm";
 
 type SettingsSource = Pick<
   typeof env,
@@ -17,6 +18,7 @@ type SettingsSource = Pick<
   | "GOOGLE_CLIENT_ID"
   | "GOOGLE_CLIENT_SECRET"
   | "ANTHROPIC_API_KEY"
+  | "AI_DISABLED_FEATURES"
   | "VAPID_PUBLIC_KEY"
   | "VAPID_PRIVATE_KEY"
   | "VAPID_SUBJECT"
@@ -47,15 +49,16 @@ export const apiSettings = (source: SettingsSource) => {
     feedOrigin: source.BETTER_AUTH_URL,
     appHost: new URL(source.APP_ORIGIN).host,
   };
-  const extractionSettings = {
+  const llmSettings: LlmSettings = {
     anthropicApiKey: source.ANTHROPIC_API_KEY ?? "",
+    disabledFeatures: source.AI_DISABLED_FEATURES,
   };
 
   return defineModule<Record<never, never>>()((b) =>
     b
       .add("rgpdSettings", (): RgpdSettings => rgpdSettings)
       .add("childrenSettings", (): ChildrenSettings => childrenSettings)
-      .add("extractionSettings", () => extractionSettings)
+      .add("llmSettings", (): LlmSettings => llmSettings)
       .add("alertsSettings", (): AlertsSettings => alertsSettings)
       .add("calendarFeedSettings", (): CalendarFeedSettings => calendarFeedSettings),
   );

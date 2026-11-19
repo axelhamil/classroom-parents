@@ -96,11 +96,13 @@ describe("fake extractor", () => {
     if (!trip) throw new Error("dataset lost its trip announcement");
 
     const sameDay = await fakes.extractor.extract({
+      userId: "parent-a",
       text: trip.text,
       publishedAt: new Date(trip.publishedAt),
       childNames: [],
     });
     const weekLater = await fakes.extractor.extract({
+      userId: "parent-a",
       text: trip.text,
       publishedAt: shiftInstant(new Date(trip.publishedAt), 7),
       childNames: [],
@@ -118,6 +120,7 @@ describe("fake extractor", () => {
 
   it("finds no deadline in an unknown text", async () => {
     const extracted = await providers().extractor.extract({
+      userId: "parent-a",
       text: "Bonjour",
       publishedAt: NOW,
       childNames: [],

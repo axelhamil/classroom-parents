@@ -70,6 +70,10 @@
     "packages/http": {
       "project": ["src/**/*.ts"]
     },
+    "packages/llm": {
+      "entry": ["eval/*.ts"],
+      "project": ["src/**/*.ts", "schemas/**/*.ts", "eval/**/*.ts"]
+    },
     "modules/*": {
       "entry": [
         "src/*.module.ts",

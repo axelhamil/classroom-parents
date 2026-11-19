@@ -1,3 +1,4 @@
+import { LLM_FEATURES } from "@packages/llm/contract/language-model.port";
 import { z } from "zod";
 import { validateEnvBounds, validateHostsEnv, validateTrustedProxiesEnv } from "./env-bounds";
 
@@ -58,6 +59,11 @@ export const envSchema = z
     RESEND_FROM: z.string().optional(),
     EMAIL_RETENTION_DAYS: z.coerce.number().int().min(1).max(7).default(7),
     ANTHROPIC_API_KEY: z.string().optional(),
+    AI_DISABLED_FEATURES: z
+      .string()
+      .default("")
+      .transform(commaList)
+      .pipe(z.array(z.enum(LLM_FEATURES))),
     VAPID_PUBLIC_KEY: z
       .string()
       .regex(/^[A-Za-z0-9_-]{87}$/, "unpadded base64url of a 65-byte P-256 public key")

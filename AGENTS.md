@@ -24,6 +24,7 @@ One guide per app and per package that carries rules of its own. Read the one yo
 | `packages/outbox` | `packages/outbox/CLAUDE.md` | outbox port, emit helpers, relay, dispatcher, lease model shared by every delivery worker |
 | `packages/events` | `packages/events/CLAUDE.md` | event catalog, payload contract, retention, visibility, notification map |
 | `packages/i18n` | `packages/i18n/CLAUDE.md` | French catalogs, typed keys |
+| `packages/llm` | `packages/llm/CLAUDE.md` | model port, provider adapter, cost journal, budget and circuit decorators, untrusted-data fence, eval harness |
 | `packages/ui` | `packages/ui/CLAUDE.md` | shadcn primitives, theme tokens, composition components |
 | `packages/web-kit` | `packages/web-kit/CLAUDE.md` | what every React app shares: api client, query client, i18n boot, theme, auth broadcast |
 | Other packages | skills below | `emails`, `email` are driven by the matching skill; `icalendar` (the iCalendar writing every calendar export shares), `sentry-scrub` (see `docs/OBSERVABILITY.md`), `test`, `typescript-config` carry no rules |

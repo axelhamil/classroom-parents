@@ -16,6 +16,7 @@ import {
   type SQL,
 } from "@packages/drizzle";
 import { EventTypes, type PayloadByEventType } from "@packages/events";
+import { aiCall } from "@packages/llm/schemas/ai-call.schema";
 import { type BatchedEvent, emitEvents } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import type { z } from "zod";
@@ -43,6 +44,8 @@ export const OUTBOX_RETENTION_DAYS = 7;
 export const EVENT_HISTORY_LABEL = "sweep-event-history";
 export const PAST_EVENT_RETENTION_DAYS = 365;
 export const DISMISSED_EVENT_RETENTION_DAYS = 30;
+export const AI_CALL_RETENTION_LABEL = "sweep-ai-calls";
+export const AI_CALL_RETENTION_DAYS = 90;
 
 const { emailMessage } = emailSchema;
 const { outboxEvent } = outboxSchema;
@@ -122,6 +125,15 @@ const deliveredEvents: PassTarget = {
   orderBy: outboxEvent.dispatchedAt,
   before: (cutoff) =>
     and(isNotNull(outboxEvent.dispatchedAt), lt(outboxEvent.dispatchedAt, cutoff)),
+};
+
+const journaledAiCalls: PassTarget = {
+  label: "journaled",
+  sweep: AI_CALL_RETENTION_LABEL,
+  table: aiCall,
+  idColumn: aiCall.id,
+  orderBy: aiCall.createdAt,
+  before: (cutoff) => lt(aiCall.createdAt, cutoff),
 };
 
 type EventsPurgedPayload = z.infer<(typeof PayloadByEventType)[typeof EventTypes.EVENTS_PURGED]>;
@@ -254,5 +266,11 @@ export function sweepEventHistory(deps: EventHistoryDeps): Promise<SweepResponse
   return sweep(EVENT_HISTORY_LABEL, deps, (spans) => [
     eventHistoryPass(pastEvents, PAST_EVENT_RETENTION_DAYS, spans, deps),
     eventHistoryPass(dismissedEvents, DISMISSED_EVENT_RETENTION_DAYS, spans, deps),
+  ]);
+}
+
+export function sweepAiCallJournal(deps: RetentionDeps): Promise<SweepResponse> {
+  return sweep(AI_CALL_RETENTION_LABEL, deps, (spans) => [
+    retentionPass(journaledAiCalls, AI_CALL_RETENTION_DAYS, spans, deps.uow),
   ]);
 }
