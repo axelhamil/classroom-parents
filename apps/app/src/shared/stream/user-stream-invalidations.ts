@@ -6,9 +6,14 @@ export const USER_STREAM_INVALIDATIONS: StreamInvalidations<UserStreamMessage["t
   "events.changed": [["events"]],
   "children.changed": [["children"]],
   "sync.finished": [["events"], ["children"]],
+  "home.changed": [["home", "layout"]],
 };
 
-export const USER_STREAM_RECONNECT_KEYS: readonly QueryKey[] = [["events"], ["children"]];
+export const USER_STREAM_RECONNECT_KEYS: readonly QueryKey[] = [
+  ["events"],
+  ["children"],
+  ["home", "layout"],
+];
 
 export function parseUserStreamMessage(value: unknown): UserStreamMessage | undefined {
   const result = UserStreamMessage.safeParse(value);

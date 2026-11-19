@@ -1,14 +1,23 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
-import { dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
+import { and, dbOperationFailure, eq, resolveExecutor, sql } from "@packages/drizzle";
 import { homeLayout, homeNote } from "../../../schemas/home.schema";
 import type { HomeError } from "../../application/errors/home-errors";
-import type { IHomeRepository, StoredHomeNote } from "../../application/ports/home-repository.port";
-import { HomeLayout, homeLayoutSchema } from "../../domain/value-objects/home-layout.vo";
+import type {
+  IHomeRepository,
+  StoredHomeLayout,
+  StoredHomeNote,
+} from "../../application/ports/home-repository.port";
+import type { HomeLayout } from "../../domain/value-objects/home-layout.vo";
 import { HomeNote } from "../../domain/value-objects/home-note.vo";
+import { homeLayoutMapper } from "./home-layout.mapper";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
 
 const repositoryFailure = dbOperationFailure("HOME_PROVIDER_FAILURE");
+
+const FIRST_REVISION_BASE = 0;
+
+const NO_LAYOUT: StoredHomeLayout = { layout: Option.none(), revision: FIRST_REVISION_BASE };
 
 interface Query<T> {
   toSQL(): { sql: string };
@@ -17,48 +26,46 @@ interface Query<T> {
 
 type Outcome<T> = Promise<Result<T, HomeError>>;
 
+function nextRevisionOf(blocks: unknown, at: Date) {
+  return { blocks, updatedAt: at, revision: sql`${homeLayout.revision} + 1` };
+}
+
 export class DrizzleHomeRepository implements IHomeRepository {
   constructor(private readonly instrumentation: IInstrumentation) {}
 
-  async layoutOf(userId: string): Outcome<Option<HomeLayout>> {
+  async layoutOf(userId: string): Outcome<StoredHomeLayout> {
     const exec = resolveExecutor();
     return this.guarded("layoutOf", async () => {
       const [row] = await this.run(
         exec
-          .select({ blocks: homeLayout.blocks })
+          .select({ blocks: homeLayout.blocks, revision: homeLayout.revision })
           .from(homeLayout)
           .where(eq(homeLayout.userId, userId))
           .limit(1),
       );
-      if (!row) return Result.ok(Option.none());
+      if (!row) return Result.ok(NO_LAYOUT);
 
-      const blocks = homeLayoutSchema.safeParse(row.blocks);
-      const layout = blocks.success
-        ? HomeLayout.create(blocks.data)
-        : Result.fail<HomeLayout>(blocks.error.message);
-      return this.restored("layoutOf", layout);
+      const layout = homeLayoutMapper.toDomain(row.blocks);
+      if (layout.isFailure) return this.corrupt("layoutOf", layout.getError());
+
+      return Result.ok({ layout: layout.getValue(), revision: row.revision });
     });
   }
 
-  async saveLayout(userId: string, layout: HomeLayout, at: Date): Outcome<void> {
-    const exec = resolveExecutor();
-    return this.guarded("saveLayout", async () => {
-      const values = { blocks: [...layout.value], updatedAt: at };
-      await this.run(
-        exec
-          .insert(homeLayout)
-          .values({ userId, ...values })
-          .onConflictDoUpdate({ target: homeLayout.userId, set: values }),
-      );
-      return Result.ok();
-    });
-  }
+  async writeLayout(
+    userId: string,
+    layout: Option<HomeLayout>,
+    baseRevision: number,
+    at: Date,
+  ): Outcome<Option<number>> {
+    return this.guarded("writeLayout", async () => {
+      const blocks = homeLayoutMapper.toPersistence(layout);
+      const [row] =
+        baseRevision === FIRST_REVISION_BASE
+          ? await this.run(this.firstLayoutWrite(userId, blocks, at))
+          : await this.run(this.nextLayoutWrite(userId, blocks, baseRevision, at));
 
-  async clearLayout(userId: string): Outcome<void> {
-    const exec = resolveExecutor();
-    return this.guarded("clearLayout", async () => {
-      await this.run(exec.delete(homeLayout).where(eq(homeLayout.userId, userId)));
-      return Result.ok();
+      return Result.ok(Option.fromNullable(row?.revision));
     });
   }
 
@@ -104,10 +111,34 @@ export class DrizzleHomeRepository implements IHomeRepository {
     });
   }
 
+  private firstLayoutWrite(userId: string, blocks: unknown, at: Date) {
+    return resolveExecutor()
+      .insert(homeLayout)
+      .values({ userId, blocks, updatedAt: at, revision: FIRST_REVISION_BASE + 1 })
+      .onConflictDoUpdate({
+        target: homeLayout.userId,
+        set: nextRevisionOf(blocks, at),
+        setWhere: eq(homeLayout.revision, FIRST_REVISION_BASE),
+      })
+      .returning({ revision: homeLayout.revision });
+  }
+
+  private nextLayoutWrite(userId: string, blocks: unknown, baseRevision: number, at: Date) {
+    return resolveExecutor()
+      .update(homeLayout)
+      .set(nextRevisionOf(blocks, at))
+      .where(and(eq(homeLayout.userId, userId), eq(homeLayout.revision, baseRevision)))
+      .returning({ revision: homeLayout.revision });
+  }
+
   private restored<T>(method: string, value: Result<T, string>): Outcome<Option<T>> {
     if (value.isSuccess) return Promise.resolve(Result.ok(Option.some(value.getValue())));
 
-    const corrupt = new Error(`stored home row is invalid: ${value.getError()}`);
+    return this.corrupt(method, value.getError());
+  }
+
+  private corrupt<T>(method: string, reason: string): Outcome<T> {
+    const corrupt = new Error(`stored home row is invalid: ${reason}`);
     this.instrumentation.capture(corrupt);
     return Promise.resolve(Result.fail(repositoryFailure(method, corrupt)));
   }

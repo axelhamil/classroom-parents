@@ -13,9 +13,11 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 }));
 
 const ARRANGED = [
-  { id: "notes", w: 4, h: 1, hidden: false },
-  { id: "today", w: 6, h: 2, hidden: false },
+  { id: "notes", size: "m" },
+  { id: "today", size: "m" },
 ];
+
+const WIDENED = [{ id: "today", size: "l" }];
 
 function givenHome(blocks: unknown) {
   return stubApi(
@@ -24,8 +26,8 @@ function givenHome(blocks: unknown) {
       "POST /sync": () => json({ status: "requested" }, 202),
       "GET /events": () => json({ items: [] }),
       "GET /events/calendar": () => json({ items: [] }),
-      "GET /home/layout": () => json({ blocks }),
-      "PUT /home/layout": ({ body }) => json(body),
+      "GET /home/layout": () => json({ blocks, revision: 0 }),
+      "PUT /home/layout": () => json({ blocks: WIDENED, revision: 1 }),
       "GET /home/note": () => json({ body: "", updatedAt: null }),
     }),
   );
@@ -49,7 +51,7 @@ describe("Accueil is arranged by the parent and follows them", () => {
     await renderAppAt("/");
 
     await waitFor(() => expect(shownBlocks()).toEqual(["notes", "today"]));
-    expect(document.querySelector("[data-block=today]")?.getAttribute("data-w")).toBe("6");
+    expect(document.querySelector("[data-block=today]")?.getAttribute("data-w")).toBe("4");
   });
 
   it("when one block is widened and another hidden, one save leaves with the whole layout", async () => {
@@ -66,11 +68,6 @@ describe("Accueil is arranged by the parent and follows them", () => {
     const saves = () =>
       calls.filter((call) => call.method === "PUT" && call.url.pathname === "/home/layout");
     await waitFor(() => expect(saves()).toHaveLength(1));
-    expect(saves()[0]?.body).toMatchObject({
-      blocks: expect.arrayContaining([
-        { id: "today", w: 8, h: 2, hidden: false },
-        { id: "notes", w: 4, h: 1, hidden: true },
-      ]),
-    });
+    expect(saves()[0]?.body).toEqual({ blocks: WIDENED, baseRevision: 0 });
   });
 });

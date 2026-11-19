@@ -1,11 +1,12 @@
 import { authSchema } from "@packages/drizzle";
-import { jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const homeLayout = pgTable("home_layout", {
   userId: text("user_id")
     .primaryKey()
     .references(() => authSchema.user.id, { onDelete: "cascade" }),
-  blocks: jsonb("blocks").$type<unknown[]>().notNull(),
+  blocks: jsonb("blocks").$type<unknown>(),
+  revision: integer("revision").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 

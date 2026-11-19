@@ -20,7 +20,7 @@ export function createHomeRoutes(deps: HomeRoutesDeps) {
       return c.json(result.getValue());
     })
     .put("/layout", g.requireAuth, zV("json", homeLayoutBodySchema), async (c) => {
-      const result = await home.setLayout(g.currentUserId(c), c.req.valid("json").blocks);
+      const result = await home.setLayout(g.currentUserId(c), c.req.valid("json"));
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })

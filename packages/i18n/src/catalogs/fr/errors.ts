@@ -38,6 +38,8 @@ export default {
       "Cette langue, ce fuseau horaire ou ce pays n'est pas reconnu. Choisissez une valeur de la liste.",
     HOME_LAYOUT_INVALID:
       "Cette disposition de l'accueil n'est pas valide : 40 blocs au plus, chacun une seule fois. Rétablissez la disposition par défaut.",
+    HOME_LAYOUT_STALE:
+      "L'accueil a changé sur un autre appareil. Reprenez la dernière version, puis refaites votre changement.",
     HOME_NOTE_INVALID:
       "La note compte au plus 4000 caractères. Raccourcissez-la pour l'enregistrer.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",

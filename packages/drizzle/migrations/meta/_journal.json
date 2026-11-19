@@ -169,6 +169,13 @@
       "when": 1795108556635,
       "tag": "0023_home",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795111609220,
+      "tag": "0024_home_layout_revision",
+      "breakpoints": true
     }
   ]
 }

@@ -124,6 +124,18 @@ describe("user stream relay", () => {
     ]);
   });
 
+  it("tells the parent their home changed, with the revision now in force", async () => {
+    const { relay, published } = relayWithSink();
+
+    await relay.handle(
+      delivered("home.layout.changed", { userId: "parent", reset: false, revision: 4 }),
+    );
+
+    expect(published).toEqual([
+      { userId: "parent", message: { type: "home.changed", revision: 4 } },
+    ]);
+  });
+
   it("stays silent on events the screens do not show", async () => {
     const { relay, published } = relayWithSink();
 

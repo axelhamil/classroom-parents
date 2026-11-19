@@ -126,7 +126,7 @@ export interface ExportedSchoolZone {
 }
 
 export interface ExportedHomeLayout {
-  blocks: unknown[];
+  blocks: unknown;
   chosenAt: string;
 }
 
