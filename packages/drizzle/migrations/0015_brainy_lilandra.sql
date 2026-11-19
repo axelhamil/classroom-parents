@@ -1,0 +1,1 @@
+ALTER TABLE "child_account" ADD COLUMN "shows_photo" boolean DEFAULT false NOT NULL;

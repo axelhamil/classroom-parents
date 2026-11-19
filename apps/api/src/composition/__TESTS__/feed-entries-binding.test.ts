@@ -44,6 +44,7 @@ const children = {
         syncing: false,
         color: 1,
         avatarUrl: null,
+        showsPhoto: false,
       },
     ]),
 };

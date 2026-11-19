@@ -8,6 +8,7 @@ export const childrenEvents = defineEventContribution({
     CHILD_CONNECTED: "child.account.connected",
     CHILD_RENAMED: "child.account.renamed",
     CHILD_COLOR_CHANGED: "child.account.color_changed",
+    CHILD_PHOTO_CHOICE_CHANGED: "child.account.photo_choice_changed",
     CHILD_DISCONNECT_REQUESTED: "child.account.disconnect_requested",
     CHILD_DISCONNECTED: "child.account.disconnected",
     CHILD_NEEDS_RECONNECT: "child.account.reconnect_needed",
@@ -19,6 +20,10 @@ export const childrenEvents = defineEventContribution({
     "child.account.color_changed": ChildRef.extend({
       actorUserId: z.string(),
       color: z.number().int().min(1).max(8),
+    }),
+    "child.account.photo_choice_changed": ChildRef.extend({
+      actorUserId: z.string(),
+      showsPhoto: z.boolean(),
     }),
     "child.account.disconnect_requested": ChildRef,
     "child.account.disconnected": ChildRef,
@@ -32,6 +37,7 @@ export const childrenEvents = defineEventContribution({
     "child.account.connected": "compliance",
     "child.account.renamed": "operational",
     "child.account.color_changed": "operational",
+    "child.account.photo_choice_changed": "operational",
     "child.account.disconnect_requested": "compliance",
     "child.account.disconnected": "compliance",
     "child.account.reconnect_needed": "operational",
@@ -41,6 +47,7 @@ export const childrenEvents = defineEventContribution({
     "child.account.connected": "public",
     "child.account.renamed": "public",
     "child.account.color_changed": "public",
+    "child.account.photo_choice_changed": "public",
     "child.account.disconnect_requested": "public",
     "child.account.disconnected": "public",
     "child.account.reconnect_needed": "public",
@@ -51,6 +58,8 @@ export const childrenEvents = defineEventContribution({
       "A parent connected a child's Google Classroom account, or reconnected it after a break.",
     "child.account.renamed": "A parent renamed a connected child.",
     "child.account.color_changed": "A parent picked another color for a child.",
+    "child.account.photo_choice_changed":
+      "A parent chose between a child's Google photo and its initial on its color.",
     "child.account.disconnect_requested":
       "A child's disconnection started: the child stops syncing until its Google access is revoked and its data erased.",
     "child.account.disconnected":

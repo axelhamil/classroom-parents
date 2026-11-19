@@ -20,6 +20,7 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
+import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import { isFirstSyncRunning } from "../../../shared/events/event-board";
 import { childHue } from "../../../shared/format/child-hue";
 import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
@@ -175,7 +176,7 @@ function ChildBriefing({ child, events, family, now, moment }: ChildBriefingProp
         <ChildAvatar
           name={child.label}
           tone={childHue(family, child.id)}
-          src={child.avatarUrl}
+          src={childAvatarSrc(child)}
           size="sm"
         />
         <BriefingGroupTitle id={titleId}>{child.label}</BriefingGroupTitle>

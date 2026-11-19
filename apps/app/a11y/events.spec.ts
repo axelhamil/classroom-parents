@@ -117,6 +117,35 @@ async function expectOverdueOverlay(
   await expectOnePageWithoutOverflow(page);
 }
 
+async function clippedInScrollRegions(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const reachOf = (element: Element): number => {
+      const style = getComputedStyle(element);
+      if (element.matches("[data-slot=child-avatar]"))
+        return Number.parseFloat(style.getPropertyValue("--tw-ring-offset-width")) + 2;
+
+      return Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--ring-width"),
+      );
+    };
+
+    return [...document.querySelectorAll("[data-slot=scroll-region]")].flatMap((region) => {
+      const edge = region.getBoundingClientRect();
+      const marks = region.querySelectorAll("[data-slot=child-avatar], a[href], button");
+
+      return [...marks].flatMap((mark) => {
+        const box = mark.getBoundingClientRect();
+        const reach = reachOf(mark);
+        const clipped = box.left - reach < edge.left || box.right + reach > edge.right;
+
+        return clipped
+          ? [`${mark.getAttribute("data-slot") ?? mark.tagName} ${mark.textContent}`]
+          : [];
+      });
+    });
+  });
+}
+
 test.describe("the calendar on a phone", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 844 } });
 
@@ -222,6 +251,28 @@ test.describe("the calendar on a phone", () => {
     expect(await scroller.evaluate((region) => region.contains(document.activeElement))).toBe(true);
     await page.keyboard.press("Shift+Tab");
     await expect(scroller).toBeFocused();
+  });
+
+  test("the briefing clips neither an avatar ring nor a focus ring at its edges", async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(todayAt("19:00"));
+    const due = Array.from({ length: 6 }, (_, index) => ({
+      ...REVIEW_EVENT,
+      id: `7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c1${index}`,
+      title: `Piscine ${index + 1}`,
+      category: "swimming",
+      status: "confirmed",
+      deadlineDate: inDays(1),
+      deadlineAt: `${inDays(1)}T07:00:00.000Z`,
+    }));
+    await serveFamily(page, { children: [LEA], events: due });
+    await page.goto("/");
+
+    const scroller = page.getByRole("region", { name: /^Échéances à préparer pour / });
+    await expect(scroller.getByRole("link", { name: "Piscine 1" })).toBeVisible();
+
+    expect(await clippedInScrollRegions(page)).toEqual([]);
   });
 
   test("a category chip of the history filters through the url and the request", async ({

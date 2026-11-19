@@ -1,9 +1,10 @@
-import { COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
+import { blockingViolations, COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
 import type { Locator, Page } from "@playwright/test";
-import { stubChildrenApi } from "./children-fixture";
+import { FIXTURE_CHILD_LABEL, stubChildrenApi } from "./children-fixture";
 import { showColorScheme } from "./color-scheme";
 import { expect, test } from "./csp";
 import { LEA, serveFamily } from "./events-fixtures";
+import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
 
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
@@ -18,6 +19,19 @@ async function openDeletionDialog(page: Page): Promise<{ trigger: Locator; dialo
   await page.keyboard.press("Enter");
 
   const dialog = page.getByRole("alertdialog", { name: "Supprimer votre compte ?" });
+  await expect(dialog).toBeVisible();
+
+  return { trigger, dialog };
+}
+
+async function openCustomizeDialog(page: Page): Promise<{ trigger: Locator; dialog: Locator }> {
+  await page.goto("/children");
+
+  const trigger = page.getByRole("button", { name: `Actions pour ${FIXTURE_CHILD_LABEL}` });
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "Personnaliser" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Personnaliser" });
   await expect(dialog).toBeVisible();
 
   return { trigger, dialog };
@@ -226,6 +240,49 @@ test.describe("signed in", () => {
     await expect(light).toBeChecked();
     await expect(page.locator("html")).not.toHaveClass(/dark/);
   });
+
+  test("picks a child's color from the swatch radio group with the arrow keys", async ({
+    page,
+  }) => {
+    const { trigger, dialog } = await openCustomizeDialog(page);
+
+    const blue = dialog.getByRole("radio", { name: "Bleu" });
+    await tabTo(page, blue);
+    await expect(blue).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("ArrowRight", { delay: 50 });
+
+    const violet = dialog.getByRole("radio", { name: "Violet" });
+    await expect(violet).toBeFocused();
+    await expect(violet).toHaveAttribute("aria-checked", "true");
+    await expect(blue).toHaveAttribute("aria-checked", "false");
+
+    await page.keyboard.press("ArrowLeft", { delay: 50 });
+    await expect(blue).toBeFocused();
+    await expect(blue).toHaveAttribute("aria-checked", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
+  for (const colorScheme of COLOR_SCHEMES) {
+    test(`outlines the chosen swatch at 3:1 and passes axe in the dialog (${colorScheme})`, async ({
+      page,
+    }) => {
+      await showColorScheme(page, colorScheme);
+      await openCustomizeDialog(page);
+
+      expect(
+        await lowestGraphicContrast(
+          page,
+          "[data-slot=hue-radio-group] [role=radio][data-state=checked]",
+          "outlineColor",
+        ),
+      ).toBeGreaterThanOrEqual(3);
+      await expect(page.getByRole("radio", { name: "Photo du compte Google" })).toBeVisible();
+      expect(await blockingViolations(page)).toEqual([]);
+    });
+  }
 
   test("reaches every section from the bottom navigation on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });

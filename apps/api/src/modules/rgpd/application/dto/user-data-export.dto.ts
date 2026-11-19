@@ -10,6 +10,7 @@ export interface ExportedChild {
   googleEmail: string;
   color: number;
   avatarUrl: string | null;
+  showsPhoto: boolean;
   status: string;
   connectedAt: string;
   lastSyncedAt: string | null;

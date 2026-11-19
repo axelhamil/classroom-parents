@@ -9,6 +9,7 @@ export interface ChildDto {
   label: string;
   color: ChildColorValue;
   avatarUrl: string | null;
+  showsPhoto: boolean;
   googleEmail: string;
   status: ChildStatusValue;
   cause?: ReconnectCause;
@@ -28,9 +29,13 @@ export const registerChildBodySchema = z.object({
 });
 
 export const editChildBodySchema = z
-  .object({ label: childLabelSchema.optional(), color: childColorSchema.optional() })
-  .refine((body) => body.label !== undefined || body.color !== undefined, {
-    message: "Indiquez un prénom ou une couleur à modifier.",
+  .object({
+    label: childLabelSchema.optional(),
+    color: childColorSchema.optional(),
+    showsPhoto: z.boolean().optional(),
+  })
+  .refine((body) => Object.values(body).some((change) => change !== undefined), {
+    message: "Indiquez un prénom, une couleur ou un avatar à modifier.",
   });
 
 export const childIdParamSchema = z.object({ id: z.uuid() });
@@ -48,6 +53,7 @@ export function toChildDto(child: ChildAccount): ChildDto {
       .get("avatarUrl")
       .map((avatar) => avatar.value)
       .toNull(),
+    showsPhoto: child.get("showsPhoto"),
     googleEmail: child.get("googleEmail").value,
     status: status.value,
     cause: status.cause().toUndefined(),

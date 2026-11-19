@@ -22,3 +22,16 @@ export function ensureScrollIntoView(): void {
 
   Element.prototype.scrollIntoView = () => undefined;
 }
+
+export function ensureResizeObserver(): void {
+  if (typeof window.ResizeObserver === "function") return;
+
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+}

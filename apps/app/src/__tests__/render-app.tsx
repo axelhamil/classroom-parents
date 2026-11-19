@@ -9,7 +9,7 @@ import { router } from "../router";
 import { sessionQueryOptions } from "../shared/api/queries/session";
 import { queryClient } from "../shared/api/query-client";
 import { markToursSeen } from "./app-harness";
-import { ensureGetAnimations, ensureMatchMedia } from "./match-media";
+import { ensureGetAnimations, ensureMatchMedia, ensureResizeObserver } from "./match-media";
 
 export interface ApiCall {
   method: string;
@@ -68,6 +68,7 @@ export async function renderApp(
   markToursSeen("user-1");
   ensureMatchMedia();
   ensureGetAnimations();
+  ensureResizeObserver();
   const i18n = await createI18n({ locale: "fr", resources: frCatalog });
   queryClient.setQueryData(sessionQueryOptions.queryKey, signedIn ? SIGNED_IN : null);
   const appRouter = createRouter({

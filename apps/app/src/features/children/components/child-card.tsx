@@ -31,26 +31,26 @@ import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, EllipsisVertical, PencilLine, RefreshCw, Unlink } from "lucide-react";
+import { CalendarDays, EllipsisVertical, Palette, RefreshCw, Unlink } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
+import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import { syncChildMutationOptions } from "../../../shared/children/child-link.mutations";
 import { classifySchoolError } from "../../../shared/children/school-error";
 import { SchoolProcedure } from "../../../shared/children/school-procedure";
 import type { ChildHue } from "../../../shared/format/child-hue";
 import { disconnectChildMutationOptions } from "../api/children.mutations";
 import { CHILD_STATUS_BADGES, CHILD_STATUS_LABEL_KEYS } from "../child-status-labels";
-import { RenameChildForm } from "../forms/rename-child-form";
+import { CustomizeChildForm } from "../forms/customize-child-form";
 import { ReconnectBanner } from "./reconnect-banner";
 
 export interface ChildCardProps {
   child: ChildDto;
   hue: ChildHue;
-  avatarUrl?: string | null;
 }
 
-type CardDialog = "rename" | "disconnect" | null;
+type CardDialog = "customize" | "disconnect" | null;
 
 interface SyncLineProps {
   child: ChildDto;
@@ -79,7 +79,7 @@ function SyncLine({ child }: SyncLineProps) {
   );
 }
 
-export function ChildCard({ child, hue, avatarUrl }: ChildCardProps) {
+export function ChildCard({ child, hue }: ChildCardProps) {
   const { t } = useTranslation("children");
   const queryClient = useQueryClient();
   const menuTrigger = useRef<HTMLButtonElement>(null);
@@ -128,9 +128,9 @@ export function ChildCard({ child, hue, avatarUrl }: ChildCardProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {!leaving && (
-              <DropdownMenuItem onSelect={() => setDialog("rename")}>
-                <PencilLine aria-hidden />
-                {t("card.rename")}
+              <DropdownMenuItem onSelect={() => setDialog("customize")}>
+                <Palette aria-hidden />
+                {t("card.customize")}
               </DropdownMenuItem>
             )}
             {connected && (
@@ -151,7 +151,7 @@ export function ChildCard({ child, hue, avatarUrl }: ChildCardProps) {
         </DropdownMenu>
 
         <ChildBannerAvatar>
-          <ChildAvatar name={child.label} tone={hue} src={avatarUrl} size="lg" />
+          <ChildAvatar name={child.label} tone={hue} src={childAvatarSrc(child)} size="lg" />
         </ChildBannerAvatar>
       </ChildBanner>
 
@@ -194,13 +194,13 @@ export function ChildCard({ child, hue, avatarUrl }: ChildCardProps) {
         </CardFooter>
       )}
 
-      <Dialog open={dialog === "rename"} onOpenChange={closeDialog}>
-        <DialogContent closeLabel={t("rename.cancel")} onCloseAutoFocus={returnFocus}>
+      <Dialog open={dialog === "customize"} onOpenChange={closeDialog}>
+        <DialogContent closeLabel={t("customize.cancel")} onCloseAutoFocus={returnFocus}>
           <DialogHeader>
-            <DialogTitle>{t("rename.title")}</DialogTitle>
-            <DialogDescription>{t("rename.description")}</DialogDescription>
+            <DialogTitle>{t("customize.title")}</DialogTitle>
+            <DialogDescription>{t("customize.description")}</DialogDescription>
           </DialogHeader>
-          <RenameChildForm childId={child.id} label={child.label} onDone={() => setDialog(null)} />
+          <CustomizeChildForm child={child} hue={hue} onDone={() => setDialog(null)} />
         </DialogContent>
       </Dialog>
 

@@ -40,6 +40,7 @@ export interface RegisterChildInput {
 export interface EditChildInput {
   label?: string;
   color?: number;
+  showsPhoto?: boolean;
 }
 
 interface ChildChanges {
@@ -84,6 +85,11 @@ const revokeUnconfirmed: ChildrenError = {
   code: "CHILD_PROVIDER_FAILURE",
   message:
     "Google n'a pas confirmé le retrait de l'accès. La déconnexion reprendra automatiquement, vous pouvez aussi réessayer.",
+};
+
+const noPhotoToShow: ChildrenError = {
+  code: "CHILD_PHOTO_CONFLICT",
+  message: "Ce compte Google n'a pas de photo à afficher. Gardez l'initiale de votre enfant.",
 };
 
 const profileUnreadable: ChildrenError = {
@@ -288,6 +294,9 @@ export class ChildConnectionService {
 
         if (label.isSome()) child.rename(label.unwrap());
         if (color.isSome()) child.recolor(color.unwrap());
+        if (input.showsPhoto !== undefined && child.choosePhoto(input.showsPhoto).isFailure)
+          return Result.fail(noPhotoToShow);
+
         const saved = await this.children.save(child);
         if (saved.isFailure) return Result.fail(saved.getError());
 
@@ -302,6 +311,13 @@ export class ChildConnectionService {
             actorUserId: userId,
             childId,
             color: child.get("color").value,
+          });
+        if (input.showsPhoto !== undefined)
+          await emitEvent(this.outbox, EventTypes.CHILD_PHOTO_CHOICE_CHANGED, "child", childId, {
+            userId,
+            actorUserId: userId,
+            childId,
+            showsPhoto: input.showsPhoto,
           });
         return Result.ok(toChildDto(child));
       }),

@@ -17,6 +17,7 @@ export interface ChildAccountProps {
   label: ChildLabel;
   color: ChildColor;
   avatarUrl: Option<AvatarUrl>;
+  showsPhoto: boolean;
   status: ChildStatus;
   connectedAt: Date;
   lastSyncedAt: Option<Date>;
@@ -52,6 +53,7 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
         label: input.label,
         color: input.color,
         avatarUrl: input.avatarUrl,
+        showsPhoto: false,
         status: ChildStatus.connected(),
         connectedAt: input.now,
         lastSyncedAt: Option.none(),
@@ -78,6 +80,13 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
 
   showAvatar(avatarUrl: Option<AvatarUrl>): void {
     this._props.avatarUrl = avatarUrl;
+  }
+
+  choosePhoto(showsPhoto: boolean): Result<void, "no_photo"> {
+    if (showsPhoto && this._props.avatarUrl.isNone()) return Result.fail("no_photo");
+
+    this._props.showsPhoto = showsPhoto;
+    return Result.ok();
   }
 
   reconnect(now: Date): Result<void, "disconnecting"> {

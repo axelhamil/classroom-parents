@@ -81,7 +81,7 @@ describe("children list", () => {
     expect(shared).toContain(copy.school.steps.path);
   });
 
-  it("child card exposes rename, sync and disconnect in its menu", async () => {
+  it("child card exposes customize, sync and disconnect in its menu", async () => {
     const calls = fakeApi({
       "GET /children": { body: [CONNECTED] },
       [`POST /sync/${CONNECTED.id}`]: { status: 202, body: { status: "started" } },
@@ -92,7 +92,7 @@ describe("children list", () => {
 
     const items = await screen.findAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual([
-      copy.card.rename,
+      copy.card.customize,
       copy.card.sync,
       copy.card.disconnect,
     ]);
@@ -133,6 +133,87 @@ describe("children list", () => {
         `/children/${CONNECTED.id}`,
       ]),
     );
+  });
+
+  it("given another color picked while customizing, then only the color is saved and the sibling's color stays marked", async () => {
+    const ines = { ...CONNECTED, color: 1 };
+    const tom = {
+      ...LEAVING,
+      id: "4a7c2f4e-1d2b-4c3a-9e8f-0a1b2c3d4e5f",
+      status: "connected",
+      color: 2,
+    };
+    const calls = fakeApi({
+      "GET /children": { body: [ines, tom] },
+      [`PATCH /children/${ines.id}`]: { body: { ...ines, color: 3 } },
+    });
+
+    await renderApp("/children");
+    await openMenu(ines.label);
+    await userEvent.click(await screen.findByRole("menuitem", { name: copy.card.customize }));
+
+    const dialog = await screen.findByRole("dialog", { name: copy.customize.title });
+    expect(within(dialog).getByRole("radio", { name: copy.customize.hues.teal })).toHaveProperty(
+      "ariaChecked",
+      "true",
+    );
+    expect(
+      within(dialog).getByRole("radio", {
+        name: copy.customize.hues.blue,
+        description: `Déjà la couleur de ${tom.label}`,
+      }),
+    ).toBeTruthy();
+    await userEvent.click(within(dialog).getByRole("radio", { name: copy.customize.hues.violet }));
+    await userEvent.click(within(dialog).getByRole("button", { name: copy.customize.submit }));
+
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === "PATCH").map((call) => call.body)).toEqual([
+        { color: 3 },
+      ]),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("given a child with a Google photo, then the photo is offered and picking it saves that choice alone", async () => {
+    const ines = {
+      ...CONNECTED,
+      color: 1,
+      avatarUrl: "https://lh3.googleusercontent.com/a/ines",
+      showsPhoto: false,
+    };
+    const calls = fakeApi({
+      "GET /children": { body: [ines] },
+      [`PATCH /children/${ines.id}`]: { body: { ...ines, showsPhoto: true } },
+    });
+
+    await renderApp("/children");
+    await openMenu(ines.label);
+    await userEvent.click(await screen.findByRole("menuitem", { name: copy.card.customize }));
+
+    const dialog = await screen.findByRole("dialog", { name: copy.customize.title });
+    expect(within(dialog).getByRole("radio", { name: copy.customize.initial })).toHaveProperty(
+      "ariaChecked",
+      "true",
+    );
+    await userEvent.click(within(dialog).getByRole("radio", { name: copy.customize.photo }));
+    await userEvent.click(within(dialog).getByRole("button", { name: copy.customize.submit }));
+
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === "PATCH").map((call) => call.body)).toEqual([
+        { showsPhoto: true },
+      ]),
+    );
+  });
+
+  it("given a child without a Google photo, then only its initial is offered", async () => {
+    fakeApi({ "GET /children": { body: [{ ...CONNECTED, color: 1, avatarUrl: null }] } });
+
+    await renderApp("/children");
+    await openMenu(CONNECTED.label);
+    await userEvent.click(await screen.findByRole("menuitem", { name: copy.card.customize }));
+
+    const dialog = await screen.findByRole("dialog", { name: copy.customize.title });
+    expect(within(dialog).queryByRole("radio", { name: copy.customize.photo })).toBeNull();
   });
 
   it("given no child yet, then it invites to add one", async () => {

@@ -8,6 +8,7 @@ function child(status: ChildDto["status"]): ChildDto {
     label: "Léa",
     color: 1,
     avatarUrl: null,
+    showsPhoto: false,
     googleEmail: "lea@college.example",
     status,
     syncing: false,

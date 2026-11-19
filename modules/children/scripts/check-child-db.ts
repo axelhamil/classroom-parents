@@ -279,6 +279,12 @@ run(async () => {
       (await childRow(aChild))?.color === 6,
   );
   await step(
+    "A linked child shows its initial until the parent picks the Google photo, and the row keeps that choice",
+    (await childRow(aChild))?.showsPhoto === false &&
+      (await service.edit(a, aChild, { showsPhoto: true })).isSuccess &&
+      (await childRow(aChild))?.showsPhoto === true,
+  );
+  await step(
     "A cannot reconnect B's child",
     codeOf(await service.reconnect(a, bChild)) === "CHILD_NOT_FOUND",
   );

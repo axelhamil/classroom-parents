@@ -19,7 +19,7 @@ const childAvatarVariants = cva("ring-offset-background", {
       8: "ring-child-8",
     },
     size: {
-      xs: "size-5",
+      xs: "size-5 ring-1",
       sm: "size-8 ring-2 ring-offset-2",
       md: "size-11 ring-2 ring-offset-2",
       lg: "size-16 ring-2 ring-offset-2",

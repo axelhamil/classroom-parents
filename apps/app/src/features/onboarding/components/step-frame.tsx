@@ -3,7 +3,7 @@ import { TypographyH1, TypographyLead } from "@packages/ui/components/ui/typogra
 import type { ComponentProps, ReactNode } from "react";
 
 export interface StepFrameProps {
-  media: ReactNode;
+  media?: ReactNode;
   mediaTone?: ComponentProps<typeof StepperMedia>["tone"];
   title: string;
   description?: ReactNode;
@@ -22,7 +22,7 @@ export function StepFrame({
   return (
     <>
       <StepperIntro>
-        <StepperMedia tone={mediaTone}>{media}</StepperMedia>
+        {media && <StepperMedia tone={mediaTone}>{media}</StepperMedia>}
         <TypographyH1 variant="page" tabIndex={-1}>
           {title}
         </TypographyH1>

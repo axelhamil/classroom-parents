@@ -65,6 +65,7 @@ export function child(
     nextSyncAt?: Date;
     color?: ChildColorValue;
     avatarUrl?: string;
+    showsPhoto?: boolean;
   } = {},
 ): ChildAccount {
   return ChildAccount.reconstitute(
@@ -77,6 +78,7 @@ export function child(
       avatarUrl: Option.fromNullable(overrides.avatarUrl).map((url) =>
         AvatarUrl.create(url).getValue(),
       ),
+      showsPhoto: overrides.showsPhoto ?? false,
       status: overrides.status ?? ChildStatus.connected(),
       connectedAt: new Date("2026-10-01T08:00:00.000Z"),
       lastSyncedAt: Option.none(),
