@@ -1,4 +1,5 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { Progress } from "@packages/ui/components/ui/progress";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import {
@@ -45,7 +46,7 @@ export function OnboardingStepper(props: OnboardingStepperProps) {
 
   return (
     <Stepper asChild>
-      <main>
+      <main className={pageContainerVariants({ width: "reading" })}>
         <QueryState
           query={children}
           skeleton={

@@ -36,7 +36,14 @@ export default defineConfig({
       testMatch: /\.spec\.ts$/,
       testIgnore: /(journey|perf)\.spec\.ts$/,
       dependencies: ["setup"],
-      use: { ...devices["Desktop Chrome"] },
+      // `A11Y_WIDTH=390` audits every page at another screen width; specs that pin their own
+      // viewport keep it.
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(process.env.A11Y_WIDTH
+          ? { viewport: { width: Number(process.env.A11Y_WIDTH), height: 900 } }
+          : {}),
+      },
     },
   ],
   webServer: {

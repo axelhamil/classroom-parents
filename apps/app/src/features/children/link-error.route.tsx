@@ -21,7 +21,7 @@ function LinkErrorPage() {
     start.mutate(search.reconnect ? { reconnectChildId: search.reconnect } : ADD_CHILD);
 
   return (
-    <Screen title={t("linkError.title")}>
+    <Screen title={t("linkError.title")} width="reading">
       <LinkRefusal error={search.error} errorDescription={search.error_description} />
 
       <div className="flex flex-col gap-3 sm:flex-row">

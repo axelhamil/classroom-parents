@@ -24,7 +24,11 @@ function NewEventPage() {
   const draft = sharedDraft(Route.useSearch());
 
   return (
-    <Screen title={t("calendar.addDialog.title")} description={t("calendar.addDialog.description")}>
+    <Screen
+      title={t("calendar.addDialog.title")}
+      description={t("calendar.addDialog.description")}
+      width="reading"
+    >
       <QueryState
         query={children}
         skeleton={

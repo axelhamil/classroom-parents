@@ -23,7 +23,7 @@ export function NotFoundPage() {
   const page = (
     <main
       className={cn(
-        pageContainerVariants({ width: "form" }),
+        pageContainerVariants({ width: "full" }),
         "flex flex-1 flex-col justify-center py-16",
       )}
     >

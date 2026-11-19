@@ -21,6 +21,8 @@ interaction checks a rule engine cannot see. Runs on every PR
   viewport with no horizontal overflow, and every section is reachable from it
   with `aria-current="page"` on the active tab. `/login` (Google only) at 390 px keeps one
   `<main>`, one `<h1>` and no blocking violation (`shell.spec.ts`).
+- **Page width**: a page in `FULL_WIDTH_PAGES` leaves at most 25 % of a
+  1440 px screen empty (`page-width.spec.ts`).
 - **Reduced motion**: `prefers-reduced-motion: reduce` skips the theme view
   transition entirely (asserted through a `MutationObserver`, since the
   transition leaves no trace once it ends).
@@ -87,6 +89,14 @@ Three things bite when running repeatedly:
 - **Resetting the limiter takes two steps.** `DELETE FROM rate_limit` on the
   dev database *and* a restart of the API process, `inMemoryBlockOnConsumed`
   caches the block in-process, so clearing the table alone leaves it in place.
+
+`A11Y_WIDTH=390` runs the whole audit at another screen width (specs that set
+their own viewport keep it), which is how a layout change is checked on a
+phone, a tablet and a large screen:
+
+```sh
+for width in 390 768 1280 1440 1920; do A11Y_WIDTH=$width pnpm --filter app check:a11y; done
+```
 
 ## Dates
 

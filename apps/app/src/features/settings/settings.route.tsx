@@ -1,3 +1,4 @@
+import { CardColumns } from "@packages/ui/components/ui/card-columns";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Screen } from "../../shared/layout/screen";
@@ -14,6 +15,7 @@ import { PrivacyLinksCard } from "./components/privacy-links-card";
 import { PushCard } from "./components/push-card";
 import { QuietHoursCard } from "./components/quiet-hours-card";
 import { SchoolHolidaysCard } from "./components/school-holidays-card";
+import { SettingsSection, SettingsSectionNav } from "./components/settings-section";
 import { TourCard } from "./components/tour-card";
 import { settingsSearchSchema } from "./settings.schema";
 
@@ -28,29 +30,36 @@ function SettingsPage() {
   const { reauth, error } = Route.useSearch();
 
   return (
-    <Screen title={t("home.title")} description={t("home.description")} width="app">
-      <div className="grid items-start gap-6 @4xl:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-6">
+    <Screen title={t("home.title")} description={t("home.description")} width="full">
+      <SettingsSectionNav />
+      <CardColumns>
+        <SettingsSection id="notifications">
           <PushCard userId={user.id} />
           <DefaultRemindersCard userId={user.id} />
           <QuietHoursCard userId={user.id} />
           <DigestCard userId={user.id} />
-          <SchoolHolidaysCard userId={user.id} />
+        </SettingsSection>
+        <SettingsSection id="region">
           <LanguageAndRegionCard userId={user.id} />
+          <SchoolHolidaysCard userId={user.id} />
           <AiReadingCard userId={user.id} />
+        </SettingsSection>
+        <SettingsSection id="account">
+          <AccountCard user={user} />
+          <DevicesCard userId={user.id} currentSessionToken={sessionToken} />
+        </SettingsSection>
+        <SettingsSection id="appearance">
           <AppearanceCard />
           <TourCard userId={user.id} />
-        </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          <DevicesCard userId={user.id} currentSessionToken={sessionToken} />
+        </SettingsSection>
+        <SettingsSection id="privacy">
           <PrivacyLinksCard />
-          <AccountCard user={user} />
           <DeleteAccountCard
             userId={user.id}
             reauthError={reauth ? (error ?? reauth) : undefined}
           />
-        </div>
-      </div>
+        </SettingsSection>
+      </CardColumns>
       <ScreenTour screen="settings" userId={user.id} />
     </Screen>
   );

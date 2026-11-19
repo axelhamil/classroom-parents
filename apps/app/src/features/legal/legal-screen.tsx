@@ -35,7 +35,7 @@ export function LegalScreen({ title, description, children }: LegalScreenProps) 
           </Link>
         </Button>
       </AppBar>
-      <Screen title={title} description={description}>
+      <Screen title={title} description={description} width="reading">
         {children}
       </Screen>
       <LegalFooter />

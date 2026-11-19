@@ -432,19 +432,13 @@ test.describe("the week on a tablet", () => {
 test.describe("the week on a desktop", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
-  test("shows the week as rows of whole titles under the briefing, and only the home widens", async ({
-    page,
-  }) => {
+  test("shows the week as rows of whole titles under the briefing", async ({ page }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
     await expectWholeWeekRowsUnderBriefing(page);
     await expectOnePageWithoutOverflow(page);
-
-    await page.goto("/settings");
-    const settings = await page.locator("main").evaluate((main) => main.clientWidth);
-    expect(settings).toBeLessThanOrEqual(1024);
   });
 
   test("keeps its seven rows on Friday evening, Monday briefed beside them", async ({ page }) => {

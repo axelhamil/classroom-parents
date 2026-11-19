@@ -195,6 +195,12 @@
   --touch-target: 2.75rem;
   --nav-height: 4.25rem;
   --app-bar-height: 4rem;
+  /* Side margin of every page: 16px on a phone, growing with the screen up to 40px. */
+  --page-gutter: clamp(1rem, 0.5rem + 2vw, 2.5rem);
+  /* A text page holds 70 characters per line, the middle of the 65 to 75 readable measure. */
+  --page-reading-width: calc(70ch + 2 * var(--page-gutter));
+  --page-form-width: calc(28rem + 2 * var(--page-gutter));
+  --section-nav-height: 3.5rem;
   --scroll-region-height: 30rem;
   --scroll-fade-size: 1rem;
   /* Inner gutter of a scroll region: holds the 3px focus ring and the 4px avatar ring (2px offset + 2px ring) its overflow would clip. */
@@ -590,6 +596,13 @@
   --spacing-touch: var(--touch-target);
   --spacing-nav: var(--nav-height);
   --spacing-app-bar: var(--app-bar-height);
+  --spacing-page-gutter: var(--page-gutter);
+  --spacing-section-nav: var(--section-nav-height);
+
+  --container-reading: var(--page-reading-width);
+  --container-form: var(--page-form-width);
+  /* From about 1800px of screen, a grid of cards gets a fourth column. */
+  --container-ultrawide: 105rem;
   --spacing-scroll-region: var(--scroll-region-height);
   --spacing-scroll-gutter: var(--scroll-gutter);
   --spacing-day-gutter: var(--day-gutter);

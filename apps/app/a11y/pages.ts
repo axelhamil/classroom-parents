@@ -31,3 +31,15 @@ export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
   { name: "child link refused", path: "/children/link-error", prepare: stubChildrenApi },
   { name: "not found (signed in)", path: "/no-such-page" },
 ];
+
+/**
+ * Pages declared `full` (`pageContainerVariants`): cards or lists that reflow into more columns.
+ * `page-width.spec.ts` fails any of them that leaves more than a quarter of a 1440px screen empty.
+ */
+export const FULL_WIDTH_PAGES: ReadonlySet<string> = new Set([
+  "not found",
+  "settings",
+  "privacy settings",
+  "children, every state",
+  "not found (signed in)",
+]);

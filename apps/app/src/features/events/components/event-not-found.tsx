@@ -13,7 +13,11 @@ export function EventNotFound() {
   const { t } = useTranslation("events");
 
   return (
-    <Screen title={t("detail.notFound.title")} description={t("detail.notFound.description")}>
+    <Screen
+      title={t("detail.notFound.title")}
+      description={t("detail.notFound.description")}
+      width="reading"
+    >
       <Button asChild variant="outline" className="self-start">
         <Link to="/">{t("detail.back")}</Link>
       </Button>

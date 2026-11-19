@@ -1,25 +1,20 @@
-import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
+import { type PageWidth, pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { PageHeader } from "@packages/ui/components/ui/page-header";
 import { cn } from "@packages/ui/libs/utils.js";
 import type { ReactNode } from "react";
+
+type ScreenWidth = Exclude<PageWidth, "landing" | "sheet">;
 
 export interface ScreenProps {
   eyebrow?: ReactNode;
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
-  width?: "prose" | "app" | "wide";
+  width: ScreenWidth;
   children: ReactNode;
 }
 
-export function Screen({
-  eyebrow,
-  title,
-  description,
-  actions,
-  width = "prose",
-  children,
-}: ScreenProps) {
+export function Screen({ eyebrow, title, description, actions, width, children }: ScreenProps) {
   return (
     <main
       className={cn(

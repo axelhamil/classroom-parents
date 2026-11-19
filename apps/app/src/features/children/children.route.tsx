@@ -1,4 +1,5 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { CardGrid } from "@packages/ui/components/ui/card-grid";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
@@ -62,7 +63,7 @@ function ChildrenPage() {
     <Screen
       title={t("list.title")}
       description={t("list.description")}
-      width="app"
+      width="full"
       actions={
         children.data?.length ? (
           <Button asChild data-tour="children-add">
@@ -81,7 +82,7 @@ function ChildrenPage() {
       <QueryState
         query={children}
         skeleton={
-          <SkeletonGroup label={t("list.loading")} className="grid gap-4 md:grid-cols-2">
+          <SkeletonGroup label={t("list.loading")} className="grid gap-6 @2xl:grid-cols-2">
             <Skeleton className="h-56 w-full" />
             <Skeleton className="h-56 w-full" />
           </SkeletonGroup>
@@ -102,13 +103,13 @@ function ChildrenPage() {
       >
         {(family) => (
           <>
-            <ul className="grid items-start gap-x-4 gap-y-6 md:grid-cols-2">
+            <CardGrid>
               {family.map((child) => (
                 <li key={child.id} data-tour="children-card">
                   <ChildCard child={child} hue={childHue(family, child.id)} />
                 </li>
               ))}
-            </ul>
+            </CardGrid>
             <ScreenTour screen="children" userId={user.id} />
           </>
         )}
