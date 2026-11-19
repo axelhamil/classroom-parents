@@ -2,65 +2,86 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
+import { PALETTES } from "../palette-store";
 import { THEME_COLORS } from "../theme-colors";
 
 const script = readFileSync(resolve(__dirname, "../theme-init.js"), "utf8");
 
-function runThemeInit(getItem: () => string | null, systemDark: boolean) {
+interface Stored {
+  theme?: string | null;
+  palette?: string | null;
+}
+
+function runThemeInit(stored: Stored | (() => never), systemDark: boolean) {
   const toggle = vi.fn();
+  const setRootAttribute = vi.fn();
   const setAttribute = vi.fn();
   const querySelectorAll = () => [{ setAttribute }, { setAttribute }];
+  const getItem =
+    typeof stored === "function"
+      ? stored
+      : (key: string) => (key === "theme" ? stored.theme : stored.palette) ?? null;
 
   runInNewContext(script, {
     window: {
       localStorage: { getItem },
       matchMedia: () => ({ matches: systemDark }),
     },
-    document: { documentElement: { classList: { toggle } }, querySelectorAll },
+    document: {
+      documentElement: { classList: { toggle }, setAttribute: setRootAttribute },
+      querySelectorAll,
+    },
   });
 
-  return Object.assign(toggle, { setAttribute });
+  return { toggle, setRootAttribute, setAttribute };
 }
 
 describe("theme-init script", () => {
   it("lets the stored choice win over the system preference", () => {
-    const toggle = runThemeInit(() => "light", true);
+    const { toggle } = runThemeInit({ theme: "light" }, true);
 
     expect(toggle).toHaveBeenCalledWith("dark", false);
   });
 
   it("applies light when no stored choice even if prefers-color-scheme is dark", () => {
-    const unset = runThemeInit(() => null, true);
+    const unset = runThemeInit({}, true);
     const blocked = runThemeInit(() => {
       throw new Error("denied");
     }, true);
 
-    expect(unset).toHaveBeenCalledWith("dark", false);
-    expect(blocked).toHaveBeenCalledWith("dark", false);
+    expect(unset.toggle).toHaveBeenCalledWith("dark", false);
+    expect(blocked.toggle).toHaveBeenCalledWith("dark", false);
+    expect(blocked.setRootAttribute).toHaveBeenCalledWith("data-palette", "paper");
   });
 
   it("applies dark before paint when stored choice is dark", () => {
-    const toggle = runThemeInit(() => "dark", false);
+    const { toggle } = runThemeInit({ theme: "dark" }, false);
 
     expect(toggle).toHaveBeenCalledWith("dark", true);
   });
 
   it("follows the system preference only when the stored choice is system", () => {
-    const toggle = runThemeInit(() => "system", true);
+    const { toggle } = runThemeInit({ theme: "system" }, true);
 
     expect(toggle).toHaveBeenCalledWith("dark", true);
   });
 
-  it("paints the browser chrome with the chosen theme on both color metas", () => {
-    const { setAttribute } = runThemeInit(() => "dark", false);
+  it("sets the stored palette before paint and falls back to paper on an unknown one", () => {
+    const chosen = runThemeInit({ palette: "sage" }, false);
+    const unknown = runThemeInit({ palette: "toString" }, false);
 
-    expect(setAttribute).toHaveBeenCalledTimes(2);
-    expect(setAttribute).toHaveBeenCalledWith("content", THEME_COLORS.dark);
+    expect(chosen.setRootAttribute).toHaveBeenCalledWith("data-palette", "sage");
+    expect(unknown.setRootAttribute).toHaveBeenCalledWith("data-palette", "paper");
   });
 
-  it("paints the browser chrome light with the same hex the running app uses", () => {
-    const { setAttribute } = runThemeInit(() => null, true);
+  it("paints the browser chrome with the same hex the running app uses, for every palette and mode", () => {
+    for (const palette of PALETTES) {
+      for (const theme of ["light", "dark"] as const) {
+        const { setAttribute } = runThemeInit({ theme, palette }, false);
 
-    expect(setAttribute).toHaveBeenCalledWith("content", THEME_COLORS.light);
+        expect(setAttribute).toHaveBeenCalledTimes(2);
+        expect(setAttribute).toHaveBeenCalledWith("content", THEME_COLORS[palette][theme]);
+      }
+    }
   });
 });

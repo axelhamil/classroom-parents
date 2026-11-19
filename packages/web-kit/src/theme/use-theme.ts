@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { THEME_COLORS } from "./theme-colors";
+import { onStorageKeyChange, readStorage, swapInstantly, writeStorage } from "./theme-dom";
 import {
   createThemeStore,
   type ResolvedTheme,
@@ -10,39 +10,16 @@ import {
 import { createThemeSwitcher } from "./theme-switch";
 import { type RevealOrigin, transitionTheme } from "./theme-transition";
 
-const SWITCHING_CLASS = "theme-switching";
-
 const systemQuery = () => window.matchMedia("(prefers-color-scheme: dark)");
 
 function applyResolved(resolved: ResolvedTheme) {
-  const root = document.documentElement;
-
-  root.classList.add(SWITCHING_CLASS);
-  root.classList.toggle("dark", resolved === "dark");
-  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
-    meta.setAttribute("content", THEME_COLORS[resolved]);
-  }
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => root.classList.remove(SWITCHING_CLASS));
-  });
+  swapInstantly((root) => root.classList.toggle("dark", resolved === "dark"));
 }
 
 const browserHost: ThemeHost = {
-  readStored: () => {
-    try {
-      return window.localStorage.getItem(THEME_STORAGE_KEY);
-    } catch {
-      return null;
-    }
-  },
+  readStored: () => readStorage(THEME_STORAGE_KEY),
 
-  writeStored: (theme) => {
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      return;
-    }
-  },
+  writeStored: (theme) => writeStorage(THEME_STORAGE_KEY, theme),
 
   systemPrefersDark: () => systemQuery().matches,
 
@@ -53,14 +30,7 @@ const browserHost: ThemeHost = {
     return () => query.removeEventListener("change", listener);
   },
 
-  onStoredChange: (listener) => {
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === THEME_STORAGE_KEY || event.key === null) listener();
-    };
-    window.addEventListener("storage", onStorage);
-
-    return () => window.removeEventListener("storage", onStorage);
-  },
+  onStoredChange: (listener) => onStorageKeyChange(THEME_STORAGE_KEY, listener),
 
   applyResolved,
 };

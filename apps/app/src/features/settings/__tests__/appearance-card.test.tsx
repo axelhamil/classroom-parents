@@ -9,7 +9,23 @@ describe("appearance card", () => {
     resetApp();
     localStorage.clear();
     document.documentElement.classList.remove("dark");
+    document.documentElement.removeAttribute("data-palette");
     vi.restoreAllMocks();
+  });
+
+  it("settings appearance repaints the app in Sauge and keeps it for the next visit", async () => {
+    stubApi(byRoute({ "GET /push/status": () => json({ live: 1 }) }));
+    await renderAppAt("/settings");
+
+    const paper = await screen.findByRole("radio", { name: "Papier" });
+    const sage = screen.getByRole("radio", { name: "Sauge" });
+    expect(paper.getAttribute("aria-checked")).toBe("true");
+
+    await userEvent.setup().click(sage);
+
+    await waitFor(() => expect(sage.getAttribute("aria-checked")).toBe("true"));
+    expect(localStorage.getItem("palette")).toBe("sage");
+    expect(document.documentElement.dataset.palette).toBe("sage");
   });
 
   it("settings appearance switches to Sombre and persists", async () => {

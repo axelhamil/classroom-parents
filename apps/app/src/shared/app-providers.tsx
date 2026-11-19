@@ -14,6 +14,7 @@ import { sessionQueryOptions } from "./api/queries/session";
 import { queryClient } from "./api/query-client";
 import { onAuthChange } from "./auth/auth-broadcast";
 import { AppErrorFallback } from "./components/app-error-fallback";
+import { BrandFavicon } from "./components/brand-favicon";
 import { ErrorBoundary } from "./observability/sentry";
 import { watchSession } from "./observability/session-watcher";
 
@@ -41,6 +42,7 @@ export function AppProviders({ i18n }: AppProvidersProps) {
             </TooltipProvider>
             <ThemedToaster />
             <ZodLocale />
+            <BrandFavicon />
             {import.meta.env.DEV && (
               <>
                 <TanStackRouterDevtools router={router} position="bottom-left" />

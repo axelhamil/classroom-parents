@@ -6,7 +6,28 @@ export default {
   appearance: {
     title: "Apparence",
     description:
-      "Le thème de l'application sur cet appareil. Automatique suit le réglage clair ou sombre de l'appareil.",
+      "Le thème et les couleurs de l'application sur cet appareil. Automatique suit le réglage clair ou sombre de l'appareil.",
+    mode: "Thème",
+    palette: "Couleurs",
+    sample: "Exercices de maths",
+    palettes: {
+      paper: {
+        name: "Papier",
+        description: "Encre bleu-noir sur feuille blanche",
+      },
+      slate: {
+        name: "Ardoise",
+        description: "Gris-bleu, tableau noir le soir",
+      },
+      sage: {
+        name: "Sauge",
+        description: "Vert doux, encre vert sombre",
+      },
+      ink: {
+        name: "Encre violette",
+        description: "L'encre des encriers d'école",
+      },
+    },
   },
   tour: {
     title: "Visite guidée",
