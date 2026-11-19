@@ -1,8 +1,21 @@
 export const PALETTE_STORAGE_KEY = "palette";
 
-export const PALETTES = ["paper", "slate", "sage", "ink"] as const;
+/** The families the settings group palettes in, in display order. */
+export const PALETTE_FAMILIES = ["classic", "vivid", "soft", "dark"] as const;
 
-export type Palette = (typeof PALETTES)[number];
+export type PaletteGroup = (typeof PALETTE_FAMILIES)[number];
+
+/** The palettes of each family in the order the settings show them. */
+export const PALETTE_GROUPS = {
+  classic: ["paper", "slate", "contrast"],
+  vivid: ["ocean", "forest", "coral", "mustard"],
+  soft: ["rose", "mint", "sand"],
+  dark: ["night", "abyss"],
+} as const satisfies Record<PaletteGroup, readonly string[]>;
+
+export const PALETTES = Object.values(PALETTE_GROUPS).flat();
+
+export type Palette = (typeof PALETTE_GROUPS)[PaletteGroup][number];
 
 export const DEFAULT_PALETTE: Palette = "paper";
 

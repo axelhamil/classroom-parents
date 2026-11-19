@@ -1,7 +1,7 @@
 import type { frCatalog } from "@packages/i18n";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { BrandMark } from "@packages/ui/components/ui/brand-link";
-import { ChildAvatar, type ChildTone } from "@packages/ui/components/ui/child-avatar";
+import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { DateTab } from "@packages/ui/components/ui/date-tab";
 import {
   LandingVisual,
@@ -18,6 +18,7 @@ import {
   PlannerCardStickers,
   PlannerCardTitle,
 } from "@packages/ui/components/ui/planner-card";
+import type { ChildTone } from "@packages/ui/libs/child-hue-classes.js";
 import { AlarmClockIcon, ClipboardCheckIcon, PenLineIcon, WavesIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { relativeDayLabel, type SampleDayCopy, sampleDay, schoolToday } from "./sample-week";

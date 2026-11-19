@@ -1,0 +1,2 @@
+ALTER TABLE "child_account" DROP CONSTRAINT "child_account_color_hue";--> statement-breakpoint
+ALTER TABLE "child_account" ADD CONSTRAINT "child_account_color_hue" CHECK ("child_account"."color" BETWEEN 1 AND 16);

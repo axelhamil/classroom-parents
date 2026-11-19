@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { type DayButtonProps, getDefaultClassNames } from "react-day-picker";
+import { type ChildTone, childHueContainer } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 import { Calendar } from "./calendar";
 
@@ -80,19 +81,8 @@ function MonthPlannerChips({ className, ...props }: React.ComponentProps<"span">
   );
 }
 
-const chipHues = {
-  1: "bg-child-1-container",
-  2: "bg-child-2-container",
-  3: "bg-child-3-container",
-  4: "bg-child-4-container",
-  5: "bg-child-5-container",
-  6: "bg-child-6-container",
-  7: "bg-child-7-container",
-  8: "bg-child-8-container",
-} as const;
-
 interface MonthPlannerChipProps extends React.ComponentProps<"span"> {
-  hue: keyof typeof chipHues;
+  hue: ChildTone;
   done?: boolean;
 }
 
@@ -103,7 +93,7 @@ function MonthPlannerChip({ className, hue, done = false, ...props }: MonthPlann
       data-done={done || undefined}
       className={cn(
         "truncate rounded-sm px-1.5 py-0.5 text-left text-xs text-foreground data-[done]:line-through",
-        chipHues[hue],
+        childHueContainer[hue],
         className,
       )}
       {...props}

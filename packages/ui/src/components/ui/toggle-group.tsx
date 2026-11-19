@@ -57,6 +57,14 @@ const toggleGroupItemHues = {
   6: "data-[state=on]:border-child-6-mark data-[state=on]:bg-child-6-container data-[state=on]:text-foreground",
   7: "data-[state=on]:border-child-7-mark data-[state=on]:bg-child-7-container data-[state=on]:text-foreground",
   8: "data-[state=on]:border-child-8-mark data-[state=on]:bg-child-8-container data-[state=on]:text-foreground",
+  9: "data-[state=on]:border-child-9-mark data-[state=on]:bg-child-9-container data-[state=on]:text-foreground",
+  10: "data-[state=on]:border-child-10-mark data-[state=on]:bg-child-10-container data-[state=on]:text-foreground",
+  11: "data-[state=on]:border-child-11-mark data-[state=on]:bg-child-11-container data-[state=on]:text-foreground",
+  12: "data-[state=on]:border-child-12-mark data-[state=on]:bg-child-12-container data-[state=on]:text-foreground",
+  13: "data-[state=on]:border-child-13-mark data-[state=on]:bg-child-13-container data-[state=on]:text-foreground",
+  14: "data-[state=on]:border-child-14-mark data-[state=on]:bg-child-14-container data-[state=on]:text-foreground",
+  15: "data-[state=on]:border-child-15-mark data-[state=on]:bg-child-15-container data-[state=on]:text-foreground",
+  16: "data-[state=on]:border-child-16-mark data-[state=on]:bg-child-16-container data-[state=on]:text-foreground",
 } as const;
 
 function ToggleGroupItem({

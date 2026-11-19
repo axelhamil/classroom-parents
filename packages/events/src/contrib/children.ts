@@ -19,7 +19,7 @@ export const childrenEvents = defineEventContribution({
     "child.account.renamed": ChildRef,
     "child.account.color_changed": ChildRef.extend({
       actorUserId: z.string(),
-      color: z.number().int().min(1).max(8),
+      color: z.number().int().min(1).max(16),
     }),
     "child.account.photo_choice_changed": ChildRef.extend({
       actorUserId: z.string(),

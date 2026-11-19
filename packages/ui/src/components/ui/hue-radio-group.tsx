@@ -3,24 +3,15 @@ import { CheckIcon } from "lucide-react";
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 import { type ComponentProps, useId } from "react";
 
+import { type ChildTone, childHueFill } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
-import type { ChildTone } from "./child-avatar";
 import { RadioGroup } from "./radio-group";
 
 const swatchVariants = cva(
-  "group/swatch flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-child-foreground outline-offset-2 transition-[outline-color,scale] duration-(--press-duration) ease-(--ease-out) active:scale-(--press-scale) data-[state=checked]:outline-2 data-[state=checked]:outline-foreground focus-visible:outline-(length:--ring-width) focus-visible:outline-ring",
+  "group/swatch flex aspect-square w-full items-center justify-center rounded-full text-xs font-semibold text-child-foreground outline-offset-2 transition-[outline-color,scale] duration-(--press-duration) ease-(--ease-out) active:scale-(--press-scale) data-[state=checked]:outline-2 data-[state=checked]:outline-foreground focus-visible:outline-(length:--ring-width) focus-visible:outline-ring",
   {
     variants: {
-      tone: {
-        1: "bg-child-1",
-        2: "bg-child-2",
-        3: "bg-child-3",
-        4: "bg-child-4",
-        5: "bg-child-5",
-        6: "bg-child-6",
-        7: "bg-child-7",
-        8: "bg-child-8",
-      },
+      tone: childHueFill,
     },
   },
 );
@@ -50,9 +41,10 @@ export interface HueRadioGroupProps
 }
 
 /**
- * A radio group of color swatches drawn from the `--child-N` tokens. Arrow keys
- * move and select (Radix roving focus), the selected swatch carries a check and
- * a foreground outline, keyboard focus a `--ring` outline.
+ * A radio group of color swatches drawn from the `--child-N` tokens, laid out
+ * in rows of 8 whose swatches shrink below 2.5rem so 16 hues fit a 360px wide
+ * phone. Arrow keys move and select (Radix roving focus), the selected swatch
+ * carries a check and a foreground outline, keyboard focus a `--ring` outline.
  */
 function HueRadioGroup({
   swatches,
@@ -73,7 +65,7 @@ function HueRadioGroup({
       data-slot="hue-radio-group"
       value={String(value)}
       onValueChange={choose}
-      className={cn("flex flex-wrap", className)}
+      className={cn("grid-cols-[repeat(8,minmax(0,2.5rem))] gap-2", className)}
       {...props}
     >
       {swatches.map(({ hue, label, mark, note }) => {

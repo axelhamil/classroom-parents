@@ -43,31 +43,6 @@
   --google-foreground: #e3e3e3;
   --ring-width: 3px;
   --child-foreground: oklch(1 0 0);
-  --child-1: oklch(0.5 0.1 185);
-  --child-1-container: oklch(0.94 0.035 185);
-  --child-2: oklch(0.5 0.15 255);
-  --child-2-container: oklch(0.94 0.03 255);
-  --child-3: oklch(0.5 0.16 300);
-  --child-3-container: oklch(0.94 0.035 300);
-  --child-4: oklch(0.52 0.17 355);
-  --child-4-container: oklch(0.94 0.035 355);
-  --child-5: oklch(0.53 0.12 55);
-  --child-5-container: oklch(0.94 0.035 52);
-  --child-6: oklch(0.5 0.1 118);
-  --child-6-container: oklch(0.94 0.045 118);
-  --child-7: oklch(0.5 0.12 145);
-  --child-7-container: oklch(0.94 0.04 145);
-  --child-8: oklch(0.48 0.06 230);
-  --child-8-container: oklch(0.94 0.02 230);
-  /* A child mark (dot) is a meaningful graphic: >= 4.9 on the page and >= 5.4 on a card in every light palette. */
-  --child-1-mark: var(--child-1);
-  --child-2-mark: var(--child-2);
-  --child-3-mark: var(--child-3);
-  --child-4-mark: var(--child-4);
-  --child-5-mark: var(--child-5);
-  --child-6-mark: var(--child-6);
-  --child-7-mark: var(--child-7);
-  --child-8-mark: var(--child-8);
   --category-assessment: oklch(0.5 0.17 350);
   --category-assessment-tint: oklch(0.945 0.03 350);
   --category-homework: oklch(0.48 0.15 255);
@@ -254,31 +229,6 @@
   --google-hover: #f2f2f2;
   --google-border: #747775;
   --google-foreground: #1f1f1f;
-  --child-1: oklch(0.45 0.08 185);
-  --child-1-container: oklch(0.3 0.04 185);
-  --child-2: oklch(0.45 0.12 255);
-  --child-2-container: oklch(0.3 0.045 255);
-  --child-3: oklch(0.45 0.13 300);
-  --child-3-container: oklch(0.3 0.045 300);
-  --child-4: oklch(0.46 0.14 355);
-  --child-4-container: oklch(0.3 0.045 355);
-  --child-5: oklch(0.47 0.11 55);
-  --child-5-container: oklch(0.3 0.045 45);
-  --child-6: oklch(0.45 0.08 118);
-  --child-6-container: oklch(0.3 0.04 118);
-  --child-7: oklch(0.45 0.1 145);
-  --child-7-container: oklch(0.3 0.04 145);
-  --child-8: oklch(0.44 0.05 230);
-  --child-8-container: oklch(0.3 0.025 230);
-  /* The dark avatar fill is too dim for a dot: marks lighten to >= 7.4 on the page and >= 6.7 on a card in every dark palette. */
-  --child-1-mark: oklch(0.76 0.1 185);
-  --child-2-mark: oklch(0.76 0.12 255);
-  --child-3-mark: oklch(0.76 0.13 300);
-  --child-4-mark: oklch(0.76 0.13 355);
-  --child-5-mark: oklch(0.76 0.12 55);
-  --child-6-mark: oklch(0.76 0.1 118);
-  --child-7-mark: oklch(0.76 0.11 145);
-  --child-8-mark: oklch(0.76 0.06 230);
   --category-assessment: oklch(0.83 0.1 350);
   --category-assessment-tint: oklch(0.32 0.05 350);
   --category-homework: oklch(0.83 0.09 255);
@@ -336,7 +286,118 @@
   --sidebar-ring: var(--ring);
 }
 
-/* Papier: an off-white sheet with no cream in it, blue-black fountain-pen ink, and the action drawn in that ink so no child colour can be mistaken for it. Ink 14.86 on the page, 15.97 on a card, muted 5.35 on the darkest surface, white on action 12.71, input 3.60. */
+/*
+ * The 16 child colours: 8 mid tones (the historical set, 1 to 8) and 8 deep tones between them (9 to 16), so two
+ * neighbours always differ in hue or in lightness. Declared on every palette element so a preview never inherits the
+ * shifts of the page palette; a palette that needs a child out of its action's way restates only that child below.
+ * `.dark[data-palette]` outranks a palette's light rule, so a light-only shift never leaks into the dark page.
+ */
+:root,
+[data-palette] {
+  --child-1: oklch(0.53 0.1 185);
+  --child-1-container: oklch(0.94 0.04 185);
+  --child-1-mark: var(--child-1);
+  --child-2: oklch(0.53 0.14 255);
+  --child-2-container: oklch(0.94 0.04 255);
+  --child-2-mark: var(--child-2);
+  --child-3: oklch(0.53 0.15 300);
+  --child-3-container: oklch(0.94 0.04 300);
+  --child-3-mark: var(--child-3);
+  --child-4: oklch(0.53 0.16 355);
+  --child-4-container: oklch(0.94 0.04 355);
+  --child-4-mark: var(--child-4);
+  --child-5: oklch(0.53 0.12 58);
+  --child-5-container: oklch(0.94 0.04 48);
+  --child-5-mark: var(--child-5);
+  --child-6: oklch(0.53 0.1 118);
+  --child-6-container: oklch(0.94 0.04 125);
+  --child-6-mark: var(--child-6);
+  --child-7: oklch(0.53 0.12 150);
+  --child-7-container: oklch(0.94 0.04 150);
+  --child-7-mark: var(--child-7);
+  --child-8: oklch(0.53 0.06 220);
+  --child-8-container: oklch(0.94 0.04 220);
+  --child-8-mark: var(--child-8);
+  --child-9: oklch(0.41 0.11 35);
+  --child-9-container: oklch(0.915 0.045 35);
+  --child-9-mark: var(--child-9);
+  --child-10: oklch(0.41 0.12 0);
+  --child-10-container: oklch(0.915 0.045 0);
+  --child-10-mark: var(--child-10);
+  --child-11: oklch(0.41 0.08 125);
+  --child-11-container: oklch(0.915 0.045 125);
+  --child-11-mark: var(--child-11);
+  --child-12: oklch(0.41 0.09 165);
+  --child-12-container: oklch(0.915 0.045 165);
+  --child-12-mark: var(--child-12);
+  --child-13: oklch(0.39 0.08 210);
+  --child-13-container: oklch(0.915 0.045 210);
+  --child-13-mark: var(--child-13);
+  --child-14: oklch(0.41 0.12 250);
+  --child-14-container: oklch(0.915 0.045 250);
+  --child-14-mark: var(--child-14);
+  --child-15: oklch(0.41 0.13 285);
+  --child-15-container: oklch(0.915 0.045 285);
+  --child-15-mark: var(--child-15);
+  --child-16: oklch(0.41 0.13 325);
+  --child-16-container: oklch(0.915 0.045 325);
+  --child-16-mark: var(--child-16);
+}
+
+.dark,
+.dark[data-palette],
+.dark [data-palette] {
+  --child-1: oklch(0.47 0.085 185);
+  --child-1-container: oklch(0.31 0.045 185);
+  --child-1-mark: oklch(0.8 0.085 185);
+  --child-2: oklch(0.47 0.119 255);
+  --child-2-container: oklch(0.31 0.045 255);
+  --child-2-mark: oklch(0.8 0.119 255);
+  --child-3: oklch(0.47 0.128 300);
+  --child-3-container: oklch(0.31 0.045 300);
+  --child-3-mark: oklch(0.8 0.128 300);
+  --child-4: oklch(0.47 0.136 355);
+  --child-4-container: oklch(0.31 0.045 355);
+  --child-4-mark: oklch(0.8 0.136 355);
+  --child-5: oklch(0.47 0.102 58);
+  --child-5-container: oklch(0.31 0.045 48);
+  --child-5-mark: oklch(0.7 0.102 58);
+  --child-6: oklch(0.47 0.085 118);
+  --child-6-container: oklch(0.31 0.045 125);
+  --child-6-mark: oklch(0.8 0.085 118);
+  --child-7: oklch(0.47 0.102 150);
+  --child-7-container: oklch(0.31 0.045 150);
+  --child-7-mark: oklch(0.8 0.102 150);
+  --child-8: oklch(0.47 0.051 220);
+  --child-8-container: oklch(0.31 0.045 220);
+  --child-8-mark: oklch(0.8 0.051 220);
+  --child-9: oklch(0.37 0.093 35);
+  --child-9-container: oklch(0.265 0.045 35);
+  --child-9-mark: oklch(0.58 0.093 35);
+  --child-10: oklch(0.37 0.102 0);
+  --child-10-container: oklch(0.265 0.045 0);
+  --child-10-mark: oklch(0.62 0.102 0);
+  --child-11: oklch(0.37 0.068 125);
+  --child-11-container: oklch(0.265 0.045 125);
+  --child-11-mark: oklch(0.68 0.068 125);
+  --child-12: oklch(0.37 0.076 165);
+  --child-12-container: oklch(0.265 0.045 165);
+  --child-12-mark: oklch(0.68 0.076 165);
+  --child-13: oklch(0.39 0.068 210);
+  --child-13-container: oklch(0.265 0.045 210);
+  --child-13-mark: oklch(0.68 0.068 210);
+  --child-14: oklch(0.37 0.102 250);
+  --child-14-container: oklch(0.265 0.045 250);
+  --child-14-mark: oklch(0.68 0.102 250);
+  --child-15: oklch(0.37 0.111 285);
+  --child-15-container: oklch(0.265 0.045 285);
+  --child-15-mark: oklch(0.68 0.111 285);
+  --child-16: oklch(0.37 0.111 325);
+  --child-16-container: oklch(0.265 0.045 325);
+  --child-16-mark: oklch(0.68 0.111 325);
+}
+
+/* Papier: an off-white sheet with no cream in it, blue-black fountain-pen ink, the action in that ink; at night blue-black paper and a paper-white action. On action 12.71 light, 12.86 dark; the contrast test holds every other pair. */
 :root,
 [data-palette="paper"] {
   --background: oklch(0.969 0.005 100);
@@ -357,7 +418,6 @@
   --shadow-color: oklch(0.3 0.03 262);
 }
 
-/* Papier at night: blue-black paper, paper-white ink and a paper-white action. Ink 15.19 on the page, muted 6.94 on the lightest surface, action 13.45, input 3.90 on a card. */
 .dark,
 .dark [data-palette="paper"] {
   --background: oklch(0.2 0.014 262);
@@ -378,124 +438,506 @@
   --shadow-color: oklch(0.08 0.012 262);
 }
 
-/* Ardoise: a cool grey-blue sheet and a graphite action; at night the green-black of a school board with a chalk action. Light ink 14.02, muted 5.13, white on action 12.64, input 3.46; dark ink 14.33, muted 6.92, action 12.73, input 3.65 on a card, destructive 4.57 on an outline button. */
+/* Ardoise: a cold grey-blue sheet and a petrol-blue action; at night the green-black of a school board and a chalk action. On action 8.53 light, 10.47 dark; the contrast test holds every other pair. */
 [data-palette="slate"] {
-  --background: oklch(0.955 0.007 240);
-  --foreground: oklch(0.25 0.025 245);
-  --card: oklch(0.99 0.004 240);
-  --popover: oklch(0.99 0.004 240);
-  --surface-container: oklch(0.932 0.012 240);
-  --surface-container-high: oklch(0.905 0.014 240);
-  --muted: oklch(0.932 0.012 240);
-  --muted-foreground: oklch(0.47 0.025 245);
-  --accent: oklch(0.918 0.013 240);
-  --primary: oklch(0.32 0.035 245);
+  --background: oklch(0.962 0.014 235);
+  --foreground: oklch(0.25 0.03 240);
+  --card: oklch(0.993 0.004 235);
+  --popover: oklch(0.993 0.004 235);
+  --surface-container: oklch(0.938 0.017 235);
+  --surface-container-high: oklch(0.91 0.019 235);
+  --muted: oklch(0.938 0.017 235);
+  --muted-foreground: oklch(0.46 0.025 240);
+  --accent: oklch(0.925 0.018 235);
+  --primary: oklch(0.4 0.1 215);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.014 240);
-  --secondary-foreground: oklch(0.3 0.035 245);
-  --border: oklch(0.87 0.014 240);
-  --input: oklch(0.6 0.02 245);
-  --shadow-color: oklch(0.3 0.03 245);
+  --secondary: oklch(0.915 0.02 235);
+  --secondary-foreground: oklch(0.25 0.03 240);
+  --border: oklch(0.875 0.02 235);
+  --input: oklch(0.58 0.02 240);
+  --shadow-color: oklch(0.3 0.04 240);
+  --child-13: oklch(0.3 0.08 210);
+  --child-14: oklch(0.36 0.12 250);
 }
 
 .dark[data-palette="slate"],
 .dark [data-palette="slate"] {
-  --background: oklch(0.225 0.012 200);
-  --foreground: oklch(0.94 0.008 200);
-  --card: oklch(0.245 0.014 200);
-  --popover: oklch(0.275 0.015 200);
-  --surface-container: oklch(0.265 0.014 200);
-  --surface-container-high: oklch(0.305 0.016 200);
-  --muted: oklch(0.265 0.014 200);
-  --muted-foreground: oklch(0.79 0.014 200);
-  --accent: oklch(0.315 0.016 200);
-  --primary: oklch(0.9 0.025 220);
-  --primary-foreground: oklch(0.22 0.015 200);
-  --secondary: oklch(0.33 0.018 200);
-  --secondary-foreground: oklch(0.92 0.012 210);
-  --border: oklch(0.355 0.014 200);
-  --input: oklch(0.57 0.016 200);
-  --shadow-color: oklch(0.08 0.01 200);
+  --background: oklch(0.215 0.016 190);
+  --foreground: oklch(0.94 0.008 190);
+  --card: oklch(0.25 0.018 190);
+  --popover: oklch(0.28 0.019 190);
+  --surface-container: oklch(0.27 0.018 190);
+  --surface-container-high: oklch(0.31 0.021 190);
+  --muted: oklch(0.27 0.018 190);
+  --muted-foreground: oklch(0.79 0.018 190);
+  --accent: oklch(0.325 0.022 190);
+  --primary: oklch(0.83 0.08 205);
+  --primary-foreground: oklch(0.22 0.03 205);
+  --secondary: oklch(0.335 0.021 190);
+  --secondary-foreground: oklch(0.93 0.012 190);
+  --border: oklch(0.37 0.019 190);
+  --input: oklch(0.56 0.02 190);
+  --shadow-color: oklch(0.07 0.015 190);
+  --child-1: oklch(0.47 0.085 175);
+  --child-1-container: oklch(0.31 0.045 175);
+  --child-1-mark: oklch(0.9 0.085 175);
+  --child-8: oklch(0.47 0.051 236);
+  --child-8-container: oklch(0.31 0.045 236);
+  --child-8-mark: oklch(0.9 0.051 236);
 }
 
-/* Sauge: a pale sage sheet, green-black ink, the action in that ink. Light ink 14.23, muted 5.22, white on action 12.45, input 3.51; dark ink 14.85, muted 6.80, action 13.21, input 3.70 on a card, destructive 4.62 on an outline button. */
-[data-palette="sage"] {
-  --background: oklch(0.962 0.012 145);
-  --foreground: oklch(0.25 0.03 165);
-  --card: oklch(0.993 0.004 145);
-  --popover: oklch(0.993 0.004 145);
-  --surface-container: oklch(0.94 0.015 145);
-  --surface-container-high: oklch(0.912 0.018 145);
-  --muted: oklch(0.94 0.015 145);
-  --muted-foreground: oklch(0.47 0.025 160);
-  --accent: oklch(0.926 0.016 145);
-  --primary: oklch(0.32 0.04 165);
+/* Contraste élevé: pure white and black, the action in black; at night black and white. Ink, muted ink and action hold AAA. On action 19.67 light, 21.00 dark; the contrast test holds every other pair. */
+[data-palette="contrast"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0 0 0);
+  --card: oklch(1 0 0);
+  --popover: oklch(1 0 0);
+  --surface-container: oklch(0.96 0 0);
+  --surface-container-high: oklch(0.93 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.32 0 0);
+  --accent: oklch(0.94 0 0);
+  --primary: oklch(0.15 0 0);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.018 150);
-  --secondary-foreground: oklch(0.3 0.04 165);
-  --border: oklch(0.88 0.016 145);
-  --input: oklch(0.6 0.02 155);
-  --shadow-color: oklch(0.3 0.03 160);
+  --secondary: oklch(0.92 0 0);
+  --secondary-foreground: oklch(0 0 0);
+  --border: oklch(0.35 0 0);
+  --input: oklch(0.25 0 0);
+  --shadow-color: oklch(0 0 0);
 }
 
-.dark[data-palette="sage"],
-.dark [data-palette="sage"] {
-  --background: oklch(0.21 0.014 155);
-  --foreground: oklch(0.94 0.01 140);
-  --card: oklch(0.24 0.016 155);
-  --popover: oklch(0.27 0.017 155);
-  --surface-container: oklch(0.26 0.016 155);
-  --surface-container-high: oklch(0.3 0.018 155);
-  --muted: oklch(0.26 0.016 155);
-  --muted-foreground: oklch(0.78 0.016 150);
-  --accent: oklch(0.32 0.02 155);
-  --primary: oklch(0.9 0.025 150);
-  --primary-foreground: oklch(0.22 0.015 155);
-  --secondary: oklch(0.32 0.02 155);
-  --secondary-foreground: oklch(0.92 0.012 145);
-  --border: oklch(0.36 0.016 155);
-  --input: oklch(0.57 0.018 155);
-  --shadow-color: oklch(0.07 0.01 155);
+.dark[data-palette="contrast"],
+.dark [data-palette="contrast"] {
+  --background: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --card: oklch(0.17 0 0);
+  --popover: oklch(0.2 0 0);
+  --surface-container: oklch(0.19 0 0);
+  --surface-container-high: oklch(0.24 0 0);
+  --muted: oklch(0.19 0 0);
+  --muted-foreground: oklch(0.86 0 0);
+  --accent: oklch(0.28 0 0);
+  --primary: oklch(1 0 0);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.3 0 0);
+  --secondary-foreground: oklch(1 0 0);
+  --border: oklch(0.75 0 0);
+  --input: oklch(0.62 0 0);
+  --shadow-color: oklch(0 0 0);
 }
 
-/* Encre violette: the violet ink of the old school inkwells on a bright sheet, the action in that ink. Light ink 15.11, muted 5.34, white on action 12.96, input 3.62; dark ink 15.19, muted 7.06, action 13.35, input 4.04 on a card. */
-[data-palette="ink"] {
-  --background: oklch(0.968 0.006 300);
-  --foreground: oklch(0.24 0.045 290);
-  --card: oklch(0.995 0.002 300);
-  --popover: oklch(0.995 0.002 300);
-  --surface-container: oklch(0.943 0.009 300);
-  --surface-container-high: oklch(0.915 0.012 300);
-  --muted: oklch(0.943 0.009 300);
-  --muted-foreground: oklch(0.47 0.035 292);
-  --accent: oklch(0.93 0.011 300);
-  --primary: oklch(0.32 0.07 292);
+/* Océan: a pale sky sheet, deep navy ink and an ocean-blue action; at night the deep sea. On action 8.20 light, 9.41 dark; the contrast test holds every other pair. */
+[data-palette="ocean"] {
+  --background: oklch(0.962 0.022 232);
+  --foreground: oklch(0.25 0.05 250);
+  --card: oklch(0.993 0.007 232);
+  --popover: oklch(0.993 0.007 232);
+  --surface-container: oklch(0.938 0.026 232);
+  --surface-container-high: oklch(0.91 0.03 232);
+  --muted: oklch(0.938 0.026 232);
+  --muted-foreground: oklch(0.46 0.04 250);
+  --accent: oklch(0.925 0.029 232);
+  --primary: oklch(0.42 0.16 248);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.92 0.02 295);
-  --secondary-foreground: oklch(0.32 0.07 292);
-  --border: oklch(0.88 0.012 300);
-  --input: oklch(0.6 0.025 292);
-  --shadow-color: oklch(0.3 0.04 290);
+  --secondary: oklch(0.915 0.025 232);
+  --secondary-foreground: oklch(0.25 0.05 250);
+  --border: oklch(0.875 0.031 232);
+  --input: oklch(0.58 0.02 250);
+  --shadow-color: oklch(0.3 0.04 250);
+  --child-2: oklch(0.55 0.14 255);
+  --child-14: oklch(0.3 0.12 250);
+  --child-15: oklch(0.41 0.13 291);
+  --child-15-container: oklch(0.915 0.045 291);
 }
 
-.dark[data-palette="ink"],
-.dark [data-palette="ink"] {
-  --background: oklch(0.2 0.02 290);
-  --foreground: oklch(0.94 0.01 300);
-  --card: oklch(0.235 0.024 290);
-  --popover: oklch(0.265 0.026 290);
-  --surface-container: oklch(0.255 0.024 290);
-  --surface-container-high: oklch(0.3 0.028 290);
-  --muted: oklch(0.255 0.024 290);
-  --muted-foreground: oklch(0.79 0.022 295);
-  --accent: oklch(0.31 0.03 290);
-  --primary: oklch(0.9 0.04 295);
-  --primary-foreground: oklch(0.22 0.03 290);
-  --secondary: oklch(0.33 0.02 292);
-  --secondary-foreground: oklch(0.92 0.015 295);
-  --border: oklch(0.36 0.026 290);
-  --input: oklch(0.59 0.03 292);
-  --shadow-color: oklch(0.07 0.015 290);
+.dark[data-palette="ocean"],
+.dark [data-palette="ocean"] {
+  --background: oklch(0.19 0.04 248);
+  --foreground: oklch(0.94 0.008 248);
+  --card: oklch(0.225 0.046 248);
+  --popover: oklch(0.255 0.048 248);
+  --surface-container: oklch(0.245 0.046 248);
+  --surface-container-high: oklch(0.285 0.052 248);
+  --muted: oklch(0.245 0.046 248);
+  --muted-foreground: oklch(0.79 0.018 248);
+  --accent: oklch(0.3 0.056 248);
+  --primary: oklch(0.8 0.12 235);
+  --primary-foreground: oklch(0.22 0.03 235);
+  --secondary: oklch(0.31 0.025 248);
+  --secondary-foreground: oklch(0.93 0.012 248);
+  --border: oklch(0.345 0.048 248);
+  --input: oklch(0.56 0.02 248);
+  --shadow-color: oklch(0.07 0.015 248);
+  --child-2: oklch(0.47 0.119 268);
+  --child-2-container: oklch(0.31 0.045 268);
+  --child-2-mark: oklch(0.8 0.119 268);
+  --child-8-mark: oklch(0.9 0.051 220);
+}
+
+/* Forêt: a pale leaf sheet, green-black ink and a forest-green action; at night the undergrowth. On action 7.02 light, 9.68 dark; the contrast test holds every other pair. */
+[data-palette="forest"] {
+  --background: oklch(0.962 0.026 140);
+  --foreground: oklch(0.25 0.04 155);
+  --card: oklch(0.993 0.008 140);
+  --popover: oklch(0.993 0.008 140);
+  --surface-container: oklch(0.938 0.031 140);
+  --surface-container-high: oklch(0.91 0.035 140);
+  --muted: oklch(0.938 0.031 140);
+  --muted-foreground: oklch(0.46 0.032 155);
+  --accent: oklch(0.925 0.034 140);
+  --primary: oklch(0.45 0.13 148);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 140);
+  --secondary-foreground: oklch(0.25 0.04 155);
+  --border: oklch(0.875 0.036 140);
+  --input: oklch(0.58 0.02 155);
+  --shadow-color: oklch(0.3 0.04 155);
+  --child-7: oklch(0.55 0.12 150);
+  --child-11: oklch(0.36 0.08 125);
+  --child-12: oklch(0.36 0.09 165);
+}
+
+.dark[data-palette="forest"],
+.dark [data-palette="forest"] {
+  --background: oklch(0.19 0.03 155);
+  --foreground: oklch(0.94 0.008 155);
+  --card: oklch(0.225 0.034 155);
+  --popover: oklch(0.255 0.036 155);
+  --surface-container: oklch(0.245 0.034 155);
+  --surface-container-high: oklch(0.285 0.039 155);
+  --muted: oklch(0.245 0.034 155);
+  --muted-foreground: oklch(0.79 0.018 155);
+  --accent: oklch(0.3 0.042 155);
+  --primary: oklch(0.8 0.14 148);
+  --primary-foreground: oklch(0.22 0.03 148);
+  --secondary: oklch(0.31 0.025 155);
+  --secondary-foreground: oklch(0.93 0.012 155);
+  --border: oklch(0.345 0.036 155);
+  --input: oklch(0.56 0.02 155);
+  --shadow-color: oklch(0.07 0.015 155);
+  --child-6: oklch(0.47 0.085 112);
+  --child-6-mark: oklch(0.8 0.085 112);
+  --child-7-mark: oklch(0.9 0.102 150);
+}
+
+/* Corail: a coral-pink sheet, brown ink and a vivid indigo action, its complement. On action 7.92 light, 8.98 dark; the contrast test holds every other pair. */
+[data-palette="coral"] {
+  --background: oklch(0.962 0.03 40);
+  --foreground: oklch(0.26 0.04 30);
+  --card: oklch(0.993 0.009 40);
+  --popover: oklch(0.993 0.009 40);
+  --surface-container: oklch(0.938 0.036 40);
+  --surface-container-high: oklch(0.91 0.041 40);
+  --muted: oklch(0.938 0.036 40);
+  --muted-foreground: oklch(0.46 0.032 30);
+  --accent: oklch(0.925 0.039 40);
+  --primary: oklch(0.45 0.18 275);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 40);
+  --secondary-foreground: oklch(0.26 0.04 30);
+  --border: oklch(0.875 0.042 40);
+  --input: oklch(0.58 0.02 30);
+  --shadow-color: oklch(0.3 0.04 30);
+  --child-5-container: oklch(0.94 0.04 42);
+  --child-14: oklch(0.41 0.12 240);
+  --child-14-container: oklch(0.915 0.045 240);
+  --child-15: oklch(0.36 0.13 285);
+}
+
+.dark[data-palette="coral"],
+.dark [data-palette="coral"] {
+  --background: oklch(0.2 0.025 35);
+  --foreground: oklch(0.94 0.008 35);
+  --card: oklch(0.235 0.029 35);
+  --popover: oklch(0.265 0.03 35);
+  --surface-container: oklch(0.255 0.029 35);
+  --surface-container-high: oklch(0.295 0.033 35);
+  --muted: oklch(0.255 0.029 35);
+  --muted-foreground: oklch(0.79 0.018 35);
+  --accent: oklch(0.31 0.035 35);
+  --primary: oklch(0.8 0.12 280);
+  --primary-foreground: oklch(0.22 0.03 280);
+  --secondary: oklch(0.32 0.025 35);
+  --secondary-foreground: oklch(0.93 0.012 35);
+  --border: oklch(0.355 0.03 35);
+  --input: oklch(0.56 0.02 35);
+  --shadow-color: oklch(0.07 0.015 35);
+  --child-2: oklch(0.47 0.119 268);
+  --child-2-container: oklch(0.31 0.045 268);
+  --child-2-mark: oklch(0.9 0.119 268);
+  --child-3: oklch(0.47 0.128 310);
+  --child-3-container: oklch(0.31 0.045 310);
+  --child-3-mark: oklch(0.8 0.128 310);
+}
+
+/* Moutarde: a mustard-yellow sheet, umber ink and a burgundy action; never amber, which says urgent. On action 9.18 light, 12.54 dark; the contrast test holds every other pair. */
+[data-palette="mustard"] {
+  --background: oklch(0.962 0.05 95);
+  --foreground: oklch(0.26 0.04 70);
+  --card: oklch(0.993 0.015 95);
+  --popover: oklch(0.993 0.015 95);
+  --surface-container: oklch(0.938 0.06 95);
+  --surface-container-high: oklch(0.91 0.068 95);
+  --muted: oklch(0.938 0.06 95);
+  --muted-foreground: oklch(0.46 0.032 70);
+  --accent: oklch(0.925 0.065 95);
+  --primary: oklch(0.42 0.15 12);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 95);
+  --secondary-foreground: oklch(0.26 0.04 70);
+  --border: oklch(0.875 0.07 95);
+  --input: oklch(0.58 0.02 70);
+  --shadow-color: oklch(0.3 0.04 70);
+  --child-9: oklch(0.41 0.11 45);
+  --child-9-container: oklch(0.915 0.045 45);
+  --child-10: oklch(0.33 0.12 354);
+  --child-10-container: oklch(0.915 0.045 354);
+}
+
+.dark[data-palette="mustard"],
+.dark [data-palette="mustard"] {
+  --background: oklch(0.2 0.025 85);
+  --foreground: oklch(0.94 0.008 85);
+  --card: oklch(0.235 0.029 85);
+  --popover: oklch(0.265 0.03 85);
+  --surface-container: oklch(0.255 0.029 85);
+  --surface-container-high: oklch(0.295 0.033 85);
+  --muted: oklch(0.255 0.029 85);
+  --muted-foreground: oklch(0.79 0.018 85);
+  --accent: oklch(0.31 0.035 85);
+  --primary: oklch(0.9 0.06 10);
+  --primary-foreground: oklch(0.22 0.03 10);
+  --secondary: oklch(0.32 0.025 85);
+  --secondary-foreground: oklch(0.93 0.012 85);
+  --border: oklch(0.355 0.03 85);
+  --input: oklch(0.56 0.02 85);
+  --shadow-color: oklch(0.07 0.015 85);
+}
+
+/* Rosée: a dewy pink sheet, plum ink and a fir-green action, its complement. On action 7.70 light, 9.58 dark; the contrast test holds every other pair. */
+[data-palette="rose"] {
+  --background: oklch(0.962 0.022 10);
+  --foreground: oklch(0.27 0.04 355);
+  --card: oklch(0.993 0.007 10);
+  --popover: oklch(0.993 0.007 10);
+  --surface-container: oklch(0.938 0.026 10);
+  --surface-container-high: oklch(0.91 0.03 10);
+  --muted: oklch(0.938 0.026 10);
+  --muted-foreground: oklch(0.46 0.032 355);
+  --accent: oklch(0.925 0.029 10);
+  --primary: oklch(0.43 0.09 168);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 10);
+  --secondary-foreground: oklch(0.27 0.04 355);
+  --border: oklch(0.875 0.031 10);
+  --input: oklch(0.58 0.02 355);
+  --shadow-color: oklch(0.3 0.04 355);
+  --child-5-container: oklch(0.94 0.04 42);
+  --child-12: oklch(0.3 0.09 165);
+}
+
+.dark[data-palette="rose"],
+.dark [data-palette="rose"] {
+  --background: oklch(0.2 0.022 355);
+  --foreground: oklch(0.94 0.008 355);
+  --card: oklch(0.235 0.025 355);
+  --popover: oklch(0.265 0.026 355);
+  --surface-container: oklch(0.255 0.025 355);
+  --surface-container-high: oklch(0.295 0.029 355);
+  --muted: oklch(0.255 0.025 355);
+  --muted-foreground: oklch(0.79 0.018 355);
+  --accent: oklch(0.31 0.031 355);
+  --primary: oklch(0.8 0.1 168);
+  --primary-foreground: oklch(0.22 0.03 168);
+  --secondary: oklch(0.32 0.025 355);
+  --secondary-foreground: oklch(0.93 0.012 355);
+  --border: oklch(0.355 0.026 355);
+  --input: oklch(0.56 0.02 355);
+  --shadow-color: oklch(0.07 0.015 355);
+  --child-1-mark: oklch(0.9 0.085 185);
+  --child-7-mark: oklch(0.9 0.102 150);
+}
+
+/* Menthe: a mint sheet, deep teal ink and a plum action, its complement. On action 8.10 light, 12.61 dark; the contrast test holds every other pair. */
+[data-palette="mint"] {
+  --background: oklch(0.962 0.03 165);
+  --foreground: oklch(0.25 0.035 180);
+  --card: oklch(0.993 0.009 165);
+  --popover: oklch(0.993 0.009 165);
+  --surface-container: oklch(0.938 0.036 165);
+  --surface-container-high: oklch(0.91 0.041 165);
+  --muted: oklch(0.938 0.036 165);
+  --muted-foreground: oklch(0.46 0.028 180);
+  --accent: oklch(0.925 0.039 165);
+  --primary: oklch(0.45 0.15 338);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 165);
+  --secondary-foreground: oklch(0.25 0.035 180);
+  --border: oklch(0.875 0.042 165);
+  --input: oklch(0.58 0.02 180);
+  --shadow-color: oklch(0.3 0.04 180);
+  --child-4: oklch(0.55 0.16 355);
+  --child-10: oklch(0.36 0.12 0);
+  --child-16: oklch(0.36 0.13 319);
+  --child-16-container: oklch(0.915 0.045 319);
+}
+
+.dark[data-palette="mint"],
+.dark [data-palette="mint"] {
+  --background: oklch(0.2 0.025 175);
+  --foreground: oklch(0.94 0.008 175);
+  --card: oklch(0.235 0.029 175);
+  --popover: oklch(0.265 0.03 175);
+  --surface-container: oklch(0.255 0.029 175);
+  --surface-container-high: oklch(0.295 0.033 175);
+  --muted: oklch(0.255 0.029 175);
+  --muted-foreground: oklch(0.79 0.018 175);
+  --accent: oklch(0.31 0.035 175);
+  --primary: oklch(0.9 0.07 340);
+  --primary-foreground: oklch(0.22 0.03 340);
+  --secondary: oklch(0.32 0.025 175);
+  --secondary-foreground: oklch(0.93 0.012 175);
+  --border: oklch(0.355 0.03 175);
+  --input: oklch(0.56 0.02 175);
+  --shadow-color: oklch(0.07 0.015 175);
+}
+
+/* Sable: a sand sheet, umber ink and a Prussian-blue action. On action 8.97 light, 9.38 dark; the contrast test holds every other pair. */
+[data-palette="sand"] {
+  --background: oklch(0.962 0.03 75);
+  --foreground: oklch(0.27 0.03 60);
+  --card: oklch(0.993 0.009 75);
+  --popover: oklch(0.993 0.009 75);
+  --surface-container: oklch(0.938 0.036 75);
+  --surface-container-high: oklch(0.91 0.041 75);
+  --muted: oklch(0.938 0.036 75);
+  --muted-foreground: oklch(0.46 0.025 60);
+  --accent: oklch(0.925 0.039 75);
+  --primary: oklch(0.4 0.1 238);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 75);
+  --secondary-foreground: oklch(0.27 0.03 60);
+  --border: oklch(0.875 0.042 75);
+  --input: oklch(0.58 0.02 60);
+  --shadow-color: oklch(0.3 0.04 60);
+  --child-13: oklch(0.39 0.08 204);
+  --child-13-container: oklch(0.915 0.045 204);
+  --child-14: oklch(0.3 0.12 250);
+}
+
+.dark[data-palette="sand"],
+.dark [data-palette="sand"] {
+  --background: oklch(0.2 0.02 70);
+  --foreground: oklch(0.94 0.008 70);
+  --card: oklch(0.235 0.023 70);
+  --popover: oklch(0.265 0.024 70);
+  --surface-container: oklch(0.255 0.023 70);
+  --surface-container-high: oklch(0.295 0.026 70);
+  --muted: oklch(0.255 0.023 70);
+  --muted-foreground: oklch(0.79 0.018 70);
+  --accent: oklch(0.31 0.028 70);
+  --primary: oklch(0.8 0.09 235);
+  --primary-foreground: oklch(0.22 0.03 235);
+  --secondary: oklch(0.32 0.025 70);
+  --secondary-foreground: oklch(0.93 0.012 70);
+  --border: oklch(0.355 0.024 70);
+  --input: oklch(0.56 0.02 70);
+  --shadow-color: oklch(0.07 0.015 70);
+  --child-2: oklch(0.47 0.119 268);
+  --child-2-container: oklch(0.31 0.045 268);
+  --child-2-mark: oklch(0.8 0.119 268);
+  --child-8-mark: oklch(0.9 0.051 220);
+}
+
+/* Nuit: a lavender-grey sheet and a violet action; at night the deepest navy-violet page of the set. On action 7.41 light, 8.97 dark; the contrast test holds every other pair. */
+[data-palette="night"] {
+  --background: oklch(0.962 0.025 280);
+  --foreground: oklch(0.24 0.05 280);
+  --card: oklch(0.993 0.007 280);
+  --popover: oklch(0.993 0.007 280);
+  --surface-container: oklch(0.938 0.03 280);
+  --surface-container-high: oklch(0.91 0.034 280);
+  --muted: oklch(0.938 0.03 280);
+  --muted-foreground: oklch(0.46 0.04 280);
+  --accent: oklch(0.925 0.033 280);
+  --primary: oklch(0.47 0.18 292);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 280);
+  --secondary-foreground: oklch(0.24 0.05 280);
+  --border: oklch(0.875 0.035 280);
+  --input: oklch(0.58 0.02 280);
+  --shadow-color: oklch(0.3 0.04 280);
+  --child-3: oklch(0.55 0.15 313);
+  --child-3-container: oklch(0.94 0.04 313);
+  --child-15: oklch(0.36 0.13 285);
+}
+
+.dark[data-palette="night"],
+.dark [data-palette="night"] {
+  --background: oklch(0.165 0.045 275);
+  --foreground: oklch(0.94 0.008 275);
+  --card: oklch(0.2 0.052 275);
+  --popover: oklch(0.23 0.054 275);
+  --surface-container: oklch(0.22 0.052 275);
+  --surface-container-high: oklch(0.26 0.058 275);
+  --muted: oklch(0.22 0.052 275);
+  --muted-foreground: oklch(0.79 0.018 275);
+  --accent: oklch(0.275 0.063 275);
+  --primary: oklch(0.8 0.12 295);
+  --primary-foreground: oklch(0.22 0.03 295);
+  --secondary: oklch(0.285 0.025 275);
+  --secondary-foreground: oklch(0.93 0.012 275);
+  --border: oklch(0.32 0.054 275);
+  --input: oklch(0.56 0.02 275);
+  --shadow-color: oklch(0.07 0.015 275);
+  --child-3: oklch(0.47 0.128 306);
+  --child-3-container: oklch(0.31 0.045 306);
+  --child-3-mark: oklch(0.9 0.128 306);
+}
+
+/* Abysse: a cold aqua-grey sheet and a deep teal action; at night the abyss. On action 8.61 light, 9.61 dark; the contrast test holds every other pair. */
+[data-palette="abyss"] {
+  --background: oklch(0.962 0.025 205);
+  --foreground: oklch(0.24 0.04 215);
+  --card: oklch(0.993 0.007 205);
+  --popover: oklch(0.993 0.007 205);
+  --surface-container: oklch(0.938 0.03 205);
+  --surface-container-high: oklch(0.91 0.034 205);
+  --muted: oklch(0.938 0.03 205);
+  --muted-foreground: oklch(0.46 0.032 215);
+  --accent: oklch(0.925 0.033 205);
+  --primary: oklch(0.4 0.085 195);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.915 0.025 205);
+  --secondary-foreground: oklch(0.24 0.04 215);
+  --border: oklch(0.875 0.035 205);
+  --input: oklch(0.58 0.02 215);
+  --shadow-color: oklch(0.3 0.04 215);
+  --child-13: oklch(0.3 0.08 216);
+  --child-13-container: oklch(0.915 0.045 216);
+}
+
+.dark[data-palette="abyss"],
+.dark [data-palette="abyss"] {
+  --background: oklch(0.17 0.04 210);
+  --foreground: oklch(0.94 0.008 210);
+  --card: oklch(0.205 0.046 210);
+  --popover: oklch(0.235 0.048 210);
+  --surface-container: oklch(0.225 0.046 210);
+  --surface-container-high: oklch(0.265 0.052 210);
+  --muted: oklch(0.225 0.046 210);
+  --muted-foreground: oklch(0.79 0.018 210);
+  --accent: oklch(0.28 0.056 210);
+  --primary: oklch(0.8 0.11 190);
+  --primary-foreground: oklch(0.22 0.03 190);
+  --secondary: oklch(0.29 0.025 210);
+  --secondary-foreground: oklch(0.93 0.012 210);
+  --border: oklch(0.325 0.048 210);
+  --input: oklch(0.56 0.02 210);
+  --shadow-color: oklch(0.07 0.015 210);
+  --child-1-mark: oklch(0.9 0.085 185);
+  --child-6-container: oklch(0.28 0.045 125);
+  --child-8-mark: oklch(0.9 0.051 220);
 }
 
 @theme inline {
@@ -561,6 +1003,22 @@
   --color-child-7-container: var(--child-7-container);
   --color-child-8: var(--child-8);
   --color-child-8-container: var(--child-8-container);
+  --color-child-9: var(--child-9);
+  --color-child-9-container: var(--child-9-container);
+  --color-child-10: var(--child-10);
+  --color-child-10-container: var(--child-10-container);
+  --color-child-11: var(--child-11);
+  --color-child-11-container: var(--child-11-container);
+  --color-child-12: var(--child-12);
+  --color-child-12-container: var(--child-12-container);
+  --color-child-13: var(--child-13);
+  --color-child-13-container: var(--child-13-container);
+  --color-child-14: var(--child-14);
+  --color-child-14-container: var(--child-14-container);
+  --color-child-15: var(--child-15);
+  --color-child-15-container: var(--child-15-container);
+  --color-child-16: var(--child-16);
+  --color-child-16-container: var(--child-16-container);
   --color-child-1-mark: var(--child-1-mark);
   --color-child-2-mark: var(--child-2-mark);
   --color-child-3-mark: var(--child-3-mark);
@@ -569,6 +1027,14 @@
   --color-child-6-mark: var(--child-6-mark);
   --color-child-7-mark: var(--child-7-mark);
   --color-child-8-mark: var(--child-8-mark);
+  --color-child-9-mark: var(--child-9-mark);
+  --color-child-10-mark: var(--child-10-mark);
+  --color-child-11-mark: var(--child-11-mark);
+  --color-child-12-mark: var(--child-12-mark);
+  --color-child-13-mark: var(--child-13-mark);
+  --color-child-14-mark: var(--child-14-mark);
+  --color-child-15-mark: var(--child-15-mark);
+  --color-child-16-mark: var(--child-16-mark);
   --color-category-assessment: var(--category-assessment);
   --color-category-assessment-tint: var(--category-assessment-tint);
   --color-category-homework: var(--category-homework);

@@ -18,6 +18,15 @@ export default {
     mode: "Thème",
     palette: "Couleurs",
     sample: "Exercices de maths",
+    groups: {
+      classic: "Classiques",
+      vivid: "Vives",
+      soft: "Douces",
+      dark: "Sombres",
+    },
+    paletteHint: "Passez sur une palette pour l'essayer sur la page, choisissez-la pour la garder.",
+    sampleAction: "Ajouter",
+    sampleChild: "Léa",
     palettes: {
       paper: {
         name: "Papier",
@@ -25,15 +34,47 @@ export default {
       },
       slate: {
         name: "Ardoise",
-        description: "Gris-bleu, tableau noir le soir",
+        description: "Gris froid et bleu pétrole, tableau noir le soir",
       },
-      sage: {
-        name: "Sauge",
-        description: "Vert doux, encre vert sombre",
+      contrast: {
+        name: "Contraste élevé",
+        description: "Noir sur blanc, pour lire sans effort",
       },
-      ink: {
-        name: "Encre violette",
-        description: "L'encre des encriers d'école",
+      ocean: {
+        name: "Océan",
+        description: "Bleu océan sur ciel pâle",
+      },
+      forest: {
+        name: "Forêt",
+        description: "Vert forêt sur feuille tendre",
+      },
+      coral: {
+        name: "Corail",
+        description: "Fond corail et action indigo",
+      },
+      mustard: {
+        name: "Moutarde",
+        description: "Fond moutarde et action bordeaux",
+      },
+      rose: {
+        name: "Rosée",
+        description: "Crème rosée et vert sapin",
+      },
+      mint: {
+        name: "Menthe",
+        description: "Menthe pâle et prune",
+      },
+      sand: {
+        name: "Sable",
+        description: "Sable chaud et bleu de Prusse",
+      },
+      night: {
+        name: "Nuit",
+        description: "Lavande le jour, nuit violette le soir",
+      },
+      abyss: {
+        name: "Abysse",
+        description: "Bleu-vert profond, abysses le soir",
       },
     },
   },
