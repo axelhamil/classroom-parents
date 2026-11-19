@@ -3,7 +3,10 @@ import { type AppError, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
-import type { ExtractedDeadline } from "../application/ports/announcement-extractor.port";
+import type {
+  ExtractedAnnouncement,
+  ExtractedDeadline,
+} from "../application/ports/announcement-extractor.port";
 import type {
   Announcement,
   ClassroomError,
@@ -32,7 +35,12 @@ beforeEach(() => {
   h = syncHarness();
 });
 
-type ExtractorAnswer = ExtractedDeadline[] | "invalid" | "down" | "rate_limited";
+type ExtractorAnswer =
+  | ExtractedDeadline[]
+  | ExtractedAnnouncement
+  | "invalid"
+  | "down"
+  | "rate_limited";
 
 const EXTRACTOR_FAILURES = {
   invalid: "EXTRACTION_OUTPUT_INVALID",
@@ -44,11 +52,13 @@ function extractorAnswers(byText: Record<string, ExtractorAnswer>): void {
   h.extractor.extract.mockImplementation(async ({ text }) => {
     const answer = byText[text] ?? [];
     if (typeof answer === "string")
-      return Result.fail<ExtractedDeadline[], AppError>({
+      return Result.fail<ExtractedAnnouncement, AppError>({
         code: EXTRACTOR_FAILURES[answer],
         message: answer,
       });
-    return Result.ok<ExtractedDeadline[], AppError>(answer);
+    return Result.ok<ExtractedAnnouncement, AppError>(
+      Array.isArray(answer) ? { deadlines: answer, amendments: [] } : answer,
+    );
   });
 }
 
@@ -64,6 +74,23 @@ const outcomes = () =>
   );
 
 describe("syncChild", () => {
+  it("hands the agenda an announcement that only cancels an earlier deadline, with its amendment", async () => {
+    const cancellation = {
+      kind: "cancelled" as const,
+      reference: "Sortie au musée",
+      referenceDate: "2026-12-09",
+    };
+    h.givenCourses({ maths: [announcement("a1", "maths")] });
+    extractorAnswers({ "Annonce a1": { deadlines: [], amendments: [cancellation] } });
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.ingest.ingest.mock.calls.map(([request]) => request.amendments)).toEqual([
+      [cancellation],
+    ]);
+    expect(outcomes()).toEqual({ a1: { outcome: "no_event", attempts: 1 } });
+  });
+
   it("extracts new announcements, ingests those with events and reports the counts", async () => {
     h.givenCourses({
       maths: [announcement("a1", "maths"), announcement("a2", "maths")],
@@ -98,6 +125,7 @@ describe("syncChild", () => {
         publishedAt: shiftInstant(NOW, -2),
       },
       events: [deadline("Contrôle")],
+      amendments: [],
     });
     expect(outcomes()).toEqual({
       a1: { outcome: "extracted", attempts: 1 },
@@ -858,7 +886,12 @@ describe("syncChild, lease lost while reading", () => {
       counted(Result.ok<string[], ClassroomError>([])),
     );
     h.extractor.extract.mockImplementation(async () =>
-      counted(Result.ok<ExtractedDeadline[], AppError>([deadline("Contrôle")])),
+      counted(
+        Result.ok<ExtractedAnnouncement, AppError>({
+          deadlines: [deadline("Contrôle")],
+          amendments: [],
+        }),
+      ),
     );
   });
 

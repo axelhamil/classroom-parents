@@ -27,7 +27,7 @@ import {
   type IEventRepository,
 } from "../ports/event-repository.port";
 import type { IVisibleChildren } from "../ports/visible-children.port";
-import { alertAnnouncementsOn, courseDayOf, dayLeftBy } from "./alert-planning";
+import { type AnnouncementReconciler, courseDayOf } from "./announcement-reconciler";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
 import type { EventPresenter } from "./event-presenter";
 import { plannedDeadline } from "./planned-deadline";
@@ -50,6 +50,7 @@ export class EventEditService {
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly presenter: EventPresenter,
+    private readonly reconciler: AnnouncementReconciler,
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
@@ -112,8 +113,8 @@ export class EventEditService {
             const replanned = await this.alerts.replan(plannedDeadline(event, userId));
             if (replanned.isFailure) return Result.fail(replanned.getError());
           }
-          const unmasked = await this.unmask(event, day, userId);
-          if (unmasked.isFailure) return Result.fail(unmasked.getError());
+          const reconciled = await this.reconcileAround(event, day, userId);
+          if (reconciled.isFailure) return Result.fail(reconciled.getError());
 
           await this.emitUpdated(event, fields);
           return Result.ok(event);
@@ -224,8 +225,8 @@ export class EventEditService {
         const cancelled = await this.alerts.cancel(eventId, userId);
         if (cancelled.isFailure) return cancelled;
 
-        const unmasked = await this.unmask(event, day, userId);
-        if (unmasked.isFailure) return unmasked;
+        const reconciled = await this.reconcileAround(event, day, userId);
+        if (reconciled.isFailure) return reconciled;
 
         await emitEvent(this.outbox, EventTypes.EVENT_DELETED, "event", eventId, {
           userId,
@@ -236,19 +237,20 @@ export class EventEditService {
     );
   }
 
-  private async unmask(
-    event: AgendaEvent,
-    day: Option<CourseDay>,
+  private async reconcileAround(
+    coursework: AgendaEvent,
+    before: Option<CourseDay>,
     userId: string,
   ): Promise<Result<void, AppError>> {
-    const left = dayLeftBy(event, day);
-    if (left.isNone()) return Result.ok();
+    if (coursework.get("source").value !== "coursework") return Result.ok();
 
-    return alertAnnouncementsOn(this.events, this.alerts, {
-      userId,
-      day: left.unwrap(),
-      actorUserId: userId,
-    });
+    const days = [
+      ...before.map((day) => [day]).unwrapOr([]),
+      ...courseDayOf(coursework)
+        .map((day) => [day])
+        .unwrapOr([]),
+    ];
+    return this.reconciler.reconcile(userId, days, { actorUserId: userId, now: this.clock() });
   }
 
   private async owned(userId: string, eventId: string): Promise<Result<AgendaEvent, EditError>> {

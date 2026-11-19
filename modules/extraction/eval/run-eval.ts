@@ -9,6 +9,7 @@ import {
 import { z } from "zod";
 import type { ILanguageModel, ModelTier } from "../src/application/ports/language-model.port";
 import { ExtractionService } from "../src/application/services/extraction.service";
+import { AMENDMENT_KINDS } from "../src/domain/extracted-event";
 import { extractionCategorySchema } from "../src/domain/value-objects/extraction-category.vo";
 import { AnthropicLanguageModel } from "../src/infrastructure/adapters/anthropic-language-model";
 import { DATASET_ANNOUNCEMENTS } from "./classroom-dataset";
@@ -19,6 +20,9 @@ const caseSchema = z.object({
   text: z.string(),
   childName: z.string().optional(),
   expected: z.array(z.object({ category: extractionCategorySchema, deadlineDate: z.iso.date() })),
+  expectedAmends: z
+    .array(z.object({ kind: z.enum(AMENDMENT_KINDS), referenceDate: z.iso.date().optional() }))
+    .default([]),
 });
 
 type EvalCase = z.infer<typeof caseSchema>;
@@ -142,6 +146,9 @@ function matches(expected: string[], predicted: string[]): number {
   }).length;
 }
 
+const amendKey = (amend: { kind: string; referenceDate?: string }) =>
+  `${amend.kind} ${amend.referenceDate ?? "undated"}`;
+
 const percent = (part: number, whole: number) =>
   whole === 0 ? "n/a" : `${((100 * part) / whole).toFixed(1)} %`;
 
@@ -160,6 +167,7 @@ async function evaluate(
     recorder,
   );
   const totals = { expected: 0, predicted: 0, correct: 0, review: 0, failures: 0 };
+  const amends = { expected: 0, predicted: 0, correct: 0 };
 
   console.log(`\n${name}`);
   for (const evalCase of cases) {
@@ -177,7 +185,7 @@ async function evaluate(
       continue;
     }
 
-    const events = result.getValue();
+    const { events, amendments } = result.getValue();
     const predicted = events.map((event) => `${event.category} ${event.deadlineDate}`);
     const correct = matches(expected, predicted);
     totals.predicted += predicted.length;
@@ -188,6 +196,17 @@ async function evaluate(
       console.log(
         `  ${evalCase.id}: expected [${expected.join(", ")}] got [${predicted.join(", ")}]`,
       );
+
+    const expectedAmends = evalCase.expectedAmends.map(amendKey);
+    const predictedAmends = amendments.map(amendKey);
+    const correctAmends = matches(expectedAmends, predictedAmends);
+    amends.expected += expectedAmends.length;
+    amends.predicted += predictedAmends.length;
+    amends.correct += correctAmends;
+    if (correctAmends !== expectedAmends.length || correctAmends !== predictedAmends.length)
+      console.log(
+        `  ${evalCase.id}: amends expected [${expectedAmends.join(", ")}] got [${predictedAmends.join(", ")}]`,
+      );
   }
 
   console.log(
@@ -195,6 +214,8 @@ async function evaluate(
       `  precision ${percent(totals.correct, totals.predicted)}`,
       `recall ${percent(totals.correct, totals.expected)}`,
       `to review ${percent(totals.review, totals.predicted)}`,
+      `amends precision ${percent(amends.correct, amends.predicted)}`,
+      `amends recall ${percent(amends.correct, amends.expected)}`,
       `failed calls ${totals.failures}`,
       `escalation requested ${percent(counter.escalations, cases.length)}`,
       `cost $${recorder.costInDollars().toFixed(4)} for ${cases.length} announcements`,

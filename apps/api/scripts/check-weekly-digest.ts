@@ -4,8 +4,8 @@
  * eligible parent exactly one digest (the unique parent and week key plus FOR UPDATE SKIP LOCKED
  * and the lease), a second pass sends nothing more, nothing is planned before 18:00 Paris, the
  * audience query leaves out a parent who opted out and one whose only deadlines are to review,
- * done, outside the Monday to Sunday week, on a child being disconnected or shadowed by the
- * coursework of their day (the agenda's own alertable rule), and deleting the account removes its
+ * done, outside the Monday to Sunday week, on a child being disconnected or hidden behind the
+ * coursework of the same work (the agenda's own alertable rule), and deleting the account removes its
  * digests and its preference.
  */
 
@@ -48,6 +48,7 @@ interface DeadlineSeed {
   status?: "confirmed" | "needs_review";
   done?: boolean;
   kind?: "announcement" | "coursework";
+  superseded?: boolean;
 }
 
 async function family(name: string, deadlines: DeadlineSeed[]): Promise<string> {
@@ -77,6 +78,7 @@ async function family(name: string, deadlines: DeadlineSeed[]): Promise<string> 
       status: deadline.status ?? "confirmed",
       done: deadline.done ?? false,
       source: deadline.kind ?? "announcement",
+      withdrawnAt: deadline.superseded ? EVENING : null,
     });
 
   return userId;
@@ -146,7 +148,7 @@ run(async () => {
     await family("review", [{ date: "2030-10-29", time: "08:00", status: "needs_review" }]),
     await family("done", [{ date: "2030-10-29", time: "08:00", done: true }]),
     await family("shadowed", [
-      { date: "2030-10-29", time: "08:00" },
+      { date: "2030-10-29", time: "08:00", superseded: true },
       { date: "2030-10-29", time: "08:00", kind: "coursework", done: true },
     ]),
     await family("outside", [

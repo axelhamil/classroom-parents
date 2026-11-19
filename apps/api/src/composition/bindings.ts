@@ -149,8 +149,8 @@ export function announcementExtractorFor(
     extract: async (request) => {
       const extracted = await extraction.extract(request);
 
-      return extracted.map((events) =>
-        events.map((event) => ({
+      return extracted.map(({ events, amendments }) => ({
+        deadlines: events.map((event) => ({
           title: event.title,
           description: event.description,
           category: event.category,
@@ -158,7 +158,8 @@ export function announcementExtractorFor(
           ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
           needsReview: event.needsReview,
         })),
-      );
+        amendments,
+      }));
     },
   };
 }

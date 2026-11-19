@@ -43,7 +43,7 @@ function deadlineWithin(week: DigestWeek) {
     .where(
       and(
         eq(agendaEvent.userId, authSchema.user.id),
-        alertableEvent(db, { from: week.from, until: week.to }),
+        alertableEvent({ from: week.from, until: week.to }),
       ),
     );
 }

@@ -6,11 +6,12 @@
  * and drives the done filter, the status filter isolates the events to review,
  * a family never reads, edits, confirms or deletes another family's event, deleting a user
  * cascades its events, a coursework is stored once and follows its teacher until the parent edits
- * the field, an announcement deadline on a coursework's course and day stays hidden only while a
- * live coursework matches, a complete listing retires a coursework the teacher removed while
+ * the field, an announcement deadline naming the same work as a coursework of its course and day
+ * stays hidden only while that live coursework matches, never when the work differs or the parent
+ * edited it, a correction or a cancellation sends the earlier deadline back to review without
+ * moving or deleting it, a complete listing retires a coursework the teacher removed while
  * an archived course keeps its past coursework in the history, the user cascade on event reads
- * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx and
- * event_coursework_day_idx. A child being disconnected hides its events from lists, detail,
+ * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx. A child being disconnected hides its events from lists, detail,
  * edit, confirm and delete. The calendar lists every event between the Paris midnights of its
  * range, done ones included, through event_user_deadline_idx. A manual event has no Classroom
  * course nor link and no sync withdraws, shadows or changes it; a parent never adds one to
@@ -43,9 +44,11 @@ import type { IAlertPlanner, PlannedDeadline } from "../src/application/ports/al
 import type { IChildOwnership } from "../src/application/ports/child-ownership.port";
 import type { EventFilter } from "../src/application/ports/event-repository.port";
 import type { IVisibleChildren } from "../src/application/ports/visible-children.port";
+import { AnnouncementReconciler } from "../src/application/services/announcement-reconciler";
 import { EventEditService } from "../src/application/services/event-edit.service";
 import {
   EventIngestService,
+  type IngestedAmendment,
   type IngestedCoursework,
   type IngestedEvent,
 } from "../src/application/services/event-ingest.service";
@@ -97,12 +100,14 @@ const transactions = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check-event-db" });
 });
 const repository = new DrizzleEventRepository(instrumentation);
+const reconciler = new AnnouncementReconciler(repository, planner, outbox);
 const ingestService = new EventIngestService(
   repository,
   children,
   planner,
   transactions,
   outbox,
+  reconciler,
   instrumentation,
   () => NOW,
 );
@@ -114,6 +119,7 @@ const edits = new EventEditService(
   transactions,
   outbox,
   presenter,
+  reconciler,
   instrumentation,
   () => NOW,
 );
@@ -140,7 +146,13 @@ function extracted(overrides: Partial<IngestedEvent> = {}): IngestedEvent {
   };
 }
 
-function ingest(userId: string, childId: string, announcementId: string, events: IngestedEvent[]) {
+function ingest(
+  userId: string,
+  childId: string,
+  announcementId: string,
+  events: IngestedEvent[],
+  amendments: IngestedAmendment[] = [],
+) {
   return ingestService.ingest({
     userId,
     childId,
@@ -151,7 +163,21 @@ function ingest(userId: string, childId: string, announcementId: string, events:
       publishedAt: NOW,
     },
     events,
+    amendments,
   });
+}
+
+async function outboxOf(eventId: string, eventType: string) {
+  const rows = await db
+    .select()
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        eq(outboxSchema.outboxEvent.aggregateId, eventId),
+        eq(outboxSchema.outboxEvent.eventType, eventType),
+      ),
+    );
+  return rows.map((row) => row.payload);
 }
 
 function homework(overrides: Partial<IngestedCoursework> = {}): IngestedCoursework {
@@ -200,6 +226,8 @@ async function alertable(userId: string, eventId: string): Promise<string> {
     .map((deadline) => deadline.deadlineDate)
     .unwrapOr("none");
 }
+
+const sameIdsOf = (ids: string[]) => [...ids].sort().join();
 
 const codeOf = (result: Result<unknown, AppError>) =>
   result.isFailure ? result.getError().code : "ok";
@@ -252,6 +280,11 @@ async function explainRolledBack(statement: string, values: unknown[]): Promise<
     await client.query("ROLLBACK");
     client.release();
   }
+}
+
+async function planOf(statement: string, values: unknown[]): Promise<string> {
+  const plan = await db.$client.query(`EXPLAIN (ANALYZE, BUFFERS) ${statement}`, values);
+  return plan.rows.map((row: Record<string, string>) => Object.values(row).join("")).join("\n");
 }
 
 const { step, run } = stepRunner("check-event-db", cleanup);
@@ -379,8 +412,10 @@ run(async () => {
 
   const aMia = await createChild(a, "mia");
   await ingest(a, aMia, "ann-mia", [
-    extracted({ title: "Exposé annoncé", category: "homework", deadlineDate: "2030-01-22" }),
+    extracted({ title: "Exposé : les volcans", category: "homework", deadlineDate: "2030-01-22" }),
+    extracted({ title: "Fiche de lecture", category: "homework", deadlineDate: "2030-01-22" }),
   ]);
+  const [, otherWork] = (await rowsOf(aMia, "ann-mia")).sort((x, y) => x.ordinal - y.ordinal);
   const [announced] = await rowsOf(aMia, "ann-mia");
   const racedCoursework = await Promise.all(
     Array.from({ length: 10 }, () => ingestCoursework(a, aMia, [homework()])),
@@ -393,9 +428,18 @@ run(async () => {
       (await rowsOf(aMia, "w-mia")).length === 1 &&
       miaWork.source === "coursework",
   );
+  if (!otherWork) throw new Error("mia other work missing");
   await step(
-    "an announcement deadline on a coursework's course and day is hidden from the lists",
-    idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10 }, NOW)).join() === miaWork.id,
+    "an announcement deadline naming the coursework's work on its day is hidden, another work of that day stays listed",
+    sameIdsOf(idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10 }, NOW))) ===
+      sameIdsOf([miaWork.id, otherWork.id]),
+  );
+  const superseded = await outboxOf(announced.id, "agenda.event.superseded");
+  await step(
+    "the hiding is announced once in the same transaction, by the system, naming the coursework",
+    superseded.length === 1 &&
+      JSON.stringify(superseded[0]).includes(`"courseworkEventId":"${miaWork.id}"`) &&
+      JSON.stringify(superseded[0]).includes(`"actorUserId":null`),
   );
   await step(
     "alerts read no deadline for the hidden announcement, only for the coursework of its day",
@@ -406,8 +450,8 @@ run(async () => {
   await step(
     "once the teacher moves the coursework, it follows and the announcement deadline reappears",
     (await rowsOf(aMia, "w-mia"))[0]?.deadlineDate === "2030-01-23" &&
-      idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10 }, NOW)).join() ===
-        [announced.id, miaWork.id].join(),
+      sameIdsOf(idsOf(await query.listUpcoming(a, { childIds: [aMia], limit: 10 }, NOW))) ===
+        sameIdsOf([announced.id, otherWork.id, miaWork.id]),
   );
   await edits.edit(a, miaWork.id, { deadlineDate: "2030-01-24" });
   await ingestCoursework(a, aMia, [homework({ deadlineDate: "2030-01-25", done: true })]);
@@ -437,8 +481,8 @@ run(async () => {
 
   const aNoe = await createChild(a, "noe");
   await ingest(a, aNoe, "ann-noe", [
-    extracted({ title: "Contrôle du 26", deadlineDate: "2030-01-26" }),
-    extracted({ title: "Contrôle du 27", deadlineDate: "2030-01-27" }),
+    extracted({ title: "Exposé sur les volcans", deadlineDate: "2030-01-26" }),
+    extracted({ title: "Exposé sur les volcans", deadlineDate: "2030-01-27" }),
   ]);
   const noeWork = [
     homework({ id: "w-noe-26", deadlineDate: "2030-01-26", done: true }),
@@ -526,6 +570,81 @@ run(async () => {
       idsOf(await query.listHistory(a, { childIds: [aNoe], limit: 10 }, NOW)).includes(noePast.id),
   );
 
+  const aEva = await createChild(a, "eva");
+  await ingest(a, aEva, "ann-eva-talk", [
+    extracted({
+      title: "Exposé sur les volcans",
+      category: "homework",
+      deadlineDate: "2030-01-28",
+    }),
+  ]);
+  const [evaTalk] = await rowsOf(aEva, "ann-eva-talk");
+  if (!evaTalk) throw new Error("eva talk missing");
+  await edits.edit(a, evaTalk.id, { description: "Avec le diaporama" });
+  await ingestCoursework(a, aEva, [homework({ id: "w-eva", deadlineDate: "2030-01-28" })]);
+  await step(
+    "an announcement deadline the parent edited is never hidden by the coursework of the same work",
+    (await rowsOf(aEva, "ann-eva-talk"))[0]?.withdrawnAt === null &&
+      idsOf(await query.listUpcoming(a, { childIds: [aEva], limit: 10 }, NOW)).includes(evaTalk.id),
+  );
+
+  await ingest(a, aEva, "ann-eva-assessment", [
+    extracted({
+      title: "Évaluation sur la respiration",
+      deadlineDate: "2030-01-30",
+      deadlineTime: "10:00",
+    }),
+  ]);
+  await ingest(a, aEva, "ann-eva-outing", [
+    extracted({
+      title: "Sortie au musée d'histoire de la ville",
+      category: "school_trip",
+      deadlineDate: "2030-01-30",
+    }),
+  ]);
+  const moved = await ingest(
+    a,
+    aEva,
+    "ann-eva-correction",
+    [extracted({ title: "Évaluation sur la respiration", deadlineDate: "2030-01-29" })],
+    [{ kind: "moved", reference: "Évaluation sur la respiration" }],
+  );
+  const dropped = await ingest(
+    a,
+    aEva,
+    "ann-eva-cancel",
+    [],
+    [{ kind: "cancelled", reference: "Sortie au musée", referenceDate: "2030-01-30" }],
+  );
+  const [assessment] = await rowsOf(aEva, "ann-eva-assessment");
+  const [outing] = await rowsOf(aEva, "ann-eva-outing");
+  const [corrected] = await rowsOf(aEva, "ann-eva-correction");
+  if (!assessment || !outing || !corrected) throw new Error("eva amended rows missing");
+  await step(
+    "a correction sends the earlier assessment back to review, unmoved and undeleted, and stores the new date",
+    moved.isSuccess &&
+      moved.getValue().flagged === 1 &&
+      assessment.status === "needs_review" &&
+      assessment.deadlineDate === "2030-01-30" &&
+      assessment.deletedAt === null &&
+      assessment.withdrawnAt === null &&
+      corrected.deadlineDate === "2030-01-29" &&
+      corrected.status === "confirmed" &&
+      cancelled.includes(assessment.id),
+  );
+  const flaggedOuting = await outboxOf(outing.id, "agenda.event.flagged");
+  await step(
+    "a cancellation sends the outing back to review without deleting it, announced by the system",
+    dropped.isSuccess &&
+      dropped.getValue().flagged === 1 &&
+      outing.status === "needs_review" &&
+      outing.deletedAt === null &&
+      flaggedOuting.length === 1 &&
+      JSON.stringify(flaggedOuting[0]).includes(`"reason":"cancelled"`) &&
+      JSON.stringify(flaggedOuting[0]).includes(`"actorUserId":null`) &&
+      (await outboxOf(assessment.id, "agenda.event.flagged")).length === 1,
+  );
+
   const aIris = await createChild(a, "iris");
   const added = await edits.add(a, {
     childId: aIris,
@@ -578,7 +697,7 @@ run(async () => {
     );
   const turnedInDay = turnedIn === undefined ? "none" : await alertable(a, turnedIn.id);
   await ingest(a, turnedIn?.childId ?? aNoe, "ann-shadowed-upcoming", [
-    extracted({ title: "Rendu du jour", deadlineDate: turnedInDay }),
+    extracted({ title: turnedIn?.title ?? "Rendu du jour", deadlineDate: turnedInDay }),
   ]);
   await ingest(a, aNoe, "ann-review-upcoming", [
     extracted({ title: "À vérifier", deadlineDate: "2030-01-25", needsReview: true }),
@@ -734,8 +853,59 @@ run(async () => {
       cPage.getValue().items.length === 30 &&
       listSql.includes("$4") &&
       !listSql.includes("$5") &&
-      planText.includes("event_user_deadline_idx") &&
-      planText.includes("event_coursework_day_idx"),
+      planText.includes("event_user_deadline_idx"),
+  );
+
+  const reconcileDays = ["2029-01-02", "2029-01-03"];
+  spans.length = 0;
+  const sameDays = await repository.lockCourseDays(c, {
+    childId: cChild,
+    courseId: "course-seed",
+    dates: reconcileDays,
+  });
+  const sameDaysSql = spans.at(-1) ?? "";
+  const sameDaysPlan = await planOf(sameDaysSql, [
+    c,
+    "2029-01-01T00:00:00.000Z",
+    "2029-01-05T00:00:00.000Z",
+    cChild,
+    "course-seed",
+    ...reconcileDays,
+    "announcement",
+    "coursework",
+  ]);
+  console.log(
+    `\nEXPLAIN ANALYZE lockCourseDays on ${SEEDED} rows:\n${sameDaysSql}\n${sameDaysPlan}\n`,
+  );
+  spans.length = 0;
+  const earlier = await repository.lockLiveAnnouncements(
+    c,
+    { childId: cChild, courseId: "course-seed" },
+    new Date("2030-02-01T00:00:00.000Z"),
+  );
+  const earlierSql = spans.at(-1) ?? "";
+  const earlierPlan = await planOf(earlierSql, [
+    c,
+    cChild,
+    "course-seed",
+    "announcement",
+    "2030-02-01T00:00:00.000Z",
+  ]);
+  console.log(
+    `\nEXPLAIN ANALYZE lockLiveAnnouncements on ${SEEDED} rows:\n${earlierSql}\n${earlierPlan}\n`,
+  );
+  await step(
+    `the reconciliation reads of one course on ${SEEDED} rows go through an index`,
+    sameDays.isSuccess &&
+      sameDays.getValue().length === 24 &&
+      earlier.isSuccess &&
+      sameDaysSql.includes("$9") &&
+      !sameDaysSql.includes("$10") &&
+      earlierSql.includes("$5") &&
+      !earlierSql.includes("$6") &&
+      !sameDaysPlan.includes("Seq Scan") &&
+      !earlierPlan.includes("Seq Scan"),
+    { sameDays: sameDays.isSuccess ? sameDays.getValue().length : "failed" },
   );
 
   await db

@@ -6,6 +6,7 @@ import type { IChildOwnership } from "./application/ports/child-ownership.port";
 import type { ICourseNames } from "./application/ports/course-names.port";
 import type { IEventRepository } from "./application/ports/event-repository.port";
 import type { IVisibleChildren } from "./application/ports/visible-children.port";
+import { AnnouncementReconciler } from "./application/services/announcement-reconciler";
 import { EventEditService } from "./application/services/event-edit.service";
 import { EventIngestService } from "./application/services/event-ingest.service";
 import { EventPresenter } from "./application/services/event-presenter";
@@ -30,6 +31,10 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
     )
     .add("EventPresenter", (c) => new EventPresenter(c.ICourseNames, c.IInstrumentation))
     .add(
+      "AnnouncementReconciler",
+      (c) => new AnnouncementReconciler(c.IEventRepository, c.IAlertPlanner, c.IOutboxRepository),
+    )
+    .add(
       "EventIngestService",
       (c) =>
         new EventIngestService(
@@ -38,6 +43,7 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
           c.IAlertPlanner,
           c.ITransactionService,
           c.IOutboxRepository,
+          c.AnnouncementReconciler,
           c.IInstrumentation,
         ),
     )
@@ -51,6 +57,7 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
           c.ITransactionService,
           c.IOutboxRepository,
           c.EventPresenter,
+          c.AnnouncementReconciler,
           c.IInstrumentation,
         ),
     )

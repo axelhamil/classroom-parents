@@ -16,6 +16,8 @@ const AGENDA_TYPES: ReadonlySet<string> = new Set([
   EventTypes.EVENT_ADDED,
   EventTypes.EVENT_UPDATED,
   EventTypes.EVENT_DELETED,
+  EventTypes.EVENT_SUPERSEDED,
+  EventTypes.EVENT_FLAGGED,
   EventTypes.EVENTS_PURGED,
 ]);
 

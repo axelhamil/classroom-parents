@@ -1,3 +1,4 @@
+import type { AmendmentKind } from "../src/domain/extracted-event";
 import type { ExtractionCategoryValue } from "../src/domain/value-objects/extraction-category.vo";
 
 export type DatasetChildKey = "lea" | "hugo";
@@ -24,6 +25,12 @@ export interface DatasetDeadline {
   needsReview?: boolean;
 }
 
+export interface DatasetAmendment {
+  kind: AmendmentKind;
+  reference: string;
+  referenceDate?: string;
+}
+
 export interface DatasetAnnouncement {
   id: string;
   courseId: string;
@@ -31,6 +38,7 @@ export interface DatasetAnnouncement {
   text: string;
   childName?: string;
   expected: DatasetDeadline[];
+  expectedAmends?: DatasetAmendment[];
 }
 
 export interface DatasetCoursework {
@@ -512,6 +520,25 @@ export const DATASET_ANNOUNCEMENTS: readonly DatasetAnnouncement[] = [
     publishedAt: "2026-11-20T16:30:00+01:00",
     text: "La séance de piscine du jeudi 26 novembre est annulée, le bassin est fermé.",
     expected: [],
+    expectedAmends: [
+      { kind: "cancelled", reference: "Séance de piscine", referenceDate: "2026-11-26" },
+    ],
+  },
+  {
+    id: "breathing-test-moved",
+    courseId: "hugo-sciences",
+    publishedAt: "2026-11-24T17:00:00+01:00",
+    text: "Rectificatif : l'évaluation sur la respiration est avancée au lundi 30 novembre à 10h.",
+    expected: [
+      {
+        title: "Évaluation sur la respiration",
+        description: "Réviser le chapitre sur la respiration.",
+        category: "assessment",
+        deadlineDate: "2026-11-30",
+        deadlineTime: "10:00",
+      },
+    ],
+    expectedAmends: [{ kind: "moved", reference: "Évaluation sur la respiration" }],
   },
   {
     id: "next-week-reading",

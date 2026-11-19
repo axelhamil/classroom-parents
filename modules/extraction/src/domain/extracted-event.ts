@@ -23,3 +23,18 @@ export interface ExtractedEvent {
   needsReview: boolean;
   reviewReasons: ReviewReason[];
 }
+
+export const AMENDMENT_KINDS = ["moved", "cancelled"] as const;
+
+export type AmendmentKind = (typeof AMENDMENT_KINDS)[number];
+
+export interface ExtractedAmendment {
+  kind: AmendmentKind;
+  reference: string;
+  referenceDate?: string;
+}
+
+export interface ExtractionResult {
+  events: ExtractedEvent[];
+  amendments: ExtractedAmendment[];
+}

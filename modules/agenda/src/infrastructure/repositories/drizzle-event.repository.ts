@@ -1,4 +1,5 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
+import { shiftInstant } from "@packages/ddd-kit/days";
 import {
   and,
   asc,
@@ -16,13 +17,14 @@ import {
   sql,
 } from "@packages/drizzle";
 import { afterTimeIdCursor, encodeTimeIdCursor, exactInstant } from "@packages/http/time-id-cursor";
-import { alertableEvent, notShadowedByCoursework } from "../../../schemas/alertable-event";
+import { alertableEvent } from "../../../schemas/alertable-event";
 import { agendaEvent } from "../../../schemas/event.schema";
 import {
   type AgendaError,
   type CalendarFilter,
+  type ChildCourse,
   type ConfirmedWindow,
-  type CourseDay,
+  type CourseDays,
   type CourseworkCourses,
   type EventFilter,
   type EventPage,
@@ -121,6 +123,17 @@ function mutableColumns(event: AgendaEvent) {
     deletedAt: event.get("deletedAt").toNull(),
     withdrawnAt: event.get("withdrawnAt").toNull(),
   };
+}
+
+function deadlineAroundDays(dates: string[]): SQL | undefined {
+  const sorted = [...dates].sort();
+  const first = new Date(`${sorted[0]}T00:00:00.000Z`);
+  const last = new Date(`${sorted.at(-1)}T00:00:00.000Z`);
+
+  return and(
+    gte(agendaEvent.deadlineAt, shiftInstant(first, -1)),
+    lt(agendaEvent.deadlineAt, shiftInstant(last, 2)),
+  );
 }
 
 function ownedUndeleted(userId: string): SQL | undefined {
@@ -286,22 +299,41 @@ export class DrizzleEventRepository implements IEventRepository {
     );
   }
 
-  async listAnnouncementsOn(
+  async lockCourseDays(
     userId: string,
-    day: CourseDay,
+    days: CourseDays,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    if (days.dates.length === 0) return Result.ok([]);
+
+    return this.selectMany(
+      "lockCourseDays",
+      and(
+        ownedUndeleted(userId),
+        deadlineAroundDays(days.dates),
+        eq(agendaEvent.childId, days.childId),
+        eq(agendaEvent.courseId, days.courseId),
+        inArray(agendaEvent.deadlineDate, days.dates),
+        inArray(agendaEvent.source, ["announcement", "coursework"]),
+      ),
+      "locked",
+    );
+  }
+
+  async lockLiveAnnouncements(
+    userId: string,
+    course: ChildCourse,
+    dueFrom: Date,
   ): Promise<Result<AgendaEvent[], AgendaError>> {
     return this.selectMany(
-      "listAnnouncementsOn",
+      "lockLiveAnnouncements",
       and(
-        eq(agendaEvent.userId, userId),
-        eq(agendaEvent.childId, day.childId),
-        eq(agendaEvent.courseId, day.courseId),
-        eq(agendaEvent.deadlineDate, day.deadlineDate),
-        sql`${agendaEvent.source} = 'announcement'`,
-        isNull(agendaEvent.deletedAt),
-        isNull(agendaEvent.withdrawnAt),
+        ownedAlive(userId),
+        eq(agendaEvent.childId, course.childId),
+        eq(agendaEvent.courseId, course.courseId),
+        eq(agendaEvent.source, "announcement"),
+        gte(agendaEvent.deadlineAt, dueFrom),
       ),
-      "plain",
+      "locked",
     );
   }
 
@@ -319,7 +351,7 @@ export class DrizzleEventRepository implements IEventRepository {
           const select = exec.select().from(agendaEvent).where(where).$dynamic();
           const ordered =
             read === "locked"
-              ? select.for("update")
+              ? select.orderBy(asc(agendaEvent.id)).for("update")
               : read === "chronological"
                 ? select.orderBy(asc(agendaEvent.deadlineAt), asc(agendaEvent.id))
                 : read === "latest"
@@ -351,7 +383,6 @@ export class DrizzleEventRepository implements IEventRepository {
         ownedAlive(userId),
         gte(agendaEvent.deadlineAt, startsAt),
         lt(agendaEvent.deadlineAt, endsBefore),
-        notShadowedByCoursework(resolveExecutor()),
         ...filtered(filter, "asc"),
       ),
       "chronological",
@@ -376,7 +407,7 @@ export class DrizzleEventRepository implements IEventRepository {
     userId: string,
     eventId: string,
   ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
-    return this.findOne("findAlertable", userId, eventId, false, notShadowedByCoursework);
+    return this.findOne("findAlertable", userId, eventId, false);
   }
 
   async listAlertableUpcoming(
@@ -392,7 +423,7 @@ export class DrizzleEventRepository implements IEventRepository {
           const query = exec
             .select()
             .from(agendaEvent)
-            .where(and(eq(agendaEvent.userId, userId), alertableEvent(exec, { from: now, until })))
+            .where(and(eq(agendaEvent.userId, userId), alertableEvent({ from: now, until })))
             .orderBy(asc(agendaEvent.deadlineAt));
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
@@ -435,7 +466,6 @@ export class DrizzleEventRepository implements IEventRepository {
         ownedAlive(userId),
         inArray(agendaEvent.childId, childIds),
         eq(agendaEvent.status, "confirmed"),
-        notShadowedByCoursework(resolveExecutor()),
       );
     const upcoming = await this.selectMany(
       "listConfirmedSince",
@@ -477,14 +507,7 @@ export class DrizzleEventRepository implements IEventRepository {
           const query = exec
             .select({ row: agendaEvent, cursorAt: exactInstant(agendaEvent.deadlineAt) })
             .from(agendaEvent)
-            .where(
-              and(
-                ownedAlive(userId),
-                ...window,
-                notShadowedByCoursework(exec),
-                ...filtered(filter, order),
-              ),
-            )
+            .where(and(ownedAlive(userId), ...window, ...filtered(filter, order)))
             .orderBy(sort(agendaEvent.deadlineAt), sort(agendaEvent.id))
             .limit(filter.limit + 1);
           const rows = await this.instrumentation.startSpan(
@@ -514,7 +537,6 @@ export class DrizzleEventRepository implements IEventRepository {
     userId: string,
     eventId: string,
     lock: boolean,
-    shown?: (exec: ReturnType<typeof resolveExecutor>) => SQL,
   ): Promise<Result<Option<AgendaEvent>, AgendaError>> {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -524,7 +546,7 @@ export class DrizzleEventRepository implements IEventRepository {
           const read = exec
             .select()
             .from(agendaEvent)
-            .where(and(eq(agendaEvent.id, eventId), ownedAlive(userId), shown?.(exec)))
+            .where(and(eq(agendaEvent.id, eventId), ownedAlive(userId)))
             .limit(1);
           const query = lock ? read.for("update") : read;
           const rows = await this.instrumentation.startSpan(

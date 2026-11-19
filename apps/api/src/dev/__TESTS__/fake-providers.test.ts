@@ -106,11 +106,11 @@ describe("fake extractor", () => {
       childNames: [],
     });
 
-    expect(sameDay.getValue().map((event) => event.deadlineDate)).toEqual([
+    expect(sameDay.getValue().deadlines.map((event) => event.deadlineDate)).toEqual([
       "2026-12-01",
       "2026-11-20",
     ]);
-    expect(weekLater.getValue().map((event) => event.deadlineDate)).toEqual([
+    expect(weekLater.getValue().deadlines.map((event) => event.deadlineDate)).toEqual([
       "2026-12-08",
       "2026-11-27",
     ]);
@@ -123,7 +123,7 @@ describe("fake extractor", () => {
       childNames: [],
     });
 
-    expect(extracted.getValue()).toEqual([]);
+    expect(extracted.getValue()).toEqual({ deadlines: [], amendments: [] });
   });
 });
 

@@ -1,5 +1,5 @@
 import type { AppError, Result } from "@packages/ddd-kit";
-import type { ExtractedDeadline } from "./announcement-extractor.port";
+import type { ExtractedAmendment, ExtractedDeadline } from "./announcement-extractor.port";
 
 export interface IngestedAnnouncement {
   id: string;
@@ -13,6 +13,7 @@ export interface IngestRequest {
   childId: string;
   announcement: IngestedAnnouncement;
   events: ExtractedDeadline[];
+  amendments: ExtractedAmendment[];
 }
 
 export interface CourseworkDeadline {

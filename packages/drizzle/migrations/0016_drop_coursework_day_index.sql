@@ -1,0 +1,1 @@
+DROP INDEX "event_coursework_day_idx";

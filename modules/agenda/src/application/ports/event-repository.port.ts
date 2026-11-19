@@ -66,6 +66,17 @@ export interface CourseDay {
   deadlineDate: string;
 }
 
+export interface CourseDays {
+  childId: string;
+  courseId: string;
+  dates: string[];
+}
+
+export interface ChildCourse {
+  childId: string;
+  courseId: string;
+}
+
 export interface IEventRepository {
   insertIfAbsent(event: AgendaEvent): Promise<Result<boolean, AgendaError>>;
 
@@ -83,7 +94,13 @@ export interface IEventRepository {
     courses: CourseworkCourses,
   ): Promise<Result<AgendaEvent[], AgendaError>>;
 
-  listAnnouncementsOn(userId: string, day: CourseDay): Promise<Result<AgendaEvent[], AgendaError>>;
+  lockCourseDays(userId: string, days: CourseDays): Promise<Result<AgendaEvent[], AgendaError>>;
+
+  lockLiveAnnouncements(
+    userId: string,
+    course: ChildCourse,
+    dueFrom: Date,
+  ): Promise<Result<AgendaEvent[], AgendaError>>;
 
   listCalendar(userId: string, filter: CalendarFilter): Promise<Result<AgendaEvent[], AgendaError>>;
 

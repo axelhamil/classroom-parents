@@ -11,6 +11,7 @@ import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
 import type {
+  ExtractedAnnouncement,
   ExtractedDeadline,
   IAnnouncementExtractor,
 } from "../application/ports/announcement-extractor.port";
@@ -124,7 +125,9 @@ export function syncHarness(): SyncHarness {
   client.listCoursework.mockResolvedValue(Result.ok<Coursework[], ClassroomError>([]));
   client.listTurnedIn.mockResolvedValue(Result.ok<string[], ClassroomError>([]));
   client.profileNames.mockResolvedValue(Result.ok<string[], ClassroomError>([]));
-  extractor.extract.mockResolvedValue(Result.ok<ExtractedDeadline[], AppError>([]));
+  extractor.extract.mockResolvedValue(
+    Result.ok<ExtractedAnnouncement, AppError>({ deadlines: [], amendments: [] }),
+  );
   ingest.ingest.mockImplementation(async ({ events }) =>
     Result.ok<{ created: number }, AppError>({ created: events.length }),
   );

@@ -1,8 +1,9 @@
 /**
  * Proves against a real Postgres that the event history sweep applies the stated durations:
  * an event whose deadline is more than 12 months old leaves with its reminders, alerts and
- * deliveries; a deleted or withdrawn event leaves 30 days after, and a coursework one only once
- * its day is before the first day the sync reads, so a sync right after the sweep recreates
+ * deliveries; a deleted or withdrawn event leaves 30 days after, and a coursework one, or an
+ * announcement one hidden behind its coursework, only once its day is before the first day the
+ * sync reads, so a hidden announcement can still come back, so a sync right after the sweep recreates
  * nothing, even for a deadline on that boundary day. A recent past deadline, a live event, a
  * recent deletion and a coursework deletion still inside the sync window stay. Each parent gets
  * one agenda.events_purged per pass with the count and no actor. The run leaves its heartbeat.
@@ -73,6 +74,12 @@ const PROBES: Probe[] = [
     source: "announcement",
   },
   { key: "manual-deleted-upcoming", deadlineDaysAgo: -20, deletedDaysAgo: 31, source: "manual" },
+  {
+    key: "announcement-superseded-upcoming",
+    deadlineDaysAgo: -20,
+    withdrawnDaysAgo: 31,
+    source: "announcement",
+  },
 ];
 
 const dayOf = (p: Probe) => daysAgo(p.deadlineDaysAgo).toISOString().slice(0, 10);
@@ -156,9 +163,10 @@ run(async () => {
 
   await step("the run took the lease and was not skipped", !swept.skipped, swept);
   await step(
-    "past deadlines over 12 months and long dismissed events are purged, coursework only once the sync no longer reads its day",
+    "past deadlines over 12 months and long dismissed events are purged, coursework and hidden announcements only once the sync no longer reads their day",
     JSON.stringify(await remaining(userId)) ===
       JSON.stringify([
+        "announcement-superseded-upcoming",
         "deleted-inside-lookback",
         "deleted-on-sync-boundary",
         "deleted-recently",

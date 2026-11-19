@@ -169,11 +169,11 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
   const extractor: IAnnouncementExtractor = {
     extract: async (request) => {
       const known = DATASET_ANNOUNCEMENTS.find((item) => item.text === request.text);
-      if (!known) return Result.ok([]);
+      if (!known) return Result.ok({ deadlines: [], amendments: [] });
 
       const shift = daysBetween(new Date(known.publishedAt), request.publishedAt);
-      return Result.ok(
-        known.expected.map((event) => ({
+      return Result.ok({
+        deadlines: known.expected.map((event) => ({
           title: event.title,
           description: event.description,
           category: event.category,
@@ -181,7 +181,12 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
           ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
           needsReview: event.needsReview ?? false,
         })),
-      );
+        amendments: (known.expectedAmends ?? []).map(({ referenceDate, ...amendment }) =>
+          referenceDate === undefined
+            ? amendment
+            : { ...amendment, referenceDate: shiftDate(referenceDate, shift) },
+        ),
+      });
     },
   };
 

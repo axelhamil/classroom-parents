@@ -11,6 +11,7 @@ import type { IAlertPlanner } from "../application/ports/alert-planner.port";
 import type { ICourseNames } from "../application/ports/course-names.port";
 import type { AgendaError, IEventRepository } from "../application/ports/event-repository.port";
 import type { IVisibleChildren } from "../application/ports/visible-children.port";
+import { AnnouncementReconciler } from "../application/services/announcement-reconciler";
 import { EventEditService } from "../application/services/event-edit.service";
 import { EventPresenter } from "../application/services/event-presenter";
 import type { AgendaEvent } from "../domain/event.aggregate";
@@ -51,7 +52,7 @@ beforeEach(() => {
   const instrumentation = mockInstrumentation();
 
   repo.save.mockResolvedValue(Result.ok());
-  repo.listAnnouncementsOn.mockResolvedValue(Result.ok([]));
+  repo.lockCourseDays.mockResolvedValue(Result.ok([]));
   planner.planDefault.mockResolvedValue(Result.ok());
   planner.replan.mockResolvedValue(Result.ok());
   planner.cancel.mockResolvedValue(Result.ok());
@@ -64,6 +65,7 @@ beforeEach(() => {
     uow.unitOfWork,
     outbox,
     new EventPresenter(courseNames, instrumentation),
+    new AnnouncementReconciler(repo, planner, outbox),
     instrumentation,
     () => NOW,
   );
@@ -257,7 +259,7 @@ describe("add", () => {
 
     expect(result.getValue().deadlineDate).toBe("2026-11-25");
     expect(planner.replan).toHaveBeenCalledTimes(1);
-    expect(repo.listAnnouncementsOn).not.toHaveBeenCalled();
+    expect(repo.lockCourseDays).not.toHaveBeenCalled();
   });
 });
 
@@ -554,34 +556,38 @@ describe("remove", () => {
     ]);
   });
 
-  it("given the parent deletes a coursework hiding an announcement of its day, then the announcement's alert is planned with the parent as actor", async () => {
+  it("given the parent deletes a coursework hiding the announcement of the same work, then the announcement comes back with the parent as actor", async () => {
     const coursework = given({ source: "coursework" });
     const hidden = agendaEvent();
-    repo.listAnnouncementsOn.mockResolvedValue(Result.ok([hidden]));
+    hidden.supersede(NOW);
+    repo.lockCourseDays.mockResolvedValue(Result.ok([hidden]));
 
     await service.remove(PARENT, coursework.id.value);
 
-    expect(repo.listAnnouncementsOn).toHaveBeenCalledWith(PARENT, {
+    expect(repo.lockCourseDays).toHaveBeenCalledWith(PARENT, {
       childId: coursework.get("childId"),
       courseId: "course-1",
-      deadlineDate: "2026-11-19",
+      dates: ["2026-11-19"],
     });
+    expect(hidden.get("withdrawnAt").isNone()).toBe(true);
     expect(planner.planDefault).toHaveBeenCalledWith(
       expect.objectContaining({ eventId: hidden.id.value, actorUserId: PARENT }),
     );
   });
 
-  it("given the parent moves a coursework to another day, then the announcement of the day it left gets its alert", async () => {
+  it("given the parent moves a coursework to another day, then the announcement of the same work on the day it left comes back", async () => {
     given({ source: "coursework" });
     const hidden = agendaEvent();
-    repo.listAnnouncementsOn.mockResolvedValue(Result.ok([hidden]));
+    hidden.supersede(NOW);
+    repo.lockCourseDays.mockResolvedValue(Result.ok([hidden, event]));
 
     await service.edit(PARENT, event.id.value, { deadlineDate: "2026-11-26" });
 
-    expect(repo.listAnnouncementsOn).toHaveBeenCalledWith(
+    expect(repo.lockCourseDays).toHaveBeenCalledWith(
       PARENT,
-      expect.objectContaining({ deadlineDate: "2026-11-19" }),
+      expect.objectContaining({ dates: ["2026-11-19", "2026-11-26"] }),
     );
+    expect(hidden.get("withdrawnAt").isNone()).toBe(true);
     expect(planner.planDefault).toHaveBeenCalledWith(
       expect.objectContaining({ eventId: hidden.id.value, actorUserId: PARENT }),
     );

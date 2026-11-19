@@ -10,8 +10,10 @@ import { z } from "zod";
 import type { IAlertPlanner } from "../application/ports/alert-planner.port";
 import type { IChildOwnership } from "../application/ports/child-ownership.port";
 import type { IEventRepository } from "../application/ports/event-repository.port";
+import { AnnouncementReconciler } from "../application/services/announcement-reconciler";
 import {
   EventIngestService,
+  type IngestedAmendment,
   type IngestedCoursework,
   type IngestedEvent,
 } from "../application/services/event-ingest.service";
@@ -97,14 +99,26 @@ beforeEach(() => {
       ),
     ),
   );
-  repo.listAnnouncementsOn.mockImplementation(async (_userId, day) =>
+  repo.lockCourseDays.mockImplementation(async (_userId, days) =>
+    Result.ok(
+      [...stored.values()].filter(
+        (event) =>
+          event.get("source").value !== "manual" &&
+          event.get("childId") === days.childId &&
+          event.get("courseId").toUndefined() === days.courseId &&
+          days.dates.includes(event.get("deadline").value.date) &&
+          event.get("deletedAt").isNone(),
+      ),
+    ),
+  );
+  repo.lockLiveAnnouncements.mockImplementation(async (_userId, course, dueFrom) =>
     Result.ok(
       [...stored.values()].filter(
         (event) =>
           event.get("source").value === "announcement" &&
-          event.get("childId") === day.childId &&
-          event.get("courseId").toUndefined() === day.courseId &&
-          event.get("deadline").value.date === day.deadlineDate &&
+          event.get("childId") === course.childId &&
+          event.get("courseId").toUndefined() === course.courseId &&
+          event.get("deadline").value.at >= dueFrom &&
           event.get("deletedAt").isNone() &&
           event.get("withdrawnAt").isNone(),
       ),
@@ -120,13 +134,17 @@ beforeEach(() => {
     planner,
     uow.unitOfWork,
     outbox,
+    new AnnouncementReconciler(repo, planner, outbox),
     mockInstrumentation(),
     () => NOW,
   );
 });
 
-const ingest = (events: IngestedEvent[]) =>
-  service.ingest({ userId: PARENT, childId: CHILD, announcement, events });
+const ingest = (
+  events: IngestedEvent[],
+  from: typeof announcement = announcement,
+  amendments: IngestedAmendment[] = [],
+) => service.ingest({ userId: PARENT, childId: CHILD, announcement: from, events, amendments });
 
 describe("ingest", () => {
   it("given two events of one announcement ingested twice, then two rows exist and the second ingest creates none", async () => {
@@ -135,8 +153,8 @@ describe("ingest", () => {
     const first = await ingest(events);
     const second = await ingest(events);
 
-    expect(first.getValue()).toEqual({ created: 2, skipped: 0 });
-    expect(second.getValue()).toEqual({ created: 0, skipped: 2 });
+    expect(first.getValue()).toEqual({ created: 2, skipped: 0, flagged: 0 });
+    expect(second.getValue()).toEqual({ created: 0, skipped: 2, flagged: 0 });
     expect(stored.size).toBe(2);
     expect(planner.planDefault).toHaveBeenCalledTimes(2);
     expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual([
@@ -150,7 +168,7 @@ describe("ingest", () => {
 
     const result = await ingest([extracted({ title: "Autre titre du professeur" })]);
 
-    expect(result.getValue()).toEqual({ created: 0, skipped: 1 });
+    expect(result.getValue()).toEqual({ created: 0, skipped: 1, flagged: 0 });
     expect(repo.save).not.toHaveBeenCalled();
     expect(planner.planDefault).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([]);
@@ -160,7 +178,7 @@ describe("ingest", () => {
     const result = await ingest([extracted({ needsReview: true })]);
 
     const row = [...stored.values()][0];
-    expect(result.getValue()).toEqual({ created: 1, skipped: 0 });
+    expect(result.getValue()).toEqual({ created: 1, skipped: 0, flagged: 0 });
     expect(row?.get("status").value).toBe("needs_review");
     expect(planner.planDefault).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([
@@ -514,43 +532,241 @@ describe("ingestCoursework", () => {
   });
 });
 
-describe("an announcement hidden by a coursework of its day", () => {
-  const hiddenAnnouncement = async () => {
-    await ingest([extracted({ deadlineDate: "2026-11-19" })]);
-    await ingestCoursework([homework({ id: "w1", deadlineDate: "2026-11-19" })]);
-    planner.planDefault.mockClear();
-    return [...stored.values()].find((event) => event.get("source").value === "announcement");
-  };
+const announcementRow = (id: string, ordinal = 0) =>
+  stored.get(`${CHILD}|announcement|${id}|${ordinal}`);
 
-  it("given the teacher withdraws the coursework, then the announcement's alert is planned by the system and the coursework's is cancelled", async () => {
-    const shown = await hiddenAnnouncement();
+const eventsOfType = (eventType: string) =>
+  enqueuedEvents(outbox).filter((event) => event.eventType === eventType);
+
+const otherAnnouncement = (id: string, publishedAt = "2026-11-09T08:00:00.000Z") => ({
+  ...announcement,
+  id,
+  url: `https://classroom.google.com/c/course-1/p/${id}`,
+  publishedAt: new Date(publishedAt),
+});
+
+describe("an announcement and the coursework of the same piece of work", () => {
+  const talk = extracted({
+    title: "Exposé sur la révolution industrielle",
+    category: "homework",
+    deadlineDate: "2026-12-08",
+  });
+  const talkCoursework = homework({
+    id: "w1",
+    title: "Exposé : la révolution industrielle",
+    deadlineDate: "2026-12-08",
+    deadlineTime: "23:59",
+  });
+
+  it("given the announcement then the coursework of the same work and day, then only the coursework stays and the hiding is announced by the system", async () => {
+    await ingest([talk]);
+
+    await ingestCoursework([talkCoursework]);
+
+    const hidden = announcementRow(announcement.id);
+    expect(hidden?.get("withdrawnAt").isSome()).toBe(true);
+    expect(hidden?.get("deletedAt").isNone()).toBe(true);
+    expect(planner.cancel).toHaveBeenCalledWith(hidden?.id.value, null);
+    expect(eventsOfType(EventTypes.EVENT_SUPERSEDED).map(({ payload }) => payload)).toEqual([
+      {
+        userId: PARENT,
+        childId: CHILD,
+        eventId: hidden?.id.value,
+        courseworkEventId: courseworkRow("w1")?.id.value,
+        actorUserId: null,
+      },
+    ]);
+  });
+
+  it("given the coursework already synced, then the announcement of the same work arrives already hidden", async () => {
+    await ingestCoursework([talkCoursework]);
+
+    await ingest([talk]);
+
+    expect(announcementRow(announcement.id)?.get("withdrawnAt").isSome()).toBe(true);
+    expect(eventsOfType(EventTypes.EVENT_SUPERSEDED)).toHaveLength(1);
+  });
+
+  it("given two different pieces of work due the same day in the same course, then neither hides the other", async () => {
+    await ingest([
+      extracted({
+        title: "Exercices 4 et 5 page 62",
+        category: "homework",
+        deadlineDate: "2026-11-23",
+      }),
+    ]);
+
+    await ingestCoursework([
+      homework({
+        id: "w1",
+        title: "Fiche d'exercices : calcul littéral",
+        deadlineDate: "2026-11-23",
+      }),
+    ]);
+
+    expect(announcementRow(announcement.id)?.get("withdrawnAt").isNone()).toBe(true);
+    expect(eventsOfType(EventTypes.EVENT_SUPERSEDED)).toEqual([]);
+  });
+
+  it("given the parent edited the announcement's event, then the coursework of the same work never hides it", async () => {
+    await ingest([talk]);
+    announcementRow(announcement.id)?.edit(
+      { description: EventDescription.create("Avec le diaporama").getValue() },
+      new Date(),
+    );
+
+    await ingestCoursework([talkCoursework]);
+
+    expect(announcementRow(announcement.id)?.get("withdrawnAt").isNone()).toBe(true);
+    expect(eventsOfType(EventTypes.EVENT_SUPERSEDED)).toEqual([]);
+  });
+
+  it("given the teacher withdraws the coursework, then the announcement comes back with its alert, planned by the system", async () => {
+    await ingest([talk]);
+    await ingestCoursework([talkCoursework]);
+    planner.planDefault.mockClear();
 
     await ingestCoursework([]);
 
+    const shown = announcementRow(announcement.id);
+    expect(shown?.get("withdrawnAt").isNone()).toBe(true);
     expect(planner.cancel).toHaveBeenCalledWith(courseworkRow("w1")?.id.value, null);
     expect(planner.planDefault).toHaveBeenCalledWith({
       eventId: shown?.id.value,
       userId: PARENT,
       actorUserId: null,
     });
+    expect(updatedFields()).toContainEqual(["withdrawn"]);
   });
 
-  it("given the teacher moves the coursework to another day, then the announcement of the day it left gets its alert", async () => {
-    const shown = await hiddenAnnouncement();
+  it("given the teacher moves the coursework to another day, then the announcement of the day it left comes back", async () => {
+    await ingest([talk]);
+    await ingestCoursework([talkCoursework]);
 
-    await ingestCoursework([homework({ id: "w1", deadlineDate: "2026-11-23" })]);
+    await ingestCoursework([{ ...talkCoursework, deadlineDate: "2026-12-10" }]);
 
-    expect(planner.planDefault).toHaveBeenCalledWith(
-      expect.objectContaining({ eventId: shown?.id.value, actorUserId: null }),
-    );
+    expect(announcementRow(announcement.id)?.get("withdrawnAt").isNone()).toBe(true);
   });
 
-  it("given the teacher only renames the coursework, then no announcement is replanned", async () => {
-    await hiddenAnnouncement();
+  it("given the teacher only renames the coursework within the same work, then the announcement stays hidden and nothing is replanned", async () => {
+    await ingest([talk]);
+    await ingestCoursework([talkCoursework]);
+    planner.planDefault.mockClear();
 
-    await ingestCoursework([homework({ id: "w1", title: "Exercices p. 50" })]);
+    await ingestCoursework([{ ...talkCoursework, title: "Exposé sur la révolution industrielle" }]);
 
+    expect(announcementRow(announcement.id)?.get("withdrawnAt").isSome()).toBe(true);
     expect(planner.planDefault).not.toHaveBeenCalled();
+  });
+});
+
+describe("an announcement that amends an earlier deadline", () => {
+  const assessmentOn9th = otherAnnouncement("ann-assessment", "2026-11-05T08:00:00.000Z");
+  const outingOn9th = otherAnnouncement("ann-outing", "2026-11-05T08:00:00.000Z");
+
+  const seed = async () => {
+    await ingest(
+      [
+        extracted({
+          title: "Évaluation sur la respiration",
+          deadlineDate: "2026-12-09",
+          deadlineTime: "10:00",
+        }),
+      ],
+      assessmentOn9th,
+    );
+    await ingest(
+      [
+        extracted({
+          title: "Sortie au musée d'histoire de la ville",
+          category: "school_trip",
+          deadlineDate: "2026-12-09",
+        }),
+      ],
+      outingOn9th,
+    );
+    planner.cancel.mockClear();
+  };
+
+  it("given a correction moving the assessment, then the earlier one goes back to review, the new date is stored and the system announces why", async () => {
+    await seed();
+
+    const result = await ingest(
+      [extracted({ title: "Évaluation sur la respiration", deadlineDate: "2026-12-08" })],
+      announcement,
+      [{ kind: "moved", reference: "Évaluation sur la respiration" }],
+    );
+
+    const earlier = announcementRow(assessmentOn9th.id);
+    expect(result.getValue()).toEqual({ created: 1, skipped: 0, flagged: 1 });
+    expect(earlier?.needsReview()).toBe(true);
+    expect(earlier?.get("deadline").value.date).toBe("2026-12-09");
+    expect(earlier?.get("withdrawnAt").isNone()).toBe(true);
+    expect(announcementRow(announcement.id)?.needsReview()).toBe(false);
+    expect(planner.cancel).toHaveBeenCalledWith(earlier?.id.value, null);
+    expect(eventsOfType(EventTypes.EVENT_FLAGGED).map(({ payload }) => payload)).toEqual([
+      {
+        userId: PARENT,
+        childId: CHILD,
+        eventId: earlier?.id.value,
+        reason: "moved",
+        reference: "Évaluation sur la respiration",
+        amendingAnnouncementId: announcement.id,
+        actorUserId: null,
+      },
+    ]);
+  });
+
+  it("given a cancellation naming the outing and its day, then the outing goes back to review and nothing is deleted", async () => {
+    await seed();
+
+    const result = await ingest([], announcement, [
+      { kind: "cancelled", reference: "Sortie au musée", referenceDate: "2026-12-09" },
+    ]);
+
+    const outing = announcementRow(outingOn9th.id);
+    expect(result.getValue()).toEqual({ created: 0, skipped: 0, flagged: 1 });
+    expect(outing?.needsReview()).toBe(true);
+    expect(outing?.get("deletedAt").isNone()).toBe(true);
+    expect(announcementRow(assessmentOn9th.id)?.needsReview()).toBe(false);
+  });
+
+  it("given a cancellation that matches two earlier deadlines, then no target is reliable and nothing changes", async () => {
+    await seed();
+    await ingest(
+      [
+        extracted({
+          title: "Sortie au musée des sciences",
+          category: "school_trip",
+          deadlineDate: "2026-12-16",
+        }),
+      ],
+      otherAnnouncement("ann-outing-2", "2026-11-06T08:00:00.000Z"),
+    );
+
+    const result = await ingest([], announcement, [
+      { kind: "cancelled", reference: "Sortie au musée" },
+    ]);
+
+    expect(result.getValue().flagged).toBe(0);
+    expect(eventsOfType(EventTypes.EVENT_FLAGGED)).toEqual([]);
+  });
+
+  it("given the parent edited the earlier deadline, then a correction never touches it", async () => {
+    await seed();
+    announcementRow(assessmentOn9th.id)?.edit(
+      { description: EventDescription.create("Revoir le schéma").getValue() },
+      new Date(),
+    );
+
+    const result = await ingest(
+      [extracted({ title: "Évaluation sur la respiration", deadlineDate: "2026-12-08" })],
+      announcement,
+      [{ kind: "moved", reference: "Évaluation sur la respiration" }],
+    );
+
+    expect(result.getValue().flagged).toBe(0);
+    expect(announcementRow(assessmentOn9th.id)?.needsReview()).toBe(false);
   });
 });
 
