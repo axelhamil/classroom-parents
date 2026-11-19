@@ -1,9 +1,9 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
 import { Field, FieldLabel, FieldLegend, FieldSet } from "@packages/ui/components/ui/field";
+import { FilterIcon } from "@packages/ui/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@packages/ui/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@packages/ui/components/ui/radio-group";
-import { ListFilterIcon } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { AgendaCourse } from "../../../../shared/agenda/calendar-days";
@@ -38,7 +38,7 @@ export function CourseFilter({ courses, courseId, onCourseChange }: CourseFilter
               : t("calendar.filter.action")
           }
         >
-          <ListFilterIcon aria-hidden />
+          <FilterIcon aria-hidden />
           <span className="@max-5xl:sr-only">{t("calendar.filter.action")}</span>
           {active > 0 && <Badge aria-hidden>{active}</Badge>}
         </Button>

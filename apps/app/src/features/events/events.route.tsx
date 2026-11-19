@@ -1,8 +1,8 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { ArrangeIcon, BackIcon, DoneIcon, FamilyIcon } from "@packages/ui/components/ui/icons";
 import { userStorageKey, useStoredValue } from "@packages/web-kit/storage/use-stored-value";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { ArrowLeftIcon, CheckIcon, LayoutGridIcon, UsersRoundIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -83,7 +83,7 @@ function EditHomeButton({ editing, onToggle }: EditHomeButtonProps) {
       data-tour="home-edit"
       onClick={onToggle}
     >
-      {editing ? <CheckIcon aria-hidden /> : <LayoutGridIcon aria-hidden />}
+      {editing ? <DoneIcon aria-hidden /> : <ArrangeIcon aria-hidden />}
       {editing ? t("edit.done") : t("edit.start")}
     </Button>
   );
@@ -104,7 +104,7 @@ function HomeBoard({ clock, editing }: HomeBoardProps) {
       skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
       empty={
         <BoardEmpty
-          icon={UsersRoundIcon}
+          icon={FamilyIcon}
           title={t("empty.noChild.title")}
           description={t("empty.noChild.description")}
           action={
@@ -160,7 +160,7 @@ function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
       <div className="flex flex-col gap-4">
         <Button asChild variant="ghost" className="self-start">
           <Link to="/" search={{ view: search.view, date: search.date }}>
-            <ArrowLeftIcon aria-hidden />
+            <BackIcon aria-hidden />
             {t("calendar.backToCalendar")}
           </Link>
         </Button>

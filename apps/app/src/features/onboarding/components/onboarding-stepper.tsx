@@ -1,4 +1,5 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { BackIcon } from "@packages/ui/components/ui/icons";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { Progress } from "@packages/ui/components/ui/progress";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
@@ -9,7 +10,6 @@ import {
   StepperPosition,
 } from "@packages/ui/components/ui/stepper";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
@@ -89,7 +89,7 @@ function ResolvedStepper({ mode, userId, search, navigate, family }: ResolvedSte
       <StepperHeader>
         {back && (
           <Button variant="ghost" size="sm" onClick={() => go(back)}>
-            <ChevronLeft aria-hidden />
+            <BackIcon aria-hidden />
             {t("stepper.back")}
           </Button>
         )}

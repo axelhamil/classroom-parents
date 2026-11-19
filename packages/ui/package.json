@@ -16,6 +16,7 @@
     "./globals.css": "./src/styles/globals.css",
     "./styles/globals.css": "./src/styles/globals.css",
     "./libs/*.js": "./src/libs/*.ts",
+    "./components/ui/icons": "./src/components/ui/icons.ts",
     "./components/ui/*": "./src/components/ui/*.tsx",
     "./assets/*": "./src/assets/*"
   },

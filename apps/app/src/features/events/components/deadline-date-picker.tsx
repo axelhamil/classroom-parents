@@ -1,8 +1,8 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { Calendar } from "@packages/ui/components/ui/calendar";
 import { FormControl } from "@packages/ui/components/ui/form";
+import { CalendarIcon } from "@packages/ui/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@packages/ui/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
 import { useState } from "react";
 import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { dayLabel } from "../../../shared/format/deadline-label";

@@ -1,8 +1,14 @@
 import { Badge } from "@packages/ui/components/ui/badge";
+import { BrandMark } from "@packages/ui/components/ui/brand-link";
 import { Button } from "@packages/ui/components/ui/button";
 import { Hint } from "@packages/ui/components/ui/hint";
+import {
+  AlertsOnIcon,
+  ChildAccountIcon,
+  NeverReadIcon,
+  ReadClassroomIcon,
+} from "@packages/ui/components/ui/icons";
 import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
-import { BellRing, BookOpenCheck, CalendarHeart, EyeOff, UserRoundCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { StepFrame } from "./step-frame";
 import { StepList } from "./step-list";
@@ -16,7 +22,8 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
 
   return (
     <StepFrame
-      media={<CalendarHeart />}
+      media={<BrandMark />}
+      mediaTone="bare"
       title={t("welcome.title")}
       description={t("welcome.description")}
       actions={
@@ -31,9 +38,9 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         </TypographyH2>
         <StepList
           entries={[
-            { id: "account", icon: UserRoundCheck, title: t("welcome.plan.account") },
-            { id: "read", icon: BookOpenCheck, title: t("welcome.plan.read") },
-            { id: "alert", icon: BellRing, title: t("welcome.plan.alert") },
+            { id: "account", icon: ChildAccountIcon, title: t("welcome.plan.account") },
+            { id: "read", icon: ReadClassroomIcon, title: t("welcome.plan.read") },
+            { id: "alert", icon: AlertsOnIcon, title: t("welcome.plan.alert") },
           ]}
         />
       </section>
@@ -43,7 +50,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           <Badge variant="soon">{t("welcome.readOnly")}</Badge>
         </Hint>
         <TypographyMuted className="flex items-start gap-2">
-          <EyeOff aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <NeverReadIcon aria-hidden className="mt-0.5 size-icon shrink-0" />
           {t("welcome.never")}
         </TypographyMuted>
       </div>

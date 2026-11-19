@@ -1,9 +1,9 @@
 import { wallTimeLabel } from "@packages/i18n";
 import { Alert, AlertTitle } from "@packages/ui/components/ui/alert";
+import { OfflineIcon, WeakConnectionIcon } from "@packages/ui/components/ui/icons";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { cn } from "@packages/ui/libs/utils.js";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { WifiLowIcon, WifiOffIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { EVENTS_KEY } from "../api/queries/events";
@@ -47,7 +47,7 @@ export function OfflineBanner() {
 
   if (connection === "online") return null;
 
-  const Icon = connection === "offline" ? WifiOffIcon : WifiLowIcon;
+  const Icon = connection === "offline" ? OfflineIcon : WeakConnectionIcon;
 
   return (
     <div className={cn(pageContainerVariants(), "pt-4 print:hidden")}>

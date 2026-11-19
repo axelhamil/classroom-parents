@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@packages/ui/components/ui/icons";
 import type { ComponentType } from "react";
 import type { BlockShape } from "./dashboard-layout";
 
@@ -16,7 +16,7 @@ export interface BlockIdentity {
 export interface DashboardBlock<Context> extends BlockShape {
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: Icon;
   tour?: string;
   Component: ComponentType<Context & BlockIdentity>;
 }

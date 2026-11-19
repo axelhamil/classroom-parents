@@ -1,5 +1,6 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
+import { ReminderIcon } from "@packages/ui/components/ui/icons";
 import { ListRow, ListRowContent } from "@packages/ui/components/ui/list-row";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
@@ -14,7 +15,6 @@ import { formatApiError } from "@packages/web-kit/api/errors/messages";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SchoolClock } from "../../../shared/agenda/school-clock";
@@ -176,7 +176,7 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
       {waitsForReview ? <TypographyMuted>{t("reminders.awaitingReview")}</TypographyMuted> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(true)}>
-          <BellIcon aria-hidden />
+          <ReminderIcon aria-hidden />
           {t("reminders.edit")}
         </Button>
         {data.customized ? (

@@ -7,12 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@packages/ui/components/ui/dialog";
+import { SubscribeCalendarIcon } from "@packages/ui/components/ui/icons";
 import { Skeleton } from "@packages/ui/components/ui/skeleton";
 import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIntlLocale } from "../../../../shared/i18n/use-intl-locale";
@@ -89,7 +89,7 @@ function CalendarFeedBody() {
         />
         <Button asChild className="self-start">
           <a href={webcalOf(url)}>
-            <CalendarPlusIcon aria-hidden />
+            <SubscribeCalendarIcon aria-hidden />
             {t("calendar.feed.open")}
           </a>
         </Button>
@@ -129,7 +129,7 @@ function FeedStatus({ status, busy, onIssue, onRevoke }: FeedStatusProps) {
   if (!status.exists)
     return (
       <Button onClick={onIssue} disabled={busy} className="self-start">
-        <CalendarPlusIcon aria-hidden />
+        <SubscribeCalendarIcon aria-hidden />
         {t("calendar.feed.create")}
       </Button>
     );

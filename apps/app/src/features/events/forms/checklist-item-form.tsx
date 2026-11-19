@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@packages/ui/components/ui/button";
 import { Form } from "@packages/ui/components/ui/form";
 import { FormTextField } from "@packages/ui/components/ui/form-text-field";
-import { PlusIcon } from "lucide-react";
+import { AddIcon } from "@packages/ui/components/ui/icons";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { type ChecklistItemInput, checklistItemSchema } from "../events.schema";
@@ -37,7 +37,7 @@ export function ChecklistItemForm({ onAdd }: ChecklistItemFormProps) {
           enterKeyHint="done"
         />
         <Button type="submit" variant="outline">
-          <PlusIcon aria-hidden />
+          <AddIcon aria-hidden />
           {t("prepare.add")}
         </Button>
       </form>

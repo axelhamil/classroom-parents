@@ -8,8 +8,8 @@ import {
   CommandList,
 } from "@packages/ui/components/ui/command";
 import { FormControl } from "@packages/ui/components/ui/form";
+import { PickFromListIcon } from "@packages/ui/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@packages/ui/components/ui/popover";
-import { ChevronsUpDownIcon } from "lucide-react";
 import { useState } from "react";
 
 export interface CountryOption {
@@ -57,7 +57,7 @@ export function CountryCombobox({
             className="w-full justify-between"
           >
             {selected?.name ?? (value === null ? unknownLabel : placeholder)}
-            <ChevronsUpDownIcon aria-hidden />
+            <PickFromListIcon aria-hidden />
           </Button>
         </FormControl>
       </PopoverTrigger>

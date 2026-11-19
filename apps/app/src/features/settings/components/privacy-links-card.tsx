@@ -1,4 +1,11 @@
 import {
+  DocumentIcon,
+  type Icon,
+  OpenRowIcon,
+  PrivacyIcon,
+  RightsIcon,
+} from "@packages/ui/components/ui/icons";
+import {
   Item,
   ItemActions,
   ItemContent,
@@ -7,19 +14,18 @@ import {
 } from "@packages/ui/components/ui/item";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, FileText, type LucideIcon, Scale, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface PrivacyLink {
   to: "/settings/privacy" | "/legal/privacy-policy" | "/legal/data-rights";
   key: "links.privacy" | "links.policy" | "links.dataRights";
-  icon: LucideIcon;
+  icon: Icon;
 }
 
 const LINKS: readonly PrivacyLink[] = [
-  { to: "/settings/privacy", key: "links.privacy", icon: ShieldCheck },
-  { to: "/legal/privacy-policy", key: "links.policy", icon: FileText },
-  { to: "/legal/data-rights", key: "links.dataRights", icon: Scale },
+  { to: "/settings/privacy", key: "links.privacy", icon: PrivacyIcon },
+  { to: "/legal/privacy-policy", key: "links.policy", icon: DocumentIcon },
+  { to: "/legal/data-rights", key: "links.dataRights", icon: RightsIcon },
 ];
 
 export function PrivacyLinksCard() {
@@ -39,7 +45,7 @@ export function PrivacyLinksCard() {
                   <ItemTitle>{t(key)}</ItemTitle>
                 </ItemContent>
                 <ItemActions>
-                  <ChevronRight
+                  <OpenRowIcon
                     aria-hidden
                     className="transition-transform group-hover/item:translate-x-0.5"
                   />

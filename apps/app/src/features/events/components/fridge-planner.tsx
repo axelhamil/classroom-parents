@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import type { SchoolClock } from "../../../shared/agenda/school-clock";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { CATEGORY_ICONS, CATEGORY_LABEL_KEYS } from "../../../shared/events/event-labels";
+import { CATEGORY_LABEL_KEYS, categoryIcon } from "../../../shared/events/event-labels";
 import { childHue } from "../../../shared/format/child-hue";
 import { dayLabel, daysBetween, wallDateParts } from "../../../shared/format/deadline-label";
 
@@ -132,7 +132,7 @@ function Deadlines({ events, clock }: DeadlinesProps) {
   return (
     <PrintPlannerList>
       {events.map((event) => {
-        const CategoryIcon = CATEGORY_ICONS[event.category];
+        const CategoryIcon = categoryIcon(event.category);
         const past = Date.parse(event.deadlineAt) < clock.now.getTime();
 
         return (

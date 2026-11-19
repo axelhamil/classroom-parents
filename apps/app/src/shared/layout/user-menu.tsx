@@ -8,10 +8,10 @@ import {
   DropdownMenuTrigger,
 } from "@packages/ui/components/ui/dropdown-menu";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
+import { SettingsIcon, SignOutIcon } from "@packages/ui/components/ui/icons";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { initialsOf } from "@packages/ui/libs/initials.js";
 import { Link } from "@tanstack/react-router";
-import { LogOut, Settings } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SignOutDialog } from "../auth/sign-out-dialog";
@@ -62,7 +62,7 @@ export function UserMenu({ user, className }: UserMenuProps) {
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <Link to="/settings">
-              <Settings />
+              <SettingsIcon />
               {t("nav.settings")}
             </Link>
           </DropdownMenuItem>
@@ -73,7 +73,7 @@ export function UserMenu({ user, className }: UserMenuProps) {
             disabled={signOut.isPending}
             onSelect={() => setConfirmingSignOut(true)}
           >
-            <LogOut />
+            <SignOutIcon />
             {signOut.isPending ? t("userMenu.signingOut") : t("userMenu.signOut")}
           </DropdownMenuItem>
         </DropdownMenuContent>

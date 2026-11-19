@@ -1,10 +1,10 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
+import { ReminderIcon } from "@packages/ui/components/ui/icons";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { Spinner } from "@packages/ui/components/ui/spinner";
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlarmClock, CalendarClock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { setDefaultRemindersMutationOptions } from "../../../shared/api/mutations/set-default-reminders";
 import type { ChildDto } from "../../../shared/api/queries/children";
@@ -43,7 +43,7 @@ function ReminderPreview({ childId, reminders }: ReminderPreviewProps) {
 
   return (
     <Alert variant="info">
-      <CalendarClock aria-hidden />
+      <ReminderIcon aria-hidden />
       <AlertDescription>
         {reminders.length === 0
           ? t("reminders.previewNone")
@@ -74,7 +74,7 @@ export function RemindersStep({ child, userId, onNext }: RemindersStepProps) {
 
   return (
     <StepFrame
-      media={<AlarmClock />}
+      media={<ReminderIcon />}
       title={t("reminders.title")}
       description={t("reminders.description")}
       actions={

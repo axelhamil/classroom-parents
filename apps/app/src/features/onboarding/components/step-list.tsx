@@ -1,4 +1,5 @@
 import { Hint } from "@packages/ui/components/ui/hint";
+import type { Icon } from "@packages/ui/components/ui/icons";
 import {
   Item,
   ItemContent,
@@ -8,11 +9,10 @@ import {
   ItemTitle,
 } from "@packages/ui/components/ui/item";
 import { Spinner } from "@packages/ui/components/ui/spinner";
-import type { LucideIcon } from "lucide-react";
 
 export interface StepListEntry {
   id: string;
-  icon: LucideIcon;
+  icon: Icon;
   title: string;
   detail?: string;
   hint?: string;

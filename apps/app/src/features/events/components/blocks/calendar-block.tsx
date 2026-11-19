@@ -1,5 +1,5 @@
+import { CalendarIcon } from "@packages/ui/components/ui/icons";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { CalendarDaysIcon } from "lucide-react";
 import type { CalendarPlace } from "../../calendar";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { CalendarBoard } from "../calendar/calendar-board";
@@ -15,7 +15,7 @@ function CalendarBlock({ family, childId, briefingShown, overdueShown, title }: 
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
 
   return (
-    <BlockPanel title={title} icon={CalendarDaysIcon} fit="natural">
+    <BlockPanel title={title} icon={CalendarIcon} fit="natural">
       <CalendarBoard
         family={family}
         childId={childId}
@@ -32,7 +32,7 @@ export const calendarBlock: HomeBlockDefinition = {
   id: "calendar",
   titleKey: "blocks.calendar.title",
   descriptionKey: "blocks.calendar.description",
-  icon: CalendarDaysIcon,
+  icon: CalendarIcon,
   tour: "home-week",
   sizes: { w: [6, 8, 12], h: [2, 3] },
   defaultSize: { w: 8, h: 3 },

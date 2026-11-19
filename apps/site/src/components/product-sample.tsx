@@ -3,6 +3,7 @@ import { Badge } from "@packages/ui/components/ui/badge";
 import { BrandMark } from "@packages/ui/components/ui/brand-link";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { DateTab } from "@packages/ui/components/ui/date-tab";
+import { CATEGORY_ICONS, type CategoryTone, ReminderIcon } from "@packages/ui/components/ui/icons";
 import {
   LandingVisual,
   NotificationPreview,
@@ -19,24 +20,15 @@ import {
   PlannerCardTitle,
 } from "@packages/ui/components/ui/planner-card";
 import type { ChildTone } from "@packages/ui/libs/child-hue-classes.js";
-import { AlarmClockIcon, ClipboardCheckIcon, PenLineIcon, WavesIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { relativeDayLabel, type SampleDayCopy, sampleDay, schoolToday } from "./sample-week";
-
-const CATEGORY_ICONS = {
-  assessment: ClipboardCheckIcon,
-  swimming: WavesIcon,
-  documentDue: PenLineIcon,
-} as const;
-
-export type SampleCategory = keyof typeof CATEGORY_ICONS;
 
 export interface SampleDeadline {
   id: string;
   title: string;
   daysAhead: number;
   time: string;
-  category: SampleCategory;
+  category: Exclude<CategoryTone, "other">;
   categoryLabel: string;
   childLabel: string;
   hue: ChildTone;
@@ -106,7 +98,7 @@ export function ProductSample({ brand, copy, dayCopy, deadlines }: ProductSample
                         </>
                       ) : (
                         <Badge variant="urgent">
-                          <AlarmClockIcon aria-hidden />
+                          <ReminderIcon aria-hidden />
                           {label}
                         </Badge>
                       )}

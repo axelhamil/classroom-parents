@@ -1,7 +1,7 @@
 import { CalendarPeriod } from "@packages/ui/components/ui/calendar-day";
+import { SyncingIcon } from "@packages/ui/components/ui/icons";
 import { Tabs, TabsContent } from "@packages/ui/components/ui/tabs";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HourglassIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -179,7 +179,7 @@ export function CalendarBoard({
               {() =>
                 loaded.length === 0 && isFirstSyncRunning(family) ? (
                   <BoardEmpty
-                    icon={HourglassIcon}
+                    icon={SyncingIcon}
                     title={t("empty.syncing.title")}
                     description={t("empty.syncing.description")}
                   />

@@ -1,4 +1,4 @@
-import { ClockAlertIcon } from "lucide-react";
+import { OverdueIcon } from "@packages/ui/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { lateWindow } from "../../../../shared/agenda/windows";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
@@ -21,7 +21,7 @@ function OverdueBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
       title={title}
       label={late.length > 0 ? tEvents("calendar.overdueCount", { count: late.length }) : undefined}
       count={late.length}
-      icon={ClockAlertIcon}
+      icon={OverdueIcon}
       note={isSuccess && late.length === 0 && empty}
     >
       {(late.length > 0 || older > 0) && (
@@ -39,7 +39,7 @@ export const overdueBlock: HomeBlockDefinition = {
   titleKey: "blocks.overdue.title",
   descriptionKey: "blocks.overdue.description",
   windowDays: lateWindow.days,
-  icon: ClockAlertIcon,
+  icon: OverdueIcon,
   sizes: { w: [3, 4, 6, 8], h: [1, 2, 3] },
   defaultSize: { w: 4, h: 1 },
   Component: OverdueBlock,

@@ -1,8 +1,8 @@
 import { Alert, AlertTitle } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
+import { OfflineIcon } from "@packages/ui/components/ui/icons";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { isConnectionFailure } from "../offline/connection";
@@ -21,7 +21,7 @@ function NotYetOffline() {
 
   return (
     <Alert variant="info" role="status">
-      <WifiOffIcon aria-hidden />
+      <OfflineIcon aria-hidden />
       <AlertTitle>{t("queryState.notYetOffline")}</AlertTitle>
     </Alert>
   );

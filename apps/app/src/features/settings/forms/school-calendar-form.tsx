@@ -8,6 +8,7 @@ import {
   FormItem,
   FormLabel,
 } from "@packages/ui/components/ui/form";
+import { NoCalendarIcon } from "@packages/ui/components/ui/icons";
 import {
   Select,
   SelectContent,
@@ -16,7 +17,6 @@ import {
   SelectValue,
 } from "@packages/ui/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarOffIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { type UseFormReturn, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -213,7 +213,7 @@ function NoSchoolData({ country, onUseOwn }: NoSchoolDataProps) {
 
   return (
     <Alert>
-      <CalendarOffIcon aria-hidden />
+      <NoCalendarIcon aria-hidden />
       <AlertTitle>{t("schoolHolidays.noSchoolData", { country })}</AlertTitle>
       <AlertDescription>{t("schoolHolidays.noSchoolDataHint")}</AlertDescription>
       {onUseOwn && (

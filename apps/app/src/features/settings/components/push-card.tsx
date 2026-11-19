@@ -2,13 +2,13 @@ import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
 import { Hint } from "@packages/ui/components/ui/hint";
+import { AlertsOffIcon, AlertsOnIcon, EmailIcon } from "@packages/ui/components/ui/icons";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { SwitchField } from "@packages/ui/components/ui/switch-field";
 import { TypographyP } from "@packages/ui/components/ui/typography";
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellOff, BellRing, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { setLockScreenMutationOptions } from "../../../shared/api/mutations/set-lock-screen";
 import { lockScreenQueryOptions } from "../../../shared/api/queries/lock-screen";
@@ -46,7 +46,7 @@ export function PushCard({ userId }: PushCardProps) {
       {push.subscribed ? <LockScreenSwitch userId={userId} /> : null}
       {emailFallback ? (
         <Alert>
-          <Mail />
+          <EmailIcon />
           <AlertDescription>{t("push.emailFallback")}</AlertDescription>
         </Alert>
       ) : null}
@@ -66,7 +66,7 @@ function PushControl({ push, needsInstall }: PushControlProps) {
     return (
       <Hint text={t("push.installFirst")} className="self-start">
         <Button type="button" disabled>
-          <BellRing />
+          <AlertsOnIcon />
           {t("push.enable")}
         </Button>
       </Hint>
@@ -76,7 +76,7 @@ function PushControl({ push, needsInstall }: PushControlProps) {
   if (push.permission === "unsupported") {
     return (
       <Alert>
-        <BellOff />
+        <AlertsOffIcon />
         <AlertDescription>{t("push.unsupported")}</AlertDescription>
       </Alert>
     );
@@ -88,7 +88,7 @@ function PushControl({ push, needsInstall }: PushControlProps) {
     return (
       <>
         <Badge>
-          <BellRing />
+          <AlertsOnIcon />
           {t("push.enabled")}
         </Badge>
         <TypographyP>{t("push.enabledBody")}</TypographyP>
@@ -112,7 +112,7 @@ function PushControl({ push, needsInstall }: PushControlProps) {
       disabled={push.pending}
       onClick={() => void push.enable()}
     >
-      <BellRing />
+      <AlertsOnIcon />
       {push.pending ? t("push.enabling") : t("push.enable")}
     </Button>
   );

@@ -4,7 +4,6 @@ import { AllDoneIcon, ConfirmDateIcon } from "@packages/ui/components/ui/icons";
 import { RollingCount } from "@packages/ui/components/ui/rolling-count";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCheckIcon, SearchCheckIcon } from "lucide-react";
 import { type ReactNode, type Ref, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { reviewView } from "../../../../shared/agenda/views";
@@ -41,7 +40,7 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
   );
 
   return (
-    <BlockPanel title={title} icon={SearchCheckIcon}>
+    <BlockPanel title={title} icon={ConfirmDateIcon}>
       {coming.isSuccess && upcoming.length === 0 && (
         <AllClear ref={handOver ? takeFocus : undefined} pastNote={pastNote} />
       )}
@@ -74,7 +73,7 @@ function AllClear({ ref, pastNote }: AllClearProps) {
   return (
     <DashboardPanelEmpty ref={ref} tabIndex={-1}>
       <IconTile>
-        <CheckCheckIcon aria-hidden />
+        <AllDoneIcon aria-hidden />
       </IconTile>
       <p>{t("blocks.review.empty")}</p>
       {pastNote || <p>{t("blocks.review.emptyHint")}</p>}
@@ -134,7 +133,7 @@ export const reviewBlock: HomeBlockDefinition = {
   id: "review",
   titleKey: "blocks.review.title",
   descriptionKey: "blocks.review.description",
-  icon: SearchCheckIcon,
+  icon: ConfirmDateIcon,
   sizes: { w: [3, 4, 6, 8, 12], h: [1, 2] },
   defaultSize: { w: 4, h: 1 },
   Component: ReviewBlock,

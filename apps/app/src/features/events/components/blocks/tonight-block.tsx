@@ -8,9 +8,9 @@ import {
   BriefingList,
 } from "@packages/ui/components/ui/briefing";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { PackBagIcon } from "@packages/ui/components/ui/icons";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import type { TFunction } from "i18next";
-import { BackpackIcon } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { type DayPlan, tonightView } from "../../../../shared/agenda/views";
@@ -45,7 +45,7 @@ function TonightBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
   return (
     <BlockPanel
       title={title}
-      icon={BackpackIcon}
+      icon={PackBagIcon}
       note={query.isSuccess && tonightNote(plan, day, t)}
       hero
     >
@@ -119,7 +119,7 @@ export const tonightBlock: HomeBlockDefinition = {
   id: "tonight",
   titleKey: "blocks.tonight.title",
   descriptionKey: "blocks.tonight.description",
-  icon: BackpackIcon,
+  icon: PackBagIcon,
   sizes: { w: [3, 4, 6, 8], h: [1, 2, 3] },
   defaultSize: { w: 4, h: 1 },
   Component: TonightBlock,

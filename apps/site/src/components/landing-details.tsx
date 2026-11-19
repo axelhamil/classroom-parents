@@ -1,5 +1,6 @@
 import type { frCatalog } from "@packages/i18n";
 import { IconTile } from "@packages/ui/components/ui/icon-tile";
+import { AlertsOnIcon, FamilyIcon, ReadOnlyIcon } from "@packages/ui/components/ui/icons";
 import {
   LandingAction,
   LandingFaq,
@@ -12,14 +13,13 @@ import {
   LandingSheet,
 } from "@packages/ui/components/ui/landing";
 import { TextLink } from "@packages/ui/components/ui/text-link";
-import { BellRingIcon, PencilOffIcon, UsersIcon } from "lucide-react";
 import { GoogleCta } from "./google-cta";
 import { SCHOOL_GUIDE_PATH } from "./school-admin-guide";
 
 const PROOFS = [
-  { key: "family", icon: UsersIcon },
-  { key: "alerts", icon: BellRingIcon },
-  { key: "readOnly", icon: PencilOffIcon },
+  { key: "family", icon: FamilyIcon },
+  { key: "alerts", icon: AlertsOnIcon },
+  { key: "readOnly", icon: ReadOnlyIcon },
 ] as const;
 
 export const FAQ_QUESTIONS = ["blocked", "data", "deletion"] as const;
