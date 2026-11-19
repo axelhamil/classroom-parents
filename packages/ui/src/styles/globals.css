@@ -124,6 +124,32 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  /* A surface sliding in from an edge of the screen (Ionic's curve, the one vaul drags with). */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Something moving from one place to another on screen: a deadline settling into its new row. */
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+  /* A damped spring (damping 0.72): 4% past its rest at 55% of the time, settled by 85%. The phone sheet rises on it. */
+  --ease-sheet: linear(
+    0,
+    0.014 2%,
+    0.075 5%,
+    0.169 8%,
+    0.28 11%,
+    0.397 14%,
+    0.51 17%,
+    0.616 20%,
+    0.739 24%,
+    0.838 28%,
+    0.913 32%,
+    0.977 37%,
+    1.015 42%,
+    1.035 48%,
+    1.038 55%,
+    1.028 63%,
+    1.015 72%,
+    1.003 85%,
+    1
+  );
   /* A light spring (bounce 0.2): 94% of the way at 17% of the time, one overshoot to 1.16, settled by 70%. */
   --ease-spring: linear(
     0,
@@ -577,6 +603,8 @@
   --default-transition-timing-function: var(--ease-out-soft);
   --ease-emphasized: var(--ease-emphasized);
   --ease-spring: var(--ease-spring);
+  --ease-drawer: var(--ease-drawer);
+  --ease-move: var(--ease-move);
 
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -957,30 +985,17 @@ html.theme-veil-out::after {
   }
 }
 
-@keyframes enter {
+/* Not `enter`: tw-animate-css owns that name, and of two keyframes sharing a name the build keeps one. */
+@keyframes lift-in {
   from {
     opacity: 0;
     transform: translateY(var(--enter-distance));
   }
 }
 
-@utility animate-enter {
-  animation: enter var(--duration-base) var(--ease-out) both;
-
-  &:nth-child(2) {
-    animation-delay: var(--stagger-step);
-  }
-
-  &:nth-child(3) {
-    animation-delay: calc(2 * var(--stagger-step));
-  }
-
-  &:nth-child(4) {
-    animation-delay: calc(3 * var(--stagger-step));
-  }
-
-  &:nth-child(n + 5) {
-    animation-delay: calc(4 * var(--stagger-step));
+@keyframes fade-away {
+  to {
+    opacity: 0;
   }
 }
 
@@ -1189,6 +1204,15 @@ html.theme-switching *::after {
     }
   }
 
+  /* A period follows the finger that swipes it, and settles back when the swipe falls short. */
+  [data-slot="calendar-period"] {
+    transition: translate var(--duration-base) var(--ease-out);
+  }
+
+  [data-slot="calendar-period"][data-dragging] {
+    transition: none;
+  }
+
   [data-slot="month-planner-day"]:active {
     scale: var(--press-scale);
   }
@@ -1233,17 +1257,6 @@ html.theme-switching *::after {
     animation-delay: calc(var(--stagger-step) * 6);
   }
 
-  [data-slot="dialog-content"],
-  [data-slot="alert-dialog-content"],
-  [data-slot="sheet-content"],
-  [data-slot="popover-content"],
-  [data-slot="dropdown-menu-content"],
-  [data-slot="dropdown-menu-sub-content"],
-  [data-slot="select-content"],
-  [data-slot="tooltip-content"] {
-    animation-timing-function: var(--ease-out);
-  }
-
   [data-slot="badge"][data-variant="urgent"],
   [data-slot="badge"][data-variant="soon"] {
     transition: opacity var(--duration-base) var(--ease-out);
@@ -1269,6 +1282,17 @@ html.theme-switching *::after {
     transform: rotate(-90deg) scale(0.6);
   }
 
+  [data-slot="rolling-count"] > span {
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      translate var(--duration-base) var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 -0.75em;
+    }
+  }
+
   [data-slot="feedback-icon"] {
     transition:
       opacity var(--duration-fast) var(--ease-out),
@@ -1281,14 +1305,162 @@ html.theme-switching *::after {
   }
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: var(--duration-base);
-  animation-timing-function: var(--ease-out);
+/*
+ * Overlays. Every surface opening above the page takes the same speeds: in on
+ * `--duration-slow`, out a step faster, the way it came. The values ride the
+ * variables tw-animate reads, unlayered so they outrank its utilities.
+ */
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-overlay"],
+[data-slot="drawer-overlay"] {
+  --tw-duration: var(--duration-slow);
+  --tw-ease: var(--ease-out);
+}
+
+:is(
+  [data-slot="dialog-overlay"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="sheet-overlay"],
+  [data-slot="drawer-overlay"]
+)[data-state="closed"] {
+  --tw-duration: var(--duration-base);
+}
+
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"] {
+  --tw-duration: var(--duration-base);
+  --tw-ease: var(--ease-out);
+}
+
+:is([data-slot="dialog-content"], [data-slot="alert-dialog-content"])[data-state="closed"] {
+  --tw-duration: var(--duration-fast);
+}
+
+[data-slot="sheet-content"] {
+  --tw-duration: var(--duration-slow);
+  --tw-ease: var(--ease-drawer);
+}
+
+[data-slot="sheet-content"][data-state="closed"] {
+  --tw-duration: var(--duration-base);
+}
+
+[data-slot="popover-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="select-content"],
+[data-slot="tooltip-content"] {
+  --tw-ease: var(--ease-out);
+}
+
+/* The phone sheet rises on a damped spring and sinks back on the drawer curve; vaul's own rule has four attributes, this one five. */
+[data-slot="drawer-content"][data-vaul-drawer][data-vaul-drawer-direction="bottom"][data-state="open"] {
+  animation-duration: var(--duration-slower);
+  animation-timing-function: var(--ease-sheet);
+}
+
+[data-slot="drawer-content"][data-vaul-drawer][data-vaul-drawer-direction="bottom"][data-state="closed"] {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-drawer);
+}
+
+/*
+ * What a sheet holds arrives a beat after it, one block every `--stagger-step`, done within
+ * 300 ms. A scroll region is left out: its fading edges are a scroll-driven animation that
+ * this one would replace.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  :is([data-slot="sheet-content"], [data-slot="drawer-content"])[data-state="open"]
+    :is(
+      [data-slot="sheet-header"],
+      [data-slot="drawer-header"],
+      [data-slot="sheet-body"] > :not([data-slot="scroll-region"]),
+      [data-slot="drawer-body"] > :not([data-slot="scroll-region"])
+    ) {
+    animation: lift-in var(--duration-fast) var(--ease-out) both;
+  }
+
+  :is([data-slot="sheet-body"], [data-slot="drawer-body"]) > :nth-child(1) {
+    animation-delay: var(--stagger-step);
+  }
+
+  :is([data-slot="sheet-body"], [data-slot="drawer-body"]) > :nth-child(2) {
+    animation-delay: calc(var(--stagger-step) * 2);
+  }
+
+  :is([data-slot="sheet-body"], [data-slot="drawer-body"]) > :nth-child(n + 3) {
+    animation-delay: calc(var(--stagger-step) * 3);
+  }
+}
+
+/* Route changes: the page left behind fades, the next one lifts in. */
+::view-transition-old(root) {
+  animation: fade-away var(--duration-fast) var(--ease-out) both;
 }
 
 ::view-transition-new(root) {
-  animation-name: enter;
+  animation: lift-in var(--duration-base) var(--ease-out) both;
+}
+
+/*
+ * Opening a deadline: the tear-off date of the card it was opened from becomes
+ * the large date heading its sheet. The page itself does not move, the sheet
+ * slides as it always does.
+ */
+[data-deadline-morph] {
+  view-transition-name: deadline-date;
+}
+
+html:active-view-transition-type(deadline-open)
+  [data-slot="deadline-hero"]
+  > [data-slot="date-tab"] {
+  view-transition-name: deadline-date;
+}
+
+html:active-view-transition-type(deadline-open)::view-transition-old(root),
+html:active-view-transition-type(deadline-open)::view-transition-new(root),
+html:active-view-transition-type(list-reflow)::view-transition-old(root),
+html:active-view-transition-type(list-reflow)::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(deadline-date) {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-emphasized);
+}
+
+/* A row with no date tile morphs as a whole card: both images keep their proportions, and the card fades early so it never stretches the tile. */
+::view-transition-old(deadline-date),
+::view-transition-new(deadline-date) {
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(deadline-date) {
+    animation: fade-away var(--duration-fast) var(--ease-out) both;
+  }
+}
+
+/* A list that changes (a child filtered in or out) slides its deadlines into their new places; the ones leaving fade. */
+html:active-view-transition-type(list-reflow)
+  :is([data-slot="calendar-entry"], [data-slot="planner-card"]) {
+  view-transition-name: match-element;
+  view-transition-class: deadline;
+}
+
+::view-transition-group(*.deadline) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-move);
+}
+
+::view-transition-new(*.deadline):only-child {
+  animation: lift-in var(--duration-base) var(--ease-out) both;
+}
+
+::view-transition-old(*.deadline):only-child {
+  animation: fade-away var(--duration-fast) var(--ease-out) both;
 }
 
 html:not(.theme-transitioning) [data-slot="app-bar"] {

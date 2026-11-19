@@ -74,6 +74,21 @@ function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * The scrolling middle of a drawer, between its header and its footer. Its
+ * direct children arrive one after the other when the drawer opens, as a
+ * sheet body's do.
+ */
+function DrawerBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="drawer-body"
+      className={cn("flex min-h-0 flex-col gap-4 overflow-y-auto px-4", className)}
+      {...props}
+    />
+  );
+}
+
 function DrawerFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -109,6 +124,7 @@ function DrawerDescription({
 
 export {
   Drawer,
+  DrawerBody,
   DrawerClose,
   DrawerContent,
   DrawerDescription,

@@ -1,5 +1,6 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { RollingCount } from "@packages/ui/components/ui/rolling-count";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
@@ -44,7 +45,7 @@ export function FamilyRow({ family, events, value, onChange }: FamilyRowProps) {
               <ChildAvatar name={child.label} tone={childHue(family, child.id)} size="xs" />
               <span className="max-w-40 truncate">{child.label}</span>
               <Badge variant="soon" aria-hidden>
-                {counts.get(child.id) ?? 0}
+                <RollingCount value={counts.get(child.id) ?? 0} />
               </Badge>
               <span className="sr-only">
                 {t("family.count", { count: counts.get(child.id) ?? 0 })}

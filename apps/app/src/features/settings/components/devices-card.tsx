@@ -126,7 +126,6 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
           {thisDevice ? (
             <ItemGroup>
               <DeviceRow
-                className="animate-enter"
                 session={thisDevice}
                 isCurrent
                 locked={revokeOthers.isPending}
@@ -167,7 +166,6 @@ function OtherDevices(props: OtherDevicesProps) {
           {props.sessions.map((session) => (
             <DeviceRow
               key={session.id}
-              className="animate-enter"
               session={session}
               isCurrent={false}
               locked={props.locked}

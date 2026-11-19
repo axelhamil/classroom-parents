@@ -22,13 +22,7 @@ function SectionCard({
   const titleId = useId();
 
   return (
-    <Card
-      role="region"
-      aria-labelledby={titleId}
-      variant={tone}
-      data-tour={tourTarget}
-      className="animate-enter"
-    >
+    <Card role="region" aria-labelledby={titleId} variant={tone} data-tour={tourTarget}>
       <CardHeader>
         <CardTitle asChild variant={tone}>
           <h2 id={titleId}>{title}</h2>
