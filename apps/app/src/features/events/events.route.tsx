@@ -144,6 +144,13 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
+      {toReview.length > 0 && (
+        <ReviewCard
+          events={toReview}
+          childLabel={(id) => childLabelOf(family, id)}
+          childColor={(id) => childHue(family, id)}
+        />
+      )}
       <CalendarBoard
         family={family}
         childId={childId}
@@ -154,13 +161,6 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
         briefing={<NextSchoolBriefing family={family} childId={childId} now={now} />}
         tour={!search.event && <ScreenTour screen="home" userId={user.id} />}
       />
-      {toReview.length > 0 && (
-        <ReviewCard
-          events={toReview}
-          childLabel={(id) => childLabelOf(family, id)}
-          childColor={(id) => childHue(family, id)}
-        />
-      )}
     </div>
   );
 }

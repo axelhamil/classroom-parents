@@ -44,13 +44,14 @@ export function ReviewCard({ events, childLabel, childColor }: ReviewCardProps) 
         <CardDescription>{t("review.description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul className="flex flex-col gap-2">
+        <ul className="grid gap-2 md:grid-cols-2">
           {events.map((event) => (
             <ListRow key={event.id} variant="plain" className="flex-col items-stretch">
               <EventCard
                 event={event}
                 childLabel={childLabel(event.childId)}
                 hue={childColor(event.childId)}
+                markReview={false}
               />
               <ListRowAction>
                 <Button

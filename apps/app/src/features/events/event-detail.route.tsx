@@ -6,6 +6,7 @@ import { QueryState } from "../../shared/query/query-state";
 import { eventQueryOptions } from "./api/events.queries";
 import { EventDetailBody, EventDetailSkeleton } from "./components/event-detail-body";
 import { EventNotFound, isEventGone } from "./components/event-not-found";
+import { EventEyebrow, EventOrigin } from "./components/event-when";
 import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
 import { useNow } from "./hooks/use-now";
 
@@ -23,7 +24,11 @@ function EventDetailPage() {
   if (isEventGone(query)) return <EventNotFound />;
 
   return (
-    <Screen title={query.data?.title ?? t("detail.title")}>
+    <Screen
+      eyebrow={query.data && <EventEyebrow event={query.data} />}
+      title={query.data?.title ?? t("detail.title")}
+      description={query.data && <EventOrigin event={query.data} />}
+    >
       <QueryState query={query} skeleton={<EventDetailSkeleton />}>
         {(event) => <EventDetailBody event={event} onDeleted={() => void navigate({ to: "/" })} />}
       </QueryState>

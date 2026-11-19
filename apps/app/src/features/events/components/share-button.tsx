@@ -38,7 +38,13 @@ export function ShareButton({ label, payload, "data-tour": tour }: ShareButtonPr
   const { share, copied } = useShare();
 
   return (
-    <Button type="button" variant="outline" data-tour={tour} onClick={() => void share(payload())}>
+    <Button
+      type="button"
+      variant="outline"
+      size="tile"
+      data-tour={tour}
+      onClick={() => void share(payload())}
+    >
       {copied ? (
         <CheckIcon key="copied" data-slot="feedback-icon" aria-hidden />
       ) : (

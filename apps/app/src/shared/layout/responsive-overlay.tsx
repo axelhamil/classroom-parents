@@ -68,6 +68,7 @@ function pageHeading(): HTMLElement[] {
 }
 
 export interface ResponsiveOverlayProps {
+  eyebrow?: ReactNode;
   title: ReactNode;
   description: ReactNode;
   descriptionHidden?: boolean;
@@ -109,6 +110,7 @@ interface OverlayFrameProps extends Omit<ResponsiveOverlayProps, "returnFocus" |
 }
 
 function OverlayFrame({
+  eyebrow,
   title,
   description,
   descriptionHidden = false,
@@ -127,6 +129,7 @@ function OverlayFrame({
       <Drawer open autoFocus onOpenChange={onOpenChange}>
         <DrawerContent onCloseAutoFocus={onCloseAutoFocus}>
           <DrawerHeader>
+            {eyebrow}
             <DrawerTitle className="wrap-anywhere">{title}</DrawerTitle>
             <DrawerDescription className={descriptionClass}>{description}</DrawerDescription>
           </DrawerHeader>
@@ -148,6 +151,7 @@ function OverlayFrame({
       <Sheet open onOpenChange={onOpenChange}>
         <SheetContent size="lg" closeLabel={closeLabel} onCloseAutoFocus={onCloseAutoFocus}>
           <SheetHeader>
+            {eyebrow}
             <SheetTitle className="pr-8 wrap-anywhere">{title}</SheetTitle>
             <SheetDescription className={descriptionClass}>{description}</SheetDescription>
           </SheetHeader>
@@ -167,6 +171,7 @@ function OverlayFrame({
         className="flex flex-col"
       >
         <DialogHeader>
+          {eyebrow}
           <DialogTitle className="wrap-anywhere">{title}</DialogTitle>
           <DialogDescription className={descriptionClass}>{description}</DialogDescription>
         </DialogHeader>

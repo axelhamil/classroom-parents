@@ -25,6 +25,8 @@ type FormTextFieldProps<
     control: Control<TFieldValues>;
     name: TName;
     label: string;
+    /** Keeps the label for assistive tech only; the placeholder then shows the same words. */
+    labelHidden?: boolean;
     description?: string;
   };
 
@@ -35,6 +37,7 @@ export function FormTextField<
   control,
   name,
   label,
+  labelHidden = false,
   description,
   type,
   showPasswordLabel,
@@ -56,6 +59,7 @@ export function FormTextField<
           <FormControl>
             <Input
               type={inputType}
+              placeholder={labelHidden ? label : undefined}
               className={isPassword ? "pr-10" : undefined}
               {...inputProps}
               {...field}
@@ -65,7 +69,7 @@ export function FormTextField<
 
         return (
           <FormItem>
-            <FormLabel>{label}</FormLabel>
+            <FormLabel className={labelHidden ? "sr-only" : undefined}>{label}</FormLabel>
             {isPassword ? (
               <div className="relative">
                 {input}

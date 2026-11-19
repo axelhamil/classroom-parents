@@ -171,6 +171,24 @@ function TypographyInline({
   );
 }
 
+/**
+ * A title set in the display face where the heading element is owned by a
+ * primitive (a sheet or drawer title): the element keeps its role, the
+ * words take the display scale.
+ */
+function TypographyDisplay({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="typography-display"
+      className={cn(
+        "block font-display text-2xl leading-tight font-bold tracking-tight text-balance",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 function TypographyBlockquote({ className, ...props }: React.ComponentProps<"blockquote">) {
   return (
     <blockquote
@@ -216,6 +234,7 @@ function TypographyOrderedList({ className, ...props }: React.ComponentProps<"ol
 
 export {
   TypographyBlockquote,
+  TypographyDisplay,
   TypographyH1,
   TypographyH2,
   TypographyH3,

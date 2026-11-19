@@ -15,9 +15,15 @@ const alertVariants = cva(
         warning:
           "border-transparent bg-warning text-warning-foreground *:data-[slot=alert-description]:text-warning-foreground",
       },
+      density: {
+        default: "",
+        compact:
+          "py-2 *:data-[slot=alert-action]:mt-1 md:has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr_auto] md:*:data-[slot=alert-action]:col-start-3 md:*:data-[slot=alert-action]:row-span-2 md:*:data-[slot=alert-action]:row-start-1 md:*:data-[slot=alert-action]:mt-0 md:*:data-[slot=alert-action]:self-center",
+      },
     },
     defaultVariants: {
       variant: "default",
+      density: "default",
     },
   },
 );
@@ -25,13 +31,14 @@ const alertVariants = cva(
 function Alert({
   className,
   variant,
+  density,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
   return (
     <div
       data-slot="alert"
       role="alert"
-      className={cn(alertVariants({ variant }), className)}
+      className={cn(alertVariants({ variant, density }), className)}
       {...props}
     />
   );

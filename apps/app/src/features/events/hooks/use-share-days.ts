@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
+import { deadlineTitle } from "../../../shared/events/deadline-title";
 import { childLabelOf } from "../../../shared/format/child-hue";
 import { dayLabel } from "../../../shared/format/deadline-label";
 import type { CalendarDay } from "../calendar";
@@ -20,10 +21,7 @@ export function useShareDays(family: readonly ChildDto[], now: Date) {
               [
                 t("week.shareDay", { day: dayLabel(day.date, now) }),
                 ...day.events.map((event) =>
-                  t("week.shareItem", {
-                    child: childLabelOf(family, event.childId),
-                    title: event.title,
-                  }),
+                  deadlineTitle(t, event.title, childLabelOf(family, event.childId)),
                 ),
               ].join("\n"),
             )

@@ -25,13 +25,14 @@ export function ChecklistItemForm({ onAdd }: ChecklistItemFormProps) {
           onAdd(values.label);
           form.reset();
         })}
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2"
         noValidate
       >
         <FormTextField
           control={form.control}
           name="label"
           label={t("prepare.newItem")}
+          labelHidden
           autoComplete="off"
           enterKeyHint="done"
         />

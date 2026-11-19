@@ -82,6 +82,22 @@ describe("event reminders", () => {
     expect(screen.queryByRole("button", { name: "Revenir aux rappels par défaut" })).toBeNull();
   });
 
+  it("given several reminders, then the next send is named once above the list, never the one already sent", async () => {
+    givenReminders(DEFAULTS);
+    await renderReminders();
+
+    expect(await screen.findByText(/^Prochain rappel : dimanche 28 mars 2027/)).toBeDefined();
+    expect(screen.queryByText(/^Rappel envoyé/)).toBeNull();
+  });
+
+  it("given a single reminder, then its row alone says when it goes out", async () => {
+    givenReminders(CUSTOM);
+    await renderReminders();
+
+    await screen.findAllByRole("listitem");
+    expect(screen.queryByText(/^Prochain rappel/)).toBeNull();
+  });
+
   it("given a reminder whose moment is already past, then no send time is promised for it", async () => {
     givenReminders({
       customized: true,

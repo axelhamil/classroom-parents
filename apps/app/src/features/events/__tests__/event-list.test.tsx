@@ -85,6 +85,14 @@ describe("Accueil around the calendar", () => {
     expect(pointer.getAttribute("href")).toBe("/children");
   });
 
+  it("given a child whose Google access was lost, then the notice offers to reconnect at once", async () => {
+    givenFamily([{ ...CHILD, status: "needs_reconnect" }], [EVENT]);
+    await renderAppAt("/");
+
+    expect(await screen.findByRole("button", { name: "Reconnecter" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Voir les enfants" })).toBeNull();
+  });
+
   it("given an event to review beyond the loaded page, then the review card still lists it", async () => {
     const late = {
       ...EVENT,

@@ -26,8 +26,12 @@ const dateTabVariants = cva(
         7: "[&>[data-part=month]]:bg-child-7 [&>[data-part=month]]:text-child-foreground",
         8: "[&>[data-part=month]]:bg-child-8 [&>[data-part=month]]:text-child-foreground",
       },
+      size: {
+        default: "",
+        lg: "w-24 rounded-lg [&>[data-part=month]]:py-1.5 [&>[data-part=month]]:text-sm [&>[data-part=day]]:pt-2 [&>[data-part=day]]:text-5xl [&>[data-part=weekday]]:pb-2 [&>[data-part=weekday]]:text-sm",
+      },
     },
-    defaultVariants: { tone: "default" },
+    defaultVariants: { tone: "default", size: "default" },
   },
 );
 
@@ -40,12 +44,27 @@ interface DateTabProps
   weekday?: string;
 }
 
-function DateTab({ className, tone, hue, dateTime, day, month, weekday, ...props }: DateTabProps) {
+/**
+ * The tear-off date of the planner, the product's one signature: on every
+ * deadline card at the default size, large (`size="lg"`) as the head of a
+ * deadline's sheet. The month band takes the child's hue.
+ */
+function DateTab({
+  className,
+  tone,
+  hue,
+  size,
+  dateTime,
+  day,
+  month,
+  weekday,
+  ...props
+}: DateTabProps) {
   return (
     <time
       data-slot="date-tab"
       dateTime={dateTime}
-      className={cn(dateTabVariants({ tone, hue }), className)}
+      className={cn(dateTabVariants({ tone, hue, size }), className)}
       {...props}
     >
       <span data-part="month" className="py-1 text-xs font-bold">
