@@ -49,6 +49,10 @@ export const agendaEvent = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     evidenceQuote: text("evidence_quote"),
+    evidenceStart: integer("evidence_start"),
+    evidenceEnd: integer("evidence_end"),
+    evidenceBefore: text("evidence_before").notNull().default(""),
+    evidenceAfter: text("evidence_after").notNull().default(""),
     amendReason: text("amend_reason", { enum: AMENDMENT_KINDS }),
     confirmedByParentAt: timestamp("confirmed_by_parent_at", { withTimezone: true }),
     done: boolean("done").notNull().default(false),

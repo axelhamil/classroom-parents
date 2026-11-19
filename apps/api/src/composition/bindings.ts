@@ -158,7 +158,7 @@ export function announcementExtractorFor(
           ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
           needsReview: event.needsReview,
           reviewReasons: event.reviewReasons,
-          ...(event.evidenceQuote === undefined ? {} : { evidenceQuote: event.evidenceQuote }),
+          ...(event.evidence === undefined ? {} : { evidence: event.evidence }),
         })),
         amendments,
       }));

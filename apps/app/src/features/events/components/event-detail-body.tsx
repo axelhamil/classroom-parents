@@ -178,7 +178,7 @@ function EventReview({ event }: EventReviewProps) {
       <TypographyH2 id={titleId} variant="section">
         {t("review.why")}
       </TypographyH2>
-      <ReviewReasons event={event} />
+      <ReviewReasons event={event} inContext />
       <Button
         type="button"
         variant="outline"

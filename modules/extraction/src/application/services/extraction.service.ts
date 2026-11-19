@@ -6,7 +6,7 @@ import {
   truncateOnWord,
   utcToZonedWall,
 } from "@packages/ddd-kit";
-import type { ReviewReason } from "@packages/events/agenda-contract";
+import type { EvidencePassage, ReviewReason } from "@packages/events/agenda-contract";
 import {
   EXTRACTED_DESCRIPTION_MAX,
   EXTRACTED_TITLE_MAX,
@@ -17,8 +17,14 @@ import {
 } from "../../domain/extracted-event";
 import { ExtractionCategory } from "../../domain/value-objects/extraction-category.vo";
 import type { ExtractionError, ILanguageModel, ModelTier } from "../ports/language-model.port";
-import { sanitizeAnnouncement } from "./announcement-sanitizer";
-import { frenchWeekdayOf, reviewReasonsFor, verifiedQuote } from "./extraction-checks";
+import { type SanitizedAnnouncement, sanitizeWithOffsets } from "./announcement-sanitizer";
+import {
+  frenchWeekdayOf,
+  locateQuote,
+  reviewReasonsFor,
+  sentenceAfter,
+  sentenceBefore,
+} from "./extraction-checks";
 import {
   type AmendmentCandidate,
   type ExtractedCandidate,
@@ -152,8 +158,8 @@ export class ExtractionService {
           });
 
         const publishedOn = published.getValue().date;
-        const source = sanitizeAnnouncement(input.text, input.childNames);
-        const user = `${contextBlock(publishedOn, published.getValue().time)}\n${announcementBlock(source)}`;
+        const source = sanitizeWithOffsets(input.text, input.childNames);
+        const user = `${contextBlock(publishedOn, published.getValue().time)}\n${announcementBlock(source.text)}`;
 
         const first = await this.pass("fast", user, source, publishedOn);
         if (first.isFailure) return first;
@@ -175,7 +181,7 @@ export class ExtractionService {
   private async pass(
     tier: ModelTier,
     user: string,
-    source: string,
+    source: SanitizedAnnouncement,
     publishedOn: string,
   ): Promise<Result<ExtractionResult, ExtractionError>> {
     const output = await this.model.parse({
@@ -199,7 +205,7 @@ export class ExtractionService {
 
   private toEvent(
     candidate: ExtractedCandidate,
-    source: string,
+    source: SanitizedAnnouncement,
     publishedOn: string,
   ): Result<ExtractedEvent, ExtractionError> {
     const category = ExtractionCategory.create(candidate.category);
@@ -212,7 +218,7 @@ export class ExtractionService {
     const title = truncateOnWord(candidate.title, EXTRACTED_TITLE_MAX);
     const time = normalizedTime(candidate.deadlineTime);
     const reviewReasons = [
-      ...reviewReasonsFor(candidate, { source, publishedOn }),
+      ...reviewReasonsFor(candidate, { source: source.text, publishedOn }),
       ...this.fieldReasons(title, time.isFailure),
     ];
     const event: ExtractedEvent = {
@@ -245,14 +251,24 @@ export class ExtractionService {
     event: ExtractedEvent,
     deadlineTime: Option<string>,
     candidate: ExtractedCandidate,
-    source: string,
+    source: SanitizedAnnouncement,
   ): ExtractedEvent {
-    const quote = verifiedQuote(candidate.evidenceQuote, source);
+    const evidence = this.evidenceOf(candidate.evidenceQuote, source);
 
     return {
       ...event,
       ...(deadlineTime.isSome() ? { deadlineTime: deadlineTime.unwrap() } : {}),
-      ...(quote.isSome() ? { evidenceQuote: quote.unwrap() } : {}),
+      ...(evidence.isSome() ? { evidence: evidence.unwrap() } : {}),
     };
+  }
+
+  private evidenceOf(quote: string, source: SanitizedAnnouncement): Option<EvidencePassage> {
+    return locateQuote(quote, source.text).map(({ start, end }) => ({
+      quote: source.text.slice(start, end),
+      start: source.rawOffset(start, "start"),
+      end: source.rawOffset(end, "end"),
+      before: sentenceBefore(source.text, start),
+      after: sentenceAfter(source.text, end),
+    }));
   }
 }

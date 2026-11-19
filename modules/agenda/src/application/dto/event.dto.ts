@@ -1,4 +1,4 @@
-import type { ReviewReason } from "@packages/events/agenda-contract";
+import type { EvidencePassage, ReviewReason } from "@packages/events/agenda-contract";
 import { z } from "zod";
 import type { AgendaEvent, EditableField } from "../../domain/event.aggregate";
 import type { AmendmentKind } from "../../domain/value-objects/event-amendment.vo";
@@ -11,6 +11,8 @@ export interface EventCourseDto {
   id: string;
   name: string;
 }
+
+export type EventEvidenceDto = Pick<EvidencePassage, "quote" | "before" | "after">;
 
 export interface EventDto {
   id: string;
@@ -25,7 +27,7 @@ export interface EventDto {
   status: EventStatusValue;
   reviewReasons: ReviewReason[];
   amendReason?: AmendmentKind;
-  evidenceQuote?: string;
+  evidence?: EventEvidenceDto;
   source: EventSourceValue;
   done: boolean;
   announcementUrl?: string;
@@ -119,9 +121,9 @@ export function toEventDto(event: AgendaEvent, course: EventCourseDto | null): E
       .get("amendReason")
       .map((reason) => reason.value)
       .toUndefined(),
-    evidenceQuote: event
-      .get("evidenceQuote")
-      .map((quote) => quote.value)
+    evidence: event
+      .get("evidence")
+      .map(({ value: { quote, before, after } }) => ({ quote, before, after }))
       .toUndefined(),
     source: event.get("source").value,
     done: event.get("done"),

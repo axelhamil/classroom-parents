@@ -17,7 +17,7 @@ test.describe("event detail on a phone", () => {
 
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(REVIEW_EVENT.title);
       await expect(page.getByRole("region", { name: "Pourquoi à vérifier" })).toBeVisible();
-      await expect(page.getByText(REVIEW_EVENT.evidenceQuote)).toBeVisible();
+      await expect(page.locator("mark")).toHaveText(REVIEW_EVENT.evidence.quote);
       await expect(page.getByText("3 jours avant, à 18 h")).toBeVisible();
       await expect(page.getByText("Non planifié")).toBeVisible();
       await expect(page.getByRole("link", { name: "Ouvrir dans Classroom" })).toHaveAttribute(

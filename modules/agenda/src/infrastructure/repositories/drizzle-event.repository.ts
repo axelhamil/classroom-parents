@@ -41,7 +41,7 @@ import { EventDescription } from "../../domain/value-objects/event-description.v
 import { EventSource } from "../../domain/value-objects/event-source.vo";
 import { EventStatus } from "../../domain/value-objects/event-status.vo";
 import { EventTitle } from "../../domain/value-objects/event-title.vo";
-import { EvidenceQuote } from "../../domain/value-objects/evidence-quote.vo";
+import { Evidence } from "../../domain/value-objects/evidence.vo";
 import { ReviewReasons } from "../../domain/value-objects/review-reasons.vo";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
@@ -53,6 +53,31 @@ type EventRow = typeof agendaEvent.$inferSelect;
 type Order = "asc" | "desc";
 
 type Read = "plain" | "locked" | "chronological" | "latest";
+
+function storedEvidence(row: EventRow): Result<Option<Evidence>, string> {
+  const { evidenceQuote: quote, evidenceStart: start, evidenceEnd: end } = row;
+  if (quote === null || start === null || end === null) return Result.ok(Option.none());
+
+  return Evidence.create({
+    quote,
+    start,
+    end,
+    before: row.evidenceBefore,
+    after: row.evidenceAfter,
+  }).map((evidence) => Option.some(evidence));
+}
+
+function evidenceColumns(evidence: Option<Evidence>) {
+  const value = evidence.map((kept) => kept.value).toNull();
+
+  return {
+    evidenceQuote: value?.quote ?? null,
+    evidenceStart: value?.start ?? null,
+    evidenceEnd: value?.end ?? null,
+    evidenceBefore: value?.before ?? "",
+    evidenceAfter: value?.after ?? "",
+  };
+}
 
 function optionalValue<T, V>(
   raw: V | null,
@@ -74,7 +99,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   );
   const status = EventStatus.create(row.status);
   const reviewReasons = ReviewReasons.create(row.reviewReasons);
-  const evidenceQuote = optionalValue(row.evidenceQuote, (quote) => EvidenceQuote.create(quote));
+  const evidence = storedEvidence(row);
   const amendReason = optionalValue(row.amendReason, (kind) => AmendReason.create(kind));
   const source = EventSource.create(row.source);
   const stored = row.checklist;
@@ -91,7 +116,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   if (deadline.isFailure) return Result.fail(deadline.getError());
   if (status.isFailure) return Result.fail(status.getError());
   if (reviewReasons.isFailure) return Result.fail(reviewReasons.getError());
-  if (evidenceQuote.isFailure) return Result.fail(evidenceQuote.getError());
+  if (evidence.isFailure) return Result.fail(evidence.getError());
   if (amendReason.isFailure) return Result.fail(amendReason.getError());
 
   return Result.ok(
@@ -111,7 +136,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         receivedAt: row.receivedAt,
         status: status.getValue(),
         reviewReasons: reviewReasons.getValue(),
-        evidenceQuote: evidenceQuote.getValue(),
+        evidence: evidence.getValue(),
         amendReason: amendReason.getValue(),
         confirmedByParentAt: Option.fromNullable(row.confirmedByParentAt),
         done: row.done,
@@ -139,10 +164,7 @@ function mutableColumns(event: AgendaEvent) {
     deadlineAt: deadline.at,
     status: event.get("status").value,
     reviewReasons: event.get("reviewReasons").value,
-    evidenceQuote: event
-      .get("evidenceQuote")
-      .map((quote) => quote.value)
-      .toNull(),
+    ...evidenceColumns(event.get("evidence")),
     amendReason: event
       .get("amendReason")
       .map((reason) => reason.value)

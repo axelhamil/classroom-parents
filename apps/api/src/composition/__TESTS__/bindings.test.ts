@@ -265,7 +265,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     confidence: "low" as const,
     needsReview: true,
     reviewReasons: ["low_confidence" as const],
-    evidenceQuote: "Évaluation jeudi 19 novembre",
+    evidence: { quote: "Évaluation jeudi 19 novembre", start: 0, end: 28, before: "", after: "" },
   };
 
   it("keeps every field the agenda needs, review reasons, quote and time included", async () => {
@@ -301,7 +301,13 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
           deadlineTime: "08:30",
           needsReview: true,
           reviewReasons: ["low_confidence"],
-          evidenceQuote: "Évaluation jeudi 19 novembre",
+          evidence: {
+            quote: "Évaluation jeudi 19 novembre",
+            start: 0,
+            end: 28,
+            before: "",
+            after: "",
+          },
         },
       ],
       amendments: [{ kind: "moved", reference: "Évaluation de fractions" }],
@@ -309,7 +315,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
   });
 
   it("leaves the time out when the announcement gives none", async () => {
-    const { deadlineTime: _dropped, evidenceQuote: _unverified, ...withoutTime } = extracted;
+    const { deadlineTime: _dropped, evidence: _unverified, ...withoutTime } = extracted;
     const extractor = announcementExtractorFor({
       extract: async () =>
         Result.ok({

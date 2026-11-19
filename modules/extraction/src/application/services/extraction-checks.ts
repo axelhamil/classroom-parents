@@ -1,6 +1,10 @@
-import { Option, truncateOnWord } from "@packages/ddd-kit";
+import { Option } from "@packages/ddd-kit";
 import { DAY_MS, weekdayOf } from "@packages/ddd-kit/days";
-import { EVIDENCE_QUOTE_MAX, type ReviewReason } from "@packages/events/agenda-contract";
+import {
+  EVIDENCE_CONTEXT_MAX,
+  EVIDENCE_QUOTE_MAX,
+  type ReviewReason,
+} from "@packages/events/agenda-contract";
 import type { ExtractedCandidate } from "./extraction-output.schema";
 import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
 
@@ -23,13 +27,47 @@ interface WrittenDay {
   month?: number;
 }
 
-function normalizeForMatch(text: string): string {
-  return withoutMarks(text)
+interface IndexedText {
+  text: string;
+  starts: number[];
+  ends: number[];
+}
+
+function normalizedChar(char: string): string {
+  const folded = withoutMarks(char.normalize("NFKC").toLowerCase())
     .replace(/[‘’ʼ]/g, "'")
-    .replace(/[«»“”„"]/g, " ")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[«»“”„"]/g, " ");
+
+  return folded.replace(/\s+/g, " ");
+}
+
+function normalizedWithOffsets(text: string): IndexedText {
+  const indexed: IndexedText = { text: "", starts: [], ends: [] };
+  let offset = 0;
+
+  for (const char of text) {
+    for (const folded of normalizedChar(char)) {
+      const blank = folded === " " && (indexed.text === "" || indexed.text.endsWith(" "));
+      if (blank) continue;
+
+      indexed.text += folded;
+      indexed.starts.push(offset);
+      indexed.ends.push(offset + char.length);
+    }
+    offset += char.length;
+  }
+
+  if (indexed.text.endsWith(" ")) {
+    indexed.text = indexed.text.slice(0, -1);
+    indexed.starts.pop();
+    indexed.ends.pop();
+  }
+
+  return indexed;
+}
+
+function normalizeForMatch(text: string): string {
+  return normalizedWithOffsets(text).text;
 }
 
 function dayNumber(isoDate: string): number {
@@ -98,11 +136,56 @@ function citedWeekdays(expression: string): string[] {
   return FRENCH_WEEKDAYS.filter((weekday) => words.has(weekday));
 }
 
-export function verifiedQuote(quote: string, source: string): Option<string> {
-  const normalized = normalizeForMatch(quote);
-  if (normalized === "" || !normalizeForMatch(source).includes(normalized)) return Option.none();
+export interface Span {
+  start: number;
+  end: number;
+}
 
-  return Option.some(truncateOnWord(quote, EVIDENCE_QUOTE_MAX));
+const SENTENCE_BREAK = /[.!?…]+\s+|\n+/g;
+const HAS_WORD = /[\p{L}\p{N}]/u;
+
+export function locateQuote(quote: string, source: string): Option<Span> {
+  const wanted = normalizeForMatch(quote);
+  const indexed = normalizedWithOffsets(source);
+  const at = wanted === "" ? -1 : indexed.text.indexOf(wanted);
+  if (at === -1) return Option.none();
+
+  const start = indexed.starts[at] ?? 0;
+  const end = indexed.ends[at + wanted.length - 1] ?? start;
+
+  return Option.some({ start, end: start + cappedLength(source.slice(start, end)) });
+}
+
+function cappedLength(passage: string): number {
+  if (passage.length <= EVIDENCE_QUOTE_MAX) return passage.length;
+
+  const cut = passage.slice(0, EVIDENCE_QUOTE_MAX + 1).lastIndexOf(" ");
+
+  return cut > 0 ? passage.slice(0, cut).trimEnd().length : EVIDENCE_QUOTE_MAX;
+}
+
+export function sentenceBefore(source: string, start: number): string {
+  const head = source.slice(0, start);
+  const starts = [0, ...Array.from(head.matchAll(SENTENCE_BREAK), (m) => m.index + m[0].length)];
+  const from = starts.findLast((index) => HAS_WORD.test(head.slice(index))) ?? start;
+  const before = head.slice(from);
+  if (before.length <= EVIDENCE_CONTEXT_MAX) return before;
+
+  const tail = before.slice(-EVIDENCE_CONTEXT_MAX);
+
+  return tail.slice(Math.max(0, tail.search(/\s/)));
+}
+
+export function sentenceAfter(source: string, end: number): string {
+  const rest = source.slice(end);
+  const breaks = Array.from(rest.matchAll(SENTENCE_BREAK), (m) => m.index + m[0].trimEnd().length);
+  const to = breaks.find((index) => HAS_WORD.test(rest.slice(0, index))) ?? rest.length;
+  const after = rest.slice(0, to);
+  if (after.length <= EVIDENCE_CONTEXT_MAX) return after;
+
+  const head = after.slice(0, EVIDENCE_CONTEXT_MAX + 1);
+
+  return head.slice(0, Math.max(0, head.lastIndexOf(" ")));
 }
 
 function quotesAreInSource(candidate: ExtractedCandidate, source: string): boolean {

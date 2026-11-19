@@ -8,6 +8,7 @@ import {
 } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
+import type { EvidencePassage } from "@packages/events/agenda-contract";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { AgendaEvent, type EventField } from "../../domain/event.aggregate";
@@ -18,7 +19,7 @@ import type { EventDeadline } from "../../domain/value-objects/event-deadline.vo
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventSource } from "../../domain/value-objects/event-source.vo";
 import type { EventTitle } from "../../domain/value-objects/event-title.vo";
-import type { EvidenceQuote } from "../../domain/value-objects/evidence-quote.vo";
+import type { Evidence } from "../../domain/value-objects/evidence.vo";
 import { ReviewReasons } from "../../domain/value-objects/review-reasons.vo";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
@@ -34,7 +35,7 @@ import {
   parseClassroomCategory,
   parseComputedDeadline,
   parseDescription,
-  parseEvidenceQuote,
+  parseEvidence,
   parseReviewReasons,
   parseTitle,
 } from "./event-fields";
@@ -48,7 +49,7 @@ export interface IngestedEvent {
   deadlineTime?: string;
   needsReview: boolean;
   reviewReasons: string[];
-  evidenceQuote?: string;
+  evidence?: EvidencePassage;
 }
 
 export interface IngestedAmendment {
@@ -112,7 +113,7 @@ type CourseworkOutcome = "created" | "updated" | "unchanged";
 
 interface ReviewEvidence {
   reviewReasons: ReviewReasons;
-  evidenceQuote: Option<EvidenceQuote>;
+  evidence: Option<Evidence>;
 }
 
 interface ParsedCoursework {
@@ -399,7 +400,7 @@ export class EventIngestService {
         deadline,
         receivedAt: this.clock(),
         reviewReasons: ReviewReasons.none(),
-        evidenceQuote: Option.none(),
+        evidence: Option.none(),
         needsReview: false,
         done: item.done,
         now: this.clock(),
@@ -488,10 +489,7 @@ export class EventIngestService {
       reviewReasons: this.kept(parseReviewReasons(raw.reviewReasons)).unwrapOr(
         ReviewReasons.none(),
       ),
-      evidenceQuote:
-        raw.evidenceQuote === undefined
-          ? Option.none()
-          : this.kept(parseEvidenceQuote(raw.evidenceQuote)),
+      evidence: raw.evidence === undefined ? Option.none() : this.kept(parseEvidence(raw.evidence)),
     };
   }
 

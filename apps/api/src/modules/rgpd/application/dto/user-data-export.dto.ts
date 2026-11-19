@@ -44,6 +44,10 @@ export interface CollectedEvent {
   status: string;
   reviewReasons: string[];
   evidenceQuote: string | null;
+  evidenceStart: number | null;
+  evidenceEnd: number | null;
+  evidenceBefore: string;
+  evidenceAfter: string;
   amendReason: string | null;
   confirmedByParentAt: string | null;
   done: boolean;

@@ -202,7 +202,13 @@ describe("ingest", () => {
       extracted({
         needsReview: true,
         reviewReasons: ["weekday_mismatch", "weekday_mismatch"],
-        evidenceQuote: "Contrôle de maths jeudi\u202E 19   novembre\u200B",
+        evidence: {
+          quote: "Contrôle de maths jeudi\u202E 19   novembre\u200B",
+          start: 12,
+          end: 49,
+          before: "Bonjour.\n",
+          after: ". Apportez une\u2066 calculatrice.",
+        },
       }),
     ]);
 
@@ -210,22 +216,32 @@ describe("ingest", () => {
     expect(row?.get("reviewReasons").value).toEqual(["weekday_mismatch"]);
     expect(
       row
-        ?.get("evidenceQuote")
-        .map((quote) => quote.value)
+        ?.get("evidence")
+        .map((evidence) => evidence.value)
         .toNull(),
-    ).toBe("Contrôle de maths jeudi 19 novembre");
+    ).toEqual({
+      quote: "Contrôle de maths jeudi 19 novembre",
+      start: 12,
+      end: 49,
+      before: "Bonjour. ",
+      after: ". Apportez une calculatrice.",
+    });
   });
 
   it("given a review reason the agenda does not know, then the event is still stored for review without it", async () => {
     const result = await ingest([
-      extracted({ needsReview: true, reviewReasons: ["moon_phase"], evidenceQuote: "   " }),
+      extracted({
+        needsReview: true,
+        reviewReasons: ["moon_phase"],
+        evidence: { quote: "   ", start: 4, end: 4, before: "", after: "" },
+      }),
     ]);
 
     const row = [...stored.values()][0];
     expect(result.getValue().created).toBe(1);
     expect(row?.needsReview()).toBe(true);
     expect(row?.get("reviewReasons").value).toEqual([]);
-    expect(row?.get("evidenceQuote").isNone()).toBe(true);
+    expect(row?.get("evidence").isNone()).toBe(true);
   });
 
   it("given a confident event, then its default alert is planned once with its deadline", async () => {

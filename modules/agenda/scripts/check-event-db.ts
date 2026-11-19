@@ -657,7 +657,13 @@ run(async () => {
       deadlineDate: "2030-02-05",
       needsReview: true,
       reviewReasons: ["weekday_mismatch"],
-      evidenceQuote: "Évaluation de géographie jeudi 5 février",
+      evidence: {
+        quote: "Évaluation de géographie jeudi 5 février",
+        start: 9,
+        end: 49,
+        before: "Bonjour,",
+        after: ". Révisez la carte.",
+      },
     }),
   ]);
   const [doubtful] = await rowsOf(aNina, "ann-nina-test");
@@ -666,7 +672,11 @@ run(async () => {
     "a deadline read with a doubt stores its reasons and its source sentence",
     doubtful.status === "needs_review" &&
       doubtful.reviewReasons.join() === "weekday_mismatch" &&
-      doubtful.evidenceQuote === "Évaluation de géographie jeudi 5 février",
+      doubtful.evidenceQuote === "Évaluation de géographie jeudi 5 février" &&
+      doubtful.evidenceStart === 9 &&
+      doubtful.evidenceEnd === 49 &&
+      doubtful.evidenceBefore === "Bonjour," &&
+      doubtful.evidenceAfter === ". Révisez la carte.",
   );
   const confirmed = await edits.confirm(a, doubtful.id);
   const corrected2 = await ingest(

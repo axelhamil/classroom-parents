@@ -42,7 +42,7 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       receivedAt: new Date("2026-11-09T07:00:00.000Z"),
       status: EventStatus.create(overrides.status ?? "confirmed").getValue(),
       reviewReasons: ReviewReasons.none(),
-      evidenceQuote: Option.none(),
+      evidence: Option.none(),
       amendReason: Option.none(),
       confirmedByParentAt: Option.none(),
       done: false,

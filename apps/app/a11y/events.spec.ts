@@ -168,7 +168,7 @@ test.describe("the calendar on a phone", () => {
       await review.click();
       const dialog = page.getByRole("dialog", { name: "1 date à vérifier" });
       await expect(dialog.getByRole("button", { name: "C'est bon" })).toBeVisible();
-      await expect(dialog.getByText(REVIEW_EVENT.evidenceQuote)).toBeVisible();
+      await expect(dialog.getByText(REVIEW_EVENT.evidence.quote)).toBeVisible();
       await expect(dialog.getByRole("link", { name: "Modifier" })).toBeVisible();
       expect(await blockingViolations(page)).toEqual([]);
       await page.keyboard.press("Escape");

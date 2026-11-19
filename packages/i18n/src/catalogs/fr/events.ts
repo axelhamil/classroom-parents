@@ -187,6 +187,7 @@ export default {
     confirmed: "Échéance confirmée",
     why: "Pourquoi à vérifier",
     quote: "La phrase lue dans l'annonce",
+    quoteInContext: "Le passage lu dans l'annonce, surligné",
     reasons: {
       low_confidence: "La date n'est pas écrite clairement dans l'annonce.",
       weekday_mismatch: "Le jour de la semaine écrit ne tombe pas à cette date.",

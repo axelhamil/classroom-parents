@@ -85,7 +85,11 @@ describe("event detail review", () => {
     status: "needs_review",
     amendReason: "moved",
     reviewReasons: ["weekday_mismatch"],
-    evidenceQuote: "Contrôle <img src=x onerror=alert(1)> jeudi [ici](http://evil.test)",
+    evidence: {
+      before: "Bonjour, <b>attention</b> : ",
+      quote: "Contrôle <img src=x onerror=alert(1)> jeudi [ici](http://evil.test)",
+      after: ". Apportez une calculatrice.",
+    },
   };
 
   it("given a deadline to verify, then the drawer says why in sentences and quotes the announcement as plain text", async () => {
@@ -96,9 +100,14 @@ describe("event detail review", () => {
     const why = await screen.findByRole("region", { name: "Pourquoi à vérifier" });
     expect(why.textContent).toContain("Une annonce plus récente déplace cette échéance");
     expect(why.textContent).toContain("Le jour de la semaine écrit ne tombe pas à cette date.");
-    expect(screen.getByText(TO_REVIEW.evidenceQuote)).toBeTruthy();
+    const passage = why.querySelector("mark");
+    expect(passage?.textContent).toBe(TO_REVIEW.evidence.quote);
+    expect(passage?.parentElement?.textContent).toBe(
+      `${TO_REVIEW.evidence.before}${TO_REVIEW.evidence.quote}${TO_REVIEW.evidence.after}`,
+    );
     expect(why.querySelector("img")).toBeNull();
     expect(why.querySelector("a")).toBeNull();
+    expect(why.querySelector("b")).toBeNull();
   });
 
   it("given a deadline to verify with no stored reason, then the drawer still says what to check", async () => {

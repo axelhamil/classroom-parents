@@ -9,7 +9,7 @@ import type { EventDescription } from "./value-objects/event-description.vo";
 import { EventSource } from "./value-objects/event-source.vo";
 import { EventStatus } from "./value-objects/event-status.vo";
 import type { EventTitle } from "./value-objects/event-title.vo";
-import type { EvidenceQuote } from "./value-objects/evidence-quote.vo";
+import type { Evidence } from "./value-objects/evidence.vo";
 import { ReviewReasons } from "./value-objects/review-reasons.vo";
 
 export const EDITABLE_FIELDS = ["title", "description", "category", "deadline", "done"] as const;
@@ -37,7 +37,7 @@ export interface AgendaEventProps {
   receivedAt: Date;
   status: EventStatus;
   reviewReasons: ReviewReasons;
-  evidenceQuote: Option<EvidenceQuote>;
+  evidence: Option<Evidence>;
   amendReason: Option<AmendReason>;
   confirmedByParentAt: Option<Date>;
   done: boolean;
@@ -63,7 +63,7 @@ export interface NewAgendaEvent {
   deadline: EventDeadline;
   receivedAt: Date;
   reviewReasons: ReviewReasons;
-  evidenceQuote: Option<EvidenceQuote>;
+  evidence: Option<Evidence>;
   needsReview: boolean;
   done: boolean;
   now: Date;
@@ -126,7 +126,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
         ...AgendaEvent.untouched(),
         status: EventStatus.confirmed(),
         reviewReasons: ReviewReasons.none(),
-        evidenceQuote: Option.none(),
+        evidence: Option.none(),
         done: false,
         createdAt: now,
       },

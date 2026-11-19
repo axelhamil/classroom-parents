@@ -6,10 +6,12 @@ import { reviewSentenceKeys } from "../review-labels";
 
 export interface ReviewReasonsProps {
   event: EventItem;
+  inContext?: boolean;
 }
 
-export function ReviewReasons({ event }: ReviewReasonsProps) {
+export function ReviewReasons({ event, inContext = false }: ReviewReasonsProps) {
   const { t } = useTranslation("events");
+  const evidence = event.evidence;
 
   return (
     <>
@@ -18,12 +20,24 @@ export function ReviewReasons({ event }: ReviewReasonsProps) {
           <li key={key}>{t(key)}</li>
         ))}
       </TypographyList>
-      {event.evidenceQuote && (
+      {evidence && (
         <figure className="flex flex-col gap-1">
           <figcaption>
-            <TypographyMuted>{t("review.quote")}</TypographyMuted>
+            <TypographyMuted>
+              {t(inContext ? "review.quoteInContext" : "review.quote")}
+            </TypographyMuted>
           </figcaption>
-          <DeadlineQuote dir="auto">{event.evidenceQuote}</DeadlineQuote>
+          <DeadlineQuote dir="auto">
+            {inContext ? (
+              <>
+                {evidence.before}
+                <mark>{evidence.quote}</mark>
+                {evidence.after}
+              </>
+            ) : (
+              evidence.quote
+            )}
+          </DeadlineQuote>
         </figure>
       )}
     </>
