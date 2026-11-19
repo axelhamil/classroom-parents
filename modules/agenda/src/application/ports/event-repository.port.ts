@@ -88,6 +88,12 @@ export interface IEventRepository {
     courseworkIds: string[],
   ): Promise<Result<AgendaEvent[], AgendaError>>;
 
+  lockAnnouncementItems(
+    userId: string,
+    childId: string,
+    announcementId: string,
+  ): Promise<Result<AgendaEvent[], AgendaError>>;
+
   lockLiveCoursework(
     userId: string,
     childId: string,

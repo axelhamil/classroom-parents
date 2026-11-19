@@ -337,6 +337,43 @@ export class DrizzleEventRepository implements IEventRepository {
     );
   }
 
+  async lockAnnouncementItems(
+    userId: string,
+    childId: string,
+    announcementId: string,
+  ): Promise<Result<AgendaEvent[], AgendaError>> {
+    const exec = resolveExecutor();
+    return this.instrumentation.startSpan(
+      { name: "DrizzleEventRepository > lockAnnouncementItems" },
+      async () => {
+        try {
+          const query = exec
+            .select()
+            .from(agendaEvent)
+            .where(
+              and(
+                ownedUndeleted(userId),
+                eq(agendaEvent.childId, childId),
+                eq(agendaEvent.source, "announcement"),
+                eq(agendaEvent.announcementId, announcementId),
+              ),
+            )
+            .orderBy(asc(agendaEvent.ordinal))
+            .for("update");
+          const rows = await this.instrumentation.startSpan(
+            { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
+            () => query.execute(),
+          );
+
+          return this.mapRows(rows, "lockAnnouncementItems");
+        } catch (err) {
+          this.instrumentation.capture(err);
+          return Result.fail(repositoryFailure("lockAnnouncementItems", err));
+        }
+      },
+    );
+  }
+
   async lockLiveCoursework(
     userId: string,
     childId: string,

@@ -7,6 +7,7 @@ export interface ExtractionRequest {
   text: string;
   publishedAt: Date;
   childNames: string[];
+  cacheOnly?: boolean;
 }
 
 export interface ExtractedDeadline {
@@ -47,4 +48,10 @@ export const READING_PAUSED_CODE = "ANNOUNCEMENT_READING_DISABLED";
 
 export function isReadingPaused({ code }: AppError): boolean {
   return code === READING_PAUSED_CODE;
+}
+
+export const READING_NOT_CACHED_CODE = "EXTRACTION_CACHE_ENTRY_NOT_FOUND";
+
+export function isNotCached({ code }: AppError): boolean {
+  return code === READING_NOT_CACHED_CODE;
 }

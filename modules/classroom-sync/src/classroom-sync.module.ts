@@ -12,11 +12,13 @@ import type { ICourseRepository } from "./application/ports/course-repository.po
 import type { IDueChildren } from "./application/ports/due-children.port";
 import type { IEventIngest } from "./application/ports/event-ingest.port";
 import type { IManualSyncGate } from "./application/ports/manual-sync-gate.port";
+import type { IParentChildren } from "./application/ports/parent-children.port";
 import type { ISeenAnnouncementRepository } from "./application/ports/seen-announcement-repository.port";
 import type { IUpcomingAlerts } from "./application/ports/upcoming-alerts.port";
 import { ClassroomReader } from "./application/services/classroom-reader.service";
 import { CourseNamesService } from "./application/services/course-names.service";
 import { ManualSyncService } from "./application/services/manual-sync.service";
+import { RereadAnnouncementsService } from "./application/services/reread-announcements.service";
 import { SyncChildService } from "./application/services/sync-child.service";
 import { SyncDueChildrenService } from "./application/services/sync-due-children.service";
 import { GoogleClassroomClient } from "./infrastructure/adapters/google-classroom.client";
@@ -36,6 +38,7 @@ export interface ClassroomSyncPrerequisites {
   IChildSyncState: IChildSyncState;
   IManualSyncGate: IManualSyncGate;
   IUpcomingAlerts: IUpcomingAlerts;
+  IParentChildren: IParentChildren;
 }
 
 export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b) =>
@@ -87,6 +90,19 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
           c.IManualSyncGate,
           c.SyncChildService,
           c.IBackgroundWork,
+          c.IInstrumentation,
+        ),
+    )
+    .add(
+      "RereadAnnouncementsService",
+      (c) =>
+        new RereadAnnouncementsService(
+          c.IParentChildren,
+          c.IChildAccessTokens,
+          c.IClassroomReader,
+          c.ISeenAnnouncementRepository,
+          c.IAnnouncementExtractor,
+          c.IEventIngest,
           c.IInstrumentation,
         ),
     )

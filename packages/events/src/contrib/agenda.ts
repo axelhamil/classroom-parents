@@ -35,6 +35,8 @@ export const agendaEvents = defineEventContribution({
             "done",
             "withdrawn",
             "checklist",
+            "evidence",
+            "preparation",
           ]),
         )
         .min(1),

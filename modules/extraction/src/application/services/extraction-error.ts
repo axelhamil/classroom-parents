@@ -6,7 +6,14 @@ export type ExtractionError = AppError<
   | "EXTRACTION_OUTPUT_INVALID"
   | "EXTRACTION_PROVIDER_FAILURE"
   | "EXTRACTION_RATE_LIMITED"
+  | "EXTRACTION_CACHE_ENTRY_NOT_FOUND"
 >;
+
+export const NOT_CACHED: ExtractionError = {
+  code: "EXTRACTION_CACHE_ENTRY_NOT_FOUND",
+  message:
+    "Cette annonce n'a pas encore été lue avec la version actuelle, seul le modèle peut la lire.",
+};
 
 const RATE_LIMITED: ExtractionError = {
   code: "EXTRACTION_RATE_LIMITED",

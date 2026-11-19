@@ -17,11 +17,19 @@ export const EDITABLE_FIELDS = ["title", "description", "category", "deadline", 
 
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 
-export type EventField = EditableField | "status" | "withdrawn" | "checklist";
+export type EventField =
+  | EditableField
+  | "status"
+  | "withdrawn"
+  | "checklist"
+  | "evidence"
+  | "preparation";
 
 export type EventRefusal = "deleted" | "withdrawn";
 
 export type ChecklistRefusal = "deleted" | "invalid";
+
+const sameValue = (left: Evidence, right: Evidence): boolean => left.equals(right);
 
 export interface AgendaEventProps {
   userId: string;
@@ -86,6 +94,11 @@ export interface CourseworkState {
   title: EventTitle;
   deadline: EventDeadline;
   done: boolean;
+}
+
+export interface AnnouncementReading {
+  evidence: Option<Evidence>;
+  preparation: Preparation;
 }
 
 export interface EventChanges {
@@ -185,6 +198,22 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     if (this._props.withdrawnAt.isSome()) {
       this._props.withdrawnAt = Option.none();
       fields.push("withdrawn");
+    }
+    return Result.ok(fields);
+  }
+
+  reread(reading: AnnouncementReading): Result<EventField[], EventRefusal> {
+    if (this._props.deletedAt.isSome()) return Result.fail("deleted");
+
+    const fields: EventField[] = [];
+    const evidence = reading.evidence;
+    if (evidence.isSome() && !evidence.equals(this._props.evidence, sameValue)) {
+      this._props.evidence = evidence;
+      fields.push("evidence");
+    }
+    if (!reading.preparation.equals(this._props.preparation)) {
+      this._props.preparation = reading.preparation;
+      fields.push("preparation");
     }
     return Result.ok(fields);
   }

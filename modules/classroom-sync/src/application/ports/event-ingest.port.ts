@@ -40,6 +40,19 @@ export interface CourseworkWithdrawRequest {
   activeCourseIds: string[];
 }
 
+export interface RereadRequest {
+  userId: string;
+  childId: string;
+  announcementId: string;
+  events: ExtractedDeadline[];
+}
+
+export interface RereadOutcome {
+  matched: number;
+  changed: number;
+  unmatched: number;
+}
+
 export interface IEventIngest {
   ingest(request: IngestRequest): Promise<Result<{ created: number }, AppError>>;
 
@@ -50,4 +63,8 @@ export interface IEventIngest {
   withdrawCourseworkOutside(
     request: CourseworkWithdrawRequest,
   ): Promise<Result<{ withdrawn: number }, AppError>>;
+
+  previewReread(request: RereadRequest): Promise<Result<RereadOutcome, AppError>>;
+
+  applyReread(request: RereadRequest): Promise<Result<RereadOutcome, AppError>>;
 }
