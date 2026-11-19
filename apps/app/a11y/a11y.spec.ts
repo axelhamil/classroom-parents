@@ -1,8 +1,9 @@
 import { DEFAULT_LOCALE, type Locale } from "@packages/i18n";
 import { audit, COLOR_SCHEMES } from "@packages/test/a11y";
 import { LOCALE_COOKIE } from "@packages/web-kit/i18n/locale-cookie";
+import { DEFAULT_PALETTE, PALETTES } from "@packages/web-kit/theme/palette-store";
 import type { Page } from "@playwright/test";
-import { showColorScheme } from "./color-scheme";
+import { showColorScheme, showPalette } from "./color-scheme";
 import { expect, test } from "./csp";
 import { AUTHENTICATED_PAGES, PUBLIC_PAGES } from "./pages";
 import { BASE_URL, STORAGE_STATE } from "./playwright.config";
@@ -38,6 +39,27 @@ for (const colorScheme of COLOR_SCHEMES) {
     }
   });
 }
+
+// The runs above audit the default palette only; the home, the page with the most colour on it,
+// is audited once more in every other palette, light and dark.
+test.describe("palettes", () => {
+  test.use({ storageState: STORAGE_STATE });
+
+  const home = AUTHENTICATED_PAGES.find((p) => p.name === "events");
+  if (!home) throw new Error("events page missing from AUTHENTICATED_PAGES");
+
+  for (const palette of PALETTES.filter((p) => p !== DEFAULT_PALETTE)) {
+    for (const colorScheme of COLOR_SCHEMES) {
+      test(`${home.name} in ${palette} (${colorScheme})`, async ({ page }) => {
+        await showColorScheme(page, colorScheme);
+        await showPalette(page, palette);
+        await audit(page, home, DEFAULT_LOCALE_UNDER_TEST);
+        await expectRendered(page, colorScheme);
+        await expect(page.locator("html")).toHaveAttribute("data-palette", palette);
+      });
+    }
+  }
+});
 
 // The runs above never set a locale cookie, so `resolveLocale` falls through to the
 // browser's default language (Chromium's "en-US") every time, so the fr branch of the

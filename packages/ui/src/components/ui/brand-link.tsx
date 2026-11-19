@@ -78,4 +78,25 @@ function BrandMark({ className, ...props }: React.ComponentProps<"svg">) {
   );
 }
 
-export { BrandLink, BrandMark };
+interface BrandIconColors {
+  fill: string;
+  ink: string;
+  accent: string;
+}
+
+/** The brand mark as a standalone SVG document (favicon), drawn with the colours the caller reads from the theme tokens, so the tab icon follows the palette like `BrandMark` does. */
+function brandIconSvg({ fill, ink, accent }: BrandIconColors): string {
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">',
+    `<rect width="64" height="64" rx="14" fill="${fill}"/>`,
+    '<g transform="translate(5.12 5.12) scale(0.84)">',
+    '<defs><mask id="g"><rect width="64" height="64" fill="#fff"/><circle cx="32" cy="38" r="10" fill="#000"/></mask>',
+    `<mask id="f"><rect width="64" height="64" fill="#fff"/><path d="${CLOCK_HANDS}" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></mask></defs>`,
+    `<path d="${SATCHEL_HANDLE}" fill="none" stroke="${ink}" stroke-width="5" stroke-linecap="round"/>`,
+    `<g mask="url(#g)" fill="${ink}"><path d="${SATCHEL_FLAP}"/><path d="${SATCHEL_BODY}"/></g>`,
+    `<circle cx="32" cy="38" r="7" fill="${accent}" mask="url(#f)"/>`,
+    "</g></svg>",
+  ].join("");
+}
+
+export { BrandLink, BrandMark, brandIconSvg };

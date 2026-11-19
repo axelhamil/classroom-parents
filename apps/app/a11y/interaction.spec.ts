@@ -227,7 +227,7 @@ test.describe("signed in", () => {
     await page.goto("/settings");
 
     const light = page.getByRole("radio", { name: "Clair" });
-    await page.getByText(/^Le thème de l'application sur cet appareil/).click();
+    await page.getByText(/^Le thème et les couleurs de l'application sur cet appareil/).click();
     await page.keyboard.press("Tab");
     await expect(light).toBeFocused();
     await page.keyboard.press("ArrowRight", { delay: 50 });
@@ -283,6 +283,26 @@ test.describe("signed in", () => {
       expect(await blockingViolations(page)).toEqual([]);
     });
   }
+
+  test("switches the palette from the appearance radio group with the arrow keys", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+
+    const paper = page.getByRole("radio", { name: "Papier" });
+    await page.getByRole("radio", { name: "Clair" }).focus();
+    await page.keyboard.press("Tab");
+    await expect(paper).toBeFocused();
+    await page.keyboard.press("ArrowRight", { delay: 50 });
+
+    await expect(page.getByRole("radio", { name: "Ardoise" })).toBeFocused();
+    await expect(page.getByRole("radio", { name: "Ardoise" })).toBeChecked();
+    await expect(page.locator("html")).toHaveAttribute("data-palette", "slate");
+
+    await page.keyboard.press("ArrowLeft", { delay: 50 });
+    await expect(paper).toBeChecked();
+    await expect(page.locator("html")).toHaveAttribute("data-palette", "paper");
+  });
 
   test("reaches every section from the bottom navigation on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });

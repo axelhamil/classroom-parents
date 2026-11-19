@@ -17,49 +17,28 @@
 }
 
 /*
- * Family planner on warm paper: cream sheet surfaces, warm ink, school-ink teal primary, amber for today, one hue per child.
- * Ratios measured from the oklch values (WCAG relative luminance), text pairs >= 4.5:1, input borders and focus ring >= 3:1.
- * Light: ink on background 14.83 (15.77 on card), muted 6.07 (5.19 on surface-container-high), white on primary 6.15,
- * primary on background 5.67 (5.28 on surface-container), secondary 10.36, white on destructive 5.82, destructive on card 5.70,
- * warning 8.69, white on success 5.67, input 3.66, white on each child banner >= 5.59, each banner on background >= 5.15,
- * ink on each child container >= 13.17, each category >= 5.38 on its tint.
- * Dark: ink on background 15.05 (12.67 on popover), muted 8.95 (6.94 on surface-container-high), primary 10.02, on primary 9.04,
- * secondary 8.69, destructive 6.71 on card, warning 9.23, input 3.83 on card, ring >= 8.82,
- * white on each child banner >= 7.12, ink on each child container >= 10.94, each category >= 7.37 on its tint.
+ * The family planner on a school notebook sheet: a quiet off-white paper, blue-black fountain-pen ink, one action hue, one hue per child.
+ * A palette only re-inks the paper (surfaces, ink, borders, the action hue and the shadow tint); the child hues, the categories,
+ * the amber of urgency and the alerts are shared, so a child keeps their colour whatever the palette.
+ * Every palette is measured in light and dark by `packages/web-kit/src/theme/__tests__/palette-contrast.test.ts` (WCAG relative
+ * luminance from these oklch values): text pairs >= 4.5:1, input borders, focus ring and child marks >= 3:1.
+ * Shared light floors: white on destructive 5.82, warning ink 8.69, white on success 5.67, white on each child banner >= 5.59,
+ * each category >= 5.38 on its tint. Shared dark floors: white on each child banner >= 7.12, each category >= 7.37 on its tint.
  */
 :root {
   color-scheme: light;
-  --background: oklch(0.972 0.014 82);
-  --foreground: oklch(0.25 0.025 50);
-  --card: oklch(0.993 0.006 85);
-  --card-foreground: oklch(0.25 0.025 50);
-  --popover: oklch(0.993 0.006 85);
-  --popover-foreground: oklch(0.25 0.025 50);
-  --surface-container: oklch(0.948 0.018 80);
-  --surface-container-high: oklch(0.92 0.022 78);
-  --primary: oklch(0.48 0.1 170);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.91 0.05 165);
-  --secondary-foreground: oklch(0.3 0.06 168);
-  --muted: oklch(0.948 0.018 80);
-  --muted-foreground: oklch(0.48 0.025 55);
-  --accent: oklch(0.935 0.022 80);
-  --accent-foreground: oklch(0.25 0.025 50);
   --destructive: oklch(0.53 0.19 27);
   --destructive-foreground: oklch(1 0 0);
   --warning: oklch(0.85 0.14 80);
   --warning-foreground: oklch(0.3 0.07 55);
   --success: oklch(0.5 0.12 150);
   --success-foreground: oklch(1 0 0);
-  --overlay: oklch(0.22 0.025 50 / 0.45);
+  --overlay: color-mix(in oklch, var(--shadow-color) 50%, transparent);
   /* Google sign-in button, colors fixed by Google's branding guidelines. The light page carries Google's dark theme so the one action stands out on paper: ink 14.47 on fill, border 5.83 on fill. */
   --google: #131314;
   --google-hover: #202022;
   --google-border: #8e918f;
   --google-foreground: #e3e3e3;
-  --border: oklch(0.89 0.018 78);
-  --input: oklch(0.6 0.02 60);
-  --ring: oklch(0.48 0.1 170);
   --ring-width: 3px;
   --child-foreground: oklch(1 0 0);
   --child-1: oklch(0.5 0.1 185);
@@ -78,7 +57,7 @@
   --child-7-container: oklch(0.94 0.04 145);
   --child-8: oklch(0.48 0.06 230);
   --child-8-container: oklch(0.94 0.02 230);
-  /* A child mark (dot) is a meaningful graphic: on the page 5.15 to 5.96, on a card 5.48 to 6.33, on a crunch day 4.58 to 5.53. */
+  /* A child mark (dot) is a meaningful graphic: >= 4.9 on the page and >= 5.4 on a card in every light palette. */
   --child-1-mark: var(--child-1);
   --child-2-mark: var(--child-2);
   --child-3-mark: var(--child-3);
@@ -102,32 +81,42 @@
   --chart-3: var(--child-3);
   --chart-4: var(--child-4);
   --chart-5: var(--child-5);
-  --sidebar: oklch(0.96 0.016 82);
-  --sidebar-foreground: oklch(0.25 0.025 50);
-  --sidebar-primary: oklch(0.48 0.1 170);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.91 0.05 165);
-  --sidebar-accent-foreground: oklch(0.3 0.06 168);
-  --sidebar-border: oklch(0.89 0.018 78);
-  --sidebar-ring: oklch(0.48 0.1 170);
   --font-sans: "Google Sans Flex", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display:
     "Google Sans Flex", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display-variation: "ROND" 100;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
   --radius: 1rem;
-  --shadow-2xs: 0 1px 0 0 oklch(0.3 0.03 60 / 0.04);
-  --shadow-xs: 0 1px 2px 0 oklch(0.3 0.03 60 / 0.06);
-  --shadow-sm: 0 1px 2px 0 oklch(0.3 0.03 60 / 0.08), 0 1px 3px 1px oklch(0.3 0.03 60 / 0.04);
-  --shadow: 0 1px 2px 0 oklch(0.3 0.03 60 / 0.08), 0 2px 6px 2px oklch(0.3 0.03 60 / 0.05);
-  --shadow-md: 0 1px 3px 0 oklch(0.3 0.03 60 / 0.08), 0 4px 8px 3px oklch(0.3 0.03 60 / 0.06);
-  --shadow-lg: 0 2px 3px 0 oklch(0.3 0.03 60 / 0.08), 0 6px 12px 4px oklch(0.3 0.03 60 / 0.07);
-  --shadow-xl: 0 4px 4px 0 oklch(0.3 0.03 60 / 0.08), 0 8px 16px 6px oklch(0.3 0.03 60 / 0.08);
-  --shadow-2xl: 0 12px 32px -4px oklch(0.3 0.03 60 / 0.16);
+  /*
+   * Paper lying on a desk under one light from above: every shadow falls straight down, a tight contact line first, then a soft
+   * spread pulled in by a negative spread so no sheet glows on its sides. Tinted by the palette's ink, never neutral black.
+   */
+  --shadow-2xs: 0 1px 0 0 color-mix(in oklch, var(--shadow-color) 5%, transparent);
+  --shadow-xs:
+    0 1px 0 0 color-mix(in oklch, var(--shadow-color) 6%, transparent),
+    0 1px 3px -1px color-mix(in oklch, var(--shadow-color) 8%, transparent);
+  --shadow-sm:
+    0 1px 1px 0 color-mix(in oklch, var(--shadow-color) 7%, transparent),
+    0 3px 6px -2px color-mix(in oklch, var(--shadow-color) 10%, transparent);
+  --shadow:
+    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 7%, transparent),
+    0 4px 10px -3px color-mix(in oklch, var(--shadow-color) 11%, transparent);
+  --shadow-md:
+    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 7%, transparent),
+    0 6px 14px -4px color-mix(in oklch, var(--shadow-color) 12%, transparent);
+  --shadow-lg:
+    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 8%, transparent),
+    0 10px 28px -8px color-mix(in oklch, var(--shadow-color) 18%, transparent);
+  --shadow-xl:
+    0 2px 4px 0 color-mix(in oklch, var(--shadow-color) 8%, transparent),
+    0 16px 36px -12px color-mix(in oklch, var(--shadow-color) 20%, transparent);
+  --shadow-2xl: 0 24px 48px -16px color-mix(in oklch, var(--shadow-color) 24%, transparent);
   /* One elevation scale, three floors: a sheet resting on the paper, a sheet lifted (hover, selected, stamp), a surface floating above the page (menu, popover, dialog, sheet). */
   --shadow-rest: var(--shadow-xs);
   --shadow-raised: var(--shadow-sm);
   --shadow-float: var(--shadow-lg);
+  /* The grain of the sheet: fractal noise as dark specks a few percent strong, laid under the content, never on the text. */
+  --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.07'/%3E%3C/svg%3E");
   --tracking-normal: 0em;
   --spacing: 0.25rem;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -213,37 +202,18 @@
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.205 0.012 60);
-  --foreground: oklch(0.94 0.012 85);
-  --card: oklch(0.24 0.013 62);
-  --card-foreground: oklch(0.94 0.012 85);
-  --popover: oklch(0.27 0.014 62);
-  --popover-foreground: oklch(0.94 0.012 85);
-  --surface-container: oklch(0.255 0.013 62);
-  --surface-container-high: oklch(0.295 0.015 62);
-  --primary: oklch(0.8 0.1 165);
-  --primary-foreground: oklch(0.24 0.045 168);
-  --secondary: oklch(0.34 0.04 168);
-  --secondary-foreground: oklch(0.9 0.04 165);
-  --muted: oklch(0.255 0.013 62);
-  --muted-foreground: oklch(0.78 0.018 75);
-  --accent: oklch(0.31 0.02 70);
-  --accent-foreground: oklch(0.94 0.012 85);
   --destructive: oklch(0.74 0.15 25);
   --destructive-foreground: oklch(0.22 0.05 25);
   --warning: oklch(0.83 0.13 80);
   --warning-foreground: oklch(0.26 0.06 55);
   --success: oklch(0.79 0.13 150);
   --success-foreground: oklch(0.22 0.04 150);
-  --overlay: oklch(0.1 0.01 60 / 0.6);
+  --overlay: color-mix(in oklch, var(--shadow-color) 60%, transparent);
   /* The dark page carries Google's light theme: ink 16.48 on fill (14.72 on hover), border 4.53 on fill. */
   --google: #ffffff;
   --google-hover: #f2f2f2;
   --google-border: #747775;
   --google-foreground: #1f1f1f;
-  --border: oklch(0.35 0.014 62);
-  --input: oklch(0.58 0.018 65);
-  --ring: oklch(0.8 0.1 165);
   --child-1: oklch(0.45 0.08 185);
   --child-1-container: oklch(0.3 0.04 185);
   --child-2: oklch(0.45 0.12 255);
@@ -260,7 +230,7 @@
   --child-7-container: oklch(0.3 0.04 145);
   --child-8: oklch(0.44 0.05 230);
   --child-8-container: oklch(0.3 0.025 230);
-  /* The dark avatar fill is too dim for a dot: marks lighten to 7.87 to 8.73 on the page, 7.23 to 8.02 on a card, 3.48 to 4.22 on a crunch day. */
+  /* The dark avatar fill is too dim for a dot: marks lighten to >= 7.4 on the page and >= 6.7 on a card in every dark palette. */
   --child-1-mark: oklch(0.76 0.1 185);
   --child-2-mark: oklch(0.76 0.12 255);
   --child-3-mark: oklch(0.76 0.13 300);
@@ -279,23 +249,213 @@
   --category-swimming-tint: oklch(0.32 0.045 215);
   --category-document-due: oklch(0.84 0.1 75);
   --category-document-due-tint: oklch(0.32 0.045 75);
-  --sidebar: oklch(0.225 0.012 60);
-  --sidebar-foreground: oklch(0.94 0.012 85);
-  --sidebar-primary: oklch(0.8 0.1 165);
-  --sidebar-primary-foreground: oklch(0.24 0.045 168);
-  --sidebar-accent: oklch(0.34 0.04 168);
-  --sidebar-accent-foreground: oklch(0.9 0.04 165);
-  --sidebar-border: oklch(0.35 0.014 62);
-  --sidebar-ring: oklch(0.8 0.1 165);
   --skeleton-shine: color-mix(in oklch, var(--foreground) 7%, transparent);
-  --shadow-2xs: 0 1px 0 0 oklch(0.06 0.01 60 / 0.3);
-  --shadow-xs: 0 1px 2px 0 oklch(0.06 0.01 60 / 0.32);
-  --shadow-sm: 0 1px 2px 0 oklch(0.06 0.01 60 / 0.36), 0 1px 3px 1px oklch(0.06 0.01 60 / 0.2);
-  --shadow: 0 1px 2px 0 oklch(0.06 0.01 60 / 0.4), 0 2px 6px 2px oklch(0.06 0.01 60 / 0.24);
-  --shadow-md: 0 1px 3px 0 oklch(0.06 0.01 60 / 0.4), 0 4px 8px 3px oklch(0.06 0.01 60 / 0.26);
-  --shadow-lg: 0 2px 3px 0 oklch(0.06 0.01 60 / 0.42), 0 6px 12px 4px oklch(0.06 0.01 60 / 0.28);
-  --shadow-xl: 0 4px 4px 0 oklch(0.06 0.01 60 / 0.44), 0 8px 16px 6px oklch(0.06 0.01 60 / 0.3);
-  --shadow-2xl: 0 12px 32px -4px oklch(0.06 0.01 60 / 0.6);
+  --shadow-2xs: 0 1px 0 0 color-mix(in oklch, var(--shadow-color) 30%, transparent);
+  --shadow-xs:
+    0 1px 0 0 color-mix(in oklch, var(--shadow-color) 34%, transparent),
+    0 1px 3px -1px color-mix(in oklch, var(--shadow-color) 40%, transparent);
+  --shadow-sm:
+    0 1px 1px 0 color-mix(in oklch, var(--shadow-color) 38%, transparent),
+    0 3px 6px -2px color-mix(in oklch, var(--shadow-color) 44%, transparent);
+  --shadow:
+    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 40%, transparent),
+    0 4px 10px -3px color-mix(in oklch, var(--shadow-color) 46%, transparent);
+  --shadow-md:
+    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 40%, transparent),
+    0 6px 14px -4px color-mix(in oklch, var(--shadow-color) 48%, transparent);
+  --shadow-lg:
+    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 42%, transparent),
+    0 10px 28px -8px color-mix(in oklch, var(--shadow-color) 56%, transparent);
+  --shadow-xl:
+    0 2px 4px 0 color-mix(in oklch, var(--shadow-color) 44%, transparent),
+    0 16px 36px -12px color-mix(in oklch, var(--shadow-color) 60%, transparent);
+  --shadow-2xl: 0 24px 48px -16px color-mix(in oklch, var(--shadow-color) 64%, transparent);
+  /* On a dark sheet the grain turns to pale specks, weaker still. */
+  --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E");
+}
+
+/*
+ * Palettes. Each one sets the same tokens in light (`[data-palette]`) and in dark (`.dark[data-palette]`, `.dark [data-palette]`),
+ * on `<html>` for the page or on any element for a preview of it; Papier is also the `:root` default, so a page without the
+ * attribute (the static site) is Papier. A dark block must repeat every token of its light block: the light rule of a palette
+ * comes later than `.dark` and would otherwise win on a dark page. The test above checks both.
+ */
+:root,
+[data-palette] {
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --accent-foreground: var(--foreground);
+  --ring: var(--primary);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--secondary);
+  --sidebar-accent-foreground: var(--secondary-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+/* Papier: an off-white sheet with no cream in it, blue-black fountain-pen ink, the water-green action. Ink 14.86 on the page, 15.97 on a card, muted 5.35 on the darkest surface, white on action 6.47, input 3.60. */
+:root,
+[data-palette="paper"] {
+  --background: oklch(0.969 0.005 100);
+  --foreground: oklch(0.245 0.035 262);
+  --card: oklch(0.994 0.002 100);
+  --popover: oklch(0.994 0.002 100);
+  --surface-container: oklch(0.945 0.006 100);
+  --surface-container-high: oklch(0.918 0.008 100);
+  --muted: oklch(0.945 0.006 100);
+  --muted-foreground: oklch(0.47 0.025 258);
+  --accent: oklch(0.932 0.007 100);
+  --primary: oklch(0.47 0.09 178);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.91 0.045 175);
+  --secondary-foreground: oklch(0.3 0.06 178);
+  --border: oklch(0.885 0.008 100);
+  --input: oklch(0.6 0.015 250);
+  --shadow-color: oklch(0.3 0.03 262);
+}
+
+/* Papier at night: blue-black paper, paper-white ink. Ink 15.19 on the page, muted 6.94 on the lightest surface, action 10.12, input 3.90 on a card. */
+.dark,
+.dark [data-palette="paper"] {
+  --background: oklch(0.2 0.014 262);
+  --foreground: oklch(0.94 0.006 100);
+  --card: oklch(0.235 0.016 262);
+  --popover: oklch(0.265 0.017 262);
+  --surface-container: oklch(0.255 0.016 262);
+  --surface-container-high: oklch(0.295 0.018 262);
+  --muted: oklch(0.255 0.016 262);
+  --muted-foreground: oklch(0.78 0.014 255);
+  --accent: oklch(0.31 0.02 262);
+  --primary: oklch(0.8 0.1 175);
+  --primary-foreground: oklch(0.24 0.045 178);
+  --secondary: oklch(0.34 0.04 178);
+  --secondary-foreground: oklch(0.9 0.04 175);
+  --border: oklch(0.35 0.018 262);
+  --input: oklch(0.58 0.018 258);
+  --shadow-color: oklch(0.08 0.012 262);
+}
+
+/* Ardoise: a cool grey-blue sheet and slate-blue action; at night the green-black of a school board with chalk-blue action. Light ink 14.02, muted 5.13, white on action 6.81, input 3.46; dark ink 14.33, muted 6.92, action 9.90, input 3.65 on a card, destructive 4.57 on an outline button. */
+[data-palette="slate"] {
+  --background: oklch(0.955 0.007 240);
+  --foreground: oklch(0.25 0.025 245);
+  --card: oklch(0.99 0.004 240);
+  --popover: oklch(0.99 0.004 240);
+  --surface-container: oklch(0.932 0.012 240);
+  --surface-container-high: oklch(0.905 0.014 240);
+  --muted: oklch(0.932 0.012 240);
+  --muted-foreground: oklch(0.47 0.025 245);
+  --accent: oklch(0.918 0.013 240);
+  --primary: oklch(0.47 0.1 250);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.91 0.035 248);
+  --secondary-foreground: oklch(0.3 0.06 250);
+  --border: oklch(0.87 0.014 240);
+  --input: oklch(0.6 0.02 245);
+  --shadow-color: oklch(0.3 0.03 245);
+}
+
+.dark[data-palette="slate"],
+.dark [data-palette="slate"] {
+  --background: oklch(0.225 0.012 200);
+  --foreground: oklch(0.94 0.008 200);
+  --card: oklch(0.245 0.014 200);
+  --popover: oklch(0.275 0.015 200);
+  --surface-container: oklch(0.265 0.014 200);
+  --surface-container-high: oklch(0.305 0.016 200);
+  --muted: oklch(0.265 0.014 200);
+  --muted-foreground: oklch(0.79 0.014 200);
+  --accent: oklch(0.315 0.016 200);
+  --primary: oklch(0.82 0.08 235);
+  --primary-foreground: oklch(0.24 0.04 245);
+  --secondary: oklch(0.35 0.04 235);
+  --secondary-foreground: oklch(0.9 0.04 235);
+  --border: oklch(0.355 0.014 200);
+  --input: oklch(0.57 0.016 200);
+  --shadow-color: oklch(0.08 0.01 200);
+}
+
+/* Sauge: a pale sage sheet, green-black ink, moss action. Light ink 14.23, muted 5.22, white on action 6.83, input 3.51; dark ink 14.85, muted 6.80, action 9.82, input 3.70 on a card, destructive 4.62 on an outline button. */
+[data-palette="sage"] {
+  --background: oklch(0.962 0.012 145);
+  --foreground: oklch(0.25 0.03 165);
+  --card: oklch(0.993 0.004 145);
+  --popover: oklch(0.993 0.004 145);
+  --surface-container: oklch(0.94 0.015 145);
+  --surface-container-high: oklch(0.912 0.018 145);
+  --muted: oklch(0.94 0.015 145);
+  --muted-foreground: oklch(0.47 0.025 160);
+  --accent: oklch(0.926 0.016 145);
+  --primary: oklch(0.46 0.09 150);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.91 0.045 148);
+  --secondary-foreground: oklch(0.3 0.06 150);
+  --border: oklch(0.88 0.016 145);
+  --input: oklch(0.6 0.02 155);
+  --shadow-color: oklch(0.3 0.03 160);
+}
+
+.dark[data-palette="sage"],
+.dark [data-palette="sage"] {
+  --background: oklch(0.21 0.014 155);
+  --foreground: oklch(0.94 0.01 140);
+  --card: oklch(0.24 0.016 155);
+  --popover: oklch(0.27 0.017 155);
+  --surface-container: oklch(0.26 0.016 155);
+  --surface-container-high: oklch(0.3 0.018 155);
+  --muted: oklch(0.26 0.016 155);
+  --muted-foreground: oklch(0.78 0.016 150);
+  --accent: oklch(0.32 0.02 155);
+  --primary: oklch(0.8 0.1 150);
+  --primary-foreground: oklch(0.24 0.045 155);
+  --secondary: oklch(0.34 0.04 150);
+  --secondary-foreground: oklch(0.9 0.04 150);
+  --border: oklch(0.36 0.016 155);
+  --input: oklch(0.57 0.018 155);
+  --shadow-color: oklch(0.07 0.01 155);
+}
+
+/* Encre violette: the violet ink of the old school inkwells on a bright sheet. Light ink 15.11, muted 5.34, white on action 7.55, input 3.62; dark ink 15.19, muted 7.06, action 9.79, input 4.04 on a card. */
+[data-palette="ink"] {
+  --background: oklch(0.968 0.006 300);
+  --foreground: oklch(0.24 0.045 290);
+  --card: oklch(0.995 0.002 300);
+  --popover: oklch(0.995 0.002 300);
+  --surface-container: oklch(0.943 0.009 300);
+  --surface-container-high: oklch(0.915 0.012 300);
+  --muted: oklch(0.943 0.009 300);
+  --muted-foreground: oklch(0.47 0.035 292);
+  --accent: oklch(0.93 0.011 300);
+  --primary: oklch(0.46 0.14 292);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.92 0.04 295);
+  --secondary-foreground: oklch(0.32 0.09 292);
+  --border: oklch(0.88 0.012 300);
+  --input: oklch(0.6 0.025 292);
+  --shadow-color: oklch(0.3 0.04 290);
+}
+
+.dark[data-palette="ink"],
+.dark [data-palette="ink"] {
+  --background: oklch(0.2 0.02 290);
+  --foreground: oklch(0.94 0.01 300);
+  --card: oklch(0.235 0.024 290);
+  --popover: oklch(0.265 0.026 290);
+  --surface-container: oklch(0.255 0.024 290);
+  --surface-container-high: oklch(0.3 0.028 290);
+  --muted: oklch(0.255 0.024 290);
+  --muted-foreground: oklch(0.79 0.022 295);
+  --accent: oklch(0.31 0.03 290);
+  --primary: oklch(0.81 0.1 295);
+  --primary-foreground: oklch(0.25 0.07 292);
+  --secondary: oklch(0.35 0.06 292);
+  --secondary-foreground: oklch(0.91 0.04 295);
+  --border: oklch(0.36 0.026 290);
+  --input: oklch(0.59 0.03 292);
+  --shadow-color: oklch(0.07 0.015 290);
 }
 
 @theme inline {
@@ -447,6 +607,16 @@
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+  }
+
+  /* Fixed under every layer of the page, so the grain sits on the paper and the sheets laid on it stay clean. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--paper-grain);
   }
 }
 
@@ -1328,12 +1498,13 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
 }
 
 /*
- * Paper is light whatever the screen theme: ink on white, no filled surfaces but the child hues and initials.
- * Print ink 16.9:1 on paper, muted ink 9.6:1.
+ * Paper is light whatever the screen theme and the palette: ink on white, no filled surfaces but the child hues and initials.
+ * Print ink 16.9:1 on paper, muted ink 9.6:1. The selectors outrank every palette rule (`.dark[data-palette="…"]` included).
  */
 @media print {
   :root,
-  .dark {
+  :root[data-palette],
+  :root.dark[data-palette] {
     color-scheme: light;
     --background: var(--print-paper);
     --foreground: var(--print-ink);
@@ -1353,6 +1524,7 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
     padding: 0;
   }
 
+  body::before,
   [data-slot="app-bar"],
   [data-sonner-toaster] {
     display: none;
