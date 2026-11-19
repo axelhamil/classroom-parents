@@ -82,7 +82,7 @@ Set by the function itself, leave unset: `NODE_ENV` (production on a production 
 1. Google Cloud project dedicated to production, OAuth consent screen External, app name KeepUpKids, support email, logo, homepage `https://app.<domain>`, privacy policy `https://app.<domain>/privacy`, authorised domain `<domain>` verified in Search Console.
 2. OAuth client of type Web: authorised redirect URIs `https://api.<domain>/api/auth/callback/google` (parent sign-in) and `https://api.<domain>/api/auth/callback/google-classroom` (child link).
 3. Enable the Google Classroom API.
-4. Scopes to declare and have verified (single source `apps/api/src/shared/auth/google-scopes.ts`): `openid`, `email`, `profile`, `https://www.googleapis.com/auth/classroom.courses.readonly`, `https://www.googleapis.com/auth/classroom.announcements.readonly`, `https://www.googleapis.com/auth/classroom.coursework.me.readonly`. The three Classroom scopes are sensitive: verification needs a justification per scope and a demo video, then 2 to 8 weeks.
+4. Scopes to declare and have verified (sources `apps/api/src/shared/auth/google-scopes.ts` and `modules/children/src/application/config/classroom-scopes.ts`): `openid`, `email`, `profile`, `https://www.googleapis.com/auth/classroom.courses.readonly`, `https://www.googleapis.com/auth/classroom.announcements.readonly`, `https://www.googleapis.com/auth/classroom.student-submissions.me.readonly` (the canonical name Google grants; its alias `classroom.coursework.me.readonly` comes back under this name, so requesting the alias fails the granted scope check). The three Classroom scopes are sensitive: verification needs a justification per scope and a demo video, then 2 to 8 weeks.
 
 ## 6. VAPID
 

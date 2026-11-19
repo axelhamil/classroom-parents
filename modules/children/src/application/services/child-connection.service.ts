@@ -9,6 +9,7 @@ import { CHILD_LABEL_MAX, ChildLabel } from "../../domain/value-objects/child-la
 import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 import { CHILD_PROVIDER_ID } from "../config/child-provider";
 import type { ChildrenSettings } from "../config/children-settings";
+import { canonicalScope } from "../config/classroom-scopes";
 import { type ChildDto, type LinkableAccount, toChildDto } from "../dto/child.dto";
 import { accountNotLinked, childNotFound } from "../errors/children-errors";
 import type {
@@ -370,9 +371,8 @@ export class ChildConnectionService {
   }
 
   private usability(account: LinkedGoogleAccount): Result<void, ChildrenError> {
-    const granted = this.settings.classroomScopes.every((scope) =>
-      account.grantedScopes.includes(scope),
-    );
+    const grantedScopes = account.grantedScopes.map(canonicalScope);
+    const granted = this.settings.classroomScopes.every((scope) => grantedScopes.includes(scope));
     if (!granted) return Result.fail(scopesMissing);
     if (!account.hasRefreshToken) return Result.fail(refreshTokenMissing);
 
