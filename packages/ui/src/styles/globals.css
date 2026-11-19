@@ -203,6 +203,8 @@
   --section-nav-height: 3.5rem;
   --scroll-region-height: 30rem;
   --scroll-fade-size: 1rem;
+  /* Header of a home tile: the title row beside its menu button, fixed so the body takes what is left. */
+  --dashboard-header-height: var(--touch-target);
   /* Inner gutter of a scroll region: holds the 3px focus ring and the 4px avatar ring (2px offset + 2px ring) its overflow would clip. */
   --scroll-gutter: 0.375rem;
   --scroll-thumb: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
@@ -605,6 +607,7 @@
   --container-ultrawide: 105rem;
   --spacing-scroll-region: var(--scroll-region-height);
   --spacing-scroll-gutter: var(--scroll-gutter);
+  --spacing-dashboard-header: var(--dashboard-header-height);
   --spacing-day-gutter: var(--day-gutter);
   --spacing-day-rail: var(--day-rail);
   --spacing-day-strip: var(--day-strip-height);
@@ -1693,6 +1696,47 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
     &:focus-visible {
       mask-image: none;
     }
+  }
+}
+
+/* The body of a home tile: the same fade, but the mask holds outside the
+   support query, so where scroll-driven animations are missing the region
+   sets both edges from its sentinels. The gesture chains to the page at
+   the end of the course, and the thin bar only shows on hover, focus or
+   while scrolling: at rest a tile reads as a card, not as a list. */
+@utility scroll-fade-tile {
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  padding-block: var(--scroll-fade-size);
+  scroll-padding-block: var(--scroll-fade-size);
+  mask-image: linear-gradient(
+    transparent,
+    black var(--scroll-fade-top),
+    black calc(100% - var(--scroll-fade-bottom)),
+    transparent
+  );
+
+  &:hover,
+  &:focus-visible,
+  &[data-scrolling] {
+    scrollbar-color: var(--scroll-thumb) transparent;
+  }
+
+  &:focus-visible {
+    mask-image: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    animation:
+      scroll-fade-top linear both,
+      scroll-fade-bottom linear both;
+    animation-timeline: scroll(self block), scroll(self block);
+    animation-range:
+      0 var(--scroll-fade-size),
+      calc(100% - var(--scroll-fade-size)) 100%;
   }
 }
 
