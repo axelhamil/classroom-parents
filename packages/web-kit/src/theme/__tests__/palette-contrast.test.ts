@@ -164,6 +164,74 @@ function contrast(first: LinearRgb, second: LinearRgb) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/** Resolves a token, or a layer written "<token> at <n>% over <token>" as the browser composites it. */
+function tokenColor(tokens: Tokens) {
+  const color = (name: string): LinearRgb => {
+    const layered = name.match(/^(.+) at (\d+)% over (.+)$/);
+    if (!layered) return linearRgb(tokens.get(`--${name}`) ?? "");
+
+    const [, top = "", alpha = "", base = ""] = layered;
+    return composite(color(top), Number(alpha) / 100, color(base));
+  };
+
+  return color;
+}
+
+type Oklab = [lightness: number, a: number, b: number];
+
+function oklab([red, green, blue]: LinearRgb): Oklab {
+  const l = Math.cbrt(0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue);
+  const m = Math.cbrt(0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue);
+  const s = Math.cbrt(0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue);
+
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
+
+const chroma = ([, a, b]: Oklab) => Math.hypot(a, b);
+
+function hueGap(first: Oklab, second: Oklab) {
+  const hue = ([, a, b]: Oklab) => (Math.atan2(b, a) * 180) / Math.PI;
+  const gap = Math.abs(hue(first) - hue(second)) % 360;
+
+  return Math.min(gap, 360 - gap);
+}
+
+// The 8 child hues split the wheel into 45° slices: a role colour less than half a slice from a child reads as that child.
+const SAME_HUE = 22.5;
+// Under this OKLab chroma a colour reads as a tinted grey, so its hue names nothing.
+const HUED = 0.03;
+// Twice the gap between the two closest child fills (0.074): a role sits further from any child than children sit from each other.
+const APART = 0.15;
+
+/** A child colour and a role colour are confused when they share a hue and sit close in OKLab. */
+function confusable(first: Oklab, second: Oklab) {
+  const [lightness = 0, a = 0, b = 0] = first.map((value, index) => value - (second[index] ?? 0));
+  const distance = Math.hypot(lightness, a, b);
+  const hued = chroma(first) >= HUED && chroma(second) >= HUED;
+
+  return { distance, confused: hued && hueGap(first, second) < SAME_HUE && distance < APART };
+}
+
+type RolePair = readonly [role: string, child: (child: number) => string];
+
+function rolePairs(mode: ResolvedTheme): RolePair[] {
+  const fills = mode === "dark" ? ["", "-mark"] : [""];
+
+  return [
+    ...fills.flatMap((suffix): RolePair[] => [
+      ["primary", (child) => `child-${child}${suffix}`],
+      ["warning", (child) => `child-${child}${suffix}`],
+    ]),
+    ["secondary", (child) => `child-${child}-container`],
+    // A crunched day of the month planner is tinted `bg-warning/30`.
+    ["warning at 30% over card", (child) => `child-${child}-container`],
+  ];
+}
+
 function hex(color: string) {
   return `#${linearRgb(color)
     .map((channel) => Math.round(255 * encode(channel)))
@@ -230,14 +298,7 @@ describe("palettes", () => {
   for (const palette of PALETTES) {
     for (const mode of MODES) {
       it(`${palette} in ${mode} holds every critical pair at AA`, () => {
-        const tokens = pageTokens(palette, mode);
-        const color = (name: string): LinearRgb => {
-          const layered = name.match(/^(.+) at (\d+)% over (.+)$/);
-          if (!layered) return linearRgb(tokens.get(`--${name}`) ?? "");
-
-          const [, top = "", alpha = "", base = ""] = layered;
-          return composite(color(top), Number(alpha) / 100, color(base));
-        };
+        const color = tokenColor(pageTokens(palette, mode));
         const failures = criticalPairs(mode)
           .map(([foreground, background, floor]) => ({
             pair: `${foreground} on ${background}`,
@@ -246,6 +307,33 @@ describe("palettes", () => {
           }))
           .filter(({ ratio, floor }) => ratio < floor)
           .map(({ pair, ratio, floor }) => `${pair} ${ratio.toFixed(2)} < ${floor}`);
+
+        expect(failures).toEqual([]);
+      });
+
+      it(`${palette} in ${mode} keeps every child colour apart from the action and the urgent amber`, () => {
+        const color = tokenColor(pageTokens(palette, mode));
+        const failures = rolePairs(mode).flatMap(([role, childToken]) =>
+          CHILDREN.map((child) => ({
+            pair: `${childToken(child)} like ${role}`,
+            ...confusable(oklab(color(childToken(child))), oklab(color(role))),
+          }))
+            .filter(({ confused }) => confused)
+            .map(({ pair, distance }) => `${pair}: ΔE ${distance.toFixed(3)} < ${APART}`),
+        );
+
+        expect(failures).toEqual([]);
+      });
+
+      it(`${palette} in ${mode} keeps the 8 child colours apart from each other`, () => {
+        const color = tokenColor(pageTokens(palette, mode));
+        const mark = (child: number) =>
+          oklab(color(mode === "dark" ? `child-${child}-mark` : `child-${child}`));
+        const failures = CHILDREN.flatMap((first) =>
+          CHILDREN.filter((second) => second > first)
+            .filter((second) => confusable(mark(first), mark(second)).confused)
+            .map((second) => `child ${first} like child ${second}`),
+        );
 
         expect(failures).toEqual([]);
       });
