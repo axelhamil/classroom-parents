@@ -204,9 +204,8 @@
   --print-item-space: 0.5rem;
   --print-item-space-compact: 0.2rem;
   /* Home grid: the least height of one step of a block (a title and two cards); a block grows past it with its content, the page scrolls. */
-  /* A progress read at a glance: a faint track, the done part in ink (at least 3:1 against the card in both themes). */
+  /* A progress read at a glance: a faint track under the done part, which wears the action (held at 4.5:1 on the card by the contrast test). */
   --progress-track: color-mix(in oklch, var(--foreground) 10%, transparent);
-  --progress-ink: var(--foreground);
   --dashboard-row-height: 12.5rem;
   --dashboard-gap: 1.25rem;
   --dashboard-height-2: calc(var(--dashboard-row-height) * 2 + var(--dashboard-gap));
@@ -411,6 +410,7 @@
   --accent: oklch(0.932 0.007 100);
   --primary: oklch(0.32 0.04 262);
   --primary-foreground: oklch(1 0 0);
+  --primary-container: oklch(0.985 0.012 262);
   --secondary: oklch(0.925 0.012 262);
   --secondary-foreground: oklch(0.3 0.04 262);
   --border: oklch(0.885 0.008 100);
@@ -431,6 +431,7 @@
   --accent: oklch(0.31 0.02 262);
   --primary: oklch(0.9 0.02 255);
   --primary-foreground: oklch(0.22 0.02 262);
+  --primary-container: oklch(0.26 0.006 255);
   --secondary: oklch(0.32 0.02 262);
   --secondary-foreground: oklch(0.92 0.01 255);
   --border: oklch(0.35 0.018 262);
@@ -438,26 +439,28 @@
   --shadow-color: oklch(0.08 0.012 262);
 }
 
-/* Ardoise: a cold grey-blue sheet and a petrol-blue action; at night the green-black of a school board and a chalk action. On action 8.53 light, 10.47 dark; the contrast test holds every other pair. */
+/* Ardoise: a slate-grey sheet, darker than the rest, and a petrol-blue action; at night the green-black of a school board and a chalk action. On action 9.77 light, 10.47 dark; the contrast test holds every other pair. */
 [data-palette="slate"] {
-  --background: oklch(0.962 0.014 235);
+  --background: oklch(0.918 0.016 255);
   --foreground: oklch(0.25 0.03 240);
-  --card: oklch(0.993 0.004 235);
-  --popover: oklch(0.993 0.004 235);
-  --surface-container: oklch(0.938 0.017 235);
-  --surface-container-high: oklch(0.91 0.019 235);
-  --muted: oklch(0.938 0.017 235);
-  --muted-foreground: oklch(0.46 0.025 240);
-  --accent: oklch(0.925 0.018 235);
-  --primary: oklch(0.4 0.1 215);
+  --card: oklch(0.992 0.005 255);
+  --popover: oklch(0.992 0.005 255);
+  --surface-container: oklch(0.892 0.018 255);
+  --surface-container-high: oklch(0.864 0.021 255);
+  --muted: oklch(0.892 0.018 255);
+  --muted-foreground: oklch(0.45 0.025 240);
+  --accent: oklch(0.878 0.02 255);
+  --primary: oklch(0.38 0.075 225);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.02 235);
+  --primary-container: oklch(0.94 0.022 225);
+  --secondary: oklch(0.873 0.019 255);
   --secondary-foreground: oklch(0.25 0.03 240);
-  --border: oklch(0.875 0.02 235);
-  --input: oklch(0.58 0.02 240);
-  --shadow-color: oklch(0.3 0.04 240);
-  --child-13: oklch(0.3 0.08 210);
-  --child-14: oklch(0.36 0.12 250);
+  --border: oklch(0.828 0.021 255);
+  --input: oklch(0.56 0.025 240);
+  --shadow-color: oklch(0.3 0.05 240);
+  --child-13: oklch(0.39 0.08 194);
+  --child-13-container: oklch(0.915 0.045 194);
+  --child-14: oklch(0.3 0.12 250);
 }
 
 .dark[data-palette="slate"],
@@ -473,6 +476,7 @@
   --accent: oklch(0.325 0.022 190);
   --primary: oklch(0.83 0.08 205);
   --primary-foreground: oklch(0.22 0.03 205);
+  --primary-container: oklch(0.275 0.024 205);
   --secondary: oklch(0.335 0.021 190);
   --secondary-foreground: oklch(0.93 0.012 190);
   --border: oklch(0.37 0.019 190);
@@ -499,6 +503,7 @@
   --accent: oklch(0.94 0 0);
   --primary: oklch(0.15 0 0);
   --primary-foreground: oklch(1 0 0);
+  --primary-container: oklch(0.985 0 0);
   --secondary: oklch(0.92 0 0);
   --secondary-foreground: oklch(0 0 0);
   --border: oklch(0.35 0 0);
@@ -519,6 +524,7 @@
   --accent: oklch(0.28 0 0);
   --primary: oklch(1 0 0);
   --primary-foreground: oklch(0 0 0);
+  --primary-container: oklch(0.06 0 0);
   --secondary: oklch(0.3 0 0);
   --secondary-foreground: oklch(1 0 0);
   --border: oklch(0.75 0 0);
@@ -528,22 +534,23 @@
 
 /* Océan: a pale sky sheet, deep navy ink and an ocean-blue action; at night the deep sea. On action 8.20 light, 9.41 dark; the contrast test holds every other pair. */
 [data-palette="ocean"] {
-  --background: oklch(0.962 0.022 232);
+  --background: oklch(0.955 0.036 232);
   --foreground: oklch(0.25 0.05 250);
-  --card: oklch(0.993 0.007 232);
-  --popover: oklch(0.993 0.007 232);
-  --surface-container: oklch(0.938 0.026 232);
-  --surface-container-high: oklch(0.91 0.03 232);
-  --muted: oklch(0.938 0.026 232);
-  --muted-foreground: oklch(0.46 0.04 250);
-  --accent: oklch(0.925 0.029 232);
+  --card: oklch(0.992 0.011 232);
+  --popover: oklch(0.992 0.011 232);
+  --surface-container: oklch(0.929 0.041 232);
+  --surface-container-high: oklch(0.901 0.047 232);
+  --muted: oklch(0.929 0.041 232);
+  --muted-foreground: oklch(0.45 0.04 250);
+  --accent: oklch(0.915 0.045 232);
   --primary: oklch(0.42 0.16 248);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 232);
+  --primary-container: oklch(0.977 0.026 248);
+  --secondary: oklch(0.91 0.025 232);
   --secondary-foreground: oklch(0.25 0.05 250);
-  --border: oklch(0.875 0.031 232);
-  --input: oklch(0.58 0.02 250);
-  --shadow-color: oklch(0.3 0.04 250);
+  --border: oklch(0.865 0.047 232);
+  --input: oklch(0.56 0.025 250);
+  --shadow-color: oklch(0.3 0.05 250);
   --child-2: oklch(0.55 0.14 255);
   --child-14: oklch(0.3 0.12 250);
   --child-15: oklch(0.41 0.13 291);
@@ -563,6 +570,7 @@
   --accent: oklch(0.3 0.056 248);
   --primary: oklch(0.8 0.12 235);
   --primary-foreground: oklch(0.22 0.03 235);
+  --primary-container: oklch(0.25 0.026 235);
   --secondary: oklch(0.31 0.025 248);
   --secondary-foreground: oklch(0.93 0.012 248);
   --border: oklch(0.345 0.048 248);
@@ -576,22 +584,23 @@
 
 /* Forêt: a pale leaf sheet, green-black ink and a forest-green action; at night the undergrowth. On action 7.02 light, 9.68 dark; the contrast test holds every other pair. */
 [data-palette="forest"] {
-  --background: oklch(0.962 0.026 140);
+  --background: oklch(0.95 0.042 140);
   --foreground: oklch(0.25 0.04 155);
-  --card: oklch(0.993 0.008 140);
-  --popover: oklch(0.993 0.008 140);
-  --surface-container: oklch(0.938 0.031 140);
-  --surface-container-high: oklch(0.91 0.035 140);
-  --muted: oklch(0.938 0.031 140);
-  --muted-foreground: oklch(0.46 0.032 155);
-  --accent: oklch(0.925 0.034 140);
+  --card: oklch(0.992 0.013 140);
+  --popover: oklch(0.992 0.013 140);
+  --surface-container: oklch(0.924 0.048 140);
+  --surface-container-high: oklch(0.896 0.055 140);
+  --muted: oklch(0.924 0.048 140);
+  --muted-foreground: oklch(0.45 0.032 155);
+  --accent: oklch(0.91 0.053 140);
   --primary: oklch(0.45 0.13 148);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 140);
+  --primary-container: oklch(0.972 0.026 148);
+  --secondary: oklch(0.905 0.025 140);
   --secondary-foreground: oklch(0.25 0.04 155);
-  --border: oklch(0.875 0.036 140);
-  --input: oklch(0.58 0.02 155);
-  --shadow-color: oklch(0.3 0.04 155);
+  --border: oklch(0.86 0.055 140);
+  --input: oklch(0.56 0.025 155);
+  --shadow-color: oklch(0.3 0.05 155);
   --child-7: oklch(0.55 0.12 150);
   --child-11: oklch(0.36 0.08 125);
   --child-12: oklch(0.36 0.09 165);
@@ -610,6 +619,7 @@
   --accent: oklch(0.3 0.042 155);
   --primary: oklch(0.8 0.14 148);
   --primary-foreground: oklch(0.22 0.03 148);
+  --primary-container: oklch(0.25 0.026 148);
   --secondary: oklch(0.31 0.025 155);
   --secondary-foreground: oklch(0.93 0.012 155);
   --border: oklch(0.345 0.036 155);
@@ -622,22 +632,23 @@
 
 /* Corail: a coral-pink sheet, brown ink and a vivid indigo action, its complement. On action 7.92 light, 8.98 dark; the contrast test holds every other pair. */
 [data-palette="coral"] {
-  --background: oklch(0.962 0.03 40);
+  --background: oklch(0.945 0.042 40);
   --foreground: oklch(0.26 0.04 30);
-  --card: oklch(0.993 0.009 40);
-  --popover: oklch(0.993 0.009 40);
-  --surface-container: oklch(0.938 0.036 40);
-  --surface-container-high: oklch(0.91 0.041 40);
-  --muted: oklch(0.938 0.036 40);
-  --muted-foreground: oklch(0.46 0.032 30);
-  --accent: oklch(0.925 0.039 40);
+  --card: oklch(0.992 0.013 40);
+  --popover: oklch(0.992 0.013 40);
+  --surface-container: oklch(0.919 0.048 40);
+  --surface-container-high: oklch(0.891 0.055 40);
+  --muted: oklch(0.919 0.048 40);
+  --muted-foreground: oklch(0.45 0.032 30);
+  --accent: oklch(0.905 0.053 40);
   --primary: oklch(0.45 0.18 275);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 40);
+  --primary-container: oklch(0.967 0.026 275);
+  --secondary: oklch(0.9 0.025 40);
   --secondary-foreground: oklch(0.26 0.04 30);
-  --border: oklch(0.875 0.042 40);
-  --input: oklch(0.58 0.02 30);
-  --shadow-color: oklch(0.3 0.04 30);
+  --border: oklch(0.855 0.055 40);
+  --input: oklch(0.56 0.025 30);
+  --shadow-color: oklch(0.3 0.05 30);
   --child-5-container: oklch(0.94 0.04 42);
   --child-14: oklch(0.41 0.12 240);
   --child-14-container: oklch(0.915 0.045 240);
@@ -657,6 +668,7 @@
   --accent: oklch(0.31 0.035 35);
   --primary: oklch(0.8 0.12 280);
   --primary-foreground: oklch(0.22 0.03 280);
+  --primary-container: oklch(0.26 0.026 280);
   --secondary: oklch(0.32 0.025 35);
   --secondary-foreground: oklch(0.93 0.012 35);
   --border: oklch(0.355 0.03 35);
@@ -672,22 +684,23 @@
 
 /* Moutarde: a mustard-yellow sheet, umber ink and a burgundy action; never amber, which says urgent. On action 9.18 light, 12.54 dark; the contrast test holds every other pair. */
 [data-palette="mustard"] {
-  --background: oklch(0.962 0.05 95);
+  --background: oklch(0.945 0.07 95);
   --foreground: oklch(0.26 0.04 70);
-  --card: oklch(0.993 0.015 95);
-  --popover: oklch(0.993 0.015 95);
-  --surface-container: oklch(0.938 0.06 95);
-  --surface-container-high: oklch(0.91 0.068 95);
-  --muted: oklch(0.938 0.06 95);
-  --muted-foreground: oklch(0.46 0.032 70);
-  --accent: oklch(0.925 0.065 95);
+  --card: oklch(0.992 0.021 95);
+  --popover: oklch(0.992 0.021 95);
+  --surface-container: oklch(0.919 0.081 95);
+  --surface-container-high: oklch(0.891 0.091 95);
+  --muted: oklch(0.919 0.081 95);
+  --muted-foreground: oklch(0.45 0.032 70);
+  --accent: oklch(0.905 0.088 95);
   --primary: oklch(0.42 0.15 12);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 95);
+  --primary-container: oklch(0.967 0.026 12);
+  --secondary: oklch(0.9 0.025 95);
   --secondary-foreground: oklch(0.26 0.04 70);
-  --border: oklch(0.875 0.07 95);
-  --input: oklch(0.58 0.02 70);
-  --shadow-color: oklch(0.3 0.04 70);
+  --border: oklch(0.855 0.091 95);
+  --input: oklch(0.56 0.025 70);
+  --shadow-color: oklch(0.3 0.05 70);
   --child-9: oklch(0.41 0.11 45);
   --child-9-container: oklch(0.915 0.045 45);
   --child-10: oklch(0.33 0.12 354);
@@ -707,6 +720,7 @@
   --accent: oklch(0.31 0.035 85);
   --primary: oklch(0.9 0.06 10);
   --primary-foreground: oklch(0.22 0.03 10);
+  --primary-container: oklch(0.26 0.018 10);
   --secondary: oklch(0.32 0.025 85);
   --secondary-foreground: oklch(0.93 0.012 85);
   --border: oklch(0.355 0.03 85);
@@ -716,22 +730,23 @@
 
 /* Rosée: a dewy pink sheet, plum ink and a fir-green action, its complement. On action 7.70 light, 9.58 dark; the contrast test holds every other pair. */
 [data-palette="rose"] {
-  --background: oklch(0.962 0.022 10);
+  --background: oklch(0.957 0.032 10);
   --foreground: oklch(0.27 0.04 355);
-  --card: oklch(0.993 0.007 10);
-  --popover: oklch(0.993 0.007 10);
-  --surface-container: oklch(0.938 0.026 10);
-  --surface-container-high: oklch(0.91 0.03 10);
-  --muted: oklch(0.938 0.026 10);
-  --muted-foreground: oklch(0.46 0.032 355);
-  --accent: oklch(0.925 0.029 10);
+  --card: oklch(0.992 0.01 10);
+  --popover: oklch(0.992 0.01 10);
+  --surface-container: oklch(0.931 0.037 10);
+  --surface-container-high: oklch(0.903 0.042 10);
+  --muted: oklch(0.931 0.037 10);
+  --muted-foreground: oklch(0.45 0.032 355);
+  --accent: oklch(0.917 0.04 10);
   --primary: oklch(0.43 0.09 168);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 10);
+  --primary-container: oklch(0.979 0.026 168);
+  --secondary: oklch(0.912 0.025 10);
   --secondary-foreground: oklch(0.27 0.04 355);
-  --border: oklch(0.875 0.031 10);
-  --input: oklch(0.58 0.02 355);
-  --shadow-color: oklch(0.3 0.04 355);
+  --border: oklch(0.867 0.042 10);
+  --input: oklch(0.56 0.025 355);
+  --shadow-color: oklch(0.3 0.05 355);
   --child-5-container: oklch(0.94 0.04 42);
   --child-12: oklch(0.3 0.09 165);
 }
@@ -749,6 +764,7 @@
   --accent: oklch(0.31 0.031 355);
   --primary: oklch(0.8 0.1 168);
   --primary-foreground: oklch(0.22 0.03 168);
+  --primary-container: oklch(0.26 0.026 168);
   --secondary: oklch(0.32 0.025 355);
   --secondary-foreground: oklch(0.93 0.012 355);
   --border: oklch(0.355 0.026 355);
@@ -760,22 +776,23 @@
 
 /* Menthe: a mint sheet, deep teal ink and a plum action, its complement. On action 8.10 light, 12.61 dark; the contrast test holds every other pair. */
 [data-palette="mint"] {
-  --background: oklch(0.962 0.03 165);
+  --background: oklch(0.962 0.04 165);
   --foreground: oklch(0.25 0.035 180);
-  --card: oklch(0.993 0.009 165);
-  --popover: oklch(0.993 0.009 165);
-  --surface-container: oklch(0.938 0.036 165);
-  --surface-container-high: oklch(0.91 0.041 165);
-  --muted: oklch(0.938 0.036 165);
-  --muted-foreground: oklch(0.46 0.028 180);
-  --accent: oklch(0.925 0.039 165);
+  --card: oklch(0.992 0.012 165);
+  --popover: oklch(0.992 0.012 165);
+  --surface-container: oklch(0.936 0.046 165);
+  --surface-container-high: oklch(0.908 0.052 165);
+  --muted: oklch(0.936 0.046 165);
+  --muted-foreground: oklch(0.45 0.028 180);
+  --accent: oklch(0.922 0.05 165);
   --primary: oklch(0.45 0.15 338);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 165);
+  --primary-container: oklch(0.984 0.026 338);
+  --secondary: oklch(0.917 0.025 165);
   --secondary-foreground: oklch(0.25 0.035 180);
-  --border: oklch(0.875 0.042 165);
-  --input: oklch(0.58 0.02 180);
-  --shadow-color: oklch(0.3 0.04 180);
+  --border: oklch(0.872 0.052 165);
+  --input: oklch(0.56 0.025 180);
+  --shadow-color: oklch(0.3 0.05 180);
   --child-4: oklch(0.55 0.16 355);
   --child-10: oklch(0.36 0.12 0);
   --child-16: oklch(0.36 0.13 319);
@@ -795,6 +812,7 @@
   --accent: oklch(0.31 0.035 175);
   --primary: oklch(0.9 0.07 340);
   --primary-foreground: oklch(0.22 0.03 340);
+  --primary-container: oklch(0.26 0.021 340);
   --secondary: oklch(0.32 0.025 175);
   --secondary-foreground: oklch(0.93 0.012 175);
   --border: oklch(0.355 0.03 175);
@@ -802,27 +820,26 @@
   --shadow-color: oklch(0.07 0.015 175);
 }
 
-/* Sable: a sand sheet, umber ink and a Prussian-blue action. On action 8.97 light, 9.38 dark; the contrast test holds every other pair. */
+/* Sable: a sand sheet, umber ink and a coffee-brown action. On action 10.24 light, 11.26 dark; the contrast test holds every other pair. */
 [data-palette="sand"] {
-  --background: oklch(0.962 0.03 75);
+  --background: oklch(0.938 0.04 75);
   --foreground: oklch(0.27 0.03 60);
-  --card: oklch(0.993 0.009 75);
-  --popover: oklch(0.993 0.009 75);
-  --surface-container: oklch(0.938 0.036 75);
-  --surface-container-high: oklch(0.91 0.041 75);
-  --muted: oklch(0.938 0.036 75);
-  --muted-foreground: oklch(0.46 0.025 60);
-  --accent: oklch(0.925 0.039 75);
-  --primary: oklch(0.4 0.1 238);
+  --card: oklch(0.992 0.012 75);
+  --popover: oklch(0.992 0.012 75);
+  --surface-container: oklch(0.912 0.046 75);
+  --surface-container-high: oklch(0.884 0.052 75);
+  --muted: oklch(0.912 0.046 75);
+  --muted-foreground: oklch(0.45 0.025 60);
+  --accent: oklch(0.898 0.05 75);
+  --primary: oklch(0.38 0.07 55);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 75);
+  --primary-container: oklch(0.96 0.021 55);
+  --secondary: oklch(0.893 0.025 75);
   --secondary-foreground: oklch(0.27 0.03 60);
-  --border: oklch(0.875 0.042 75);
-  --input: oklch(0.58 0.02 60);
-  --shadow-color: oklch(0.3 0.04 60);
-  --child-13: oklch(0.39 0.08 204);
-  --child-13-container: oklch(0.915 0.045 204);
-  --child-14: oklch(0.3 0.12 250);
+  --border: oklch(0.848 0.052 75);
+  --input: oklch(0.56 0.025 60);
+  --shadow-color: oklch(0.3 0.05 60);
+  --child-9: oklch(0.27 0.11 35);
 }
 
 .dark[data-palette="sand"],
@@ -836,37 +853,35 @@
   --muted: oklch(0.255 0.023 70);
   --muted-foreground: oklch(0.79 0.018 70);
   --accent: oklch(0.31 0.028 70);
-  --primary: oklch(0.8 0.09 235);
-  --primary-foreground: oklch(0.22 0.03 235);
+  --primary: oklch(0.86 0.04 45);
+  --primary-foreground: oklch(0.22 0.03 45);
+  --primary-container: oklch(0.26 0.012 45);
   --secondary: oklch(0.32 0.025 70);
   --secondary-foreground: oklch(0.93 0.012 70);
   --border: oklch(0.355 0.024 70);
   --input: oklch(0.56 0.02 70);
   --shadow-color: oklch(0.07 0.015 70);
-  --child-2: oklch(0.47 0.119 268);
-  --child-2-container: oklch(0.31 0.045 268);
-  --child-2-mark: oklch(0.8 0.119 268);
-  --child-8-mark: oklch(0.9 0.051 220);
 }
 
 /* Nuit: a lavender-grey sheet and a violet action; at night the deepest navy-violet page of the set. On action 7.41 light, 8.97 dark; the contrast test holds every other pair. */
 [data-palette="night"] {
-  --background: oklch(0.962 0.025 280);
+  --background: oklch(0.94 0.032 280);
   --foreground: oklch(0.24 0.05 280);
-  --card: oklch(0.993 0.007 280);
-  --popover: oklch(0.993 0.007 280);
-  --surface-container: oklch(0.938 0.03 280);
-  --surface-container-high: oklch(0.91 0.034 280);
-  --muted: oklch(0.938 0.03 280);
-  --muted-foreground: oklch(0.46 0.04 280);
-  --accent: oklch(0.925 0.033 280);
+  --card: oklch(0.992 0.01 280);
+  --popover: oklch(0.992 0.01 280);
+  --surface-container: oklch(0.914 0.037 280);
+  --surface-container-high: oklch(0.886 0.042 280);
+  --muted: oklch(0.914 0.037 280);
+  --muted-foreground: oklch(0.45 0.04 280);
+  --accent: oklch(0.9 0.04 280);
   --primary: oklch(0.47 0.18 292);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 280);
+  --primary-container: oklch(0.962 0.026 292);
+  --secondary: oklch(0.895 0.025 280);
   --secondary-foreground: oklch(0.24 0.05 280);
-  --border: oklch(0.875 0.035 280);
-  --input: oklch(0.58 0.02 280);
-  --shadow-color: oklch(0.3 0.04 280);
+  --border: oklch(0.85 0.042 280);
+  --input: oklch(0.56 0.025 280);
+  --shadow-color: oklch(0.3 0.05 280);
   --child-3: oklch(0.55 0.15 313);
   --child-3-container: oklch(0.94 0.04 313);
   --child-15: oklch(0.36 0.13 285);
@@ -885,6 +900,7 @@
   --accent: oklch(0.275 0.063 275);
   --primary: oklch(0.8 0.12 295);
   --primary-foreground: oklch(0.22 0.03 295);
+  --primary-container: oklch(0.225 0.026 295);
   --secondary: oklch(0.285 0.025 275);
   --secondary-foreground: oklch(0.93 0.012 275);
   --border: oklch(0.32 0.054 275);
@@ -897,22 +913,25 @@
 
 /* Abysse: a cold aqua-grey sheet and a deep teal action; at night the abyss. On action 8.61 light, 9.61 dark; the contrast test holds every other pair. */
 [data-palette="abyss"] {
-  --background: oklch(0.962 0.025 205);
+  --background: oklch(0.958 0.05 195);
   --foreground: oklch(0.24 0.04 215);
-  --card: oklch(0.993 0.007 205);
-  --popover: oklch(0.993 0.007 205);
-  --surface-container: oklch(0.938 0.03 205);
-  --surface-container-high: oklch(0.91 0.034 205);
-  --muted: oklch(0.938 0.03 205);
-  --muted-foreground: oklch(0.46 0.032 215);
-  --accent: oklch(0.925 0.033 205);
+  --card: oklch(0.992 0.015 195);
+  --popover: oklch(0.992 0.015 195);
+  --surface-container: oklch(0.932 0.057 195);
+  --surface-container-high: oklch(0.904 0.065 195);
+  --muted: oklch(0.932 0.057 195);
+  --muted-foreground: oklch(0.45 0.032 215);
+  --accent: oklch(0.918 0.063 195);
   --primary: oklch(0.4 0.085 195);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.915 0.025 205);
+  --primary-container: oklch(0.98 0.026 195);
+  --secondary: oklch(0.913 0.025 195);
   --secondary-foreground: oklch(0.24 0.04 215);
-  --border: oklch(0.875 0.035 205);
-  --input: oklch(0.58 0.02 215);
-  --shadow-color: oklch(0.3 0.04 215);
+  --border: oklch(0.868 0.065 195);
+  --input: oklch(0.56 0.025 215);
+  --shadow-color: oklch(0.3 0.05 215);
+  --child-6-container: oklch(0.94 0.04 131);
+  --child-11-container: oklch(0.915 0.045 131);
   --child-13: oklch(0.3 0.08 216);
   --child-13-container: oklch(0.915 0.045 216);
 }
@@ -930,6 +949,7 @@
   --accent: oklch(0.28 0.056 210);
   --primary: oklch(0.8 0.11 190);
   --primary-foreground: oklch(0.22 0.03 190);
+  --primary-container: oklch(0.23 0.026 190);
   --secondary: oklch(0.29 0.025 210);
   --secondary-foreground: oklch(0.93 0.012 210);
   --border: oklch(0.325 0.048 210);
@@ -957,6 +977,7 @@
   --color-today-column: color-mix(in oklch, var(--primary) 6%, var(--card));
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-container: var(--primary-container);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -986,7 +1007,6 @@
   --color-chart-5: var(--chart-5);
   --color-child-foreground: var(--child-foreground);
   --color-progress-track: var(--progress-track);
-  --color-progress-ink: var(--progress-ink);
   --color-child-1: var(--child-1);
   --color-child-1-container: var(--child-1-container);
   --color-child-2: var(--child-2);

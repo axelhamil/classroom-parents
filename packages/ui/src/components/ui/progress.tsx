@@ -8,7 +8,7 @@ const progressVariants = cva(
   {
     variants: {
       tone: {
-        primary: "h-2 bg-primary/20",
+        primary: "h-2 bg-progress-track",
         success: "h-2 bg-success/20",
         ink: "h-1.5 bg-progress-track",
       },
@@ -24,9 +24,10 @@ interface ProgressProps
 }
 
 /**
- * `ink` is the quiet look for a count of done things: a faint thin track and
- * the done part in ink. Pair it with a `ProgressLegend` the bar names through
- * `aria-describedby`, so an empty bar still reads as "0 of 2".
+ * The done part wears the action on a neutral track; `success` says it is all
+ * done. `ink` is the quiet look for a count of done things, a thinner track:
+ * pair it with a `ProgressLegend` the bar names through `aria-describedby`, so
+ * an empty bar still reads as "0 of 2".
  */
 function Progress({
   className,
@@ -55,7 +56,7 @@ function Progress({
       ) : (
         <ProgressPrimitive.Indicator
           data-slot="progress-indicator"
-          className="h-full w-full flex-1 rounded-full bg-primary transition-[transform,background-color] duration-(--duration-slower) ease-(--ease-out-soft) group-data-[tone=ink]/progress:bg-progress-ink group-data-[tone=success]/progress:bg-success"
+          className="h-full w-full flex-1 rounded-full bg-primary transition-[transform,background-color] duration-(--duration-slower) ease-(--ease-out-soft) group-data-[tone=success]/progress:bg-success"
           style={{ transform: `translateX(-${remaining}%)` }}
         />
       )}

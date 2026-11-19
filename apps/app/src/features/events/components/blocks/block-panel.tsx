@@ -16,6 +16,7 @@ export interface BlockPanelProps {
   note?: ReactNode;
   fit?: "card" | "natural";
   line?: boolean;
+  hero?: boolean;
   children?: ReactNode;
 }
 
@@ -27,6 +28,7 @@ export function BlockPanel({
   note,
   fit,
   line,
+  hero,
   children,
 }: BlockPanelProps) {
   const titleId = useId();
@@ -39,6 +41,7 @@ export function BlockPanel({
       aria-labelledby={label ? undefined : titleId}
       shape={shape}
       fit={fit}
+      tone={hero ? "hero" : "default"}
     >
       <DashboardPanelHeader>
         <Icon aria-hidden />

@@ -234,6 +234,8 @@ function rolePairs(mode: ResolvedTheme): RolePair[] {
       ["destructive", (child) => `child-${child}${suffix}`],
     ]),
     ["secondary", (child) => `child-${child}-container`],
+    // The home's hero block is tinted by the action: it must not read as one child's card.
+    ["primary-container", (child) => `child-${child}-container`],
     // A crunched day of the month planner is tinted `bg-warning/30`.
     ["warning at 30% over card", (child) => `child-${child}-container`],
   ];
@@ -286,12 +288,18 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
       ),
       [mark(child), "background", GRAPHIC],
       [mark(child), "card", GRAPHIC],
+      [mark(child), "primary-container", GRAPHIC],
     ]),
     // The agenda of a one child family: deadlines on neutral paper, the weekend on a lighter paper, today's column breathed with ink.
     ...AGENDA_PAPERS.flatMap((paper): Pair[] => [
       ["foreground", paper, TEXT],
       ["muted-foreground", paper, TEXT],
     ]),
+    // The hero block and the active navigation item sit on the action-tinted surface.
+    ...["foreground", "muted-foreground", "primary", "destructive"].map(
+      (foreground): Pair => [foreground, "primary-container", TEXT],
+    ),
+    ...CATEGORIES.map((category): Pair => [`category-${category}`, "primary-container", TEXT]),
     ...CATEGORIES.flatMap((category): Pair[] => [
       [`category-${category}`, `category-${category}-tint`, TEXT],
       [`category-${category}`, "card", TEXT],
@@ -319,6 +327,36 @@ const INK_PAIRS = [
   ["primary-foreground", "primary"],
   ["primary", "background"],
 ] as const;
+
+// Five just noticeable OKLab steps between two palettes, summed over the page and the action: under that, two light palettes read as one.
+const DISTINCT = 0.1;
+
+describe("the light palettes", () => {
+  const signature = (palette: Palette) => {
+    const color = tokenColor(pageTokens(palette, "light"));
+
+    return { page: oklab(color("background")), action: oklab(color("primary")) };
+  };
+  const distance = (first: Oklab, second: Oklab) =>
+    Math.hypot(...first.map((value, index) => value - (second[index] ?? 0)));
+
+  it("each differ from every other by their page and their action", () => {
+    const failures = PALETTES.flatMap((first, index) =>
+      PALETTES.slice(index + 1).map((second) => {
+        const [one, two] = [signature(first), signature(second)];
+
+        return {
+          pair: `${first} and ${second}`,
+          gap: distance(one.page, two.page) + distance(one.action, two.action),
+        };
+      }),
+    )
+      .filter(({ gap }) => gap < DISTINCT)
+      .map(({ pair, gap }) => `${pair}: ΔE ${gap.toFixed(3)} < ${DISTINCT}`);
+
+    expect(failures).toEqual([]);
+  });
+});
 
 describe("the high contrast palette", () => {
   for (const mode of MODES) {

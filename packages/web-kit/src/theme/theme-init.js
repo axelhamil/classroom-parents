@@ -1,17 +1,17 @@
 (() => {
   const BACKGROUNDS = {
     paper: ["#f5f5f1", "#13161d"],
-    slate: ["#eaf4fb", "#111c1b"],
+    slate: ["#dde5ef", "#111c1b"],
     contrast: ["#ffffff", "#000000"],
-    ocean: ["#e5f6ff", "#041525"],
-    forest: ["#eaf7e7", "#08180e"],
-    coral: ["#ffece4", "#20120e"],
-    mustard: ["#fdf3cd", "#1b1508"],
-    rose: ["#ffedef", "#1e1216"],
-    mint: ["#e1f9ed", "#091a15"],
-    sand: ["#fff0dd", "#1c140c"],
-    night: ["#eff1ff", "#090c21"],
-    abyss: ["#e0f8fa", "#001419"],
+    ocean: ["#d9f5ff", "#041525"],
+    forest: ["#e0f6db", "#08180e"],
+    coral: ["#ffe4d8", "#20120e"],
+    mustard: ["#fbedb8", "#1b1508"],
+    rose: ["#ffe9ec", "#1e1216"],
+    mint: ["#dbfcec", "#091a15"],
+    sand: ["#fbe7ce", "#1c140c"],
+    night: ["#e6e9ff", "#090c21"],
+    abyss: ["#cbfcfb", "#001419"],
   };
 
   const read = (key) => {

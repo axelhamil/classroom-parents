@@ -34,7 +34,7 @@ export default {
       },
       slate: {
         name: "Ardoise",
-        description: "Gris froid et bleu pétrole, tableau noir le soir",
+        description: "Gris ardoise et bleu pétrole, tableau noir le soir",
       },
       contrast: {
         name: "Contraste élevé",
@@ -66,7 +66,7 @@ export default {
       },
       sand: {
         name: "Sable",
-        description: "Sable chaud et bleu de Prusse",
+        description: "Sable chaud et brun café",
       },
       night: {
         name: "Nuit",
