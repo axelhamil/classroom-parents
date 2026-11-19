@@ -20,6 +20,7 @@ import { AMENDMENT_KINDS } from "../src/domain/value-objects/event-amendment.vo"
 import type { StoredChecklist } from "../src/domain/value-objects/event-checklist.vo";
 import { EVENT_SOURCES } from "../src/domain/value-objects/event-source.vo";
 import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
+import type { PreparationValue } from "../src/domain/value-objects/preparation.vo";
 
 export const agendaEvent = pgTable(
   "event",
@@ -53,6 +54,14 @@ export const agendaEvent = pgTable(
     evidenceEnd: integer("evidence_end"),
     evidenceBefore: text("evidence_before").notNull().default(""),
     evidenceAfter: text("evidence_after").notNull().default(""),
+    parentActions: jsonb("parent_actions")
+      .$type<PreparationValue["parentActions"]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    toBring: jsonb("to_bring")
+      .$type<PreparationValue["toBring"]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     amendReason: text("amend_reason", { enum: AMENDMENT_KINDS }),
     confirmedByParentAt: timestamp("confirmed_by_parent_at", { withTimezone: true }),
     done: boolean("done").notNull().default(false),

@@ -5,6 +5,9 @@ const URL_PATTERN =
 const EMAIL_PATTERN = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}/gu;
 const PHONE_PATTERN = /(?<![\d+])(?:(?:\+|00)33[\s.-]?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)/gu;
 const LONG_DIGIT_RUN_PATTERN = /\d{6,}/gu;
+const ENCODED_BLOB_PATTERN = /(?<![\p{L}\p{N}+/])[A-Za-z0-9+/]{40,}={0,2}(?![\p{L}\p{N}+/=])/gu;
+const HIDDEN_RUN_PATTERN = /[\u{E0000}-\u{E007F}]+|[‭‮][^‬⁩\n]*[‬⁩]?/gu;
+const INVISIBLE_PATTERN = /[​-‏‪-‮⁠-⁤⁦-⁩؜﻿]+/gu;
 const NAME_BOUNDARY_BEFORE = "(?<![\\p{L}\\p{M}\\p{N}])";
 const NAME_BOUNDARY_AFTER = "(?![\\p{L}\\p{M}\\p{N}])";
 const NEVER_A_FIRST_NAME = new Set([
@@ -156,6 +159,43 @@ function rawOffsetIn(segments: readonly Segment[], offset: number, edge: OffsetE
   return raw;
 }
 
+function compatibilityFolded(segment: Segment): Segment[] {
+  if (segment.redacted) return [segment];
+
+  const pieces: Segment[] = [];
+  let kept = "";
+  for (const char of segment.raw) {
+    const folded = char.normalize("NFKC");
+    if (folded === char) {
+      kept += char;
+      continue;
+    }
+
+    pieces.push({ raw: kept, clean: kept, redacted: false });
+    pieces.push({ raw: char, clean: folded, redacted: true });
+    kept = "";
+  }
+  pieces.push({ raw: kept, clean: kept, redacted: false });
+
+  return pieces.filter((piece) => piece.raw !== "");
+}
+
+function visibleSegments(text: string): Segment[] {
+  const nfc = text.normalize("NFC");
+  const unhidden = [HIDDEN_RUN_PATTERN, INVISIBLE_PATTERN].reduce<Segment[]>(
+    (current, pattern) => current.flatMap((segment) => splitOn(segment, pattern, "", false)),
+    [{ raw: nfc, clean: nfc, redacted: false }],
+  );
+
+  return unhidden.flatMap(compatibilityFolded);
+}
+
+/**
+ * What the model and the checks read of an announcement: text a reader cannot see is removed
+ * (Unicode tags, runs under a bidirectional override, zero-width and bidirectional controls),
+ * compatibility forms are folded (NFKC), then links, encoded blobs, contacts, long numbers and
+ * the family's child names are replaced by tokens. `rawOffset` maps a position back to the Classroom text.
+ */
 export function sanitizeWithOffsets(
   text: string,
   childNames: readonly string[] = [],
@@ -163,6 +203,7 @@ export function sanitizeWithOffsets(
   const names = childNamePattern(childNames);
   const steps: [RegExp, string, boolean][] = [
     [URL_PATTERN, "[LIEN]", false],
+    [ENCODED_BLOB_PATTERN, "[CODE]", false],
     [EMAIL_PATTERN, "[EMAIL]", false],
     [PHONE_PATTERN, "[TELEPHONE]", false],
     [LONG_DIGIT_RUN_PATTERN, "[NUMERO]", false],
@@ -172,7 +213,7 @@ export function sanitizeWithOffsets(
   const segments = steps.reduce<Segment[]>(
     (current, [pattern, token, inDecomposed]) =>
       current.flatMap((segment) => splitOn(segment, pattern, token, inDecomposed)),
-    [{ raw: text.normalize("NFC"), clean: text.normalize("NFC"), redacted: false }],
+    visibleSegments(text),
   );
 
   return {

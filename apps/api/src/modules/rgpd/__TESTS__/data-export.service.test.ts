@@ -66,6 +66,8 @@ function collected(id: string, courseId: string | null): CollectedEvent {
     evidenceEnd: null,
     evidenceBefore: "",
     evidenceAfter: "",
+    parentActions: [],
+    toBring: [],
     amendReason: null,
     confirmedByParentAt: null,
     done: false,

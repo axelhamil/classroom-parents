@@ -9,6 +9,7 @@
  * request is refused and leaves one event.
  */
 
+import { isDeepStrictEqual } from "node:util";
 import { exitUnlessLocalDatabase, stepRunner } from "@packages/test/db-check";
 
 exitUnlessLocalDatabase("check-data-export", process.env.DATABASE_URL);
@@ -73,6 +74,16 @@ const EVIDENCE = {
   evidenceEnd: 39,
   evidenceBefore: "Bonjour [ENFANT]. ",
   evidenceAfter: ". Merci.",
+  parentActions: [
+    {
+      kind: "pay" as const,
+      label: "Régler la sortie",
+      amountCents: 850,
+      currency: "EUR" as const,
+      quote: "un chèque de 8,50 €",
+    },
+  ],
+  toBring: [{ item: "pique-nique", quote: "Prévoir un pique-nique" }],
 };
 
 async function family(name: string): Promise<{ userId: string; childId: string }> {
@@ -260,6 +271,15 @@ run(async () => {
         e.evidenceAfter === EVIDENCE.evidenceAfter,
     ),
     document.events.map((e) => e.evidenceQuote),
+  );
+  await step(
+    "what the parent has to pay, sign or bring is exported with its quotes",
+    document.events.some(
+      (e) =>
+        isDeepStrictEqual(e.parentActions, EVIDENCE.parentActions) &&
+        isDeepStrictEqual(e.toBring, EVIDENCE.toBring),
+    ),
+    document.events.map((e) => e.parentActions),
   );
   await step(
     "the preparation checklist is exported as the parent sees it, without bookkeeping",

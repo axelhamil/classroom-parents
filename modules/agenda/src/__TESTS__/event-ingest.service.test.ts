@@ -244,6 +244,35 @@ describe("ingest", () => {
     expect(row?.get("evidence").isNone()).toBe(true);
   });
 
+  it("given what the parent has to pay and bring, then the deadline keeps it with its quotes", async () => {
+    const pay = {
+      kind: "pay" as const,
+      label: "Régler la sortie",
+      amountCents: 850,
+      currency: "EUR" as const,
+      quote: "un chèque de 8,50 €",
+    };
+    await ingest([
+      extracted({ parentActions: [pay], toBring: [{ item: "gourde", quote: "une gourde" }] }),
+    ]);
+
+    const row = [...stored.values()][0];
+    expect(row?.get("preparation").value).toEqual({
+      parentActions: [pay],
+      toBring: [{ item: "gourde", quote: "une gourde" }],
+    });
+  });
+
+  it("given more objects to bring than a deadline holds, then the event is stored without them", async () => {
+    const items = Array.from({ length: 9 }, (_, index) => ({ item: `objet ${index}`, quote: "x" }));
+
+    const result = await ingest([extracted({ toBring: items })]);
+
+    const row = [...stored.values()][0];
+    expect(result.getValue().created).toBe(1);
+    expect(row?.get("preparation").value).toEqual({ parentActions: [], toBring: [] });
+  });
+
   it("given a confident event, then its default alert is planned once with its deadline", async () => {
     await ingest([extracted({ deadlineTime: "08:30" })]);
 

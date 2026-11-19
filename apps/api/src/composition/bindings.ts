@@ -159,6 +159,8 @@ export function announcementExtractorFor(
           needsReview: event.needsReview,
           reviewReasons: event.reviewReasons,
           ...(event.evidence === undefined ? {} : { evidence: event.evidence }),
+          parentActions: event.parentActions,
+          toBring: event.toBring,
         })),
         amendments,
       }));

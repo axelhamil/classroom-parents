@@ -821,6 +821,9 @@ importers:
       '@packages/llm':
         specifier: workspace:*
         version: link:../../packages/llm
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.4)(kysely@0.29.6)(pg@8.23.1)
       inwire:
         specifier: ^4.0.1
         version: 4.0.1

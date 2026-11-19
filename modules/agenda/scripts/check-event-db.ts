@@ -664,6 +664,16 @@ run(async () => {
         before: "Bonjour,",
         after: ". Révisez la carte.",
       },
+      parentActions: [
+        {
+          kind: "sign",
+          label: "Signer le livret",
+          amountCents: null,
+          currency: null,
+          quote: "livret signé",
+        },
+      ],
+      toBring: [{ item: "atlas", quote: "apportez votre atlas" }],
     }),
   ]);
   const [doubtful] = await rowsOf(aNina, "ann-nina-test");
@@ -677,6 +687,15 @@ run(async () => {
       doubtful.evidenceEnd === 49 &&
       doubtful.evidenceBefore === "Bonjour," &&
       doubtful.evidenceAfter === ". Révisez la carte.",
+  );
+  await step(
+    "a deadline stores what the parent has to sign or bring, with the quotes, and reads it back",
+    doubtful.parentActions[0]?.quote === "livret signé" &&
+      doubtful.toBring[0]?.item === "atlas" &&
+      (await repository.findOwned(a, doubtful.id))
+        .getValue()
+        .map((event) => event.get("preparation").value.toBring[0]?.item === "atlas")
+        .unwrapOr(false),
   );
   const confirmed = await edits.confirm(a, doubtful.id);
   const corrected2 = await ingest(

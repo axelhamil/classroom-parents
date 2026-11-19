@@ -1,4 +1,9 @@
-import type { EvidencePassage, ReviewReason } from "@packages/events/agenda-contract";
+import type {
+  EvidencePassage,
+  ItemToBring,
+  ParentAction,
+  ReviewReason,
+} from "@packages/events/agenda-contract";
 import type { ExtractionCategoryValue } from "./value-objects/extraction-category.vo";
 
 export const EXTRACTED_TITLE_MAX = 120;
@@ -16,6 +21,8 @@ export interface ExtractedEvent {
   needsReview: boolean;
   reviewReasons: ReviewReason[];
   evidence?: EvidencePassage;
+  parentActions: ParentAction[];
+  toBring: ItemToBring[];
 }
 
 export const AMENDMENT_KINDS = ["moved", "cancelled"] as const;

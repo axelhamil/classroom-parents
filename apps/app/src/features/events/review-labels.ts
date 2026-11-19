@@ -13,6 +13,7 @@ const REVIEW_REASON_KEYS = {
   title_missing: "review.reasons.title_missing",
   time_unreadable: "review.reasons.time_unreadable",
   second_reading_failed: "review.reasons.second_reading_failed",
+  injection_suspected: "review.reasons.injection_suspected",
 } as const satisfies Record<ReviewReason, string>;
 
 const AMEND_REASON_KEYS = {

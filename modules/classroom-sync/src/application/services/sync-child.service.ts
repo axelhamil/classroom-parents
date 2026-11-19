@@ -295,6 +295,7 @@ export class SyncChildService {
 
     const extracted = await this.extractor.extract({
       userId: input.userId,
+      announcementId: announcement.id,
       text: announcement.text,
       publishedAt: announcement.publishedAt,
       childNames,

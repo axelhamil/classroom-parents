@@ -10,6 +10,7 @@ import {
   sweepAiCallJournal,
   sweepDeliveredOutbox,
   sweepEventHistory,
+  sweepExtractionResults,
   sweepOldEmails,
 } from "./retention";
 
@@ -92,6 +93,10 @@ export function sweepJobs(
     {
       name: "ai-call-retention",
       run: async () => sweepOutcome(await sweepAiCallJournal(retention)),
+    },
+    {
+      name: "extraction-result-retention",
+      run: async () => sweepOutcome(await sweepExtractionResults(retention)),
     },
     {
       name: "event-history-retention",

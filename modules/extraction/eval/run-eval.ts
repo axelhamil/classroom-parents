@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { Result } from "@packages/ddd-kit";
+import { ACTION_CURRENCIES, PARENT_ACTION_KINDS } from "@packages/events/agenda-contract";
 import type { ILanguageModel, ModelTier } from "@packages/llm/contract/language-model.port";
 import { llmError } from "@packages/llm/contract/llm-error";
 import {
@@ -13,10 +14,19 @@ import {
   summary,
 } from "@packages/llm/eval/harness";
 import { z } from "zod";
+import { sanitizeAnnouncement } from "../src/application/services/announcement-sanitizer";
+import { mayHoldADeadline } from "../src/application/services/date-signal";
 import { ExtractionService } from "../src/application/services/extraction.service";
-import { AMENDMENT_KINDS } from "../src/domain/extracted-event";
+import { withoutMarks } from "../src/application/services/french-calendar";
+import { AMENDMENT_KINDS, type ExtractedEvent } from "../src/domain/extracted-event";
 import { extractionCategorySchema } from "../src/domain/value-objects/extraction-category.vo";
 import { DATASET_ANNOUNCEMENTS } from "./classroom-dataset";
+import { NO_SHARED_CACHE } from "./no-shared-cache";
+import {
+  DATASET_PREPARATION,
+  type ExpectedPreparation,
+  PREPARATION_CASES,
+} from "./preparation-dataset";
 
 const SUITE = "announcement_extraction";
 const EVAL_USER_ID = "eval";
@@ -31,6 +41,18 @@ const caseSchema = z.object({
   expectedAmends: z
     .array(z.object({ kind: z.enum(AMENDMENT_KINDS), referenceDate: z.iso.date().optional() }))
     .default([]),
+  preparation: z
+    .object({
+      actions: z.array(
+        z.object({
+          kind: z.enum(PARENT_ACTION_KINDS),
+          amountCents: z.number().optional(),
+          currency: z.enum(ACTION_CURRENCIES).optional(),
+        }),
+      ),
+      toBring: z.array(z.string()),
+    })
+    .optional(),
 });
 
 type EvalCase = z.infer<typeof caseSchema>;
@@ -42,6 +64,17 @@ interface CaseOutcome {
   expectedAmends: string[];
   predictedAmends: string[];
   failed: boolean;
+  sent: boolean;
+  preparation: PreparationOutcome;
+}
+
+interface PreparationOutcome {
+  actionsExpected: number;
+  actionsFound: number;
+  wrongAmounts: number;
+  itemsExpected: number;
+  itemsFound: number;
+  inventedItems: number;
 }
 
 const SINGLE_TIER_ONLY = llmError("LLM_PROVIDER_FAILURE", "single tier evaluation");
@@ -63,9 +96,19 @@ const CONFIGURATIONS: Record<string, (model: ILanguageModel) => ILanguageModel> 
   }),
 };
 
+function defaultCases(): EvalCase[] {
+  return [
+    ...DATASET_ANNOUNCEMENTS.map((item) => ({
+      ...item,
+      preparation: DATASET_PREPARATION[item.id],
+    })),
+    ...PREPARATION_CASES,
+  ].map((item) => caseSchema.parse(item));
+}
+
 function loadCases(): EvalCase[] {
   const path = process.env.EVAL_SET;
-  if (path === undefined) return DATASET_ANNOUNCEMENTS.map((item) => caseSchema.parse(item));
+  if (path === undefined) return defaultCases();
 
   return readFileSync(path, "utf8")
     .split("\n")
@@ -90,9 +133,55 @@ const amendKey = (amend: { kind: string; referenceDate?: string }) =>
 
 const ratio = (part: number, whole: number) => (whole === 0 ? 1 : part / whole);
 
+const folded = (text: string) => withoutMarks(text.toLowerCase());
+
+const NO_PREPARATION: PreparationOutcome = {
+  actionsExpected: 0,
+  actionsFound: 0,
+  wrongAmounts: 0,
+  itemsExpected: 0,
+  itemsFound: 0,
+  inventedItems: 0,
+};
+
+function preparationOutcome(
+  text: string,
+  events: readonly ExtractedEvent[],
+  expected: ExpectedPreparation | undefined,
+): PreparationOutcome {
+  const actions = events.flatMap((event) => event.parentActions);
+  const items = events.flatMap((event) => event.toBring).map(({ item }) => folded(item));
+  const inventedItems = items.filter((item) => !folded(text).includes(item)).length;
+  if (expected === undefined) return { ...NO_PREPARATION, inventedItems };
+
+  const amounts = expected.actions.flatMap(({ amountCents }) => amountCents ?? []);
+
+  return {
+    actionsExpected: expected.actions.length,
+    actionsFound: expected.actions.filter((wanted) =>
+      actions.some(
+        (action) =>
+          action.kind === wanted.kind &&
+          (wanted.amountCents === undefined ||
+            (action.amountCents === wanted.amountCents && action.currency === wanted.currency)),
+      ),
+    ).length,
+    wrongAmounts: actions.filter(
+      ({ amountCents }) => amountCents !== null && !amounts.includes(amountCents),
+    ).length,
+    itemsExpected: expected.toBring.length,
+    itemsFound: expected.toBring.filter((word) => items.some((item) => item.includes(folded(word))))
+      .length,
+    inventedItems,
+  };
+}
+
 async function runCase(service: ExtractionService, evalCase: EvalCase): Promise<CaseOutcome> {
+  const childNames = evalCase.childName === undefined ? [] : [evalCase.childName];
+  const sent = mayHoldADeadline(sanitizeAnnouncement(evalCase.text, childNames));
   const result = await service.extract({
     userId: EVAL_USER_ID,
+    announcementId: evalCase.id,
     text: evalCase.text,
     publishedAt: new Date(evalCase.publishedAt),
     childNames: evalCase.childName === undefined ? [] : [evalCase.childName],
@@ -108,6 +197,8 @@ async function runCase(service: ExtractionService, evalCase: EvalCase): Promise<
       expectedAmends,
       predictedAmends: [],
       failed: true,
+      sent,
+      preparation: preparationOutcome(evalCase.text, [], evalCase.preparation),
     };
   }
 
@@ -123,6 +214,8 @@ async function runCase(service: ExtractionService, evalCase: EvalCase): Promise<
     expectedAmends,
     predictedAmends: amendments.map(amendKey),
     failed: false,
+    sent,
+    preparation: preparationOutcome(evalCase.text, events, evalCase.preparation),
   };
 }
 
@@ -132,6 +225,8 @@ function scoresOf(outcomes: readonly CaseOutcome[], log: RecordingCallLog): Scor
   const correct = sum((o) => matches(o.expected, o.predicted));
   const predicted = sum((o) => o.predicted.length);
   const amendsExpected = sum((o) => o.expectedAmends.length);
+  const prepared = (count: (outcome: PreparationOutcome) => number) =>
+    sum((o) => count(o.preparation));
 
   return {
     precision: ratio(correct, predicted),
@@ -157,6 +252,21 @@ function scoresOf(outcomes: readonly CaseOutcome[], log: RecordingCallLog): Scor
     ),
     costUsd: log.costUsd(),
     maxOutputTokens: log.maxOutputTokens(),
+    skipped: ratio(
+      sum((o) => (o.sent ? 0 : 1)),
+      outcomes.length,
+    ),
+    prefilterMissed: sum((o) => (o.sent ? 0 : o.expected.length)),
+    actionsRecall: ratio(
+      prepared((p) => p.actionsFound),
+      prepared((p) => p.actionsExpected),
+    ),
+    wrongAmounts: prepared((p) => p.wrongAmounts),
+    toBringRecall: ratio(
+      prepared((p) => p.itemsFound),
+      prepared((p) => p.itemsExpected),
+    ),
+    inventedItems: prepared((p) => p.inventedItems),
   };
 }
 
@@ -165,7 +275,11 @@ async function runOnce(configuration: string, cases: readonly EvalCase[]): Promi
   if (wrap === undefined) throw new Error(`unknown configuration ${configuration}`);
 
   const log = new RecordingCallLog();
-  const service = new ExtractionService(wrap(evalModel(log)), new EvalInstrumentation());
+  const service = new ExtractionService(
+    wrap(evalModel(log)),
+    NO_SHARED_CACHE,
+    new EvalInstrumentation(),
+  );
   const outcomes = await mapBounded(cases, CONCURRENCY, (evalCase) => runCase(service, evalCase));
 
   return scoresOf(outcomes, log);

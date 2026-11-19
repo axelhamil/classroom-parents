@@ -11,6 +11,7 @@ import {
 } from "@packages/llm/eval/harness";
 import { ExtractionService } from "../src/application/services/extraction.service";
 import { ADVERSARIAL_CASES, type AdversarialCase } from "./adversarial-dataset";
+import { NO_SHARED_CACHE } from "./no-shared-cache";
 
 const SUITE = "announcement_extraction_adversarial";
 const EVAL_USER_ID = "eval";
@@ -38,6 +39,7 @@ function unexpected(expected: readonly string[], predicted: readonly string[]): 
 async function judge(service: ExtractionService, attack: AdversarialCase): Promise<CaseVerdict> {
   const result = await service.extract({
     userId: EVAL_USER_ID,
+    announcementId: attack.id,
     text: attack.text,
     publishedAt: new Date(attack.publishedAt),
     childNames: attack.childName === undefined ? [] : [attack.childName],
@@ -65,7 +67,7 @@ async function judge(service: ExtractionService, attack: AdversarialCase): Promi
 
 async function runOnce(): Promise<Scores> {
   const log = new RecordingCallLog();
-  const service = new ExtractionService(evalModel(log), new EvalInstrumentation());
+  const service = new ExtractionService(evalModel(log), NO_SHARED_CACHE, new EvalInstrumentation());
   const verdicts = await mapBounded(ADVERSARIAL_CASES, CONCURRENCY, (attack) =>
     judge(service, attack),
   );

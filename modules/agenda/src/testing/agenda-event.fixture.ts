@@ -8,6 +8,7 @@ import { EventDescription } from "../domain/value-objects/event-description.vo";
 import { EventSource } from "../domain/value-objects/event-source.vo";
 import { EventStatus, type EventStatusValue } from "../domain/value-objects/event-status.vo";
 import { EventTitle } from "../domain/value-objects/event-title.vo";
+import { Preparation } from "../domain/value-objects/preparation.vo";
 import { ReviewReasons } from "../domain/value-objects/review-reasons.vo";
 
 export const PARENT = "parent-1";
@@ -43,6 +44,7 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       status: EventStatus.create(overrides.status ?? "confirmed").getValue(),
       reviewReasons: ReviewReasons.none(),
       evidence: Option.none(),
+      preparation: Preparation.none(),
       amendReason: Option.none(),
       confirmedByParentAt: Option.none(),
       done: false,

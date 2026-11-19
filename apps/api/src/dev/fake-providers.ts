@@ -190,6 +190,8 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
           needsReview: event.needsReview ?? false,
           reviewReasons: event.needsReview ? ["low_confidence"] : [],
           evidence: wholeAnnouncement(known.text),
+          parentActions: [],
+          toBring: [],
         })),
         amendments: (known.expectedAmends ?? []).map(({ referenceDate, ...amendment }) =>
           referenceDate === undefined
