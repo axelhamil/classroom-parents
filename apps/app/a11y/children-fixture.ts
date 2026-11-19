@@ -1,5 +1,8 @@
 import type { Page } from "@playwright/test";
 
+const GOOGLE_PHOTO =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Crect width='1' height='1' fill='%23888'/%3E%3C/svg%3E";
+
 const CHILDREN = [
   {
     id: "1a7c2f4e-1d2b-4c3a-9e8f-0a1b2c3d4e5f",
@@ -14,6 +17,8 @@ const CHILDREN = [
     id: "2a7c2f4e-1d2b-4c3a-9e8f-0a1b2c3d4e5f",
     label: "Tom",
     color: 2,
+    avatarUrl: GOOGLE_PHOTO,
+    showsPhoto: false,
     googleEmail: "tom@ecole.example",
     status: "needs_reconnect",
     cause: "invalid_grant",

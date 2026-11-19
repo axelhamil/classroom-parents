@@ -6,6 +6,7 @@ import { toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
+import { ChildAvatarField } from "../../../shared/children/child-avatar-field";
 import { ChildHueField } from "../../../shared/children/child-hue-field";
 import { ChildProfilePreview } from "../../../shared/children/child-profile-preview";
 import { useChildProfileForm } from "../../../shared/children/use-child-profile-form";
@@ -42,6 +43,7 @@ export function CustomizeChildForm({ child, hue, onDone }: CustomizeChildFormPro
           enterKeyHint="done"
         />
         <ChildHueField control={form.control} childId={child.id} />
+        <ChildAvatarField control={form.control} child={child} />
         <ChildProfilePreview control={form.control} child={child} />
         <DialogFooter showCloseButton closeLabel={t("customize.cancel")}>
           <Button type="submit" disabled={isPending}>

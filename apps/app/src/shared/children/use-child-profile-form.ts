@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import type { ChildDto } from "../api/queries/children";
 import type { ChildHue } from "../format/child-hue";
+import { childAvatarSrc } from "./child-avatar-src";
 import { type EditedChild, editChildMutationOptions } from "./child-link.mutations";
 import {
   type ChildProfileInput,
@@ -27,7 +28,11 @@ export function useChildProfileForm({
   onSaved,
   onDone,
 }: ChildProfileFormOptions) {
-  const current: ChildProfileInput = { label: child.label, color: hue };
+  const current: ChildProfileInput = {
+    label: child.label,
+    color: hue,
+    showsPhoto: childAvatarSrc(child) !== null,
+  };
   const form = useForm<ChildProfileInput>({
     resolver: zodResolver(childProfileSchema),
     defaultValues: current,

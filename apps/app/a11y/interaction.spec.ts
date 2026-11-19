@@ -279,6 +279,7 @@ test.describe("signed in", () => {
           "outlineColor",
         ),
       ).toBeGreaterThanOrEqual(3);
+      await expect(page.getByRole("radio", { name: "Photo du compte Google" })).toBeVisible();
       expect(await blockingViolations(page)).toEqual([]);
     });
   }

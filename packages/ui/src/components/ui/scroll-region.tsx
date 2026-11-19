@@ -3,11 +3,12 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const scrollRegionVariants = cva(
-  "rounded-sm outline-none focus-visible:ring focus-visible:ring-ring",
+  "-mx-scroll-gutter rounded-sm px-scroll-gutter outline-none focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       variant: {
-        region: "scroll-edges max-h-scroll-region overflow-y-auto",
+        region:
+          "scroll-edges -my-scroll-gutter max-h-scroll-region overflow-y-auto py-scroll-gutter",
         panel: "scroll-fade min-h-0",
         list: "scroll-fade min-h-0 max-h-scroll-region",
       },

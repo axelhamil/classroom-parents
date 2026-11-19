@@ -6,6 +6,7 @@ const CHILD_LABEL_MAX = 40;
 export const childProfileSchema = z.object({
   label: z.string().trim().min(1).max(CHILD_LABEL_MAX),
   color: z.literal(HUES),
+  showsPhoto: z.boolean(),
 });
 export type ChildProfileInput = z.infer<typeof childProfileSchema>;
 
@@ -18,9 +19,10 @@ export function profileChanges(
   return {
     ...(next.label !== current.label && { label: next.label }),
     ...(next.color !== current.color && { color: next.color }),
+    ...(next.showsPhoto !== current.showsPhoto && { showsPhoto: next.showsPhoto }),
   };
 }
 
 export function hasChanges(changes: ChildProfileChanges): boolean {
-  return changes.label !== undefined || changes.color !== undefined;
+  return Object.values(changes).some((change) => change !== undefined);
 }

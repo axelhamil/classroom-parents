@@ -7,6 +7,8 @@ export default {
     CHILD_TOKEN_INVALID_GRANT: "Google ne reconnaît plus cet accès. Recommencez l'ajout du compte.",
     CHILD_ALREADY_CONNECTED:
       "Ce compte Google est déjà relié à l'un de vos enfants. Choisissez le compte d'un autre élève.",
+    CHILD_PHOTO_CONFLICT:
+      "Ce compte Google n'a pas de photo à afficher. Gardez l'initiale de votre enfant.",
     CHILD_ACCOUNT_NOT_LINKED: "Ce compte Google n'est plus relié. Recommencez l'ajout.",
     CHILD_ACCOUNT_SIGN_IN_FORBIDDEN:
       "Le compte Google d'un enfant sert uniquement à lire Classroom. Connectez-vous avec votre propre compte Google.",

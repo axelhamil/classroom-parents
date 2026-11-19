@@ -153,6 +153,7 @@ export class UserDataQuery implements IUserDataReader {
             googleEmail: child.googleEmail,
             color: child.color,
             avatarUrl: child.avatarUrl,
+            showsPhoto: child.showsPhoto,
             status: child.status,
             connectedAt: child.connectedAt.toISOString(),
             lastSyncedAt: iso(child.lastSyncedAt),

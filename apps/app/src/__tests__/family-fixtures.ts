@@ -3,6 +3,7 @@ export const CHILD = {
   label: "Léa",
   color: 1,
   avatarUrl: null,
+  showsPhoto: false,
   googleEmail: "lea@example.com",
   status: "connected",
   lastSyncedAt: "2026-11-09T08:00:00.000Z",

@@ -1,6 +1,7 @@
 import { authSchema } from "@packages/drizzle";
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
@@ -27,6 +28,7 @@ export const childAccount = pgTable(
     label: text("label").notNull(),
     color: smallint("color").notNull(),
     avatarUrl: text("avatar_url"),
+    showsPhoto: boolean("shows_photo").notNull().default(false),
     status: text("status", { enum: CHILD_STATUSES }).notNull(),
     cause: text("cause", { enum: RECONNECT_CAUSES }),
     connectedAt: timestamp("connected_at").notNull(),

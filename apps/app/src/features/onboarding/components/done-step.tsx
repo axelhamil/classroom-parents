@@ -6,6 +6,7 @@ import { BellRing, Link2, Mail, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import { pushStatusQueryOptions } from "../../../shared/api/queries/push-status";
+import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import type { ChildHue } from "../../../shared/format/child-hue";
 import { StepFrame } from "./step-frame";
 import { StepList } from "./step-list";
@@ -14,16 +15,15 @@ export interface DoneStepProps {
   child: ChildDto;
   hue: ChildHue;
   userId: string;
-  avatarUrl?: string | null;
 }
 
-export function DoneStep({ child, hue, userId, avatarUrl }: DoneStepProps) {
+export function DoneStep({ child, hue, userId }: DoneStepProps) {
   const { t } = useTranslation("onboarding");
   const pushLive = (useQuery(pushStatusQueryOptions(userId)).data?.live ?? 0) > 0;
 
   return (
     <StepFrame
-      media={<ChildAvatar name={child.label} tone={hue} src={avatarUrl} size="lg" />}
+      media={<ChildAvatar name={child.label} tone={hue} src={childAvatarSrc(child)} size="lg" />}
       mediaTone="bare"
       title={t("done.title")}
       description={t("done.description", { label: child.label })}

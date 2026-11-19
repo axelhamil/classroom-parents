@@ -110,10 +110,10 @@ describe("register", () => {
     expect(result.getValue().label).toBe("Tom");
   });
 
-  it("given the Google account has a picture, then the child shows it", async () => {
+  it("given the Google account has a picture, then the child keeps it but shows its initial until the parent picks the photo", async () => {
     const result = await connection.register(PARENT, { linkedAccountId: LINKED });
 
-    expect(result.getValue().avatarUrl).toBe(LEA_PICTURE);
+    expect(result.getValue()).toMatchObject({ avatarUrl: LEA_PICTURE, showsPhoto: false });
     expect(repo.create.mock.calls[0]?.[0]?.get("avatarUrl").unwrap().value).toBe(LEA_PICTURE);
   });
 
@@ -476,6 +476,52 @@ describe("edit", () => {
     expect(result.getError().code).toBe("CHILD_COLOR_INVALID");
     expect(repo.save).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given the photo picked for a child with a Google photo, then it is saved and CHILD_PHOTO_CHOICE_CHANGED names the parent as actor", async () => {
+    const owned = child({ avatarUrl: LEA_PICTURE });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { showsPhoto: true });
+
+    expect(result.getValue()).toMatchObject({ avatarUrl: LEA_PICTURE, showsPhoto: true });
+    expect(repo.save).toHaveBeenCalledWith(owned);
+    expect(uow.outcome()).toBe("committed");
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.CHILD_PHOTO_CHOICE_CHANGED,
+        aggregateId: owned.id.value,
+        payload: {
+          userId: PARENT,
+          actorUserId: PARENT,
+          childId: owned.id.value,
+          showsPhoto: true,
+        },
+      },
+    ]);
+  });
+
+  it("given the photo picked for a child without a Google photo, then CHILD_PHOTO_CONFLICT and nothing is saved", async () => {
+    const owned = child();
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { showsPhoto: true });
+
+    expect(result.getError().code).toBe("CHILD_PHOTO_CONFLICT");
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given the initial picked back, then the child stops showing its photo", async () => {
+    const owned = child({ avatarUrl: LEA_PICTURE, showsPhoto: true });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { showsPhoto: false });
+
+    expect(result.getValue().showsPhoto).toBe(false);
+    expect(enqueuedEvents(outbox).map((event) => event.payload)).toEqual([
+      { userId: PARENT, actorUserId: PARENT, childId: owned.id.value, showsPhoto: false },
+    ]);
   });
 
   it("given another family's child, then CHILD_NOT_FOUND and nothing is emitted", async () => {

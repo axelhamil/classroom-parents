@@ -90,6 +90,21 @@ describe("user stream relay", () => {
     expect(published).toEqual([{ userId: "parent", message: { type: "children.changed" } }]);
   });
 
+  it("tells the parent their children changed when a child shows its photo or its initial", async () => {
+    const { relay, published } = relayWithSink();
+
+    await relay.handle(
+      delivered("child.account.photo_choice_changed", {
+        userId: "parent",
+        actorUserId: "parent",
+        childId: "c1",
+        showsPhoto: true,
+      }),
+    );
+
+    expect(published).toEqual([{ userId: "parent", message: { type: "children.changed" } }]);
+  });
+
   it("names the synced child and refreshes the agenda when a sync finishes", async () => {
     const { relay, published } = relayWithSink();
 

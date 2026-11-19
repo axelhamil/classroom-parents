@@ -69,6 +69,7 @@ function toDomain(row: ChildRow): Result<ChildAccount, string> {
         label: label.getValue(),
         color: color.getValue(),
         avatarUrl: avatarUrl.map((parsed) => parsed.getValue()),
+        showsPhoto: row.showsPhoto,
         status: status.getValue(),
         connectedAt: row.connectedAt,
         lastSyncedAt: Option.fromNullable(row.lastSyncedAt),
@@ -96,6 +97,7 @@ function mutableColumns(child: ChildAccount) {
       .get("avatarUrl")
       .map((avatar) => avatar.value)
       .toNull(),
+    showsPhoto: child.get("showsPhoto"),
     status: status.value,
     cause: status.cause().toNull(),
     nextSyncAt: child.get("nextSyncAt"),

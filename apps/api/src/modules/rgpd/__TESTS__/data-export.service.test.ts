@@ -24,6 +24,7 @@ const snapshot: UserDataSnapshot = {
       googleEmail: "lea@school.example",
       color: 3,
       avatarUrl: null,
+      showsPhoto: false,
       status: "connected",
       connectedAt: "2026-09-01T08:00:00.000Z",
       lastSyncedAt: "2026-11-12T22:00:00.000Z",

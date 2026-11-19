@@ -5,6 +5,7 @@ import { StepperActions } from "@packages/ui/components/ui/stepper";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
+import { ChildAvatarField } from "../../../shared/children/child-avatar-field";
 import { ChildHueField } from "../../../shared/children/child-hue-field";
 import { ChildProfilePreview } from "../../../shared/children/child-profile-preview";
 import { useChildProfileForm } from "../../../shared/children/use-child-profile-form";
@@ -44,6 +45,7 @@ export function ChildNameForm({ child, hue, onDone }: ChildNameFormProps) {
           enterKeyHint="next"
         />
         <ChildHueField control={form.control} childId={child.id} />
+        <ChildAvatarField control={form.control} child={child} />
         <ChildProfilePreview control={form.control} child={child} />
         <StepperActions>
           <Button type="submit" size="lg" disabled={isPending}>

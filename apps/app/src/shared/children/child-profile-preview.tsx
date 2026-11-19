@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../api/queries/children";
 import { deadlineLabel, wallDateParts } from "../format/deadline-label";
 import { schoolToday } from "../format/school-today";
+import { childAvatarSrc } from "./child-avatar-src";
 import type { ChildProfileInput } from "./child-profile.schema";
 
 export interface ChildProfilePreviewProps {
@@ -30,7 +31,7 @@ function tomorrowOf(now: Date): string {
 
 export function ChildProfilePreview({ control, child }: ChildProfilePreviewProps) {
   const { t } = useTranslation("children");
-  const [typed, hue] = useWatch({ control, name: ["label", "color"] });
+  const [typed, hue, showsPhoto] = useWatch({ control, name: ["label", "color", "showsPhoto"] });
   const label = typed.trim() || child.label;
   const now = new Date();
   const deadline = tomorrowOf(now);
@@ -52,7 +53,12 @@ export function ChildProfilePreview({ control, child }: ChildProfilePreviewProps
           <PlannerCardMeta>{deadlineLabel(deadline, undefined, now)}</PlannerCardMeta>
           <PlannerCardStickers>
             <Badge hue={hue} className="max-w-full">
-              <ChildAvatar name={label} tone={hue} src={child.avatarUrl} size="xs" />
+              <ChildAvatar
+                name={label}
+                tone={hue}
+                src={childAvatarSrc({ avatarUrl: child.avatarUrl, showsPhoto })}
+                size="xs"
+              />
               <span className="truncate">{label}</span>
             </Badge>
           </PlannerCardStickers>

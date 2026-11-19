@@ -35,6 +35,7 @@ import { CalendarDays, EllipsisVertical, Palette, RefreshCw, Unlink } from "luci
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
+import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import { syncChildMutationOptions } from "../../../shared/children/child-link.mutations";
 import { classifySchoolError } from "../../../shared/children/school-error";
 import { SchoolProcedure } from "../../../shared/children/school-procedure";
@@ -150,7 +151,7 @@ export function ChildCard({ child, hue }: ChildCardProps) {
         </DropdownMenu>
 
         <ChildBannerAvatar>
-          <ChildAvatar name={child.label} tone={hue} src={child.avatarUrl} size="lg" />
+          <ChildAvatar name={child.label} tone={hue} src={childAvatarSrc(child)} size="lg" />
         </ChildBannerAvatar>
       </ChildBanner>
 
