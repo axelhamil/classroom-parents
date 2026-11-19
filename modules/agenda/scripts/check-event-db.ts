@@ -49,6 +49,7 @@ import {
   type IngestedCoursework,
   type IngestedEvent,
 } from "../src/application/services/event-ingest.service";
+import { EventPresenter } from "../src/application/services/event-presenter";
 import { EventQueryService } from "../src/application/services/event-query.service";
 import { DrizzleEventRepository } from "../src/infrastructure/repositories/drizzle-event.repository";
 
@@ -105,16 +106,18 @@ const ingestService = new EventIngestService(
   instrumentation,
   () => NOW,
 );
+const presenter = new EventPresenter({ namesOf: async () => Result.ok([]) }, instrumentation);
 const edits = new EventEditService(
   repository,
   visibleChildren,
   planner,
   transactions,
   outbox,
+  presenter,
   instrumentation,
   () => NOW,
 );
-const query = new EventQueryService(repository, visibleChildren, instrumentation);
+const query = new EventQueryService(repository, visibleChildren, presenter, instrumentation);
 
 async function createUser(name: string): Promise<string> {
   const id = `${probe}-${name}`;

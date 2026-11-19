@@ -22,7 +22,12 @@ export interface ExportedReminder {
   hours?: number;
 }
 
-export interface ExportedEvent {
+export interface ExportedCourse {
+  id: string;
+  name: string;
+}
+
+export interface CollectedEvent {
   id: string;
   childId: string;
   source: string;
@@ -44,6 +49,10 @@ export interface ExportedEvent {
   withdrawnAt: string | null;
   createdAt: string;
   reminders: ExportedReminder[] | null;
+}
+
+export interface ExportedEvent extends CollectedEvent {
+  course: ExportedCourse | null;
 }
 
 export interface ExportedAlert {
@@ -103,7 +112,7 @@ export interface ExportedLockScreen {
 
 export interface UserDataSnapshot {
   children: ExportedChild[];
-  events: ExportedEvent[];
+  events: CollectedEvent[];
   defaultReminders: ExportedReminder[] | null;
   quietHours: ExportedQuietHours | null;
   alerts: ExportedAlert[];
@@ -114,7 +123,8 @@ export interface UserDataSnapshot {
   sync: ExportedSyncState[];
 }
 
-export interface UserDataExport extends UserDataSnapshot {
+export interface UserDataExport extends Omit<UserDataSnapshot, "events"> {
+  events: ExportedEvent[];
   format: "classroom-parents-export";
   version: 1;
   exportedAt: string;

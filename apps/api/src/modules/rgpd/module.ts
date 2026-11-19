@@ -5,6 +5,7 @@ import { defineModule } from "inwire";
 import { logger } from "../../shared/logger";
 import type { RgpdSettings } from "./application/config/rgpd-settings";
 import type { IChildConnections } from "./application/ports/child-connections.port";
+import type { ICourseNames } from "./application/ports/course-names.port";
 import type { IRgpdRepository } from "./application/ports/rgpd.port";
 import type { IUserDataReader } from "./application/ports/user-data-reader.port";
 import { DataExportService } from "./application/services/data-export.service";
@@ -18,6 +19,7 @@ export interface RgpdPrerequisites {
   IEmailService: IEmailService;
   IChildConnections: IChildConnections;
   IUserDataReader: IUserDataReader;
+  ICourseNames: ICourseNames;
   rgpdSettings: RgpdSettings;
 }
 
@@ -47,6 +49,7 @@ export const rgpdModule = defineModule<RgpdPrerequisites>()((b) =>
         new DataExportService(
           c.IRgpdRepository,
           c.IUserDataReader,
+          c.ICourseNames,
           c.ITransactionService,
           c.IOutboxRepository,
           c.IInstrumentation,

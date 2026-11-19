@@ -1,12 +1,12 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
 import {
-  type AnyPgColumn,
   and,
   asc,
   claimedSet,
   db,
   dbOperationFailure,
   eq,
+  excluded,
   inArray,
   isDue,
   leasedBy,
@@ -83,10 +83,6 @@ function plannedColumns(entity: Alert) {
     origin: entity.get("origin").value,
     version: entity.get("version"),
   };
-}
-
-function excluded(column: AnyPgColumn): SQL {
-  return sql`excluded.${sql.identifier(column.name)}`;
 }
 
 function fencedBy(lease: AlertLease): SQL | undefined {

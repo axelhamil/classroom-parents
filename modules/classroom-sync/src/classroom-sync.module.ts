@@ -7,16 +7,19 @@ import type { IChildAccessTokens } from "./application/ports/child-access-tokens
 import type { IChildSyncState } from "./application/ports/child-sync-state.port";
 import type { IClassroomClient } from "./application/ports/classroom-client.port";
 import type { IClassroomReader } from "./application/ports/classroom-reader.port";
+import type { ICourseRepository } from "./application/ports/course-repository.port";
 import type { IDueChildren } from "./application/ports/due-children.port";
 import type { IEventIngest } from "./application/ports/event-ingest.port";
 import type { IManualSyncGate } from "./application/ports/manual-sync-gate.port";
 import type { ISeenAnnouncementRepository } from "./application/ports/seen-announcement-repository.port";
 import type { IUpcomingAlerts } from "./application/ports/upcoming-alerts.port";
 import { ClassroomReader } from "./application/services/classroom-reader.service";
+import { CourseNamesService } from "./application/services/course-names.service";
 import { ManualSyncService } from "./application/services/manual-sync.service";
 import { SyncChildService } from "./application/services/sync-child.service";
 import { SyncDueChildrenService } from "./application/services/sync-due-children.service";
 import { GoogleClassroomClient } from "./infrastructure/adapters/google-classroom.client";
+import { DrizzleCourseRepository } from "./infrastructure/repositories/drizzle-course.repository";
 import { DrizzleSeenAnnouncementRepository } from "./infrastructure/repositories/drizzle-seen-announcement.repository";
 
 export interface ClassroomSyncPrerequisites {
@@ -45,6 +48,11 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
       (c): ISeenAnnouncementRepository => new DrizzleSeenAnnouncementRepository(c.IInstrumentation),
     )
     .add(
+      "ICourseRepository",
+      (c): ICourseRepository => new DrizzleCourseRepository(c.IInstrumentation),
+    )
+    .add("CourseNamesService", (c) => new CourseNamesService(c.ICourseRepository))
+    .add(
       "IClassroomReader",
       (c): IClassroomReader =>
         new ClassroomReader(c.IClassroomClient, c.ISeenAnnouncementRepository, c.IInstrumentation),
@@ -60,6 +68,7 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
           c.IUpcomingAlerts,
           c.IChildSyncState,
           c.ISeenAnnouncementRepository,
+          c.ICourseRepository,
           c.ITransactionService,
           c.IOutboxRepository,
           c.IInstrumentation,

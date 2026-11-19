@@ -24,6 +24,7 @@ import type {
   Coursework,
   IClassroomClient,
 } from "../application/ports/classroom-client.port";
+import type { ICourseRepository } from "../application/ports/course-repository.port";
 import type { IEventIngest } from "../application/ports/event-ingest.port";
 import type {
   ISeenAnnouncementRepository,
@@ -75,6 +76,10 @@ export function coursework(
   };
 }
 
+export function course(id: string, name = `Cours ${id}`): Course {
+  return { id, name: Option.some(name) };
+}
+
 export const classroomFailure = <T>(code: ClassroomErrorCode) =>
   Result.fail<T, ClassroomError>({ code, message: code });
 
@@ -86,6 +91,7 @@ export interface SyncHarness {
   alerts: PortMock<IUpcomingAlerts>;
   state: PortMock<IChildSyncState>;
   ledger: PortMock<ISeenAnnouncementRepository>;
+  courses: PortMock<ICourseRepository>;
   outbox: PortMock<IOutboxRepository>;
   logger: PortMock<ILogger>;
   instrumentation: PortMock<IInstrumentation>;
@@ -105,6 +111,7 @@ export function syncHarness(): SyncHarness {
   const alerts = mockPort<IUpcomingAlerts>();
   const state = mockPort<IChildSyncState>();
   const ledger = mockPort<ISeenAnnouncementRepository>();
+  const courses = mockPort<ICourseRepository>();
   const outbox = mockPort<IOutboxRepository>();
   const logger = mockPort<ILogger>();
   const instrumentation = mockInstrumentation();
@@ -134,6 +141,8 @@ export function syncHarness(): SyncHarness {
   state.markNeedsReconnect.mockResolvedValue(Result.ok<AppError>());
   ledger.findForCourse.mockResolvedValue(Result.ok<SeenAnnouncement[], SyncError>([]));
   ledger.record.mockResolvedValue(Result.ok<boolean, SyncError>(true));
+  courses.recordListed.mockResolvedValue(Result.ok<SyncError>());
+  courses.withdrawOutside.mockResolvedValue(Result.ok<SyncError>());
   outbox.enqueue.mockResolvedValue(undefined);
 
   const reader = new ClassroomReader(client, ledger, instrumentation, async (ms) => {
@@ -147,6 +156,7 @@ export function syncHarness(): SyncHarness {
     alerts,
     state,
     ledger,
+    courses,
     uow.unitOfWork,
     outbox,
     instrumentation,
@@ -161,6 +171,7 @@ export function syncHarness(): SyncHarness {
     alerts,
     state,
     ledger,
+    courses,
     outbox,
     logger,
     instrumentation,
@@ -168,12 +179,12 @@ export function syncHarness(): SyncHarness {
     sleeps,
     service,
     recorded: () => ledger.record.mock.calls.map(([entry]) => entry),
-    givenCourses(courses) {
+    givenCourses(posts) {
       client.listCourses.mockResolvedValue(
-        Result.ok<Course[], ClassroomError>(Object.keys(courses).map((id) => ({ id }))),
+        Result.ok<Course[], ClassroomError>(Object.keys(posts).map((id) => course(id))),
       );
       client.listAnnouncements.mockImplementation(async (_token, courseId) =>
-        Result.ok<Announcement[], ClassroomError>(courses[courseId] ?? []),
+        Result.ok<Announcement[], ClassroomError>(posts[courseId] ?? []),
       );
     },
     givenCoursework(items, turnedIn = []) {

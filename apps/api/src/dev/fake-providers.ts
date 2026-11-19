@@ -111,7 +111,10 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
       }),
     listCourses: async (token) =>
       reader(token).map((key) =>
-        DATASET_COURSES.filter((course) => course.child === key).map(({ id }) => ({ id })),
+        DATASET_COURSES.filter((course) => course.child === key).map(({ id, name }) => ({
+          id,
+          name: Option.some(name),
+        })),
       ),
     listAnnouncements: async (token, courseId, since) => {
       const owned = ownedCourse(token, courseId);

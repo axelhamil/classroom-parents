@@ -16,6 +16,7 @@ const RING = new Date("2026-11-18T17:00:00Z");
 const exam: EventDto = {
   id: EXAM,
   childId: LEA,
+  course: { id: "course-1", name: "Mathématiques 4e B" },
   title: "Contrôle de maths",
   description: "Chapitre 3",
   category: "assessment",
@@ -76,6 +77,7 @@ describe("calendar feed IFeedEntries bound to the agenda", () => {
       eventId: EXAM,
       childLabel: "Léa",
       categoryLabel: "Évaluation",
+      courseName: Option.some("Mathématiques 4e B"),
       classroomUrl: Option.some(exam.announcementUrl),
       alarmsAt: [RING],
     });

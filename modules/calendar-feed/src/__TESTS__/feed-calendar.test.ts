@@ -13,6 +13,7 @@ const allDay: FeedEntry = {
   title: "Contrôle; chapitre 3, partie \\ B",
   description: "Réviser les fractions\net les décimaux.",
   categoryLabel: "Évaluation",
+  courseName: Option.some("Mathématiques 4e B"),
   deadlineDate: "2026-11-19",
   deadlineTime: Option.none(),
   classroomUrl: Option.some("https://classroom.google.com/c/abc/p/def"),
@@ -27,6 +28,7 @@ const timed: FeedEntry = {
   title: "Sortie au musée",
   description: "",
   categoryLabel: "Sortie scolaire",
+  courseName: Option.none(),
   deadlineDate: "2026-07-03",
   deadlineTime: Option.some("08:30:00"),
   alarmsAt: [],
@@ -75,13 +77,17 @@ describe("writeFeedCalendar", () => {
     expect(start.toString()).toBe("2026-11-19");
     expect(event.getFirstPropertyValue("summary")).toBe("Léa · Contrôle; chapitre 3, partie \\ B");
     expect(event.getFirstPropertyValue("description")).toBe(
-      "Réviser les fractions\net les décimaux.\n\nClassroom : https://classroom.google.com/c/abc/p/def",
+      "Cours : Mathématiques 4e B\n\nRéviser les fractions\net les décimaux.\n\nClassroom : https://classroom.google.com/c/abc/p/def",
     );
     expect(event.getFirstPropertyValue("categories")).toBe("Évaluation");
   });
 
-  it("given an event the parent added by hand, then it carries no Classroom link", () => {
-    const manual = { ...allDay, classroomUrl: Option.none<string>() };
+  it("given an event the parent added by hand, then it carries no course nor Classroom link", () => {
+    const manual = {
+      ...allDay,
+      courseName: Option.none<string>(),
+      classroomUrl: Option.none<string>(),
+    };
     const event = eventOf(parse(render([manual])), `${allDay.eventId}@${APP_HOST}`);
 
     expect(event.getFirstPropertyValue("url")).toBeNull();

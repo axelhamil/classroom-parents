@@ -92,6 +92,13 @@
       "when": 1794510676883,
       "tag": "0012_push_lock_screen",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795099876010,
+      "tag": "0013_course_names",
+      "breakpoints": true
     }
   ]
 }

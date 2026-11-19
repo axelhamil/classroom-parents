@@ -16,6 +16,7 @@ import {
   announcement,
   CHILD,
   classroomFailure,
+  course,
   coursework,
   deadline,
   NOW,
@@ -742,7 +743,7 @@ describe("syncChild, coursework of courses no longer listed", () => {
   it("withdraws nothing when the course list hit the page cap", async () => {
     h.client.listCourses.mockImplementation(async (_token, scope) => {
       scope.truncated("courses");
-      return Result.ok<Course[], ClassroomError>([{ id: "maths" }]);
+      return Result.ok<Course[], ClassroomError>([course("maths")]);
     });
 
     await h.service.syncChild(CHILD, NOW);
@@ -789,6 +790,52 @@ describe("syncChild, coursework of courses no longer listed", () => {
   });
 });
 
+describe("syncChild, course names", () => {
+  it("records the name Classroom gives each listed course and withdraws the others after a complete list", async () => {
+    h.client.listCourses.mockResolvedValue(
+      Result.ok<Course[], ClassroomError>([
+        course("maths", "Mathématiques 4e B"),
+        { id: "club", name: Option.none() },
+      ]),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.isSuccess).toBe(true);
+    expect(h.courses.recordListed).toHaveBeenCalledWith(
+      CHILD.childId,
+      [{ courseId: "maths", name: "Mathématiques 4e B" }],
+      NOW,
+    );
+    expect(h.courses.withdrawOutside).toHaveBeenCalledWith(CHILD.childId, ["maths", "club"], NOW);
+  });
+
+  it("withdraws no course name when the course list hit the page cap", async () => {
+    h.client.listCourses.mockImplementation(async (_token, scope) => {
+      scope.truncated("courses");
+      return Result.ok<Course[], ClassroomError>([course("maths")]);
+    });
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.courses.recordListed).toHaveBeenCalled();
+    expect(h.courses.withdrawOutside).not.toHaveBeenCalled();
+  });
+
+  it("keeps syncing the deadlines when the course names cannot be saved", async () => {
+    h.givenCourses({ maths: [announcement("a1", "maths")] });
+    extractorAnswers({ "Annonce a1": [deadline("Contrôle")] });
+    h.courses.recordListed.mockResolvedValue(
+      Result.fail<void, SyncError>({ code: "SYNC_PROVIDER_FAILURE", message: "db" }),
+    );
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(result.getValue().eventsCreated).toBe(1);
+    expect(h.state.markSynced).toHaveBeenCalled();
+  });
+});
+
 describe("syncChild, lease lost while reading", () => {
   let held: boolean;
   let callsAfterLoss: number;
@@ -818,7 +865,7 @@ describe("syncChild, lease lost while reading", () => {
   it("reads no course once the lease is lost after the course list", async () => {
     h.client.listCourses.mockImplementation(async () => {
       held = false;
-      return Result.ok<Course[], ClassroomError>([{ id: "maths" }, { id: "art" }]);
+      return Result.ok<Course[], ClassroomError>([course("maths"), course("art")]);
     });
 
     const result = await h.service.syncChild(CHILD, NOW);
@@ -832,7 +879,7 @@ describe("syncChild, lease lost while reading", () => {
   });
 
   it("sends no announcement to the model once the lease is lost after the reads", async () => {
-    h.client.listCourses.mockResolvedValue(Result.ok<Course[], ClassroomError>([{ id: "maths" }]));
+    h.client.listCourses.mockResolvedValue(Result.ok<Course[], ClassroomError>([course("maths")]));
     h.client.listTurnedIn.mockImplementation(async () => {
       held = false;
       return Result.ok<string[], ClassroomError>([]);

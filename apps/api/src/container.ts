@@ -1,11 +1,15 @@
 import { agendaModule } from "@modules/agenda/agenda.module";
 import type { IAlertPlanner } from "@modules/agenda/application/ports/alert-planner.port";
+import type { ICourseNames } from "@modules/agenda/application/ports/course-names.port";
 import { alertsModule } from "@modules/alerts/alerts.module";
 import type { IAlertContextReader } from "@modules/alerts/application/ports/alert-context-reader.port";
 import type { IDigestAudience } from "@modules/alerts/application/ports/digest-audience.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import { calendarFeedModule } from "@modules/calendar-feed/calendar-feed.module";
+import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
+import type { ChildSyncService } from "@modules/children/application/services/child-sync.service";
 import { childrenModule } from "@modules/children/children.module";
+import type { CourseNamesService } from "@modules/classroom-sync/application/services/course-names.service";
 import { classroomSyncModule } from "@modules/classroom-sync/classroom-sync.module";
 import { extractionModule } from "@modules/extraction/extraction.module";
 import type { IBackgroundWork, IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
@@ -31,7 +35,7 @@ import {
   OUTBOX_STOP_SETTLE_MARGIN_MS,
   type OutboxDispatcher,
 } from "@packages/outbox/outbox-dispatcher";
-import { container } from "inwire";
+import { container, defineModule } from "inwire";
 import { Resend } from "resend";
 import {
   alertPlannerFor,
@@ -40,6 +44,7 @@ import {
   childConnectionsFor,
   childOwnershipFor,
   childSyncStateFor,
+  courseNamesFor,
   digestDeadlinesFor,
   dueChildrenFor,
   eventDeadlinesFor,
@@ -83,6 +88,7 @@ import type { ClockService } from "./workers/clock";
 import type { DeliveryDrain } from "./workers/delivery";
 
 type AlertPlanner = Pick<AlertPlanningService, "planDefault" | "replan" | "cancel">;
+type CourseNames = Pick<CourseNamesService, "namesOf">;
 
 declare module "inwire" {
   interface AppDeps {
@@ -115,6 +121,23 @@ configureRateLimitDbPool({
 });
 
 const listenerDatabaseUrl = env.DATABASE_URL_DIRECT ?? env.DATABASE_URL;
+
+const agendaPorts = defineModule<{
+  ChildSyncService: ChildSyncService;
+  ChildConnectionService: ChildConnectionService;
+}>()((b) =>
+  b
+    .add("IChildOwnership", (c) => childOwnershipFor(c.ChildSyncService))
+    .add("IVisibleChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
+    .add(
+      "IAlertPlanner",
+      (): IAlertPlanner => alertPlannerFor((): AlertPlanner => di.AlertPlanningService),
+    )
+    .add(
+      "ICourseNames",
+      (): ICourseNames => courseNamesFor((): CourseNames => di.CourseNamesService),
+    ),
+);
 
 export const di = container()
   .addModule(apiSettings(env))
@@ -185,12 +208,7 @@ export const di = container()
   .addModule(runtimeModule(listenerDatabaseUrl))
   .addModule(healthModule)
   .addModule(childrenModule)
-  .add("IChildOwnership", (c) => childOwnershipFor(c.ChildSyncService))
-  .add("IVisibleChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
-  .add(
-    "IAlertPlanner",
-    (): IAlertPlanner => alertPlannerFor((): AlertPlanner => di.AlertPlanningService),
-  )
+  .addModule(agendaPorts)
   .addModule(agendaModule)
   .add("IEventDeadlines", (c) => eventDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
   .add(

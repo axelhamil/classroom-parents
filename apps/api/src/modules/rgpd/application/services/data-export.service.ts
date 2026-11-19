@@ -2,7 +2,7 @@ import {
   type AppError,
   type IInstrumentation,
   type IUnitOfWork,
-  type Option,
+  Option,
   Result,
 } from "@packages/ddd-kit";
 import { DAY_MS } from "@packages/ddd-kit/days";
@@ -10,7 +10,13 @@ import { PARIS_TIME_ZONE, utcToZonedWall } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import type { UserDataExport } from "../dto/user-data-export.dto";
+import type {
+  CollectedEvent,
+  ExportedCourse,
+  ExportedEvent,
+  UserDataExport,
+} from "../dto/user-data-export.dto";
+import type { CourseRef, ICourseNames } from "../ports/course-names.port";
 import type { DataExportAccount, IRgpdRepository, RgpdError } from "../ports/rgpd.port";
 import type { IUserDataReader } from "../ports/user-data-reader.port";
 
@@ -33,6 +39,14 @@ function exportFileName(now: Date): string {
   return `classroom-parents-export-${day}.json`;
 }
 
+const refKey = ({ childId, courseId }: CourseRef) => `${childId}\u0000${courseId}`;
+
+function courseRefsOf(events: CollectedEvent[]): CourseRef[] {
+  const refs = events.flatMap(({ childId, courseId }) => (courseId ? [{ childId, courseId }] : []));
+
+  return [...new Map(refs.map((ref) => [refKey(ref), ref])).values()];
+}
+
 function pendingCooldownEnd(account: DataExportAccount, now: Date): Option<Date> {
   return account.lastDataExportAt
     .map((last) => new Date(last.getTime() + DATA_EXPORT_COOLDOWN_MS))
@@ -43,6 +57,7 @@ export class DataExportService {
   constructor(
     private readonly rgpd: IRgpdRepository,
     private readonly reader: IUserDataReader,
+    private readonly courseNames: ICourseNames,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
@@ -79,6 +94,9 @@ export class DataExportService {
           const snapshot = await this.reader.collect(input.userId);
           if (snapshot.isFailure) return Result.fail(snapshot.getError());
 
+          const events = await this.withCourses(snapshot.getValue().events);
+          if (events.isFailure) return Result.fail(events.getError());
+
           await emitEvent(
             this.outbox,
             EventTypes.USER_DATA_EXPORT_REQUESTED,
@@ -100,9 +118,29 @@ export class DataExportService {
                 createdAt: account.createdAt.toISOString(),
               },
               ...snapshot.getValue(),
+              events: events.getValue(),
             },
           });
         }),
     );
+  }
+
+  private async withCourses(events: CollectedEvent[]): Promise<Result<ExportedEvent[], AppError>> {
+    const refs = courseRefsOf(events);
+    if (refs.length === 0) return Result.ok(events.map((event) => ({ ...event, course: null })));
+
+    const names = await this.courseNames.namesOf(refs);
+    if (names.isFailure) return Result.fail(names.getError());
+
+    const byRef = new Map(names.getValue().map((course) => [refKey(course), course.name]));
+    const courseOf = ({ childId, courseId }: CollectedEvent): Option<ExportedCourse> =>
+      Option.fromNullable(courseId).flatMap((id) =>
+        Option.fromNullable(byRef.get(refKey({ childId, courseId: id }))).map((name) => ({
+          id,
+          name,
+        })),
+      );
+
+    return Result.ok(events.map((event) => ({ ...event, course: courseOf(event).toNull() })));
   }
 }

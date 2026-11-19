@@ -3,8 +3,10 @@
  * write one ledger row and one ingest per announcement, the ledger row and the ingest commit or
  * roll back together, a failed announcement is retried once then recorded, a child no longer
  * holding its lease (being disconnected) gets nothing written, and the ledger of a family is
- * erased by the child cascade without touching another family. Google, the model and the agenda
- * are stubbed; the lease check reads the real child row.
+ * erased by the child cascade without touching another family. The course names follow a rename,
+ * are marked withdrawn (and still named) when the course leaves the list, come back with it, and
+ * go with the child cascade. Google, the model and the agenda are stubbed; the lease check reads
+ * the real child row.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -29,6 +31,7 @@ import {
 import { EventTypes } from "@packages/events";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { emitEvent } from "@packages/outbox/event-emitter";
+import { classroomCourse } from "../schemas/classroom-course.schema";
 import { seenAnnouncement } from "../schemas/seen-announcement.schema";
 import type {
   ExtractedDeadline,
@@ -38,11 +41,13 @@ import type { IChildSyncState } from "../src/application/ports/child-sync-state.
 import type {
   Announcement,
   ClassroomError,
+  Course,
   IClassroomClient,
 } from "../src/application/ports/classroom-client.port";
 import type { IEventIngest } from "../src/application/ports/event-ingest.port";
 import { ClassroomReader } from "../src/application/services/classroom-reader.service";
 import { SyncChildService } from "../src/application/services/sync-child.service";
+import { DrizzleCourseRepository } from "../src/infrastructure/repositories/drizzle-course.repository";
 import { DrizzleSeenAnnouncementRepository } from "../src/infrastructure/repositories/drizzle-seen-announcement.repository";
 
 const NOW = new Date("2030-01-10T08:00:00.000Z");
@@ -56,9 +61,10 @@ const transactions = new TransactionService(instrumentation, async (events) => {
 const posts = new Map<string, Announcement[]>();
 const ingested: string[] = [];
 const ingestFailsFor = new Set<string>();
+let listedCourses: Course[] = [{ id: "course-1", name: Option.some("Mathématiques 4e B") }];
 
 const classroom: IClassroomClient = {
-  listCourses: async () => Result.ok([{ id: "course-1" }]),
+  listCourses: async () => Result.ok(listedCourses),
   listAnnouncements: async (token) =>
     Result.ok<Announcement[], ClassroomError>(posts.get(token) ?? []),
   listCoursework: async () => Result.ok([]),
@@ -129,6 +135,7 @@ const syncState: IChildSyncState = {
 const quiet: ILogger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 
 const ledger = new DrizzleSeenAnnouncementRepository(instrumentation);
+const courses = new DrizzleCourseRepository(instrumentation);
 const service = new SyncChildService(
   new ClassroomReader(classroom, ledger, instrumentation),
   { accessTokenFor: async (childId) => Result.ok(childId) },
@@ -137,6 +144,7 @@ const service = new SyncChildService(
   { nextAlertAt: async () => Result.ok(Option.none()) },
   syncState,
   ledger,
+  courses,
   transactions,
   outbox,
   instrumentation,
@@ -162,6 +170,10 @@ async function family(name: string): Promise<{ userId: string; childId: string }
 
 async function ledgerOf(childId: string) {
   return db.select().from(seenAnnouncement).where(eq(seenAnnouncement.childId, childId));
+}
+
+async function coursesOf(childId: string) {
+  return db.select().from(classroomCourse).where(eq(classroomCourse.childId, childId));
 }
 
 async function probeRows(announcementId: string): Promise<number> {
@@ -274,10 +286,51 @@ run(async () => {
   await sync(b, 2);
   await step("the reconnected child syncs again", (await ledgerOf(b.childId)).length === 1);
 
+  const [named] = await coursesOf(a.childId);
+  await step(
+    "the sync records the name Classroom gives the course",
+    named?.name === "Mathématiques 4e B" && named.withdrawnAt === null,
+    named,
+  );
+
+  listedCourses = [{ id: "course-1", name: Option.some("Maths 4e B") }];
+  await sync(a);
+  const renamed = await coursesOf(a.childId);
+  await step(
+    "a course the teacher renamed is renamed in place",
+    renamed.length === 1 && renamed[0]?.name === "Maths 4e B",
+    renamed,
+  );
+
+  listedCourses = [];
+  await sync(a);
+  const [withdrawn] = await coursesOf(a.childId);
+  const stillNamed = await courses.namesOf([
+    { childId: a.childId, courseId: "course-1" },
+    { childId: b.childId, courseId: "course-unknown" },
+  ]);
+  await step(
+    "a course gone from a complete list is marked withdrawn and keeps its name for past deadlines",
+    withdrawn?.withdrawnAt !== null &&
+      stillNamed.isSuccess &&
+      stillNamed.getValue().length === 1 &&
+      stillNamed.getValue()[0]?.name === "Maths 4e B",
+    { withdrawn, names: stillNamed.isSuccess ? stillNamed.getValue() : stillNamed.getError() },
+  );
+
+  listedCourses = [{ id: "course-1", name: Option.some("Maths 4e B") }];
+  await sync(a);
+  const [back] = await coursesOf(a.childId);
+  await step("a course listed again is no longer withdrawn", back?.withdrawnAt === null, back);
+
   await db.delete(authSchema.user).where(eq(authSchema.user.id, a.userId));
   await step(
     "deleting a family erases its ledger through the child cascade",
     (await ledgerOf(a.childId)).length === 0,
+  );
+  await step(
+    "and its course names",
+    (await coursesOf(a.childId)).length === 0 && (await coursesOf(b.childId)).length === 1,
   );
   await step("and leaves another family's ledger intact", (await ledgerOf(b.childId)).length === 1);
 }, "the ledger is idempotent, fenced and erased with its child");
