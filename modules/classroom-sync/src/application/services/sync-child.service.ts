@@ -16,11 +16,13 @@ import {
   failedVerdict,
   type LedgerVerdict,
   nextAttempt,
+  pausedVerdict,
 } from "../../domain/announcement-ledger";
 import { alertLookupFrom, nextSyncAt, retryAt, SYNC_JITTER_MAX_MS } from "../../domain/sync-window";
 import {
   type IAnnouncementExtractor,
   isExtractorOutage,
+  isReadingPaused,
 } from "../ports/announcement-extractor.port";
 import type { IChildAccessTokens } from "../ports/child-access-tokens.port";
 import type { IChildSyncState, ReconnectCause, SyncLease } from "../ports/child-sync-state.port";
@@ -97,6 +99,9 @@ export interface SyncReport {
 }
 
 type SyncOutcome = { kind: "done"; created: number } | { kind: "failed" } | { kind: "lease_lost" };
+
+const FAILED: SyncOutcome = { kind: "failed" };
+const NOTHING_CREATED: SyncOutcome = { kind: "done", created: 0 };
 
 export class SyncChildService {
   constructor(
@@ -300,11 +305,13 @@ export class SyncChildService {
       publishedAt: announcement.publishedAt,
       childNames,
     });
+    if (extracted.isFailure && isReadingPaused(extracted.getError()))
+      return this.settle(lease, announcement, pausedVerdict(state), now, NOTHING_CREATED);
     if (extracted.isFailure) {
       this.instrumentation.capture(extracted.getError(), { metadata: { childId: input.childId } });
       if (isExtractorOutage(extracted.getError())) return { kind: "failed" };
 
-      return this.recordFailure(lease, announcement, attempt, now);
+      return this.settle(lease, announcement, failedVerdict(attempt), now, FAILED);
     }
 
     const { deadlines, amendments } = extracted.getValue();
@@ -336,24 +343,27 @@ export class SyncChildService {
     if (committed.getError().code === leaseLost.code) return { kind: "lease_lost" };
 
     this.instrumentation.capture(committed.getError(), { metadata: { childId: input.childId } });
-    return this.recordFailure(lease, announcement, attempt, now);
+    return this.settle(lease, announcement, failedVerdict(attempt), now, FAILED);
   }
 
-  private async recordFailure(
+  private async settle(
     lease: SyncLease,
     announcement: Announcement,
-    attempt: number,
+    verdict: LedgerVerdict,
     now: Date,
+    outcome: SyncOutcome,
   ): Promise<SyncOutcome> {
     const recorded = await this.transactions.run(() =>
-      this.recordVerdict(lease, announcement, failedVerdict(attempt), now),
+      this.recordVerdict(lease, announcement, verdict, now),
     );
     if (recorded.isFailure && recorded.getError().code === leaseLost.code)
       return { kind: "lease_lost" };
-    if (recorded.isFailure)
+    if (recorded.isFailure) {
       this.instrumentation.capture(recorded.getError(), { metadata: { childId: lease.childId } });
+      return FAILED;
+    }
 
-    return { kind: "failed" };
+    return outcome;
   }
 
   private async recordVerdict(

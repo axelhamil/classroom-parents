@@ -114,6 +114,11 @@ export class PreferenceService {
         userId,
         ...after,
       });
+      if (!before.extractionEnabled && after.extractionEnabled)
+        await emitEvent(this.outbox, EventTypes.ASSISTANT_EXTRACTION_RESUMED, "user", userId, {
+          userId,
+          actorUserId: userId,
+        });
       return Result.ok(after);
     });
   }

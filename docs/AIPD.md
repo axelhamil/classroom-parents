@@ -67,7 +67,7 @@ Jamais envoyés : nom de famille, identifiant Google, notes, jetons d'accès.
 | Fichiers partagés | aucune | sans objet | non |
 | Phrase citée (≤ 300 car.) | celle de l'échéance | oui | oui |
 | Cache d'extraction partagé (clé : SHA-256 du texte, date, fuseau, version du prompt) | 60 jours sans lecture | non : aucune donnée de la famille, aucun lien au compte | non |
-| Journal `ai_call` (fonction, modèle, coût, issue, empreinte de l'entrée) | 90 jours | oui | `[à compléter]` |
+| Journal `ai_call` (fonction, modèle, coût, issue, empreinte de l'entrée) | 90 jours | oui | oui : date, fonction, modèle, tokens, coût, issue (ni empreinte ni version du prompt) |
 | Compteurs `ai_usage` (mois, fonction, appels, escalades, coût) | 13 mois | oui | oui |
 | Préférences | durée du compte | oui | oui |
 | Chez Anthropic | rétention zéro (ZDR) demandée, ni Batch ni Files API | sans objet | sans objet |
@@ -107,6 +107,6 @@ Risques résiduels et acceptation : `[à compléter]`.
 
 - [ ] ZDR confirmée par écrit et archivée.
 - [ ] Analyse du transfert vers les États-Unis.
-- [ ] Inclusion du journal `ai_call` dans la copie remise au parent tranchée.
+- [x] Journal `ai_call` inclus dans la copie remise au parent (arbitrage du 19/11/2026).
 - [ ] Section photos (tâche 7) complétée, avec l'éval photos et PDF et ses cas adversariaux.
 - [ ] Avis du DPO et validation datée.

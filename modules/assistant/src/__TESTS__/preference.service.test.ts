@@ -117,6 +117,25 @@ describe("opposition to the AI reading of announcements", () => {
     ]);
   });
 
+  it("given a parent who opposed and allows the reading again, then the paused announcements are announced to be read, by that parent", async () => {
+    storedMorocco(false);
+
+    await service.setExtraction(PARENT, true);
+
+    expect(
+      enqueuedEvents(outbox).map(({ eventType, payload }) => ({ eventType, payload })),
+    ).toEqual([
+      {
+        eventType: EventTypes.ASSISTANT_PREFERENCE_CHANGED,
+        payload: { userId: PARENT, ...MOROCCO, extractionEnabled: true },
+      },
+      {
+        eventType: EventTypes.ASSISTANT_EXTRACTION_RESUMED,
+        payload: { userId: PARENT, actorUserId: PARENT },
+      },
+    ]);
+  });
+
   it("given a parent who opposed, then the reading is reported off", async () => {
     storedMorocco(false);
 

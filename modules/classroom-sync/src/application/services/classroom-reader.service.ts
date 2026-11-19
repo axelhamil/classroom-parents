@@ -1,6 +1,7 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
-import { type LedgerState, needsExtraction } from "../../domain/announcement-ledger";
+import { isPaused, type LedgerState, needsExtraction } from "../../domain/announcement-ledger";
 import { courseworkTitle, schoolDeadline } from "../../domain/coursework-deadline";
+import { mayHoldDateAhead } from "../../domain/date-ahead";
 import { isDayWithinWindow, isWithinWindow, windowStart } from "../../domain/sync-window";
 import type {
   Announcement,
@@ -149,7 +150,7 @@ export class ClassroomReader implements IClassroomReader {
           announcement,
           state: Option.fromNullable<LedgerState>(byId.get(announcement.id)),
         }))
-        .filter(({ state }) => needsExtraction(state)),
+        .filter(({ announcement, state }) => needsReading(announcement, state, now)),
     );
   }
 
@@ -203,4 +204,10 @@ export class ClassroomReader implements IClassroomReader {
 
     return result;
   }
+}
+
+function needsReading(announcement: Announcement, state: Option<LedgerState>, now: Date): boolean {
+  if (isPaused(state)) return mayHoldDateAhead(announcement.text, announcement.publishedAt, now);
+
+  return needsExtraction(state);
 }

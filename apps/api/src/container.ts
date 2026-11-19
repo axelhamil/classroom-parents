@@ -52,6 +52,7 @@ import {
   feedEntriesFor,
   manualSyncGateFor,
   visibleChildrenFor,
+  withExtractionConsent,
 } from "./composition/bindings";
 import { deliveryModule, runtimeModule } from "./composition/delivery";
 import { fakeProviderBindings } from "./composition/fake-bindings";
@@ -238,7 +239,11 @@ export const di = container()
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .add("IUserDataReader", (c): IUserDataReader => new UserDataQuery(c.IInstrumentation))
   .addModule(rgpdModule)
-  .addModule(await fakeProviderBindings(env))
+  .addModule(
+    await fakeProviderBindings(env, (reader) =>
+      withExtractionConsent(reader, () => assistant.PreferenceService),
+    ),
+  )
   .addModule(
     deliveryModule(
       {

@@ -20,6 +20,7 @@ import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcem
 import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type AppError, type IInstrumentation, Result } from "@packages/ddd-kit";
 import { and, asc, count, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
+import { aiCall } from "@packages/llm/schemas/ai-call.schema";
 import type { UserDataSnapshot } from "../modules/rgpd/application/dto/user-data-export.dto";
 import type { IUserDataReader } from "../modules/rgpd/application/ports/user-data-reader.port";
 
@@ -164,6 +165,21 @@ export class UserDataQuery implements IUserDataReader {
           .from(aiUsage)
           .where(eq(aiUsage.userId, userId))
           .orderBy(asc(aiUsage.month), asc(aiUsage.feature));
+        const calls = await exec
+          .select({
+            createdAt: aiCall.createdAt,
+            feature: aiCall.feature,
+            model: aiCall.model,
+            inputTokens: aiCall.inputTokens,
+            outputTokens: aiCall.outputTokens,
+            cacheReadTokens: aiCall.cacheReadTokens,
+            cacheWriteTokens: aiCall.cacheWriteTokens,
+            costMicroUsd: aiCall.costMicroUsd,
+            outcome: aiCall.outcome,
+          })
+          .from(aiCall)
+          .where(eq(aiCall.userId, userId))
+          .orderBy(asc(aiCall.createdAt));
 
         const seen = await exec
           .select({ childId: seenAnnouncement.childId, total: count() })
@@ -277,6 +293,10 @@ export class UserDataQuery implements IUserDataReader {
               }
             : null,
           aiUsage: usage,
+          aiCalls: calls.map(({ createdAt, ...call }) => ({
+            at: createdAt.toISOString(),
+            ...call,
+          })),
           sync: children.map((child) => ({
             childId: child.id,
             status: child.status,

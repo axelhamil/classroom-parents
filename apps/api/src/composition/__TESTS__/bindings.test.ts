@@ -7,7 +7,10 @@ import type {
 import type { AgendaError } from "@modules/agenda/application/ports/event-repository.port";
 import type { ChildDto } from "@modules/children/application/dto/child.dto";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
-import { isExtractorOutage } from "@modules/classroom-sync/application/ports/announcement-extractor.port";
+import {
+  isExtractorOutage,
+  isReadingPaused,
+} from "@modules/classroom-sync/application/ports/announcement-extractor.port";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
 import {
   alertPlannerFor,
@@ -397,7 +400,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
 });
 
 describe("the parent's opposition to the AI reading of announcements", () => {
-  it("given a parent who opposed, then the announcement never reaches the extraction and nothing is read", async () => {
+  it("given a parent who opposed, then the announcement never reaches the extraction and is reported paused", async () => {
     let called = false;
     const extractor = announcementExtractorFor(
       {
@@ -420,7 +423,7 @@ describe("the parent's opposition to the AI reading of announcements", () => {
     });
 
     expect(called).toBe(false);
-    expect(result.getValue()).toEqual({ deadlines: [], amendments: [] });
+    expect(isReadingPaused(result.getError())).toBe(true);
   });
 
   it("given a preference that cannot be read, then the failure is an outage the next pass retries", async () => {

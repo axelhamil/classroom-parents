@@ -182,6 +182,7 @@ export default {
     enabled: "Lecture des annonces par l'IA",
     on: "Les annonces sont lues automatiquement pour en tirer les échéances.",
     off: "Seuls les devoirs Classroom restent lus, sans IA. Plus aucune annonce n'est envoyée au modèle.",
+    resumed: "Les annonces reçues pendant la pause vont être lues.",
     loading: "Chargement du choix de lecture par l'IA",
   },
   install: {

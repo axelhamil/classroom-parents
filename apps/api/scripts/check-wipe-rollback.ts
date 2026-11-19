@@ -51,6 +51,7 @@ import {
 import { DrizzleEmailQueue } from "@packages/email/drizzle-email-queue";
 import { QueuedEmailService } from "@packages/email/email.service";
 import { EventTypes } from "@packages/events";
+import { aiCall } from "@packages/llm/schemas/ai-call.schema";
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IChildConnections } from "../src/modules/rgpd/application/ports/child-connections.port";
@@ -187,6 +188,20 @@ async function seedFamilyData(id: string): Promise<void> {
     escalations: 0,
     costMicroUsd: 900,
   });
+  await db.insert(aiCall).values({
+    userId: id,
+    feature: "translation",
+    model: "claude-haiku-5-5",
+    promptVersion: "wipe-1",
+    inputHash: "b".repeat(64),
+    inputTokens: 10,
+    outputTokens: 10,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    costMicroUsd: 900,
+    outcome: "ok",
+    latencyMs: 1,
+  });
 }
 
 async function familyRowsLeft(id: string): Promise<Record<string, number>> {
@@ -230,6 +245,7 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
         .where(eq(assistantPreference.userId, id)),
     ),
     aiUsage: await tally(db.select({ total: count() }).from(aiUsage).where(eq(aiUsage.userId, id))),
+    aiCalls: await tally(db.select({ total: count() }).from(aiCall).where(eq(aiCall.userId, id))),
   };
 }
 
@@ -417,7 +433,7 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
   const familyLeft = await familyRowsLeft(erasedId);
   check(
-    "its children, events, reminders, calendar feed, Sunday digest and school zone rows are deleted",
+    "its children, events, reminders, calendar feed, Sunday digest, school zone and AI rows are deleted",
     Object.values(familyLeft).every((total) => total === 0),
     familyLeft,
   );

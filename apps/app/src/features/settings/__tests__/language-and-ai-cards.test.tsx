@@ -110,4 +110,21 @@ describe("language and AI reading cards", () => {
     );
     expect(await screen.findByText(/Seuls les devoirs Classroom restent lus/)).toBeDefined();
   });
+
+  it("given AI reading is paused, when the parent turns it back on, then the card says the paused announcements will be read", async () => {
+    givenPreferences({ ...NOTHING_CHOSEN, extractionEnabled: false });
+    await renderWithProviders(<AiReadingCard userId="user-1" />);
+
+    const reading = await screen.findByRole("switch", { name: "Lecture des annonces par l'IA" });
+    expect(screen.queryByText("Les annonces reçues pendant la pause vont être lues.")).toBeNull();
+    fireEvent.click(reading);
+
+    const status = await screen.findByText("Les annonces reçues pendant la pause vont être lues.");
+    expect(status.getAttribute("role")).toBe("status");
+
+    fireEvent.click(reading);
+    await waitFor(() =>
+      expect(screen.queryByText("Les annonces reçues pendant la pause vont être lues.")).toBeNull(),
+    );
+  });
 });

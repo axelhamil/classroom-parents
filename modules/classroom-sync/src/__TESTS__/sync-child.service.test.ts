@@ -3,9 +3,10 @@ import { type AppError, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
-import type {
-  ExtractedAnnouncement,
-  ExtractedDeadline,
+import {
+  type ExtractedAnnouncement,
+  type ExtractedDeadline,
+  READING_PAUSED_CODE,
 } from "../application/ports/announcement-extractor.port";
 import type {
   Announcement,
@@ -40,12 +41,14 @@ type ExtractorAnswer =
   | ExtractedAnnouncement
   | "invalid"
   | "down"
-  | "rate_limited";
+  | "rate_limited"
+  | "paused";
 
 const EXTRACTOR_FAILURES = {
   invalid: "EXTRACTION_OUTPUT_INVALID",
   down: "EXTRACTION_PROVIDER_FAILURE",
   rate_limited: "EXTRACTION_RATE_LIMITED",
+  paused: READING_PAUSED_CODE,
 } as const;
 
 function extractorAnswers(byText: Record<string, ExtractorAnswer>): void {
@@ -255,6 +258,56 @@ describe("syncChild", () => {
       expect(h.state.markSynced).toHaveBeenCalledTimes(3);
     });
   }
+
+  it("given a family that opposed the AI reading, then its announcements are kept as paused, without an attempt nor an alert", async () => {
+    h.givenCourses({ maths: [announcement("a1", "maths"), announcement("a2", "maths")] });
+    ledgerHas([{ announcementId: "a2", outcome: "failed", attempts: 1 }]);
+    extractorAnswers({ "Annonce a1": "paused", "Annonce a2": "paused" });
+
+    const result = await h.service.syncChild(CHILD, NOW);
+
+    expect(outcomes()).toEqual({
+      a1: { outcome: "paused", attempts: 0 },
+      a2: { outcome: "paused", attempts: 1 },
+    });
+    expect(h.ingest.ingest).not.toHaveBeenCalled();
+    expect(h.instrumentation.capture).not.toHaveBeenCalled();
+    expect(result.getValue().failedAnnouncements).toBe(0);
+  });
+
+  it("given reading allowed again, then only the paused announcements that may still hold a date to come are read", async () => {
+    const posted = (id: string, text: string, daysAgo: number) => ({
+      ...announcement(id, "maths", daysAgo),
+      text,
+    });
+    h.givenCourses({
+      maths: [
+        posted("written-ahead", "Contrôle de fractions le 12/11.", 20),
+        posted("written-past", "Sortie au musée le 3 novembre.", 20),
+        posted("next-year", "Exposé à rendre le 5 janvier.", 2),
+        posted("relative-recent", "Évaluation jeudi prochain.", 2),
+        posted("relative-old", "Réunion lundi prochain.", 30),
+      ],
+    });
+    ledgerHas(
+      [
+        "written-ahead",
+        "written-past",
+        "next-year",
+        "relative-recent",
+        "relative-old",
+        "no-date",
+      ].map((announcementId) => ({ announcementId, outcome: "paused" as const, attempts: 0 })),
+    );
+
+    await h.service.syncChild(CHILD, NOW);
+
+    expect(h.extractor.extract.mock.calls.map(([{ text }]) => text).sort()).toEqual([
+      "Contrôle de fractions le 12/11.",
+      "Exposé à rendre le 5 janvier.",
+      "Évaluation jeudi prochain.",
+    ]);
+  });
 
   it("never extracts an abandoned announcement again", async () => {
     h.givenCourses({ maths: [announcement("a1", "maths")] });

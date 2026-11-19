@@ -153,6 +153,18 @@ export interface ExportedAiUsage {
   costMicroUsd: number;
 }
 
+export interface ExportedAiCall {
+  at: string;
+  feature: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costMicroUsd: number;
+  outcome: string;
+}
+
 export interface UserDataSnapshot {
   children: ExportedChild[];
   events: CollectedEvent[];
@@ -167,6 +179,7 @@ export interface UserDataSnapshot {
   schoolZone: ExportedSchoolZone | null;
   assistantPreferences: ExportedAssistantPreferences | null;
   aiUsage: ExportedAiUsage[];
+  aiCalls: ExportedAiCall[];
   sync: ExportedSyncState[];
 }
 

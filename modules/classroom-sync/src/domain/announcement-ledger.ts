@@ -1,6 +1,6 @@
 import type { Option } from "@packages/ddd-kit";
 
-export const LEDGER_OUTCOMES = ["extracted", "no_event", "failed", "abandoned"] as const;
+export const LEDGER_OUTCOMES = ["extracted", "no_event", "failed", "abandoned", "paused"] as const;
 
 export type LedgerOutcome = (typeof LEDGER_OUTCOMES)[number];
 
@@ -20,6 +20,10 @@ export function needsExtraction(state: Option<LedgerState>): boolean {
   return state.map(({ outcome }) => outcome === "failed").unwrapOr(true);
 }
 
+export function isPaused(state: Option<LedgerState>): boolean {
+  return state.map(({ outcome }) => outcome === "paused").unwrapOr(false);
+}
+
 export function nextAttempt(state: Option<LedgerState>): number {
   return state.map(({ attempts }) => attempts + 1).unwrapOr(1);
 }
@@ -33,4 +37,8 @@ export function failedVerdict(attempt: number): LedgerVerdict {
     outcome: attempt >= MAX_EXTRACTION_ATTEMPTS ? "abandoned" : "failed",
     attempts: attempt,
   };
+}
+
+export function pausedVerdict(state: Option<LedgerState>): LedgerVerdict {
+  return { outcome: "paused", attempts: state.map(({ attempts }) => attempts).unwrapOr(0) };
 }

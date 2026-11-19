@@ -12,7 +12,10 @@ import type { ChildrenError } from "@modules/children/application/ports/child-re
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
 import type { ChildSyncService } from "@modules/children/application/services/child-sync.service";
 import type { GoogleAccessService } from "@modules/children/application/services/google-access.service";
-import type { IAnnouncementExtractor } from "@modules/classroom-sync/application/ports/announcement-extractor.port";
+import {
+  type IAnnouncementExtractor,
+  READING_PAUSED_CODE,
+} from "@modules/classroom-sync/application/ports/announcement-extractor.port";
 import type { IChildAccessTokens } from "@modules/classroom-sync/application/ports/child-access-tokens.port";
 import type { IChildSyncState } from "@modules/classroom-sync/application/ports/child-sync-state.port";
 import type { IDueChildren } from "@modules/classroom-sync/application/ports/due-children.port";
@@ -142,9 +145,12 @@ export function digestDeadlinesFor(
   };
 }
 
-const NOTHING_READ = { deadlines: [], amendments: [] };
+const READING_PAUSED: AppError = {
+  code: READING_PAUSED_CODE,
+  message: "La lecture des annonces par l'IA est en pause pour cette famille.",
+};
 
-interface ExtractionConsent {
+export interface ExtractionConsent {
   extractionEnabled(userId: string): Promise<Result<boolean, AppError>>;
 }
 
@@ -152,29 +158,43 @@ export function announcementExtractorFor(
   extraction: Pick<ExtractionService, "extract">,
   preferences: () => ExtractionConsent,
 ): IAnnouncementExtractor {
+  return withExtractionConsent(
+    {
+      extract: async (request) => {
+        const extracted = await extraction.extract(request);
+
+        return extracted.map(({ events, amendments }) => ({
+          deadlines: events.map((event) => ({
+            title: event.title,
+            description: event.description,
+            category: event.category,
+            deadlineDate: event.deadlineDate,
+            ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
+            needsReview: event.needsReview,
+            reviewReasons: event.reviewReasons,
+            ...(event.evidence === undefined ? {} : { evidence: event.evidence }),
+            parentActions: event.parentActions,
+            toBring: event.toBring,
+          })),
+          amendments,
+        }));
+      },
+    },
+    preferences,
+  );
+}
+
+export function withExtractionConsent(
+  reader: IAnnouncementExtractor,
+  preferences: () => ExtractionConsent,
+): IAnnouncementExtractor {
   return {
     extract: async (request) => {
       const enabled = await preferences().extractionEnabled(request.userId);
       if (enabled.isFailure) return Result.fail(enabled.getError());
-      if (!enabled.getValue()) return Result.ok(NOTHING_READ);
+      if (!enabled.getValue()) return Result.fail(READING_PAUSED);
 
-      const extracted = await extraction.extract(request);
-
-      return extracted.map(({ events, amendments }) => ({
-        deadlines: events.map((event) => ({
-          title: event.title,
-          description: event.description,
-          category: event.category,
-          deadlineDate: event.deadlineDate,
-          ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
-          needsReview: event.needsReview,
-          reviewReasons: event.reviewReasons,
-          ...(event.evidence === undefined ? {} : { evidence: event.evidence }),
-          parentActions: event.parentActions,
-          toBring: event.toBring,
-        })),
-        amendments,
-      }));
+      return reader.extract(request);
     },
   };
 }
