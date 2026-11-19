@@ -4,6 +4,7 @@ import {
   MonthPlanner,
   MonthPlannerChip,
   MonthPlannerChips,
+  MonthPlannerCount,
   MonthPlannerDots,
   MonthPlannerMore,
 } from "@packages/ui/components/ui/month-planner";
@@ -72,13 +73,18 @@ export function MonthView({
             ))}
           </MonthPlannerChips>
         ) : (
-          <MonthPlannerDots>
-            {events.slice(0, limit).map((event) => (
-              <HueDot key={event.id} hue={childHue(family, event.childId)} />
-            ))}
-          </MonthPlannerDots>
+          <>
+            <MonthPlannerCount>{events.length}</MonthPlannerCount>
+            {family.length > 1 && (
+              <MonthPlannerDots>
+                {events.slice(0, limit).map((event) => (
+                  <HueDot key={event.id} hue={childHue(family, event.childId)} />
+                ))}
+              </MonthPlannerDots>
+            )}
+          </>
         )}
-        {hidden > 0 && (
+        {wide && hidden > 0 && (
           <MonthPlannerMore aria-hidden>{t("calendar.hidden", { count: hidden })}</MonthPlannerMore>
         )}
       </>
@@ -111,6 +117,7 @@ export function MonthView({
         modifiers={{ crunch }}
         labels={{ labelDayButton: labelOf }}
         dayContent={dayContent}
+        density={wide ? "planner" : "compact"}
       />
       {emptyPeriod ?? (
         <CalendarDaySection day={selected} family={family} now={now} today={today} onAdd={onAdd} />

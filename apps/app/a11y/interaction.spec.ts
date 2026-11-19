@@ -362,6 +362,8 @@ test.describe("calendar month grid", () => {
     await page.goto("/?view=month&date=2026-11-11");
 
     const day = (date: string) => page.locator(`[data-day="${date}"] button`);
+    await expect(page.locator("[aria-current=date]")).toHaveCount(1);
+    await expect(day("2026-11-11")).toHaveAttribute("aria-current", "date");
     await day("2026-11-11").focus();
 
     await page.keyboard.press("ArrowRight");

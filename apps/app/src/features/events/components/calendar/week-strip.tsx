@@ -57,10 +57,14 @@ export function WeekStrip({ days, family, now, today }: WeekStripProps) {
           >
             <span data-part="weekday">{parts.weekday}</span>
             <span data-part="day">{parts.day}</span>
+            <span data-part="count" aria-hidden>
+              {day.events.length || ""}
+            </span>
             <span data-part="dots">
-              {childrenOf(day, family).map((child) => (
-                <HueDot key={child.id} hue={childHue(family, child.id)} />
-              ))}
+              {family.length > 1 &&
+                childrenOf(day, family).map((child) => (
+                  <HueDot key={child.id} hue={childHue(family, child.id)} />
+                ))}
             </span>
           </ToggleGroupItem>
         );

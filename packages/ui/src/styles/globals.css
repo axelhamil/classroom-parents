@@ -204,6 +204,10 @@
   --day-gutter: 11rem;
   /* The title of an empty day stops where the add button of a full day starts. */
   --day-gutter-title: calc(var(--day-gutter) - var(--touch-target) - 1.5rem);
+  /* The date rail of the phone agenda: a weekday and a two digit day stacked, beside the deadlines of that day. */
+  --day-rail: 3.5rem;
+  /* The strip of the seven days that sticks under the app bar on a phone: the dates of the agenda stick under it, and a deadline reached by Tab scrolls clear of it. */
+  --day-strip-height: 4.75rem;
   --tour-halo: color-mix(in oklch, var(--primary) 22%, transparent);
   --skeleton-shine: color-mix(in oklch, var(--card) 75%, transparent);
   --confetti-reach: 1.5rem;
@@ -499,6 +503,10 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-surface-container: var(--surface-container);
   --color-surface-container-high: var(--surface-container-high);
+  /* The weekend of the agenda: a lighter paper than a weekday's, so the eye finds it; muted ink on it stays above the surface-container floor. */
+  --color-surface-weekend: color-mix(in oklch, var(--surface-container) 55%, var(--card));
+  /* Today's column of the planner: a breath of ink on the card, opaque so its sticky date hides what scrolls under it. */
+  --color-today-column: color-mix(in oklch, var(--primary) 6%, var(--card));
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -585,6 +593,8 @@
   --spacing-scroll-region: var(--scroll-region-height);
   --spacing-scroll-gutter: var(--scroll-gutter);
   --spacing-day-gutter: var(--day-gutter);
+  --spacing-day-rail: var(--day-rail);
+  --spacing-day-strip: var(--day-strip-height);
   --spacing-day-gutter-title: var(--day-gutter-title);
   --spacing-print-item: var(--print-item-space);
 
