@@ -6,7 +6,7 @@ import {
 } from "@dnd-kit/dom";
 import { isSortable, type SortableTransition } from "@dnd-kit/dom/sortable";
 import { type DragDropEventHandlers, DragDropProvider } from "@dnd-kit/react";
-import { Dashboard, DashboardBand } from "@packages/ui/components/ui/dashboard";
+import { Dashboard } from "@packages/ui/components/ui/dashboard";
 import { type ReactNode, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMediaQuery } from "../layout/use-media-query";
@@ -22,7 +22,7 @@ import {
   replaceBlock,
   showBlock,
 } from "./dashboard-layout";
-import { BandTile, SortableTile, StaticTile } from "./sortable-tile";
+import { SortableTile, StaticTile } from "./sortable-tile";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const MOVE_DURATION_MS = 220;
@@ -53,16 +53,6 @@ function placed<Context>(
   });
 }
 
-function marked(set: ReadonlySet<string>, id: string, on: boolean): ReadonlySet<string> {
-  if (set.has(id) === on) return set;
-
-  const next = new Set(set);
-  if (on) next.add(id);
-  else next.delete(id);
-
-  return next;
-}
-
 function moveTransition(reduced: boolean): SortableTransition | null {
   if (reduced) return null;
 
@@ -82,15 +72,10 @@ export function DashboardGrid<Context>({
 }: DashboardGridProps<Context>) {
   const { t } = useTranslation("home");
   const [announcement, setAnnouncement] = useState("");
-  const [compact, setCompact] = useState<ReadonlySet<string>>(new Set());
   const addButton = useRef<HTMLButtonElement>(null);
   const reduced = useMediaQuery(REDUCED_MOTION);
   const all = placed(layout, blocks);
   const visible = all.filter(({ block }) => !block.hidden);
-  const inBand = ({ block }: Placed<Context>) => !editing && compact.has(block.id);
-  const band = visible.filter(inBand);
-  const cells = visible.filter((tile) => !inBand(tile));
-  const reportOf = (id: string) => (on: boolean) => setCompact((set) => marked(set, id, on));
   const hidden = all.filter(({ block }) => block.hidden).map(({ definition }) => definition);
   const titleOf = (id: unknown) => blocks.find((block) => block.id === id)?.title ?? "";
   const total = visible.length;
@@ -152,14 +137,13 @@ export function DashboardGrid<Context>({
 
   const grid = (
     <Dashboard>
-      {cells.map(({ block, definition }, index) =>
+      {visible.map(({ block, definition }, index) =>
         editing ? (
           <SortableTile
             key={block.id}
             block={block}
             definition={definition}
             context={context}
-            onCompact={reportOf(block.id)}
             index={index}
             total={total}
             transition={moveTransition(reduced)}
@@ -168,13 +152,7 @@ export function DashboardGrid<Context>({
             onHide={() => hide(block.id)}
           />
         ) : (
-          <StaticTile
-            key={block.id}
-            block={block}
-            definition={definition}
-            context={context}
-            onCompact={reportOf(block.id)}
-          />
+          <StaticTile key={block.id} block={block} definition={definition} context={context} />
         ),
       )}
     </Dashboard>
@@ -186,19 +164,6 @@ export function DashboardGrid<Context>({
         <DashboardEditBar addButton={addButton} hidden={hidden} onShow={show} onReset={onReset} />
       )}
       {header}
-      {band.length > 0 && (
-        <DashboardBand>
-          {band.map(({ block, definition }) => (
-            <BandTile
-              key={block.id}
-              block={block}
-              definition={definition}
-              context={context}
-              onCompact={reportOf(block.id)}
-            />
-          ))}
-        </DashboardBand>
-      )}
       {editing ? (
         <DragDropProvider
           plugins={(defaults) => [...defaults, announcements]}

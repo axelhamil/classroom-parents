@@ -1,13 +1,11 @@
 import type { SortableTransition } from "@dnd-kit/dom/sortable";
 import { useSortable } from "@dnd-kit/react/sortable";
 import {
-  DashboardBandItem,
   DashboardTile,
   DashboardTileContent,
   DashboardTileToolbar,
 } from "@packages/ui/components/ui/dashboard";
 import { useTranslation } from "react-i18next";
-import { CompactTileContext } from "./compact-tile";
 import type { DashboardBlock } from "./dashboard-block";
 import type { BlockAxis, BlockStep, HomeBlock } from "./dashboard-layout";
 import { resizeBlock } from "./dashboard-layout";
@@ -17,17 +15,12 @@ export interface TileProps<Context> {
   block: HomeBlock;
   definition: DashboardBlock<Context>;
   context: Context;
-  onCompact: (compact: boolean) => void;
 }
 
-function TileBody<Context>({ block, definition, context, onCompact }: TileProps<Context>) {
+function TileBody<Context>({ block, definition, context }: TileProps<Context>) {
   const { Component, title } = definition;
 
-  return (
-    <CompactTileContext value={onCompact}>
-      <Component {...context} blockId={block.id} title={title} rows={block.h} />
-    </CompactTileContext>
-  );
+  return <Component {...context} blockId={block.id} title={title} rows={block.h} />;
 }
 
 export function StaticTile<Context>(props: TileProps<Context>) {
@@ -37,16 +30,6 @@ export function StaticTile<Context>(props: TileProps<Context>) {
     <DashboardTile w={block.w} h={block.h} data-block={block.id} data-tour={definition.tour}>
       <TileBody {...props} />
     </DashboardTile>
-  );
-}
-
-export function BandTile<Context>(props: TileProps<Context>) {
-  const { block, definition } = props;
-
-  return (
-    <DashboardBandItem data-block={block.id} data-tour={definition.tour}>
-      <TileBody {...props} />
-    </DashboardBandItem>
   );
 }
 
@@ -63,7 +46,6 @@ export function SortableTile<Context>({
   block,
   definition,
   context,
-  onCompact,
   index,
   total,
   transition,
@@ -105,7 +87,7 @@ export function SortableTile<Context>({
         />
       </DashboardTileToolbar>
       <DashboardTileContent inert>
-        <TileBody block={block} definition={definition} context={context} onCompact={onCompact} />
+        <TileBody block={block} definition={definition} context={context} />
       </DashboardTileContent>
     </DashboardTile>
   );

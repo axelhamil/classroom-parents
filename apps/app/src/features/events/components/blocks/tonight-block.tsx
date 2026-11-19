@@ -1,53 +1,116 @@
+import {
+  BriefingGroup,
+  BriefingGroupHeader,
+  BriefingGroups,
+  BriefingGroupTitle,
+  BriefingItem,
+  BriefingList,
+} from "@packages/ui/components/ui/briefing";
+import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { BackpackIcon } from "lucide-react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
-import type { EventCategory } from "../../../../shared/events/event-labels";
+import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
+import { childHue } from "../../../../shared/format/child-hue";
 import { dayLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { schoolToday } from "../../../../shared/format/school-today";
 import { calendarEventsQueryOptions } from "../../api/events.queries";
+import { type DayPlan, tomorrowPlan } from "../../day-plan";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
-import { nextSchoolDay, weekAhead } from "../../week";
-import { EventSteps } from "../prepare-checklist";
+import { useChecklist } from "../../hooks/use-checklist";
+import { weekAhead } from "../../week";
+import { ChecklistRows } from "../prepare-checklist";
 import { BlockPanel } from "./block-panel";
-import { EventRows, forChild } from "./event-rows";
+import { ShowMoreButton, useShowMore } from "./show-more";
 
-const TO_PACK: readonly EventCategory[] = ["swimming", "school_trip", "document_due"];
+function tonightNote(plan: DayPlan, day: string, t: TFunction<"home">): string {
+  if (plan.toPrepare.length > 0) return t("blocks.tonight.day", { day });
+  if (plan.deadlines.length > 0)
+    return t("blocks.tonight.ready", { count: plan.deadlines.length, day });
 
-function toPrepare(event: EventItem, day: string): boolean {
-  if (event.done || event.deadlineDate !== day) return false;
-
-  return TO_PACK.includes(event.category) || event.checklist.extra.length > 0;
+  return t("blocks.tonight.empty", { day });
 }
 
 function TonightBlock({ family, childId, now, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
-  const today = schoolToday(now);
-  const tomorrow = nextSchoolDay(today);
-  const day = inSentence(dayLabel(tomorrow, now));
-  const query = useQuery(calendarEventsQueryOptions(weekAhead(today)));
-  const due = forChild(query.data ?? [], childId).filter((event) => toPrepare(event, tomorrow));
+  const query = useQuery(calendarEventsQueryOptions(weekAhead(schoolToday(now))));
+  const plan = tomorrowPlan(query.data ?? [], now, childId);
+  const day = inSentence(dayLabel(plan.day, now));
 
   return (
     <BlockPanel
       title={title}
       icon={BackpackIcon}
-      note={
-        query.isSuccess &&
-        (due.length === 0 ? t("blocks.tonight.empty", { day }) : t("blocks.tonight.day", { day }))
-      }
+      note={query.isSuccess && tonightNote(plan, day, t)}
     >
-      {due.length > 0 && (
-        <EventRows
-          events={due}
-          family={family}
-          now={now}
-          today={today}
-          rows={rows}
-          steps={(event) => <EventSteps event={event} />}
-        />
+      {plan.toPrepare.length > 0 && (
+        <BriefingGroups>
+          {family.map((child) => {
+            const own = plan.toPrepare.filter((event) => event.childId === child.id);
+            if (own.length === 0) return null;
+
+            return (
+              <ChildActions key={child.id} child={child} events={own} family={family} rows={rows} />
+            );
+          })}
+        </BriefingGroups>
       )}
     </BlockPanel>
+  );
+}
+
+interface ChildActionsProps {
+  child: ChildDto;
+  events: readonly EventItem[];
+  family: readonly ChildDto[];
+  rows: number;
+}
+
+function ChildActions({ child, events, family, rows }: ChildActionsProps) {
+  const titleId = useId();
+  const listId = useId();
+  const { shown, more } = useShowMore(events, rows);
+
+  return (
+    <BriefingGroup aria-labelledby={titleId}>
+      <BriefingGroupHeader>
+        <ChildAvatar
+          name={child.label}
+          tone={childHue(family, child.id)}
+          src={childAvatarSrc(child)}
+          size="sm"
+        />
+        <BriefingGroupTitle id={titleId}>{child.label}</BriefingGroupTitle>
+      </BriefingGroupHeader>
+      <BriefingList id={listId}>
+        {shown.map((event) => (
+          <BriefingItem key={event.id}>
+            <EventActions event={event} />
+          </BriefingItem>
+        ))}
+      </BriefingList>
+      <ShowMoreButton more={more} controls={listId} />
+    </BriefingGroup>
+  );
+}
+
+interface EventActionsProps {
+  event: EventItem;
+}
+
+function EventActions({ event }: EventActionsProps) {
+  const checklist = useChecklist(event);
+
+  return (
+    <>
+      <TypographyMuted>{event.title}</TypographyMuted>
+      <ChecklistRows checklist={checklist} density="compact" />
+    </>
   );
 }
 

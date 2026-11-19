@@ -27,6 +27,7 @@ import { childHue, childLabelOf } from "../../../shared/format/child-hue";
 import { dayLabel, inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { calendarEventsQueryOptions, nextEventQueryOptions } from "../api/events.queries";
+import { dayPlan } from "../day-plan";
 import { type SchoolMoment, schoolMoment, weekAhead } from "../week";
 import { ShowMoreButton, useShowMore } from "./blocks/show-more";
 import { CalendarEventRow } from "./calendar/calendar-event-row";
@@ -124,21 +125,6 @@ function DayProgress({ done, total, allSet }: DayProgressProps) {
   );
 }
 
-function dueBy(
-  events: readonly EventItem[],
-  { today, focus }: SchoolMoment,
-  childId: string | null,
-  shown: ReadonlySet<string>,
-): EventItem[] {
-  return events.filter(
-    (event) =>
-      (childId === null || event.childId === childId) &&
-      event.deadlineDate >= today &&
-      event.deadlineDate <= focus &&
-      (event.deadlineDate === focus || !event.done || shown.has(event.id)),
-  );
-}
-
 interface BriefingBodyProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
@@ -160,7 +146,7 @@ function BriefingBody({
 }: BriefingBodyProps) {
   const { t } = useTranslation("events");
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
-  const events = dueBy(loaded, moment, childId, shown);
+  const events = dayPlan(loaded, moment, childId, shown).deadlines;
   const unseen = events.filter((event) => !shown.has(event.id));
   if (unseen.length > 0) setShown(new Set([...shown, ...unseen.map((event) => event.id)]));
   const open = events.filter((event) => !event.done).length;

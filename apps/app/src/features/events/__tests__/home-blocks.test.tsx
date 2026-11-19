@@ -44,20 +44,21 @@ describe("Accueil blocks keep to what they have to say", () => {
     expect(late.closest("[data-slot=dashboard-panel]")?.getAttribute("data-shape")).toBe("box");
   });
 
-  it("given nothing late, the block leaves the grid for the band of lines, and takes its cell back while the home is arranged", async () => {
+  it("given nothing late, the block keeps its cell of the grid, the one it has while the home is arranged", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
     const line = (await screen.findByText("Rien en retard")).closest("[data-block=overdue]");
-    expect(line?.closest("[data-slot=dashboard-band]")).not.toBeNull();
-    expect(line?.closest("[data-slot=dashboard]")).toBeNull();
+    expect(line?.closest("[data-slot=dashboard]")).not.toBeNull();
+    expect(line?.getAttribute("data-h")).toBe("1");
+    expect(line?.getAttribute("data-w")).toBe("4");
 
     fireEvent.click(screen.getByRole("button", { name: "Modifier l'accueil" }));
 
     const tile = document.querySelector("[data-block=overdue]");
     expect(tile?.closest("[data-slot=dashboard]")).not.toBeNull();
-    expect(document.querySelector("[data-slot=dashboard-band]")).toBeNull();
+    expect(tile?.getAttribute("data-w")).toBe("4");
   });
 
   it("given more late deadlines than the block holds, it shows the first ones and a button for the others", async () => {

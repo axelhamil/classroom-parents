@@ -408,6 +408,34 @@ function homeOrder(page: Page): Promise<(string | undefined)[]> {
     .evaluateAll((tiles) => tiles.map((tile) => (tile as HTMLElement).dataset.block));
 }
 
+interface TileRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function tileRects(page: Page): Promise<Record<string, TileRect>> {
+  return page.locator("[data-slot=dashboard]").evaluate((grid) => {
+    const origin = grid.getBoundingClientRect();
+    const tiles = [...grid.querySelectorAll<HTMLElement>("[data-slot=dashboard-tile]")];
+
+    return Object.fromEntries(
+      tiles.map((tile) => {
+        const box = tile.getBoundingClientRect();
+        const rect = {
+          x: box.x - origin.x,
+          y: box.y - origin.y,
+          width: box.width,
+          height: box.height,
+        };
+
+        return [tile.dataset.block ?? "", rect];
+      }),
+    );
+  });
+}
+
 test.describe("home grid", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
@@ -481,20 +509,8 @@ test.describe("home grid", () => {
       await expect.poll(() => placedBlocks(page)).toEqual([...DEFAULT_HOME].sort());
       await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
       await expect(
-        page
-          .locator("[data-slot=dashboard-band] [data-block=tonight]")
-          .getByText(/^Rien à préparer/),
+        page.locator("[data-slot=dashboard] [data-block=tonight]").getByText(/^Rien de prévu/),
       ).toBeVisible();
-
-      const lines = await page
-        .locator("[data-slot=dashboard-panel][data-shape=line]")
-        .evaluateAll((panels) => panels.map((panel) => panel.getBoundingClientRect().height));
-      expect(lines.length).toBeGreaterThan(0);
-      expect(Math.max(...lines)).toBeLessThanOrEqual(72);
-      expect(
-        await page.locator("[data-slot=dashboard] [data-shape=line]").count(),
-        "a line never takes a cell of the grid",
-      ).toBe(0);
 
       const holes = await page.locator("[data-slot=dashboard-tile]").evaluateAll((tiles) => {
         const surfaces = tiles.map((tile) => ({
@@ -518,6 +534,35 @@ test.describe("home grid", () => {
       expect(holes).toEqual([]);
     });
   }
+
+  test("draws every block at the same place and size whether the home is read or arranged", async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(todayAt("18:30"));
+    const nothingForTomorrow = EVENTS.filter((event) => event.deadlineDate !== inDays(1));
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: nothingForTomorrow });
+    await serveHome(page);
+    await page.goto("/");
+    await expect.poll(() => placedBlocks(page)).toEqual([...DEFAULT_HOME].sort());
+    await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
+    await expect(page.locator("[data-block=tonight]").getByText(/^Rien de prévu/)).toBeVisible();
+    const reading = await tileRects(page);
+
+    await page.getByRole("button", { name: "Modifier l'accueil" }).click();
+    await expect(page.getByRole("button", { name: "Déplacer Pour ce soir" })).toBeVisible();
+    const arranging = await tileRects(page);
+
+    expect(Object.keys(arranging)).toEqual(Object.keys(reading));
+    const moved = Object.entries(reading).flatMap(([block, rect]) => {
+      const other = arranging[block];
+      const apart = (["x", "y", "width", "height"] as const).filter(
+        (side) => !other || Math.abs(other[side] - rect[side]) > 1,
+      );
+
+      return apart.length > 0 ? [`${block}: ${apart.join(", ")}`] : [];
+    });
+    expect(moved).toEqual([]);
+  });
 
   for (const colorScheme of COLOR_SCHEMES) {
     test(`passes axe while the home is being arranged (${colorScheme})`, async ({ page }) => {

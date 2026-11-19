@@ -189,7 +189,7 @@ describe("Accueil, the family calendar", () => {
         "Vendredi 20 novembre",
       ]),
     );
-    expect(screen.getAllByText("Exposé à finir")).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: /Exposé à finir/ })).toHaveLength(1);
   });
 
   it("asks the range query for exactly the visible period of each view", async () => {
@@ -359,7 +359,7 @@ describe("Accueil, the family calendar", () => {
     fireEvent.click(within(family).getByRole("button", { name: /Hugo/ }));
 
     await waitFor(() => expect(screen.queryByText("Piscine de Léa")).toBeNull());
-    expect(screen.getByText("Dictée de Hugo")).toBeDefined();
+    expect(screen.getAllByText("Dictée de Hugo").length).toBeGreaterThan(0);
     expect(search(router)).toMatchObject({ childId: HUGO.id });
 
     cleanup();
