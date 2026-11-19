@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit && tsc --noEmit -p a11y",
     "test": "vitest run",
     "check:a11y": "playwright test --config a11y/playwright.config.ts",
-    "check:journey": "playwright test --config a11y/journey.config.ts"
+    "check:journey": "playwright test --config a11y/journey.config.ts",
+    "check:perf": "playwright test --config a11y/perf.config.ts"
   },
   "dependencies": {
     "@dnd-kit/dom": "0.5.3",

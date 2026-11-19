@@ -1,6 +1,7 @@
 import { readFileSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
+import { brotliCompressSync } from "node:zlib";
 
 interface HostingHeader {
   key: string;
@@ -45,6 +46,39 @@ const CONTENT_TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
   ".xml": "application/xml; charset=utf-8",
 };
+
+const COMPRESSIBLE = new Set([
+  ".css",
+  ".html",
+  ".js",
+  ".json",
+  ".svg",
+  ".txt",
+  ".webmanifest",
+  ".xml",
+]);
+
+const compressed = new Map<string, Buffer>();
+
+/**
+ * Brotli for text when the client accepts it, as the production host does: a
+ * preview that ships raw bytes makes every load measured on it (LCP, a throttled
+ * network) pessimistic by the whole compression ratio. Each file is compressed
+ * once: at the highest quality a large chunk takes about a second, which would
+ * show up as network time.
+ */
+function encode(req: IncomingMessage, res: ServerResponse, path: string): Buffer {
+  const body = readFileSync(path);
+  res.setHeader("Vary", "Accept-Encoding");
+  const accepts = String(req.headers["accept-encoding"] ?? "").includes("br");
+  if (!accepts || !COMPRESSIBLE.has(extname(path))) return body;
+
+  res.setHeader("Content-Encoding", "br");
+  const version = `${path}:${statSync(path).mtimeMs}`;
+  const encoded = compressed.get(version) ?? brotliCompressSync(body);
+  compressed.set(version, encoded);
+  return encoded;
+}
 
 function matches(source: string, pathname: string): boolean {
   return new RegExp(`^${source}$`).test(pathname);
@@ -107,7 +141,8 @@ function serve(
   }
 
   res.setHeader("Content-Type", CONTENT_TYPES[extname(file)] ?? "application/octet-stream");
-  res.end(req.method === "HEAD" ? undefined : readFileSync(absolute(file)));
+  const body = encode(req, res, absolute(file));
+  res.end(req.method === "HEAD" ? undefined : body);
 }
 
 export function staticHostingPreview(config: StaticHostingConfig) {

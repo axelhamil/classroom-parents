@@ -56,6 +56,27 @@ export default defineConfig(({ command, mode, isPreview }) => {
           "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self' ws: wss: http://localhost:3000",
       },
     },
-    build: { chunkSizeWarningLimit: 700, sourcemap: "hidden" },
+    build: {
+      chunkSizeWarningLimit: 700,
+      sourcemap: "hidden",
+      // The static graph of the entry ships as one chunk: split into a hundred files, its
+      // download queued behind the browser's per-origin connection cap before the first paint.
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: "boot", tags: ["$initial"], priority: 2 },
+              {
+                name: "common",
+                minShareCount: 2,
+                entriesAware: true,
+                entriesAwareMergeThreshold: 16 * 1024,
+                priority: 1,
+              },
+            ],
+          },
+        },
+      },
+    },
   };
 });
