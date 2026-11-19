@@ -41,6 +41,23 @@ export default {
     hidden: "{{block}} masqué. Vous le retrouverez dans Ajouter un bloc.",
     shown: "{{block}} ajouté en fin d'accueil",
   },
+  keyboard: {
+    roleDescription: "bloc déplaçable",
+    instructions:
+      "Espace pour prendre ou poser, flèches pour déplacer, plus et moins pour la taille, Échap pour annuler.",
+    position: "{{block}}, position {{position}} sur {{total}}, taille {{size}}",
+    dropped: "Posé",
+    canceled: "Annulé, retour en position {{position}}",
+    sizes: {
+      s: "petite",
+      m: "moyenne",
+      l: "grande",
+      xl: "très grande",
+    },
+  },
+  sync: {
+    savedOffline: "Enregistré hors ligne, envoi au retour du réseau.",
+  },
   drawer: {
     title: "Ajouter un bloc",
     description: "Les blocs masqués de votre accueil. Ajoutez-en un, il se place à la fin.",
