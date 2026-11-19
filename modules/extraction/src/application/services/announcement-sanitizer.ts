@@ -90,24 +90,97 @@ function namePatternsOf(childName: string): string[] {
   ].filter((pattern) => pattern !== "");
 }
 
-function withoutChildNames(text: string, childNames: readonly string[]): string {
-  const patterns = childNames.flatMap(namePatternsOf);
-  if (patterns.length === 0) return text;
+interface Segment {
+  raw: string;
+  clean: string;
+  redacted: boolean;
+}
 
-  const pattern = new RegExp(
-    `${NAME_BOUNDARY_BEFORE}(?:${patterns.join("|")})${NAME_BOUNDARY_AFTER}`,
-    "gu",
+export type OffsetEdge = "start" | "end";
+
+export interface SanitizedAnnouncement {
+  text: string;
+  rawOffset: (offset: number, edge: OffsetEdge) => number;
+}
+
+function splitOn(
+  segment: Segment,
+  pattern: RegExp,
+  token: string,
+  inDecomposed: boolean,
+): Segment[] {
+  if (segment.redacted) return [segment];
+
+  const text = inDecomposed ? segment.raw.normalize("NFD") : segment.raw;
+  const recompose = (piece: string) => (inDecomposed ? piece.normalize("NFC") : piece);
+  const pieces: Segment[] = [];
+  let cursor = 0;
+
+  for (const match of text.matchAll(pattern)) {
+    const kept = recompose(text.slice(cursor, match.index));
+    const replaced = recompose(match[0]);
+
+    pieces.push({ raw: kept, clean: kept, redacted: false });
+    pieces.push({ raw: replaced, clean: token, redacted: true });
+    cursor = match.index + match[0].length;
+  }
+
+  const rest = recompose(text.slice(cursor));
+  pieces.push({ raw: rest, clean: rest, redacted: false });
+
+  return pieces.filter((piece) => piece.raw !== "");
+}
+
+function childNamePattern(childNames: readonly string[]): RegExp | undefined {
+  const patterns = childNames.flatMap(namePatternsOf);
+  if (patterns.length === 0) return undefined;
+
+  return new RegExp(`${NAME_BOUNDARY_BEFORE}(?:${patterns.join("|")})${NAME_BOUNDARY_AFTER}`, "gu");
+}
+
+function rawOffsetIn(segments: readonly Segment[], offset: number, edge: OffsetEdge): number {
+  let clean = 0;
+  let raw = 0;
+
+  for (const segment of segments) {
+    const cleanEnd = clean + segment.clean.length;
+    const inside = edge === "start" ? offset < cleanEnd : offset <= cleanEnd;
+
+    if (inside && !segment.redacted) return raw + offset - clean;
+    if (inside) return edge === "start" || offset === clean ? raw : raw + segment.raw.length;
+
+    clean = cleanEnd;
+    raw += segment.raw.length;
+  }
+
+  return raw;
+}
+
+export function sanitizeWithOffsets(
+  text: string,
+  childNames: readonly string[] = [],
+): SanitizedAnnouncement {
+  const names = childNamePattern(childNames);
+  const steps: [RegExp, string, boolean][] = [
+    [URL_PATTERN, "[LIEN]", false],
+    [EMAIL_PATTERN, "[EMAIL]", false],
+    [PHONE_PATTERN, "[TELEPHONE]", false],
+    [LONG_DIGIT_RUN_PATTERN, "[NUMERO]", false],
+    ...(names ? [[names, "[ENFANT]", true] satisfies [RegExp, string, boolean]] : []),
+  ];
+
+  const segments = steps.reduce<Segment[]>(
+    (current, [pattern, token, inDecomposed]) =>
+      current.flatMap((segment) => splitOn(segment, pattern, token, inDecomposed)),
+    [{ raw: text.normalize("NFC"), clean: text.normalize("NFC"), redacted: false }],
   );
 
-  return text.normalize("NFD").replace(pattern, "[ENFANT]").normalize("NFC");
+  return {
+    text: segments.map((segment) => segment.clean).join(""),
+    rawOffset: (offset, edge) => rawOffsetIn(segments, offset, edge),
+  };
 }
 
 export function sanitizeAnnouncement(text: string, childNames: readonly string[] = []): string {
-  const withoutContacts = text
-    .replace(URL_PATTERN, "[LIEN]")
-    .replace(EMAIL_PATTERN, "[EMAIL]")
-    .replace(PHONE_PATTERN, "[TELEPHONE]")
-    .replace(LONG_DIGIT_RUN_PATTERN, "[NUMERO]");
-
-  return withoutChildNames(withoutContacts, childNames);
+  return sanitizeWithOffsets(text, childNames).text;
 }

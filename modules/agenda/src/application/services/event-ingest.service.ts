@@ -8,6 +8,7 @@ import {
 } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
+import type { EvidencePassage } from "@packages/events/agenda-contract";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { AgendaEvent, type EventField } from "../../domain/event.aggregate";
@@ -18,6 +19,8 @@ import type { EventDeadline } from "../../domain/value-objects/event-deadline.vo
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventSource } from "../../domain/value-objects/event-source.vo";
 import type { EventTitle } from "../../domain/value-objects/event-title.vo";
+import type { Evidence } from "../../domain/value-objects/evidence.vo";
+import { ReviewReasons } from "../../domain/value-objects/review-reasons.vo";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
 import {
@@ -32,6 +35,8 @@ import {
   parseClassroomCategory,
   parseComputedDeadline,
   parseDescription,
+  parseEvidence,
+  parseReviewReasons,
   parseTitle,
 } from "./event-fields";
 import { plannedDeadline } from "./planned-deadline";
@@ -43,6 +48,8 @@ export interface IngestedEvent {
   deadlineDate: string;
   deadlineTime?: string;
   needsReview: boolean;
+  reviewReasons: string[];
+  evidence?: EvidencePassage;
 }
 
 export interface IngestedAmendment {
@@ -103,6 +110,11 @@ export interface CourseworkWithdrawOutput {
 type IngestError = AgendaError | AppError;
 
 type CourseworkOutcome = "created" | "updated" | "unchanged";
+
+interface ReviewEvidence {
+  reviewReasons: ReviewReasons;
+  evidence: Option<Evidence>;
+}
 
 interface ParsedCoursework {
   item: IngestedCoursework;
@@ -210,7 +222,7 @@ export class EventIngestService {
     amendment: EventAmendment,
     amendingAnnouncementId: string,
   ): Promise<Result<boolean, IngestError>> {
-    const flagged = event.flagForReview();
+    const flagged = event.flagForReview(amendment.value.kind);
     if (flagged.isFailure || !flagged.getValue()) return Result.ok(false);
 
     const saved = await this.events.save(event);
@@ -387,6 +399,8 @@ export class EventIngestService {
         category: EventCategory.create("homework").getValue(),
         deadline,
         receivedAt: this.clock(),
+        reviewReasons: ReviewReasons.none(),
+        evidence: Option.none(),
         needsReview: false,
         done: item.done,
         now: this.clock(),
@@ -460,6 +474,7 @@ export class EventIngestService {
           category: category.getValue(),
           deadline: deadline.getValue(),
           receivedAt: input.announcement.publishedAt,
+          ...this.evidenceOf(raw),
           needsReview: raw.needsReview,
           done: false,
           now,
@@ -467,6 +482,22 @@ export class EventIngestService {
       );
     }
     return Result.ok(built);
+  }
+
+  private evidenceOf(raw: IngestedEvent): ReviewEvidence {
+    return {
+      reviewReasons: this.kept(parseReviewReasons(raw.reviewReasons)).unwrapOr(
+        ReviewReasons.none(),
+      ),
+      evidence: raw.evidence === undefined ? Option.none() : this.kept(parseEvidence(raw.evidence)),
+    };
+  }
+
+  private kept<T>(parsed: Result<T, string>): Option<T> {
+    if (parsed.isSuccess) return Option.some(parsed.getValue());
+
+    this.instrumentation.capture(new Error(`review evidence ignored: ${parsed.getError()}`));
+    return Option.none();
   }
 
   private async store(event: AgendaEvent): Promise<Result<boolean, AgendaError | AppError>> {

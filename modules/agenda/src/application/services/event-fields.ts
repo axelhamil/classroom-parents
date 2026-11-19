@@ -13,6 +13,8 @@ import { EventCategory, eventCategorySchema } from "../../domain/value-objects/e
 import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventTitle } from "../../domain/value-objects/event-title.vo";
+import { Evidence, type EvidenceValue } from "../../domain/value-objects/evidence.vo";
+import { ReviewReasons, reviewReasonsSchema } from "../../domain/value-objects/review-reasons.vo";
 import type { AgendaError } from "../ports/event-repository.port";
 
 const classroomCategorySchema = z.enum(CLASSROOM_CATEGORIES);
@@ -78,4 +80,15 @@ export function parseComputedDeadline(
   time?: string,
 ): Result<EventDeadline, AgendaError> {
   return EventDeadline.fromComputedParisWallTime(date, time).mapError(() => invalidDeadline);
+}
+
+export function parseReviewReasons(raw: string[]): Result<ReviewReasons, string> {
+  const known = reviewReasonsSchema.safeParse(raw);
+  if (!known.success) return Result.fail(`unknown review reason in ${raw.join(", ")}`);
+
+  return ReviewReasons.create(known.data);
+}
+
+export function parseEvidence(raw: EvidenceValue): Result<Evidence, string> {
+  return Evidence.create(raw);
 }

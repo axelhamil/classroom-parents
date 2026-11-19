@@ -42,6 +42,14 @@ export interface CollectedEvent {
   deadlineAt: string;
   receivedAt: string;
   status: string;
+  reviewReasons: string[];
+  evidenceQuote: string | null;
+  evidenceStart: number | null;
+  evidenceEnd: number | null;
+  evidenceBefore: string;
+  evidenceAfter: string;
+  amendReason: string | null;
+  confirmedByParentAt: string | null;
   done: boolean;
   checklist: { done: string[]; removed: string[]; extra: { id: string; label: string }[] };
   editedAt: string | null;

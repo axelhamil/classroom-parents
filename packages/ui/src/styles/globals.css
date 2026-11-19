@@ -22,8 +22,8 @@
  * the amber of urgency and the alerts are shared, so a child keeps their colour whatever the palette.
  * Every palette is measured in light and dark by `packages/web-kit/src/theme/__tests__/palette-contrast.test.ts` (WCAG relative
  * luminance from these oklch values): text pairs >= 4.5:1, input borders, focus ring and child marks >= 3:1.
- * Shared light floors: white on destructive 5.82, warning ink 8.69, white on success 5.67, white on each child banner >= 5.59,
- * each category >= 5.38 on its tint. Shared dark floors: white on each child banner >= 7.12, each category >= 7.37 on its tint.
+ * Shared light floors: white on destructive 5.82, warning ink 8.69, highlight ink 12.06, white on success 5.67, white on each child banner >= 5.59,
+ * each category >= 5.38 on its tint. Shared dark floors: highlight ink 7.01, white on each child banner >= 7.12, each category >= 7.37 on its tint.
  */
 :root {
   color-scheme: light;
@@ -31,6 +31,8 @@
   --destructive-foreground: oklch(1 0 0);
   --warning: oklch(0.85 0.14 80);
   --warning-foreground: oklch(0.3 0.07 55);
+  --highlight: oklch(0.93 0.07 88);
+  --highlight-foreground: oklch(0.28 0.06 55);
   --success: oklch(0.5 0.12 150);
   --success-foreground: oklch(1 0 0);
   --overlay: color-mix(in oklch, var(--shadow-color) 50%, transparent);
@@ -206,6 +208,8 @@
   --destructive-foreground: oklch(0.22 0.05 25);
   --warning: oklch(0.83 0.13 80);
   --warning-foreground: oklch(0.26 0.06 55);
+  --highlight: oklch(0.44 0.08 75);
+  --highlight-foreground: oklch(0.96 0.02 88);
   --success: oklch(0.79 0.13 150);
   --success-foreground: oklch(0.22 0.04 150);
   --overlay: color-mix(in oklch, var(--shadow-color) 60%, transparent);
@@ -481,6 +485,8 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-overlay: var(--overlay);
@@ -602,6 +608,12 @@
 @layer base {
   * {
     @apply border-border outline-ring;
+  }
+
+  /* A passage the app points at inside a quoted text: a soft amber, quieter than the warning of urgency. */
+  mark {
+    @apply rounded-sm bg-highlight px-0.5 text-highlight-foreground;
+    box-decoration-break: clone;
   }
 
   body {

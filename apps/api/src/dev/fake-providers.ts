@@ -17,8 +17,9 @@ import {
   type DatasetChildKey,
 } from "@modules/extraction/eval/classroom-dataset";
 import { fakeSchoolCalendarSource } from "@modules/school-calendar/testing/fake-school-calendar.source";
-import { Option, Result } from "@packages/ddd-kit";
+import { Option, Result, truncateOnWord } from "@packages/ddd-kit";
 import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
+import { EVIDENCE_QUOTE_MAX, type EvidencePassage } from "@packages/events/agenda-contract";
 import { requireLocalDatabase } from "@packages/test/db-check";
 import { datasetShiftDays, daysBetween, demoChild, demoRefreshToken } from "./demo-dataset";
 
@@ -44,6 +45,12 @@ export function assertFakesAllowed(source: FakesGuardSource): void {
   if (source.NODE_ENV === "production") throw new Error("FAKE_PROVIDERS is refused in production");
 
   requireLocalDatabase(source.DATABASE_URL);
+}
+
+function wholeAnnouncement(text: string): EvidencePassage {
+  const quote = truncateOnWord(text, EVIDENCE_QUOTE_MAX);
+
+  return { quote, start: 0, end: quote.length, before: "", after: "" };
 }
 
 function childKeyOf(token: string, prefix: string): Option<DatasetChildKey> {
@@ -181,6 +188,8 @@ export function fakeProviders(clock: () => Date = () => new Date()) {
           deadlineDate: shiftDate(event.deadlineDate, shift),
           ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
           needsReview: event.needsReview ?? false,
+          reviewReasons: event.needsReview ? ["low_confidence"] : [],
+          evidence: wholeAnnouncement(known.text),
         })),
         amendments: (known.expectedAmends ?? []).map(({ referenceDate, ...amendment }) =>
           referenceDate === undefined

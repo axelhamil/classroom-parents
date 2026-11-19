@@ -74,6 +74,84 @@ describe("event detail reminders", () => {
   });
 });
 
+describe("event detail review", () => {
+  afterEach(() => {
+    cleanup();
+    resetApp();
+  });
+
+  const TO_REVIEW = {
+    ...EVENT,
+    status: "needs_review",
+    amendReason: "moved",
+    reviewReasons: ["weekday_mismatch"],
+    evidence: {
+      before: "Bonjour, <b>attention</b> : ",
+      quote: "Contrôle <img src=x onerror=alert(1)> jeudi [ici](http://evil.test)",
+      after: ". Apportez une calculatrice.",
+    },
+  };
+
+  it("given a deadline to verify, then the drawer says why in sentences and quotes the announcement as plain text", async () => {
+    givenEvent(TO_REVIEW, () => json({ customized: false, reminders: [] }));
+
+    await renderAppAt(DETAIL_PATH);
+
+    const why = await screen.findByRole("region", { name: "Pourquoi à vérifier" });
+    expect(why.textContent).toContain("Une annonce plus récente déplace cette échéance");
+    expect(why.textContent).toContain("Le jour de la semaine écrit ne tombe pas à cette date.");
+    const passage = why.querySelector("mark");
+    expect(passage?.textContent).toBe(TO_REVIEW.evidence.quote);
+    expect(passage?.parentElement?.textContent).toBe(
+      `${TO_REVIEW.evidence.before}${TO_REVIEW.evidence.quote}${TO_REVIEW.evidence.after}`,
+    );
+    expect(why.querySelector("img")).toBeNull();
+    expect(why.querySelector("a")).toBeNull();
+    expect(why.querySelector("b")).toBeNull();
+  });
+
+  it("given a deadline to verify with no stored reason, then the drawer still says what to check", async () => {
+    givenEvent({ ...EVENT, status: "needs_review" }, () =>
+      json({ customized: false, reminders: [] }),
+    );
+
+    await renderAppAt(DETAIL_PATH);
+
+    const why = await screen.findByRole("region", { name: "Pourquoi à vérifier" });
+    expect(why.textContent).toContain("Une information de l'annonce n'a pas pu être vérifiée.");
+  });
+
+  it("given a deadline to verify, when the parent says it is right, then it is confirmed", async () => {
+    const calls = stubApi(({ method, url }) => {
+      if (method === "POST" && url.pathname === `${DETAIL_PATH}/confirm`)
+        return json({ ...TO_REVIEW, status: "confirmed" });
+      if (url.pathname === "/children") return json([]);
+      if (url.pathname === DETAIL_PATH) return json(TO_REVIEW);
+      if (url.pathname === `${DETAIL_PATH}/reminders`)
+        return json({ customized: false, reminders: [] });
+      return undefined;
+    });
+
+    await renderAppAt(DETAIL_PATH);
+    fireEvent.click(await screen.findByRole("button", { name: "C'est bon" }));
+
+    await waitFor(() =>
+      expect(
+        calls.some(({ method, url }) => method === "POST" && url.pathname.endsWith("/confirm")),
+      ).toBe(true),
+    );
+  });
+
+  it("given a confirmed deadline, then no review section is shown", async () => {
+    givenEvent(EVENT, () => json({ customized: false, reminders: [] }));
+
+    await renderAppAt(DETAIL_PATH);
+
+    await screen.findByRole("heading", { level: 1, name: EVENT.title });
+    expect(screen.queryByRole("region", { name: "Pourquoi à vérifier" })).toBeNull();
+  });
+});
+
 describe("event detail agenda export", () => {
   afterEach(() => {
     cleanup();

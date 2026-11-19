@@ -127,6 +127,20 @@
       "when": 1795102231007,
       "tag": "0017_school_calendar",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795103031134,
+      "tag": "0018_event_review_evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795104018848,
+      "tag": "0019_event_evidence_bounds",
+      "breakpoints": true
     }
   ]
 }

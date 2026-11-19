@@ -265,9 +265,10 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     confidence: "low" as const,
     needsReview: true,
     reviewReasons: ["low_confidence" as const],
+    evidence: { quote: "Évaluation jeudi 19 novembre", start: 0, end: 28, before: "", after: "" },
   };
 
-  it("keeps every field the agenda needs, review flag and time included", async () => {
+  it("keeps every field the agenda needs, review reasons, quote and time included", async () => {
     let received: unknown;
     const extractor = announcementExtractorFor({
       extract: async (input) => {
@@ -299,6 +300,14 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
           deadlineDate: "2026-11-19",
           deadlineTime: "08:30",
           needsReview: true,
+          reviewReasons: ["low_confidence"],
+          evidence: {
+            quote: "Évaluation jeudi 19 novembre",
+            start: 0,
+            end: 28,
+            before: "",
+            after: "",
+          },
         },
       ],
       amendments: [{ kind: "moved", reference: "Évaluation de fractions" }],
@@ -306,10 +315,13 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
   });
 
   it("leaves the time out when the announcement gives none", async () => {
-    const { deadlineTime: _dropped, ...withoutTime } = extracted;
+    const { deadlineTime: _dropped, evidence: _unverified, ...withoutTime } = extracted;
     const extractor = announcementExtractorFor({
       extract: async () =>
-        Result.ok({ events: [{ ...withoutTime, needsReview: false }], amendments: [] }),
+        Result.ok({
+          events: [{ ...withoutTime, needsReview: false, reviewReasons: [] }],
+          amendments: [],
+        }),
     });
 
     const [deadline] = (
@@ -322,6 +334,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
       category: "assessment",
       deadlineDate: "2026-11-19",
       needsReview: false,
+      reviewReasons: [],
     });
   });
 
@@ -370,6 +383,7 @@ describe("sync IEventIngest bound to the agenda", () => {
           deadlineDate: "2026-11-26",
           deadlineTime: "09:00",
           needsReview: false,
+          reviewReasons: [],
         },
       ],
       amendments: [

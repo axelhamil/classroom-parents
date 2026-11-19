@@ -264,6 +264,7 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
     ["foreground", mode === "dark" ? "input at 30% over background" : "background", TEXT],
     ["destructive-foreground", "destructive", TEXT],
     ["warning-foreground", "warning", TEXT],
+    ["highlight-foreground", "highlight", TEXT],
     ["success-foreground", "success", TEXT],
     ["input", "background", GRAPHIC],
     ["input", "card", GRAPHIC],

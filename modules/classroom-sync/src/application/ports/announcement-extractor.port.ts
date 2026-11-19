@@ -1,4 +1,5 @@
 import type { AppError, Result } from "@packages/ddd-kit";
+import type { EvidencePassage } from "@packages/events/agenda-contract";
 
 export interface ExtractionRequest {
   text: string;
@@ -13,6 +14,8 @@ export interface ExtractedDeadline {
   deadlineDate: string;
   deadlineTime?: string;
   needsReview: boolean;
+  reviewReasons: string[];
+  evidence?: EvidencePassage;
 }
 
 export interface ExtractedAmendment {

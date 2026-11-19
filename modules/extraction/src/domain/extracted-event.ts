@@ -1,17 +1,10 @@
+import type { EvidencePassage, ReviewReason } from "@packages/events/agenda-contract";
 import type { ExtractionCategoryValue } from "./value-objects/extraction-category.vo";
 
 export const EXTRACTED_TITLE_MAX = 120;
 export const EXTRACTED_DESCRIPTION_MAX = 300;
 
 export type ExtractionConfidence = "high" | "medium" | "low";
-
-export type ReviewReason =
-  | "low_confidence"
-  | "weekday_mismatch"
-  | "date_before_publication"
-  | "date_too_far"
-  | "quote_not_in_text"
-  | "relative_holiday";
 
 export interface ExtractedEvent {
   title: string;
@@ -22,6 +15,7 @@ export interface ExtractedEvent {
   confidence: ExtractionConfidence;
   needsReview: boolean;
   reviewReasons: ReviewReason[];
+  evidence?: EvidencePassage;
 }
 
 export const AMENDMENT_KINDS = ["moved", "cancelled"] as const;

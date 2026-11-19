@@ -1,9 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { ListRow, ListRowAction } from "@packages/ui/components/ui/list-row";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
-import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
-import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, SearchCheckIcon } from "lucide-react";
 import { useRef, useState } from "react";
@@ -12,7 +9,8 @@ import type { EventItem } from "../../../shared/api/queries/events";
 import { EventCard } from "../../../shared/events/event-card";
 import type { ChildHue } from "../../../shared/format/child-hue";
 import { ResponsiveOverlay } from "../../../shared/layout/responsive-overlay";
-import { confirmEventMutationOptions } from "../api/events.mutations";
+import { useConfirmEvent } from "../hooks/use-confirm-event";
+import { ReviewReasons } from "./review-reasons";
 
 export interface ReviewLineProps {
   events: readonly EventItem[];
@@ -60,15 +58,7 @@ export function ReviewLine({ events, childLabel, childColor }: ReviewLineProps) 
 
 function ReviewList({ events, childLabel, childColor }: ReviewLineProps) {
   const { t } = useTranslation("events");
-  const queryClient = useQueryClient();
-  const confirm = useMutation({
-    ...confirmEventMutationOptions,
-    onSuccess: () => {
-      toastSuccess(t("review.confirmed"));
-      void queryClient.invalidateQueries({ queryKey: ["events"] });
-    },
-    onError: (error) => toastError(error, errorFallback("confirmEvent")),
-  });
+  const confirm = useConfirmEvent();
 
   return (
     <ScrollRegion variant="list" label={t("review.title")}>
@@ -81,6 +71,7 @@ function ReviewList({ events, childLabel, childColor }: ReviewLineProps) {
               hue={childColor(event.childId)}
               markReview={false}
             />
+            <ReviewReasons event={event} />
             <ListRowAction>
               <Button
                 type="button"

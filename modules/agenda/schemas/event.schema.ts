@@ -1,6 +1,6 @@
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { authSchema } from "@packages/drizzle";
-import { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
+import { EVENT_CATEGORIES, REVIEW_REASONS } from "@packages/events/agenda-contract";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -16,6 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { EDITABLE_FIELDS } from "../src/domain/event.aggregate";
+import { AMENDMENT_KINDS } from "../src/domain/value-objects/event-amendment.vo";
 import type { StoredChecklist } from "../src/domain/value-objects/event-checklist.vo";
 import { EVENT_SOURCES } from "../src/domain/value-objects/event-source.vo";
 import { EVENT_STATUSES } from "../src/domain/value-objects/event-status.vo";
@@ -43,6 +44,17 @@ export const agendaEvent = pgTable(
     deadlineAt: timestamp("deadline_at", { withTimezone: true }).notNull(),
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
     status: text("status", { enum: EVENT_STATUSES }).notNull(),
+    reviewReasons: text("review_reasons", { enum: REVIEW_REASONS })
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    evidenceQuote: text("evidence_quote"),
+    evidenceStart: integer("evidence_start"),
+    evidenceEnd: integer("evidence_end"),
+    evidenceBefore: text("evidence_before").notNull().default(""),
+    evidenceAfter: text("evidence_after").notNull().default(""),
+    amendReason: text("amend_reason", { enum: AMENDMENT_KINDS }),
+    confirmedByParentAt: timestamp("confirmed_by_parent_at", { withTimezone: true }),
     done: boolean("done").notNull().default(false),
     checklist: jsonb("checklist")
       .$type<StoredChecklist>()

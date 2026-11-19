@@ -1,5 +1,7 @@
+import type { EvidencePassage, ReviewReason } from "@packages/events/agenda-contract";
 import { z } from "zod";
 import type { AgendaEvent, EditableField } from "../../domain/event.aggregate";
+import type { AmendmentKind } from "../../domain/value-objects/event-amendment.vo";
 import type { EventCategoryValue } from "../../domain/value-objects/event-category.vo";
 import type { ChecklistItems } from "../../domain/value-objects/event-checklist.vo";
 import type { EventSourceValue } from "../../domain/value-objects/event-source.vo";
@@ -9,6 +11,8 @@ export interface EventCourseDto {
   id: string;
   name: string;
 }
+
+export type EventEvidenceDto = Pick<EvidencePassage, "quote" | "before" | "after">;
 
 export interface EventDto {
   id: string;
@@ -21,6 +25,9 @@ export interface EventDto {
   deadlineTime?: string;
   deadlineAt: string;
   status: EventStatusValue;
+  reviewReasons: ReviewReason[];
+  amendReason?: AmendmentKind;
+  evidence?: EventEvidenceDto;
   source: EventSourceValue;
   done: boolean;
   announcementUrl?: string;
@@ -109,6 +116,15 @@ export function toEventDto(event: AgendaEvent, course: EventCourseDto | null): E
     deadlineTime: deadline.time,
     deadlineAt: deadline.at.toISOString(),
     status: event.get("status").value,
+    reviewReasons: [...event.get("reviewReasons").value],
+    amendReason: event
+      .get("amendReason")
+      .map((reason) => reason.value)
+      .toUndefined(),
+    evidence: event
+      .get("evidence")
+      .map(({ value: { quote, before, after } }) => ({ quote, before, after }))
+      .toUndefined(),
     source: event.get("source").value,
     done: event.get("done"),
     announcementUrl: event.get("announcementUrl").toUndefined(),

@@ -6,6 +6,7 @@ import {
   truncateOnWord,
   utcToZonedWall,
 } from "@packages/ddd-kit";
+import type { EvidencePassage, ReviewReason } from "@packages/events/agenda-contract";
 import {
   EXTRACTED_DESCRIPTION_MAX,
   EXTRACTED_TITLE_MAX,
@@ -13,12 +14,17 @@ import {
   type ExtractedEvent,
   type ExtractionConfidence,
   type ExtractionResult,
-  type ReviewReason,
 } from "../../domain/extracted-event";
 import { ExtractionCategory } from "../../domain/value-objects/extraction-category.vo";
 import type { ExtractionError, ILanguageModel, ModelTier } from "../ports/language-model.port";
-import { sanitizeAnnouncement } from "./announcement-sanitizer";
-import { frenchWeekdayOf, reviewReasonsFor } from "./extraction-checks";
+import { type SanitizedAnnouncement, sanitizeWithOffsets } from "./announcement-sanitizer";
+import {
+  frenchWeekdayOf,
+  locateQuote,
+  reviewReasonsFor,
+  sentenceAfter,
+  sentenceBefore,
+} from "./extraction-checks";
 import {
   type AmendmentCandidate,
   type ExtractedCandidate,
@@ -97,12 +103,22 @@ function normalizedTime(raw: string | null): Result<Option<string>, "TIME_UNREAD
   return Result.ok(Option.some(`${String(hours).padStart(2, "0")}:${match[2]}`));
 }
 
+const NOT_ESCALATED: readonly ReviewReason[] = [
+  "relative_holiday",
+  "title_missing",
+  "time_unreadable",
+];
+
 function escalationReasons(event: ExtractedEvent): ReviewReason[] {
-  return event.reviewReasons.filter((reason) => reason !== "relative_holiday");
+  return event.reviewReasons.filter((reason) => !NOT_ESCALATED.includes(reason));
 }
 
 function forReview(event: ExtractedEvent): ExtractedEvent {
-  return { ...event, needsReview: true };
+  return {
+    ...event,
+    needsReview: true,
+    reviewReasons: [...event.reviewReasons, "second_reading_failed"],
+  };
 }
 
 function toAmendment(candidate: AmendmentCandidate): ExtractedAmendment[] {
@@ -142,8 +158,8 @@ export class ExtractionService {
           });
 
         const publishedOn = published.getValue().date;
-        const source = sanitizeAnnouncement(input.text, input.childNames);
-        const user = `${contextBlock(publishedOn, published.getValue().time)}\n${announcementBlock(source)}`;
+        const source = sanitizeWithOffsets(input.text, input.childNames);
+        const user = `${contextBlock(publishedOn, published.getValue().time)}\n${announcementBlock(source.text)}`;
 
         const first = await this.pass("fast", user, source, publishedOn);
         if (first.isFailure) return first;
@@ -165,7 +181,7 @@ export class ExtractionService {
   private async pass(
     tier: ModelTier,
     user: string,
-    source: string,
+    source: SanitizedAnnouncement,
     publishedOn: string,
   ): Promise<Result<ExtractionResult, ExtractionError>> {
     const output = await this.model.parse({
@@ -189,7 +205,7 @@ export class ExtractionService {
 
   private toEvent(
     candidate: ExtractedCandidate,
-    source: string,
+    source: SanitizedAnnouncement,
     publishedOn: string,
   ): Result<ExtractedEvent, ExtractionError> {
     const category = ExtractionCategory.create(candidate.category);
@@ -199,9 +215,12 @@ export class ExtractionService {
         message: "Le modèle a renvoyé une catégorie inconnue.",
       });
 
-    const reviewReasons = reviewReasonsFor(candidate, { source, publishedOn });
     const title = truncateOnWord(candidate.title, EXTRACTED_TITLE_MAX);
     const time = normalizedTime(candidate.deadlineTime);
+    const reviewReasons = [
+      ...reviewReasonsFor(candidate, { source: source.text, publishedOn }),
+      ...this.fieldReasons(title, time.isFailure),
+    ];
     const event: ExtractedEvent = {
       title: title || category.getValue().label(),
       description: truncate(candidate.description, EXTRACTED_DESCRIPTION_MAX),
@@ -211,14 +230,45 @@ export class ExtractionService {
         candidate.confidence,
         reviewReasons.includes("relative_holiday"),
       ),
-      needsReview: reviewReasons.length > 0 || title === "" || time.isFailure,
+      needsReview: reviewReasons.length > 0,
       reviewReasons,
     };
 
-    const deadlineTime = time.unwrapOr(Option.none());
-
     return Result.ok(
-      deadlineTime.isSome() ? { ...event, deadlineTime: deadlineTime.unwrap() } : event,
+      this.withOptionalFields(event, time.unwrapOr(Option.none()), candidate, source),
     );
+  }
+
+  private fieldReasons(title: string, timeUnreadable: boolean): ReviewReason[] {
+    const reasons: ReviewReason[] = [];
+    if (title === "") reasons.push("title_missing");
+    if (timeUnreadable) reasons.push("time_unreadable");
+
+    return reasons;
+  }
+
+  private withOptionalFields(
+    event: ExtractedEvent,
+    deadlineTime: Option<string>,
+    candidate: ExtractedCandidate,
+    source: SanitizedAnnouncement,
+  ): ExtractedEvent {
+    const evidence = this.evidenceOf(candidate.evidenceQuote, source);
+
+    return {
+      ...event,
+      ...(deadlineTime.isSome() ? { deadlineTime: deadlineTime.unwrap() } : {}),
+      ...(evidence.isSome() ? { evidence: evidence.unwrap() } : {}),
+    };
+  }
+
+  private evidenceOf(quote: string, source: SanitizedAnnouncement): Option<EvidencePassage> {
+    return locateQuote(quote, source.text).map(({ start, end }) => ({
+      quote: source.text.slice(start, end),
+      start: source.rawOffset(start, "start"),
+      end: source.rawOffset(end, "end"),
+      before: sentenceBefore(source.text, start),
+      after: sentenceAfter(source.text, end),
+    }));
   }
 }

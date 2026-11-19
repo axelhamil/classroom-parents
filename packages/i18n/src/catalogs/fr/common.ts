@@ -116,7 +116,7 @@ export default {
       privacyTitle: "Politique de confidentialité",
       termsTitle: "Conditions d'utilisation",
       versionLine: "Version {{version}} (en vigueur le {{date}})",
-      updated: "Dernière mise à jour : 14 novembre 2026",
+      updated: "Dernière mise à jour : 19 novembre 2026",
     },
     accessibility: {
       title: "Déclaration d'accessibilité",

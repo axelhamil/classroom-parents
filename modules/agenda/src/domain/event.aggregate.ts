@@ -1,5 +1,7 @@
 import { Aggregate, Option, Result } from "@packages/ddd-kit";
 import { EventId } from "./event-id";
+import { AmendReason } from "./value-objects/amend-reason.vo";
+import type { AmendmentKind } from "./value-objects/event-amendment.vo";
 import type { EventCategory } from "./value-objects/event-category.vo";
 import { type ChecklistChange, EventChecklist } from "./value-objects/event-checklist.vo";
 import type { EventDeadline } from "./value-objects/event-deadline.vo";
@@ -7,6 +9,8 @@ import type { EventDescription } from "./value-objects/event-description.vo";
 import { EventSource } from "./value-objects/event-source.vo";
 import { EventStatus } from "./value-objects/event-status.vo";
 import type { EventTitle } from "./value-objects/event-title.vo";
+import type { Evidence } from "./value-objects/evidence.vo";
+import { ReviewReasons } from "./value-objects/review-reasons.vo";
 
 export const EDITABLE_FIELDS = ["title", "description", "category", "deadline", "done"] as const;
 
@@ -32,6 +36,10 @@ export interface AgendaEventProps {
   deadline: EventDeadline;
   receivedAt: Date;
   status: EventStatus;
+  reviewReasons: ReviewReasons;
+  evidence: Option<Evidence>;
+  amendReason: Option<AmendReason>;
+  confirmedByParentAt: Option<Date>;
   done: boolean;
   checklist: EventChecklist;
   editedAt: Option<Date>;
@@ -54,6 +62,8 @@ export interface NewAgendaEvent {
   category: EventCategory;
   deadline: EventDeadline;
   receivedAt: Date;
+  reviewReasons: ReviewReasons;
+  evidence: Option<Evidence>;
   needsReview: boolean;
   done: boolean;
   now: Date;
@@ -93,12 +103,8 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     return new AgendaEvent(
       {
         ...props,
+        ...AgendaEvent.untouched(),
         status: EventStatus.of(needsReview),
-        checklist: EventChecklist.empty(),
-        editedAt: Option.none(),
-        editedFields: [],
-        deletedAt: Option.none(),
-        withdrawnAt: Option.none(),
         createdAt: now,
       },
       new EventId(),
@@ -117,17 +123,27 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
         courseId: Option.none(),
         announcementUrl: Option.none(),
         receivedAt: now,
+        ...AgendaEvent.untouched(),
         status: EventStatus.confirmed(),
+        reviewReasons: ReviewReasons.none(),
+        evidence: Option.none(),
         done: false,
-        checklist: EventChecklist.empty(),
-        editedAt: Option.none(),
-        editedFields: [],
-        deletedAt: Option.none(),
-        withdrawnAt: Option.none(),
         createdAt: now,
       },
       id,
     );
+  }
+
+  private static untouched() {
+    return {
+      amendReason: Option.none(),
+      confirmedByParentAt: Option.none(),
+      checklist: EventChecklist.empty(),
+      editedAt: Option.none(),
+      editedFields: [],
+      deletedAt: Option.none(),
+      withdrawnAt: Option.none(),
+    } satisfies Partial<AgendaEventProps>;
   }
 
   static reconstitute(props: AgendaEventProps, id: EventId): AgendaEvent {
@@ -210,10 +226,11 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     return Result.ok(true);
   }
 
-  confirm(): Result<void, EventRefusal> {
+  confirm(now: Date): Result<void, EventRefusal> {
     if (this._props.deletedAt.isSome()) return Result.fail("deleted");
 
     this._props.status = EventStatus.confirmed();
+    this._props.confirmedByParentAt = Option.some(now);
     return Result.ok();
   }
 
@@ -236,11 +253,16 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
     return Result.ok(true);
   }
 
-  flagForReview(): Result<boolean, EventRefusal> {
+  flagForReview(kind: AmendmentKind): Result<boolean, EventRefusal> {
     if (this._props.deletedAt.isSome()) return Result.fail("deleted");
-    if (this.needsReview()) return Result.ok(false);
+    if (this._props.confirmedByParentAt.isSome()) return Result.ok(false);
+
+    const reason = AmendReason.of(kind);
+    const alreadyFlagged = this._props.amendReason.map((current) => current.equals(reason));
+    if (this.needsReview() && alreadyFlagged.unwrapOr(false)) return Result.ok(false);
 
     this._props.status = EventStatus.of(true);
+    this._props.amendReason = Option.some(reason);
     return Result.ok(true);
   }
 

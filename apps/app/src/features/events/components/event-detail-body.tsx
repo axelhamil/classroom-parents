@@ -8,7 +8,7 @@ import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyH2 } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CalendarPlusIcon, CheckIcon, ExternalLink, Pencil } from "lucide-react";
+import { CalendarPlusIcon, CheckCheckIcon, CheckIcon, ExternalLink, Pencil } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Route as ProtectedRoute } from "../../../router/_protected";
@@ -19,11 +19,13 @@ import { childHue } from "../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../shared/format/deadline-label";
 import { ScreenTour } from "../../../shared/tour/screen-tour";
 import { useAgendaDownload } from "../hooks/use-agenda-download";
+import { useConfirmEvent } from "../hooks/use-confirm-event";
 import { useToggleDone } from "../hooks/use-toggle-done";
 import { DeleteEventDialog } from "./delete-event-dialog";
 import { EventReminders } from "./event-reminders";
 import { EventWhen } from "./event-when";
 import { PrepareChecklist } from "./prepare-checklist";
+import { ReviewReasons } from "./review-reasons";
 import { ShareButton } from "./share-button";
 
 export function EventDetailSkeleton() {
@@ -52,6 +54,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
   return (
     <>
       <EventWhen event={event} hue={child ? childHue(family, child.id) : 1} now={new Date()} />
+      {event.status === "needs_review" && <EventReview event={event} />}
       <EventActions event={event} child={child} />
       {event.description && <EventDescription description={event.description} />}
       <PrepareChecklist event={event} />
@@ -157,6 +160,35 @@ function EventDescription({ description }: EventDescriptionProps) {
         {t("detail.description")}
       </TypographyH2>
       <DeadlineQuote>{description}</DeadlineQuote>
+    </section>
+  );
+}
+
+interface EventReviewProps {
+  event: EventItem;
+}
+
+function EventReview({ event }: EventReviewProps) {
+  const { t } = useTranslation("events");
+  const titleId = useId();
+  const confirm = useConfirmEvent();
+
+  return (
+    <section aria-labelledby={titleId} className="flex flex-col gap-2">
+      <TypographyH2 id={titleId} variant="section">
+        {t("review.why")}
+      </TypographyH2>
+      <ReviewReasons event={event} inContext />
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        disabled={confirm.isPending}
+        onClick={() => confirm.mutate(event.id)}
+      >
+        <CheckCheckIcon aria-hidden />
+        {t("review.confirm")}
+      </Button>
     </section>
   );
 }
