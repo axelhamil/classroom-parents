@@ -5,6 +5,7 @@ import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldAlert, Trash2 } from "lucide-react";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../../../shared/api/queries/session";
 import { useGoogleReauth } from "../../rgpd/hooks/use-google-reauth";
@@ -54,6 +55,7 @@ function reauthMessageKey(reauthError: string | undefined) {
 function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
   const { t } = useTranslation(["settings", "common"]);
   const deletion = useRequestDeletion(userId);
+  const trigger = useRef<HTMLButtonElement>(null);
   const reauth = useGoogleReauth(RETURN_PATH);
   const reauthRequired = deletion.reauthRequired || reauthError !== undefined;
 
@@ -82,6 +84,7 @@ function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
       ) : (
         <>
           <Button
+            ref={trigger}
             type="button"
             variant="outline"
             className="self-start"
@@ -100,6 +103,10 @@ function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
             cancelLabel={t("common:actions.cancel")}
             isPending={deletion.isPending}
             onConfirm={deletion.request}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              trigger.current?.focus();
+            }}
           />
         </>
       )}
