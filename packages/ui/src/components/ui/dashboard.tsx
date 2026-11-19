@@ -24,61 +24,33 @@ function Dashboard({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 /**
- * The blocks that have nothing more than one line to say, above the grid in
- * the order of the home: one column on a phone, then equal columns that
- * share the width. A line takes no cell of the grid, so it never stands
- * stretched beside a tall block.
- */
-function DashboardBand({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dashboard-band"
-      className={cn(
-        "grid grid-cols-1 gap-3 md:grid-cols-[repeat(auto-fit,minmax(var(--dashboard-band-column),1fr))]",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-/** One line of the band; its panel fills it, so a row of lines shares one height. */
-function DashboardBandItem({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div data-slot="dashboard-band-item" className={cn("flex min-w-0", className)} {...props} />
-  );
-}
-
-/**
  * Placement is a static table of classes: Tailwind only ships a class it can
  * read whole in the source. A tablet keeps six columns, so 3 and 4 share a
  * half and 6, 8 and 12 take the full width. The height is a floor of steps,
- * never a cap; a block drawn as one line (nothing to show) drops it.
+ * never a cap. A block with nothing to show keeps it, so reading and arranging
+ * the home draw every block at the same place and size.
  */
-const dashboardTileVariants = cva(
-  "flex min-w-0 flex-col gap-2 md:has-[[data-shape=line]]:row-span-1 md:has-[[data-shape=line]]:min-h-0",
-  {
-    variants: {
-      w: {
-        3: "md:col-span-3 lg:col-span-3",
-        4: "md:col-span-3 lg:col-span-4",
-        6: "md:col-span-6 lg:col-span-6",
-        8: "md:col-span-6 lg:col-span-8",
-        12: "md:col-span-6 lg:col-span-12",
-      },
-      h: {
-        1: "md:min-h-(--dashboard-row-height)",
-        2: "md:row-span-2 md:min-h-(--dashboard-height-2)",
-        3: "md:row-span-3 md:min-h-(--dashboard-height-3)",
-      },
-      editing: {
-        true: "rounded-2xl outline-2 outline-offset-4 outline-border outline-dashed data-dragging:z-10 data-dragging:shadow-float",
-        false: "",
-      },
+const dashboardTileVariants = cva("flex min-w-0 flex-col gap-2", {
+  variants: {
+    w: {
+      3: "md:col-span-3 lg:col-span-3",
+      4: "md:col-span-3 lg:col-span-4",
+      6: "md:col-span-6 lg:col-span-6",
+      8: "md:col-span-6 lg:col-span-8",
+      12: "md:col-span-6 lg:col-span-12",
     },
-    defaultVariants: { editing: false },
+    h: {
+      1: "md:min-h-(--dashboard-row-height)",
+      2: "md:row-span-2 md:min-h-(--dashboard-height-2)",
+      3: "md:row-span-3 md:min-h-(--dashboard-height-3)",
+    },
+    editing: {
+      true: "rounded-2xl outline-2 outline-offset-4 outline-border outline-dashed data-dragging:z-10 data-dragging:shadow-float",
+      false: "",
+    },
   },
-);
+  defaultVariants: { editing: false },
+});
 
 interface DashboardTileProps
   extends React.ComponentProps<"div">,
@@ -128,7 +100,7 @@ const dashboardPanelVariants = cva(
     variants: {
       shape: {
         box: "flex-col gap-3",
-        line: "flex-row flex-wrap items-center gap-x-3 gap-y-1 py-3",
+        line: "flex-row flex-wrap content-center items-center gap-x-3 gap-y-1 py-3",
       },
       fit: {
         card: "",
@@ -146,9 +118,8 @@ interface DashboardPanelProps
 
 /**
  * A titled block on paper; label it with `aria-labelledby` pointing at its
- * title. `line` draws it as one row (title, a short sentence, an action) and
- * lets its tile drop the height the parent picked: an empty block is a line,
- * not a tall card. `natural` is for a block made of cards of its own (the
+ * title. `line` draws it as one row (title, a short sentence, an action),
+ * centred in the size its tile keeps: an empty block reads calm at its size. `natural` is for a block made of cards of its own (the
  * week): a phone shows it at full width on the page, without a card around
  * the cards.
  */
@@ -202,8 +173,6 @@ function DashboardPanelNote({ className, ...props }: React.ComponentProps<"p">) 
 
 export {
   Dashboard,
-  DashboardBand,
-  DashboardBandItem,
   DashboardPanel,
   DashboardPanelHeader,
   DashboardPanelNote,

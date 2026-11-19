@@ -197,7 +197,6 @@
   --progress-track: color-mix(in oklch, var(--foreground) 10%, transparent);
   --progress-ink: var(--foreground);
   --dashboard-row-height: 12.5rem;
-  --dashboard-band-column: 18rem;
   --dashboard-gap: 1.25rem;
   --dashboard-height-2: calc(var(--dashboard-row-height) * 2 + var(--dashboard-gap));
   --dashboard-height-3: calc(var(--dashboard-row-height) * 3 + var(--dashboard-gap) * 2);

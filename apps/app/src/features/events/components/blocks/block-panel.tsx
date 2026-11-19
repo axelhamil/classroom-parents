@@ -7,7 +7,6 @@ import {
 } from "@packages/ui/components/ui/dashboard";
 import type { LucideIcon } from "lucide-react";
 import { type ReactNode, useId } from "react";
-import { useCompactTile } from "../../../../shared/dashboard/compact-tile";
 
 export interface BlockPanelProps {
   title: string;
@@ -33,7 +32,6 @@ export function BlockPanel({
   const titleId = useId();
   const settled = Boolean(note) || Boolean(children);
   const shape = settled && (line || !children) ? "line" : "box";
-  useCompactTile(shape === "line");
 
   return (
     <DashboardPanel
