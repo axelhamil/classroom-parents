@@ -97,12 +97,14 @@ describe("fake extractor", () => {
 
     const sameDay = await fakes.extractor.extract({
       userId: "parent-a",
+      announcementId: "a1",
       text: trip.text,
       publishedAt: new Date(trip.publishedAt),
       childNames: [],
     });
     const weekLater = await fakes.extractor.extract({
       userId: "parent-a",
+      announcementId: "a1",
       text: trip.text,
       publishedAt: shiftInstant(new Date(trip.publishedAt), 7),
       childNames: [],
@@ -121,6 +123,7 @@ describe("fake extractor", () => {
   it("finds no deadline in an unknown text", async () => {
     const extracted = await providers().extractor.extract({
       userId: "parent-a",
+      announcementId: "a1",
       text: "Bonjour",
       publishedAt: NOW,
       childNames: [],

@@ -1,8 +1,9 @@
 import type { AppError, Result } from "@packages/ddd-kit";
-import type { EvidencePassage } from "@packages/events/agenda-contract";
+import type { EvidencePassage, ItemToBring, ParentAction } from "@packages/events/agenda-contract";
 
 export interface ExtractionRequest {
   userId: string;
+  announcementId: string;
   text: string;
   publishedAt: Date;
   childNames: string[];
@@ -17,6 +18,8 @@ export interface ExtractedDeadline {
   needsReview: boolean;
   reviewReasons: string[];
   evidence?: EvidencePassage;
+  parentActions: ParentAction[];
+  toBring: ItemToBring[];
 }
 
 export interface ExtractedAmendment {

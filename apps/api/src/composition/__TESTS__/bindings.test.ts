@@ -266,6 +266,16 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     needsReview: true,
     reviewReasons: ["low_confidence" as const],
     evidence: { quote: "Évaluation jeudi 19 novembre", start: 0, end: 28, before: "", after: "" },
+    parentActions: [
+      {
+        kind: "pay" as const,
+        label: "Régler la sortie",
+        amountCents: 850,
+        currency: "EUR" as const,
+        quote: "8,50 €",
+      },
+    ],
+    toBring: [{ item: "calculatrice", quote: "calculatrice" }],
   };
 
   it("keeps every field the agenda needs, review reasons, quote and time included", async () => {
@@ -282,6 +292,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
 
     const result = await extractor.extract({
       userId: "parent-a",
+      announcementId: "a1",
       text: "Évaluation jeudi 19 novembre",
       publishedAt: PUBLISHED_AT,
       childNames: ["Léa", "Léa Martin"],
@@ -289,6 +300,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
 
     expect(received).toEqual({
       userId: "parent-a",
+      announcementId: "a1",
       text: "Évaluation jeudi 19 novembre",
       publishedAt: PUBLISHED_AT,
       childNames: ["Léa", "Léa Martin"],
@@ -310,6 +322,8 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
             before: "",
             after: "",
           },
+          parentActions: extracted.parentActions,
+          toBring: extracted.toBring,
         },
       ],
       amendments: [{ kind: "moved", reference: "Évaluation de fractions" }],
@@ -329,6 +343,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
     const [deadline] = (
       await extractor.extract({
         userId: "parent-a",
+        announcementId: "a1",
         text: "x",
         publishedAt: PUBLISHED_AT,
         childNames: [],
@@ -342,6 +357,8 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
       deadlineDate: "2026-11-19",
       needsReview: false,
       reviewReasons: [],
+      parentActions: extracted.parentActions,
+      toBring: extracted.toBring,
     });
   });
 
@@ -353,6 +370,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
 
     const result = await extractor.extract({
       userId: "parent-a",
+      announcementId: "a1",
       text: "x",
       publishedAt: PUBLISHED_AT,
       childNames: [],
@@ -392,6 +410,8 @@ describe("sync IEventIngest bound to the agenda", () => {
           deadlineTime: "09:00",
           needsReview: false,
           reviewReasons: [],
+          parentActions: [],
+          toBring: [],
         },
       ],
       amendments: [

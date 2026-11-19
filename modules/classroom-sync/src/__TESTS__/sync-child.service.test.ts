@@ -158,6 +158,7 @@ describe("syncChild", () => {
     expect(h.client.profileNames).toHaveBeenCalledTimes(1);
     expect(h.extractor.extract.mock.calls[0]?.[0]).toEqual({
       userId: CHILD.userId,
+      announcementId: "a1",
       text: "Annonce a1",
       publishedAt: shiftInstant(NOW, -2),
       childNames: ["Lili", "Inès Martin", "Inès"],

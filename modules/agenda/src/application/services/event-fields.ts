@@ -14,6 +14,7 @@ import { EventDeadline } from "../../domain/value-objects/event-deadline.vo";
 import { EventDescription } from "../../domain/value-objects/event-description.vo";
 import { EventTitle } from "../../domain/value-objects/event-title.vo";
 import { Evidence, type EvidenceValue } from "../../domain/value-objects/evidence.vo";
+import { Preparation, type PreparationValue } from "../../domain/value-objects/preparation.vo";
 import { ReviewReasons, reviewReasonsSchema } from "../../domain/value-objects/review-reasons.vo";
 import type { AgendaError } from "../ports/event-repository.port";
 
@@ -87,6 +88,10 @@ export function parseReviewReasons(raw: string[]): Result<ReviewReasons, string>
   if (!known.success) return Result.fail(`unknown review reason in ${raw.join(", ")}`);
 
   return ReviewReasons.create(known.data);
+}
+
+export function parsePreparation(raw: PreparationValue): Result<Preparation, string> {
+  return Preparation.create(raw);
 }
 
 export function parseEvidence(raw: EvidenceValue): Result<Evidence, string> {

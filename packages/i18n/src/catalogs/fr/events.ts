@@ -198,6 +198,8 @@ export default {
       title_missing: "L'annonce ne dit pas clairement de quoi il s'agit.",
       time_unreadable: "L'heure écrite dans l'annonce n'a pas pu être lue.",
       second_reading_failed: "La seconde lecture de l'annonce n'a pas pu se faire.",
+      injection_suspected:
+        "L'annonce contient des consignes inhabituelles, vérifiez la date et l'intitulé.",
       unknown: "Une information de l'annonce n'a pas pu être vérifiée.",
     },
     amended: {

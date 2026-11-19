@@ -8,7 +8,7 @@ import {
 } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
 import { EventTypes } from "@packages/events";
-import type { EvidencePassage } from "@packages/events/agenda-contract";
+import type { EvidencePassage, ItemToBring, ParentAction } from "@packages/events/agenda-contract";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { AgendaEvent, type EventField } from "../../domain/event.aggregate";
@@ -20,6 +20,7 @@ import { EventDescription } from "../../domain/value-objects/event-description.v
 import { EventSource } from "../../domain/value-objects/event-source.vo";
 import type { EventTitle } from "../../domain/value-objects/event-title.vo";
 import type { Evidence } from "../../domain/value-objects/evidence.vo";
+import { Preparation } from "../../domain/value-objects/preparation.vo";
 import { ReviewReasons } from "../../domain/value-objects/review-reasons.vo";
 import type { IAlertPlanner } from "../ports/alert-planner.port";
 import type { IChildOwnership } from "../ports/child-ownership.port";
@@ -36,6 +37,7 @@ import {
   parseComputedDeadline,
   parseDescription,
   parseEvidence,
+  parsePreparation,
   parseReviewReasons,
   parseTitle,
 } from "./event-fields";
@@ -50,6 +52,8 @@ export interface IngestedEvent {
   needsReview: boolean;
   reviewReasons: string[];
   evidence?: EvidencePassage;
+  parentActions?: ParentAction[];
+  toBring?: ItemToBring[];
 }
 
 export interface IngestedAmendment {
@@ -401,6 +405,7 @@ export class EventIngestService {
         receivedAt: this.clock(),
         reviewReasons: ReviewReasons.none(),
         evidence: Option.none(),
+        preparation: Preparation.none(),
         needsReview: false,
         done: item.done,
         now: this.clock(),
@@ -475,6 +480,7 @@ export class EventIngestService {
           deadline: deadline.getValue(),
           receivedAt: input.announcement.publishedAt,
           ...this.evidenceOf(raw),
+          preparation: this.preparationOf(raw),
           needsReview: raw.needsReview,
           done: false,
           now,
@@ -491,6 +497,15 @@ export class EventIngestService {
       ),
       evidence: raw.evidence === undefined ? Option.none() : this.kept(parseEvidence(raw.evidence)),
     };
+  }
+
+  private preparationOf(raw: IngestedEvent): Preparation {
+    const preparation = parsePreparation({
+      parentActions: raw.parentActions ?? [],
+      toBring: raw.toBring ?? [],
+    });
+
+    return this.kept(preparation).unwrapOr(Preparation.none());
   }
 
   private kept<T>(parsed: Result<T, string>): Option<T> {

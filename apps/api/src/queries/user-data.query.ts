@@ -183,6 +183,8 @@ export class UserDataQuery implements IUserDataReader {
             evidenceEnd: event.evidenceEnd,
             evidenceBefore: event.evidenceBefore,
             evidenceAfter: event.evidenceAfter,
+            parentActions: event.parentActions,
+            toBring: event.toBring,
             amendReason: event.amendReason,
             confirmedByParentAt: iso(event.confirmedByParentAt),
             done: event.done,

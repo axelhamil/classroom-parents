@@ -1,6 +1,7 @@
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { dismissedEventBefore, pastEventBefore } from "@modules/agenda/schemas/event-retention";
 import { firstSyncedDay } from "@modules/classroom-sync/application/sync-lookback";
+import { extractionResult } from "@modules/extraction/schemas/extraction-result.schema";
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
 import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
 import {
@@ -46,6 +47,8 @@ export const PAST_EVENT_RETENTION_DAYS = 365;
 export const DISMISSED_EVENT_RETENTION_DAYS = 30;
 export const AI_CALL_RETENTION_LABEL = "sweep-ai-calls";
 export const AI_CALL_RETENTION_DAYS = 90;
+export const EXTRACTION_RESULT_RETENTION_LABEL = "sweep-extraction-results";
+export const EXTRACTION_RESULT_RETENTION_DAYS = 60;
 
 const { emailMessage } = emailSchema;
 const { outboxEvent } = outboxSchema;
@@ -134,6 +137,15 @@ const journaledAiCalls: PassTarget = {
   idColumn: aiCall.id,
   orderBy: aiCall.createdAt,
   before: (cutoff) => lt(aiCall.createdAt, cutoff),
+};
+
+const unreadExtractionResults: PassTarget = {
+  label: "unread",
+  sweep: EXTRACTION_RESULT_RETENTION_LABEL,
+  table: extractionResult,
+  idColumn: extractionResult.id,
+  orderBy: extractionResult.lastReadAt,
+  before: (cutoff) => lt(extractionResult.lastReadAt, cutoff),
 };
 
 type EventsPurgedPayload = z.infer<(typeof PayloadByEventType)[typeof EventTypes.EVENTS_PURGED]>;
@@ -272,5 +284,11 @@ export function sweepEventHistory(deps: EventHistoryDeps): Promise<SweepResponse
 export function sweepAiCallJournal(deps: RetentionDeps): Promise<SweepResponse> {
   return sweep(AI_CALL_RETENTION_LABEL, deps, (spans) => [
     retentionPass(journaledAiCalls, AI_CALL_RETENTION_DAYS, spans, deps.uow),
+  ]);
+}
+
+export function sweepExtractionResults(deps: RetentionDeps): Promise<SweepResponse> {
+  return sweep(EXTRACTION_RESULT_RETENTION_LABEL, deps, (spans) => [
+    retentionPass(unreadExtractionResults, EXTRACTION_RESULT_RETENTION_DAYS, spans, deps.uow),
   ]);
 }

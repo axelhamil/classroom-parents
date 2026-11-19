@@ -54,6 +54,11 @@ export function PrivacyPolicyBody(): ReactElement {
             à vérifier, pour que vous la contrôliez dans son contexte.
           </li>
           <li>
+            Ce que l'annonce vous demande de payer, signer, rendre ou apporter pour une échéance (au
+            plus 8 éléments de chaque sorte), chacun avec les mots de l'annonce qui le demandent,
+            masqués de la même façon ; une somme n'est retenue que si elle est écrite dans ces mots.
+          </li>
+          <li>
             Vos alertes : l'heure choisie pour chaque échéance, l'adresse technique d'abonnement aux
             notifications de chacun de vos appareils et le type de navigateur ; votre choix de
             recevoir le résumé du dimanche et les semaines où il vous a été envoyé.
@@ -157,6 +162,13 @@ export function PrivacyPolicyBody(): ReactElement {
           <li>
             Texte des annonces : aucune conservation en entier après l'extraction ; le passage cité
             et ses phrases voisines suivent la durée de leur échéance et sont effacés avec elle.
+          </li>
+          <li>
+            Lecture partagée d'une annonce (échéances et passages cités, sans aucun lien avec votre
+            compte ni le texte entier) : elle évite de relire la même annonce pour chaque famille de
+            la classe, et seule une famille dont la synchronisation lit déjà ce texte peut l'obtenir
+            ; effacée 60 jours après sa dernière lecture, elle ne contient rien qui vous concerne et
+            reste donc après la suppression de votre compte.
           </li>
           <li>Compte et enfants liés : tant que votre compte existe.</li>
           <li>Échéances : 12 mois après leur date, puis effacées avec leurs rappels et alertes.</li>

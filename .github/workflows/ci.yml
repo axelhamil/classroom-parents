@@ -168,6 +168,11 @@ jobs:
         # hold against Postgres. Seeds and removes its probes.
         run: pnpm --filter @modules/classroom-sync check:sync-db
 
+      - name: Check the shared extraction cache against a real database
+        # A result is served only to a family whose sync read the same text: the hash lookup,
+        # the unique key and the refusal of free text where the hash belongs are SQL.
+        run: pnpm --filter @modules/extraction check:extraction-db
+
       - name: Check the school calendar against a real database
         # The jsonb cache served when the official source is down, the zone choice and its
         # event in one transaction, and the cascade on account deletion are SQL. The source is
@@ -182,6 +187,10 @@ jobs:
         # The refusal of free text, the 90 day retention sweep and the cascade on account
         # deletion are constraints and SQL. Removes its probe parent.
         run: pnpm --filter api check:ai-call-journal
+
+      - name: Check the shared extraction cache retention against a real database
+        # The 60 day sweep keyed on the last read is SQL. Removes its probes.
+        run: pnpm --filter api check:extraction-retention
 
       - name: Check the event history retention sweep against a real database
         # The 12 month and 30 day windows, the sync window guard (purge then sync), the

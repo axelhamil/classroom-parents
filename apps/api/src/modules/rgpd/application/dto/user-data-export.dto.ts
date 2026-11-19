@@ -1,3 +1,5 @@
+import type { ItemToBring, ParentAction } from "@packages/events/agenda-contract";
+
 export interface ExportedAccount {
   name: string;
   email: string;
@@ -48,6 +50,8 @@ export interface CollectedEvent {
   evidenceEnd: number | null;
   evidenceBefore: string;
   evidenceAfter: string;
+  parentActions: ParentAction[];
+  toBring: ItemToBring[];
   amendReason: string | null;
   confirmedByParentAt: string | null;
   done: boolean;

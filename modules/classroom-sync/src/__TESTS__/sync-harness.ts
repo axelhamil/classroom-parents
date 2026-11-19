@@ -58,6 +58,8 @@ export function deadline(title: string): ExtractedDeadline {
     deadlineDate: "2026-11-19",
     needsReview: false,
     reviewReasons: [],
+    parentActions: [],
+    toBring: [],
   };
 }
 

@@ -14,6 +14,8 @@ function candidate(overrides: Partial<ExtractedCandidate>): ExtractedCandidate {
     confidence: "high",
     dateExpression: "jeudi 19 novembre",
     evidenceQuote: "sortie au musee jeudi 19 Novembre",
+    parentActions: [],
+    toBring: [],
     ...overrides,
   };
 }

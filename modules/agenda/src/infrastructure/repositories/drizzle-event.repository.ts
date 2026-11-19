@@ -42,6 +42,7 @@ import { EventSource } from "../../domain/value-objects/event-source.vo";
 import { EventStatus } from "../../domain/value-objects/event-status.vo";
 import { EventTitle } from "../../domain/value-objects/event-title.vo";
 import { Evidence } from "../../domain/value-objects/evidence.vo";
+import { Preparation } from "../../domain/value-objects/preparation.vo";
 import { ReviewReasons } from "../../domain/value-objects/review-reasons.vo";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
@@ -100,6 +101,10 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const status = EventStatus.create(row.status);
   const reviewReasons = ReviewReasons.create(row.reviewReasons);
   const evidence = storedEvidence(row);
+  const preparation = Preparation.create({
+    parentActions: row.parentActions,
+    toBring: row.toBring,
+  });
   const amendReason = optionalValue(row.amendReason, (kind) => AmendReason.create(kind));
   const source = EventSource.create(row.source);
   const stored = row.checklist;
@@ -117,6 +122,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   if (status.isFailure) return Result.fail(status.getError());
   if (reviewReasons.isFailure) return Result.fail(reviewReasons.getError());
   if (evidence.isFailure) return Result.fail(evidence.getError());
+  if (preparation.isFailure) return Result.fail(preparation.getError());
   if (amendReason.isFailure) return Result.fail(amendReason.getError());
 
   return Result.ok(
@@ -137,6 +143,7 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
         status: status.getValue(),
         reviewReasons: reviewReasons.getValue(),
         evidence: evidence.getValue(),
+        preparation: preparation.getValue(),
         amendReason: amendReason.getValue(),
         confirmedByParentAt: Option.fromNullable(row.confirmedByParentAt),
         done: row.done,
@@ -165,6 +172,7 @@ function mutableColumns(event: AgendaEvent) {
     status: event.get("status").value,
     reviewReasons: event.get("reviewReasons").value,
     ...evidenceColumns(event.get("evidence")),
+    ...event.get("preparation").value,
     amendReason: event
       .get("amendReason")
       .map((reason) => reason.value)
