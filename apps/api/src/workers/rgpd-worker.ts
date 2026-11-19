@@ -6,7 +6,12 @@ import type { Logger } from "../shared/logger";
 import type { ISweepRunStore } from "../shared/ports/sweep-run.port";
 import { failed, type Job, type JobOutcome, succeeded } from "./job";
 import { startPeriodic } from "./periodic";
-import { sweepDeliveredOutbox, sweepEventHistory, sweepOldEmails } from "./retention";
+import {
+  sweepAiCallJournal,
+  sweepDeliveredOutbox,
+  sweepEventHistory,
+  sweepOldEmails,
+} from "./retention";
 
 export const RGPD_TICK_MS = 60 * 60_000;
 
@@ -83,6 +88,10 @@ export function sweepJobs(
     {
       name: "outbox-retention",
       run: async () => sweepOutcome(await sweepDeliveredOutbox(retention)),
+    },
+    {
+      name: "ai-call-retention",
+      run: async () => sweepOutcome(await sweepAiCallJournal(retention)),
     },
     {
       name: "event-history-retention",

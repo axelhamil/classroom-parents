@@ -7,7 +7,7 @@ config();
 const databaseUrl = process.env.DATABASE_URL ?? "postgresql://placeholder";
 
 export default defineConfig({
-  schema: ["./src/schema/*", "../../modules/*/schemas/*"],
+  schema: ["./src/schema/*", "../../modules/*/schemas/*", "../llm/schemas/*"],
   out: "./migrations",
   dbCredentials: {
     url: databaseUrl,

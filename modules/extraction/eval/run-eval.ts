@@ -1,18 +1,26 @@
 import { readFileSync } from "node:fs";
-import Anthropic from "@anthropic-ai/sdk";
+import { Result } from "@packages/ddd-kit";
+import type { ILanguageModel, ModelTier } from "@packages/llm/contract/language-model.port";
+import { llmError } from "@packages/llm/contract/llm-error";
 import {
-  type Breadcrumb,
-  type IInstrumentation,
-  Result,
-  type SpanOptions,
-} from "@packages/ddd-kit";
+  EvalInstrumentation,
+  evalModel,
+  mapBounded,
+  RecordingCallLog,
+  report,
+  runCount,
+  type Scores,
+  summary,
+} from "@packages/llm/eval/harness";
 import { z } from "zod";
-import type { ILanguageModel, ModelTier } from "../src/application/ports/language-model.port";
 import { ExtractionService } from "../src/application/services/extraction.service";
 import { AMENDMENT_KINDS } from "../src/domain/extracted-event";
 import { extractionCategorySchema } from "../src/domain/value-objects/extraction-category.vo";
-import { AnthropicLanguageModel } from "../src/infrastructure/adapters/anthropic-language-model";
 import { DATASET_ANNOUNCEMENTS } from "./classroom-dataset";
+
+const SUITE = "announcement_extraction";
+const EVAL_USER_ID = "eval";
+const CONCURRENCY = 4;
 
 const caseSchema = z.object({
   id: z.string(),
@@ -27,102 +35,33 @@ const caseSchema = z.object({
 
 type EvalCase = z.infer<typeof caseSchema>;
 
-interface Usage {
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
+interface CaseOutcome {
+  expected: string[];
+  predicted: string[];
+  review: number;
+  expectedAmends: string[];
+  predictedAmends: string[];
+  failed: boolean;
 }
 
-const PRICE_PER_MTOK: Record<string, Usage> = {
-  "claude-haiku-5-5": { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
-  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
-};
-
-class UsageRecorder implements IInstrumentation {
-  readonly usageByModel = new Map<string, Usage>();
-  private currentModel = "unknown";
-
-  startSpan<T>(options: SpanOptions, callback: () => T): T {
-    const model = options.attributes?.model;
-    if (typeof model === "string") this.currentModel = model;
-
-    return callback();
-  }
-
-  capture(error: unknown): void {
-    console.error(`  provider error: ${error instanceof Error ? error.name : "unknown"}`);
-  }
-
-  addBreadcrumb(_crumb: Breadcrumb): void {}
-
-  setSpanAttributes(attributes: Record<string, string | number | boolean>): void {
-    const usage = this.usageByModel.get(this.currentModel) ?? {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheWrite: 0,
-    };
-    const tokens = (key: string) => Number(attributes[key] ?? 0);
-
-    this.usageByModel.set(this.currentModel, {
-      input: usage.input + tokens("llm.input_tokens"),
-      output: usage.output + tokens("llm.output_tokens"),
-      cacheRead: usage.cacheRead + tokens("llm.cache_read_input_tokens"),
-      cacheWrite: usage.cacheWrite + tokens("llm.cache_creation_input_tokens"),
-    });
-  }
-
-  async flush(): Promise<boolean> {
-    return true;
-  }
-
-  costInDollars(): number {
-    return [...this.usageByModel].reduce((total, [model, usage]) => {
-      const price = PRICE_PER_MTOK[model];
-      if (!price) return total;
-
-      const perToken =
-        usage.input * price.input +
-        usage.output * price.output +
-        usage.cacheRead * price.cacheRead +
-        usage.cacheWrite * price.cacheWrite;
-
-      return total + perToken / 1_000_000;
-    }, 0);
-  }
-}
-
-const NO_SECOND_PASS = {
-  code: "EXTRACTION_PROVIDER_FAILURE",
-  message: "single tier evaluation",
-} as const;
+const SINGLE_TIER_ONLY = llmError("LLM_PROVIDER_FAILURE", "single tier evaluation");
 
 function singleTier(tier: ModelTier, model: ILanguageModel): ILanguageModel {
   return {
     parse: async (request) =>
-      request.tier === "strong" ? Result.fail(NO_SECOND_PASS) : model.parse({ ...request, tier }),
+      request.tier === tier ? model.parse(request) : Result.fail(SINGLE_TIER_ONLY),
+    streamParse: (request, observer) => model.streamParse(request, observer),
   };
 }
 
-const CONFIGURATIONS: { name: string; wrap: (model: ILanguageModel) => ILanguageModel }[] = [
-  { name: "haiku only", wrap: (model) => singleTier("fast", model) },
-  { name: "haiku, sonnet on doubt", wrap: (model) => model },
-  { name: "sonnet only", wrap: (model) => singleTier("strong", model) },
-];
-
-function countingEscalations(
-  model: ILanguageModel,
-  counter: { escalations: number },
-): ILanguageModel {
-  return {
-    parse: (request) => {
-      if (request.tier === "strong") counter.escalations += 1;
-
-      return model.parse(request);
-    },
-  };
-}
+const CONFIGURATIONS: Record<string, (model: ILanguageModel) => ILanguageModel> = {
+  production: (model) => model,
+  "haiku-only": (model) => singleTier("fast", model),
+  "sonnet-only": (model) => ({
+    parse: (request) => model.parse({ ...request, tier: "strong" }),
+    streamParse: (request, observer) => model.streamParse(request, observer),
+  }),
+};
 
 function loadCases(): EvalCase[] {
   const path = process.env.EVAL_SET;
@@ -134,7 +73,7 @@ function loadCases(): EvalCase[] {
     .map((line) => caseSchema.parse(JSON.parse(line)));
 }
 
-function matches(expected: string[], predicted: string[]): number {
+function matches(expected: readonly string[], predicted: readonly string[]): number {
   const remaining = [...expected];
 
   return predicted.filter((key) => {
@@ -149,81 +88,96 @@ function matches(expected: string[], predicted: string[]): number {
 const amendKey = (amend: { kind: string; referenceDate?: string }) =>
   `${amend.kind} ${amend.referenceDate ?? "undated"}`;
 
-const percent = (part: number, whole: number) =>
-  whole === 0 ? "n/a" : `${((100 * part) / whole).toFixed(1)} %`;
+const ratio = (part: number, whole: number) => (whole === 0 ? 1 : part / whole);
 
-async function evaluate(
-  name: string,
-  cases: EvalCase[],
-  wrap: (m: ILanguageModel) => ILanguageModel,
-) {
-  const recorder = new UsageRecorder();
-  const counter = { escalations: 0 };
-  const service = new ExtractionService(
-    countingEscalations(
-      wrap(new AnthropicLanguageModel(new Anthropic({ timeout: 60_000 }), recorder)),
-      counter,
-    ),
-    recorder,
-  );
-  const totals = { expected: 0, predicted: 0, correct: 0, review: 0, failures: 0 };
-  const amends = { expected: 0, predicted: 0, correct: 0 };
-
-  console.log(`\n${name}`);
-  for (const evalCase of cases) {
-    const result = await service.extract({
-      text: evalCase.text,
-      publishedAt: new Date(evalCase.publishedAt),
-      childNames: evalCase.childName === undefined ? [] : [evalCase.childName],
-    });
-    const expected = evalCase.expected.map((event) => `${event.category} ${event.deadlineDate}`);
-    totals.expected += expected.length;
-
-    if (result.isFailure) {
-      totals.failures += 1;
-      console.log(`  ${evalCase.id}: ${result.getError().code}`);
-      continue;
-    }
-
-    const { events, amendments } = result.getValue();
-    const predicted = events.map((event) => `${event.category} ${event.deadlineDate}`);
-    const correct = matches(expected, predicted);
-    totals.predicted += predicted.length;
-    totals.correct += correct;
-    totals.review += events.filter((event) => event.needsReview).length;
-
-    if (correct !== expected.length || correct !== predicted.length)
-      console.log(
-        `  ${evalCase.id}: expected [${expected.join(", ")}] got [${predicted.join(", ")}]`,
-      );
-
-    const expectedAmends = evalCase.expectedAmends.map(amendKey);
-    const predictedAmends = amendments.map(amendKey);
-    const correctAmends = matches(expectedAmends, predictedAmends);
-    amends.expected += expectedAmends.length;
-    amends.predicted += predictedAmends.length;
-    amends.correct += correctAmends;
-    if (correctAmends !== expectedAmends.length || correctAmends !== predictedAmends.length)
-      console.log(
-        `  ${evalCase.id}: amends expected [${expectedAmends.join(", ")}] got [${predictedAmends.join(", ")}]`,
-      );
+async function runCase(service: ExtractionService, evalCase: EvalCase): Promise<CaseOutcome> {
+  const result = await service.extract({
+    userId: EVAL_USER_ID,
+    text: evalCase.text,
+    publishedAt: new Date(evalCase.publishedAt),
+    childNames: evalCase.childName === undefined ? [] : [evalCase.childName],
+  });
+  const expected = evalCase.expected.map((event) => `${event.category} ${event.deadlineDate}`);
+  const expectedAmends = evalCase.expectedAmends.map(amendKey);
+  if (result.isFailure) {
+    console.log(`  ${evalCase.id}: ${result.getError().code}`);
+    return {
+      expected,
+      predicted: [],
+      review: 0,
+      expectedAmends,
+      predictedAmends: [],
+      failed: true,
+    };
   }
 
-  console.log(
-    [
-      `  precision ${percent(totals.correct, totals.predicted)}`,
-      `recall ${percent(totals.correct, totals.expected)}`,
-      `to review ${percent(totals.review, totals.predicted)}`,
-      `amends precision ${percent(amends.correct, amends.predicted)}`,
-      `amends recall ${percent(amends.correct, amends.expected)}`,
-      `failed calls ${totals.failures}`,
-      `escalation requested ${percent(counter.escalations, cases.length)}`,
-      `cost $${recorder.costInDollars().toFixed(4)} for ${cases.length} announcements`,
-    ].join(" | "),
-  );
+  const { events, amendments } = result.getValue();
+  const predicted = events.map((event) => `${event.category} ${event.deadlineDate}`);
+  if (matches(expected, predicted) !== Math.max(expected.length, predicted.length))
+    console.log(`  ${evalCase.id}: expected [${expected}] got [${predicted}]`);
+
+  return {
+    expected,
+    predicted,
+    review: events.filter((event) => event.needsReview).length,
+    expectedAmends,
+    predictedAmends: amendments.map(amendKey),
+    failed: false,
+  };
 }
 
-const cases = loadCases();
-for (const configuration of CONFIGURATIONS) {
-  await evaluate(configuration.name, cases, configuration.wrap);
+function scoresOf(outcomes: readonly CaseOutcome[], log: RecordingCallLog): Scores {
+  const sum = (count: (outcome: CaseOutcome) => number) =>
+    outcomes.reduce((total, outcome) => total + count(outcome), 0);
+  const correct = sum((o) => matches(o.expected, o.predicted));
+  const predicted = sum((o) => o.predicted.length);
+  const amendsExpected = sum((o) => o.expectedAmends.length);
+
+  return {
+    precision: ratio(correct, predicted),
+    recall: ratio(
+      correct,
+      sum((o) => o.expected.length),
+    ),
+    toReview: ratio(
+      sum((o) => o.review),
+      predicted,
+    ),
+    amendsRecall: ratio(
+      sum((o) => matches(o.expectedAmends, o.predictedAmends)),
+      amendsExpected,
+    ),
+    spuriousAmends: sum((o) =>
+      o.expectedAmends.length === 0 && o.predictedAmends.length > 0 ? 1 : 0,
+    ),
+    failedCalls: sum((o) => (o.failed ? 1 : 0)),
+    escalated: ratio(
+      log.entries.filter((entry) => entry.model === "claude-sonnet-5-5").length,
+      outcomes.length,
+    ),
+    costUsd: log.costUsd(),
+    maxOutputTokens: log.maxOutputTokens(),
+  };
 }
+
+async function runOnce(configuration: string, cases: readonly EvalCase[]): Promise<Scores> {
+  const wrap = CONFIGURATIONS[configuration];
+  if (wrap === undefined) throw new Error(`unknown configuration ${configuration}`);
+
+  const log = new RecordingCallLog();
+  const service = new ExtractionService(wrap(evalModel(log)), new EvalInstrumentation());
+  const outcomes = await mapBounded(cases, CONCURRENCY, (evalCase) => runCase(service, evalCase));
+
+  return scoresOf(outcomes, log);
+}
+
+const configuration = process.env.EVAL_CONFIG ?? "production";
+const cases = loadCases();
+const runs: Scores[] = [];
+for (let run = 1; run <= runCount(); run += 1) {
+  console.log(`\n${configuration}, run ${run}`);
+  runs.push(await runOnce(configuration, cases));
+}
+
+if (configuration === "production") report(SUITE, runs);
+else console.log(`\n${summary(`${SUITE}, ${configuration} (not gated)`, runs)}`);

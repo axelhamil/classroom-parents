@@ -1,0 +1,59 @@
+name: AI eval
+
+# Runs the model evaluations against the real API, with the key of the evaluation workspace
+# (its own spend cap). It costs money, so it runs only when something the model sees or the
+# way its answer is read changes, plus once a week to catch a drift of the provider.
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "packages/llm/**"
+      - "modules/extraction/src/application/services/**"
+      - "modules/extraction/src/domain/**"
+      - "modules/extraction/eval/**"
+      - ".github/workflows/ai-eval.yml"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  HUSKY: 0
+
+jobs:
+  ai-eval:
+    name: AI eval
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_EVAL }}
+      EVAL_RUNS: 3
+
+    steps:
+      # A fork or a repository without the evaluation key has nothing to evaluate with: the job
+      # says so and stops green instead of failing on a missing credential.
+      - name: Skip without the evaluation key
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "::notice title=AI eval skipped::ANTHROPIC_API_KEY_EVAL is not available (fork or secret not created yet), the model evaluations did not run."
+
+      - uses: actions/checkout@v5
+        if: env.ANTHROPIC_API_KEY != ''
+
+      - uses: ./.github/actions/setup
+        if: env.ANTHROPIC_API_KEY != ''
+
+      - name: Announcement extraction, median of 3 runs against eval/thresholds.json
+        if: env.ANTHROPIC_API_KEY != ''
+        run: pnpm --filter @modules/extraction eval:extraction
+
+      - name: Adversarial set, worst of 3 runs, no deadline outside the expected ones and no leak
+        if: env.ANTHROPIC_API_KEY != ''
+        run: pnpm --filter @modules/extraction eval:adversarial

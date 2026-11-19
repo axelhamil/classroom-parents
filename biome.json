@@ -52,6 +52,19 @@
         "noUnusedTemplateLiteral": "error",
         "useNumberNamespace": "error",
         "noInferrableTypes": "error",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "react-markdown": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+              "marked": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+              "markdown-it": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+              "remark": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+              "rehype-raw": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+              "html-react-parser": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML."
+            }
+          }
+        },
         "noUselessElse": "error",
         "useConsistentArrayType": {
           "level": "warn",
@@ -67,7 +80,7 @@
         "noThisInStatic": "warn"
       },
       "security": {
-        "noDangerouslySetInnerHtml": "warn",
+        "noDangerouslySetInnerHtml": "error",
         "noDangerouslySetInnerHtmlWithChildren": "error",
         "noBlankTarget": "warn"
       },

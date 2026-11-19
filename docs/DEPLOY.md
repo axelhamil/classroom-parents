@@ -51,6 +51,7 @@ For each: Node.js 26.x, "Include files outside the Root Directory" on (the build
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `mailto:contact@<domain>` | yes | step 6 |
 | `RESEND_API_KEY`, `RESEND_FROM` | `KeepUpKids <alertes@<domain>>` | yes | step 7 |
 | `ANTHROPIC_API_KEY` | | yes | step 8 |
+| `AI_DISABLED_FEATURES` | `announcement_extraction` | no | step 8, switches a model feature off without a code change |
 | `CRON_SECRET` | 64 hex characters | yes | step 9 |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | `production` | no | Sentry |
 | `BETTER_AUTH_SECRETS` | | no | only to rotate `BETTER_AUTH_SECRET` (linked Google tokens are sealed with it) |
@@ -94,7 +95,14 @@ Verified sending domain (SPF, DKIM, DMARC), EU region, live key in `RESEND_API_K
 
 ## 8. Anthropic
 
-Production key in `ANTHROPIC_API_KEY`; ask for zero data retention before real minors' data.
+One Anthropic workspace per environment, each with its own key, spend cap and rate limit:
+
+- [ ] `prod`: key in `ANTHROPIC_API_KEY` as a sensitive Vercel variable, spend cap set, zero data retention asked before real minors' data (no Batch nor Files API, both outside it).
+- [ ] `eval-ci`: key in the GitHub secret `ANTHROPIC_API_KEY_EVAL`, read by `.github/workflows/ai-eval.yml` only, spend cap a few dollars a month (one gated run costs under 0.30 $). Without it (or on a fork) the job skips with a notice instead of failing.
+- [ ] `dev`: personal keys, never a production one.
+- [ ] Every key expires and is rotated at 90 days; the admin key stays outside the app.
+
+Without a key the model features answer `LLM_DISABLED` and the sync retries the announcements later, nothing is lost. `AI_DISABLED_FEATURES` (comma separated, features of `packages/llm`) turns one feature off the same way. Each call leaves a row in `ai_call` (cost, tokens, outcome, no content), kept 90 days.
 
 ## 9. CRON_SECRET
 

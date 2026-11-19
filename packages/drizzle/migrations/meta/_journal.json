@@ -141,6 +141,13 @@
       "when": 1795104018848,
       "tag": "0019_event_evidence_bounds",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795104786959,
+      "tag": "0020_ai_call_journal",
+      "breakpoints": true
     }
   ]
 }

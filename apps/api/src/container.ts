@@ -54,6 +54,7 @@ import {
 } from "./composition/bindings";
 import { deliveryModule, runtimeModule } from "./composition/delivery";
 import { fakeProviderBindings } from "./composition/fake-bindings";
+import { llmModule } from "./composition/llm";
 import { schoolCalendarContainer } from "./composition/school-calendar";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
@@ -221,6 +222,7 @@ export const di = container()
     ),
   )
   .addModule(calendarFeedModule)
+  .addModule(llmModule)
   .addModule(extractionModule)
   .add("IChildAccessTokens", (c) => childAccessTokensFor(c.GoogleAccessService))
   .add("IAnnouncementExtractor", (c) => announcementExtractorFor(c.ExtractionService))

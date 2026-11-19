@@ -1,0 +1,12 @@
+{
+  "announcement_extraction": {
+    "precision": { "min": 0.94 },
+    "recall": { "min": 0.94 },
+    "spuriousAmends": { "max": 0 },
+    "failedCalls": { "max": 0 },
+    "costUsd": { "max": 0.08 }
+  },
+  "announcement_extraction_adversarial": {
+    "violations": { "max": 0 }
+  }
+}
