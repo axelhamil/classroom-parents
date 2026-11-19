@@ -23,8 +23,9 @@ export interface PageSectionProps {
 
 /**
  * A named group of cards on a long page, reachable by its `id` from a `SectionNav`. Inside a
- * `CardColumns` its cards may flow on into the next column; its title never stays alone at
- * the bottom of a column, and it stops below the sticky section nav when jumped to.
+ * `CardColumns` it is one block: its title and cards never split across two columns, so a
+ * column always opens on a section title (measured against a grid per section, which leaves
+ * twice the empty height). It stops below the sticky section nav when jumped to.
  */
 function PageSection({ id, title, children }: PageSectionProps) {
   const titleId = useId();
@@ -34,9 +35,9 @@ function PageSection({ id, title, children }: PageSectionProps) {
       id={id}
       aria-labelledby={titleId}
       data-slot="page-section"
-      className="scroll-mt-4 space-y-6 not-first:mt-10 lg:scroll-mt-section-nav"
+      className="scroll-mt-4 space-y-6 break-inside-avoid not-first:mt-10 lg:scroll-mt-section-nav"
     >
-      <TypographyH2 id={titleId} className="mb-3 break-after-avoid">
+      <TypographyH2 id={titleId} className="mb-3">
         {title}
       </TypographyH2>
       <SectionHeadingContext value="h3">{children}</SectionHeadingContext>
