@@ -67,7 +67,7 @@ export default {
       blue: "Bleu",
       violet: "Violet",
       raspberry: "Framboise",
-      coral: "Corail",
+      orange: "Orange",
       olive: "Olive",
       green: "Vert",
       slate: "Ardoise",

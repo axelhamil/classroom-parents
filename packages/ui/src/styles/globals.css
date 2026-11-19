@@ -49,8 +49,8 @@
   --child-3-container: oklch(0.94 0.035 300);
   --child-4: oklch(0.52 0.17 355);
   --child-4-container: oklch(0.94 0.035 355);
-  --child-5: oklch(0.53 0.16 35);
-  --child-5-container: oklch(0.94 0.035 40);
+  --child-5: oklch(0.53 0.12 55);
+  --child-5-container: oklch(0.94 0.035 52);
   --child-6: oklch(0.5 0.1 118);
   --child-6-container: oklch(0.94 0.045 118);
   --child-7: oklch(0.5 0.12 145);
@@ -222,8 +222,8 @@
   --child-3-container: oklch(0.3 0.045 300);
   --child-4: oklch(0.46 0.14 355);
   --child-4-container: oklch(0.3 0.045 355);
-  --child-5: oklch(0.47 0.13 35);
-  --child-5-container: oklch(0.3 0.045 40);
+  --child-5: oklch(0.47 0.11 55);
+  --child-5-container: oklch(0.3 0.045 45);
   --child-6: oklch(0.45 0.08 118);
   --child-6-container: oklch(0.3 0.04 118);
   --child-7: oklch(0.45 0.1 145);
@@ -235,7 +235,7 @@
   --child-2-mark: oklch(0.76 0.12 255);
   --child-3-mark: oklch(0.76 0.13 300);
   --child-4-mark: oklch(0.76 0.13 355);
-  --child-5-mark: oklch(0.76 0.12 35);
+  --child-5-mark: oklch(0.76 0.12 55);
   --child-6-mark: oklch(0.76 0.1 118);
   --child-7-mark: oklch(0.76 0.11 145);
   --child-8-mark: oklch(0.76 0.06 230);

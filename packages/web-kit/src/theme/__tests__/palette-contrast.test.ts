@@ -225,6 +225,7 @@ function rolePairs(mode: ResolvedTheme): RolePair[] {
     ...fills.flatMap((suffix): RolePair[] => [
       ["primary", (child) => `child-${child}${suffix}`],
       ["warning", (child) => `child-${child}${suffix}`],
+      ["destructive", (child) => `child-${child}${suffix}`],
     ]),
     ["secondary", (child) => `child-${child}-container`],
     // A crunched day of the month planner is tinted `bg-warning/30`.
@@ -311,7 +312,7 @@ describe("palettes", () => {
         expect(failures).toEqual([]);
       });
 
-      it(`${palette} in ${mode} keeps every child colour apart from the action and the urgent amber`, () => {
+      it(`${palette} in ${mode} keeps every child colour apart from the action, the urgent amber and the alerts`, () => {
         const color = tokenColor(pageTokens(palette, mode));
         const failures = rolePairs(mode).flatMap(([role, childToken]) =>
           CHILDREN.map((child) => ({
