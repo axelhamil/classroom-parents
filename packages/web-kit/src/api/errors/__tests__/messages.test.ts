@@ -7,8 +7,8 @@ const t = catalogT(frCatalog.errors);
 
 describe("formatApiError", () => {
   it("prefers an exact code over a suffix", () => {
-    expect(formatApiError({ code: "ACCOUNT_PASSWORD_INVALID" }, "fb", t)).toBe(
-      "Mot de passe invalide.",
+    expect(formatApiError({ code: "EVENT_CATEGORY_INVALID" }, "fb", t)).toBe(
+      "Choisissez un type dans la liste.",
     );
   });
 
@@ -62,17 +62,11 @@ describe("formatApiError", () => {
     );
   });
 
-  it("resolves the impersonation refusal to its own copy, not the generic 403", () => {
-    expect(
-      formatApiError({ code: "IMPERSONATION_ACTION_FORBIDDEN", status: 403 }, "fallback", t),
-    ).toBe(frCatalog.errors.byCode.IMPERSONATION_ACTION_FORBIDDEN);
-  });
-
-  it("resolves the policy refusal to its own copy, not the generic 409", () => {
-    expect(formatApiError({ code: "POLICY_ACCEPTANCE_REQUIRED", status: 409 }, "fallback", t)).toBe(
-      frCatalog.errors.byCode.POLICY_ACCEPTANCE_REQUIRED,
+  it("resolves a refusal to its own copy, not the generic status", () => {
+    expect(formatApiError({ code: "ALERT_EVENT_DONE_CONFLICT", status: 409 }, "fallback", t)).toBe(
+      frCatalog.errors.byCode.ALERT_EVENT_DONE_CONFLICT,
     );
-    expect(frCatalog.errors.byCode.POLICY_ACCEPTANCE_REQUIRED).not.toBe(
+    expect(frCatalog.errors.byCode.ALERT_EVENT_DONE_CONFLICT).not.toBe(
       frCatalog.errors.byStatus["409"],
     );
   });

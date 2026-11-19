@@ -6,6 +6,10 @@ import { APIError, getOAuthState } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { GOOGLE_IDENTITY_SCOPES } from "./google-scopes";
 
+const CHILD_SCOPES = [...GOOGLE_IDENTITY_SCOPES, ...CLASSROOM_SCOPES];
+
+const CONFIGURED_SCOPES: ReadonlySet<string> = new Set(CHILD_SCOPES);
+
 interface GoogleClient {
   clientId: string;
   clientSecret: string;
@@ -21,7 +25,7 @@ export function childAccountLinking(client: GoogleClient) {
         authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
         tokenUrl: "https://oauth2.googleapis.com/token",
         userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
-        scopes: [...GOOGLE_IDENTITY_SCOPES, ...CLASSROOM_SCOPES],
+        scopes: CHILD_SCOPES,
         accessType: "offline",
         prompt: "select_account consent",
         disableSignUp: true,
@@ -74,6 +78,20 @@ export function guardChildProvider(request: {
       message: "Un compte enfant se lie uniquement par Google Classroom.",
     });
   }
+}
+
+function isConfigured(scope: unknown): boolean {
+  return typeof scope === "string" && CONFIGURED_SCOPES.has(scope);
+}
+
+export function withoutConfiguredScopes(request: { path: string; body?: unknown }) {
+  const { body } = request;
+  if (request.path !== "/link-social" || !throughChildProvider(request)) return undefined;
+  if (typeof body !== "object" || body === null || !("scopes" in body)) return undefined;
+  if (!Array.isArray(body.scopes)) return undefined;
+
+  const extra = body.scopes.filter((scope: unknown) => !isConfigured(scope));
+  return { context: { body: { ...body, scopes: extra } } };
 }
 
 type AccountHooks = NonNullable<NonNullable<BetterAuthOptions["databaseHooks"]>["account"]>;

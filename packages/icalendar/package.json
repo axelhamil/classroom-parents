@@ -1,0 +1,23 @@
+{
+  "name": "@packages/icalendar",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/icalendar.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "dependencies": {
+    "@packages/ddd-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@packages/test": "workspace:*",
+    "@packages/typescript-config": "workspace:*",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

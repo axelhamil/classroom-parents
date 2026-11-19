@@ -20,6 +20,15 @@ describe("applyZodErrorMap", () => {
     expect(passwordIssueMessage()).toBe(frCatalog.errors.validation.required);
   });
 
+  it("reads an unanswered closed choice as a required field", () => {
+    applyZodErrorMap(catalogT(frCatalog.errors));
+    const choice = z.object({ category: z.enum(["homework", "other"]) });
+
+    expect(choice.safeParse({}).error?.issues[0]?.message).toBe(
+      frCatalog.errors.validation.required,
+    );
+  });
+
   it("resolves a custom check's i18nKey and ignores a key the catalog lacks", () => {
     applyZodErrorMap(catalogT(frCatalog.errors));
     const known = z.string().refine(() => false, { params: { i18nKey: "validation.httpsUrl" } });

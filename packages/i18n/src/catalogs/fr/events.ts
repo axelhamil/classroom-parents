@@ -45,6 +45,7 @@ export default {
       title: "Nouvelle échéance",
       description: "Ce que l'école n'a pas publié : un rendez-vous, une sortie, un document.",
       child: "Enfant",
+      childPlaceholder: "Choisir un enfant",
       submit: "Ajouter",
       added: "Échéance ajoutée",
     },

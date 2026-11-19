@@ -16,3 +16,9 @@ export function ensureGetAnimations(): void {
 
   Document.prototype.getAnimations = () => [];
 }
+
+export function ensureScrollIntoView(): void {
+  if (typeof Element.prototype.scrollIntoView === "function") return;
+
+  Element.prototype.scrollIntoView = () => undefined;
+}

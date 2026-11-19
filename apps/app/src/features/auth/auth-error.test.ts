@@ -16,17 +16,12 @@ describe("resolveAuthError", () => {
 
   it("returns the mapped code copy when the error carries a known code", () => {
     const withDefault = ((key: string, opts?: { defaultValue?: string }) => {
-      if (key === "byCode.ACCOUNT_PASSWORD_INVALID") return "Invalid password.";
+      if (key === "byCode.SESSION_EXPIRED") return "Your session expired.";
       return opts?.defaultValue ?? key;
     }) as never;
     expect(
-      resolveAuthError(
-        { status: 401, code: "ACCOUNT_PASSWORD_INVALID" },
-        "login.failed",
-        t,
-        withDefault,
-      ),
-    ).toBe("Invalid password.");
+      resolveAuthError({ status: 401, code: "SESSION_EXPIRED" }, "login.failed", t, withDefault),
+    ).toBe("Your session expired.");
   });
 
   it("reads the code of a refusal in the API envelope, raised before BetterAuth", () => {

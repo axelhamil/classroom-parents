@@ -21,6 +21,7 @@ const CLEAR_TIME = "clear";
 
 function valuesOf(event: EventItem): EventEditInput {
   return {
+    childId: event.childId,
     title: event.title,
     description: event.description,
     category: event.category,

@@ -210,7 +210,7 @@ export function CalendarBoard({
       <AddEventDialog
         date={adding}
         family={family}
-        childId={childId ?? family[0]?.id ?? ""}
+        childId={childId}
         onClose={() => setAdding(null)}
       />
       <CalendarFeedDialog open={subscribing} onOpenChange={setSubscribing} />

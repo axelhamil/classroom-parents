@@ -1,13 +1,16 @@
 import { Option } from "@packages/ddd-kit";
-import { shiftDate } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
+import {
+  alarmLines,
+  allDayLines,
+  calendarText,
+  dateValue,
+  escapeText,
+  utcValue,
+} from "@packages/icalendar";
 import type { FeedEntry } from "../ports/feed-entries.port";
 
 export const FEED_CALENDAR_NAME = "Échéances scolaires";
-
-const CRLF = "\r\n";
-
-const LINE_OCTETS = 75;
 
 const PARIS_TIME_ZONE_LINES = [
   "BEGIN:VTIMEZONE",
@@ -30,61 +33,15 @@ const PARIS_TIME_ZONE_LINES = [
   "END:VTIMEZONE",
 ];
 
-const encoder = new TextEncoder();
-
 export interface FeedCalendarInput {
   entries: FeedEntry[];
   appHost: string;
   now: Date;
 }
 
-function isAllowedCharacter(char: string): boolean {
-  const code = char.codePointAt(0) ?? 0;
-  return code === 0x09 || (code >= 0x20 && code !== 0x7f);
-}
-
-export function escapeText(value: string): string {
-  const escaped = value
-    .replaceAll("\\", "\\\\")
-    .replaceAll(";", "\\;")
-    .replaceAll(",", "\\,")
-    .replace(/\r\n|\r|\n/g, "\\n");
-
-  return Array.from(escaped).filter(isAllowedCharacter).join("");
-}
-
-export function foldLine(line: string): string {
-  const parts: string[] = [];
-  let current = "";
-  let octets = 0;
-  let limit = LINE_OCTETS;
-  for (const char of line) {
-    const size = encoder.encode(char).length;
-    if (octets + size > limit) {
-      parts.push(current);
-      current = "";
-      octets = 0;
-      limit = LINE_OCTETS - 1;
-    }
-    current += char;
-    octets += size;
-  }
-  parts.push(current);
-
-  return parts.join(`${CRLF} `);
-}
-
-function dateValue(isoDate: string): string {
-  return isoDate.replaceAll("-", "");
-}
-
 function timeValue(wallTime: string): string {
   const [hours = "00", minutes = "00", seconds = "00"] = wallTime.split(":");
   return `${hours}${minutes}${seconds.slice(0, 2)}`;
-}
-
-function utcValue(instant: Date): string {
-  return `${instant.toISOString().slice(0, 19).replace(/[-:]/g, "")}Z`;
 }
 
 function webUrl(raw: Option<string>): Option<string> {
@@ -106,10 +63,7 @@ function startLines(entry: FeedEntry): string[] {
     return [`DTSTART;TZID=${PARIS_TIME_ZONE}:${start}`];
   }
 
-  return [
-    `DTSTART;VALUE=DATE:${dateValue(entry.deadlineDate)}`,
-    `DTEND;VALUE=DATE:${dateValue(shiftDate(entry.deadlineDate, 1))}`,
-  ];
+  return allDayLines(entry.deadlineDate);
 }
 
 function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] {
@@ -126,13 +80,6 @@ function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] 
     .filter((part) => part.length > 0)
     .join("\n\n");
   const ringing = entry.doneLabel.isSome() ? [] : entry.alarmsAt;
-  const alarms = ringing.flatMap((at) => [
-    "BEGIN:VALARM",
-    "ACTION:DISPLAY",
-    `DESCRIPTION:${escapeText(summary)}`,
-    `TRIGGER;VALUE=DATE-TIME:${utcValue(at)}`,
-    "END:VALARM",
-  ]);
 
   return [
     "BEGIN:VEVENT",
@@ -144,7 +91,7 @@ function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] 
     ...url.map((href) => [`URL:${href}`]).unwrapOr([]),
     `CATEGORIES:${escapeText(entry.categoryLabel)}`,
     "TRANSP:TRANSPARENT",
-    ...alarms,
+    ...alarmLines(summary, ringing),
     "END:VEVENT",
   ];
 }
@@ -167,5 +114,5 @@ export function writeFeedCalendar(input: FeedCalendarInput): string {
     "END:VCALENDAR",
   ];
 
-  return `${lines.map(foldLine).join(CRLF)}${CRLF}`;
+  return calendarText(lines);
 }

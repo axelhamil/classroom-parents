@@ -10,6 +10,7 @@ import { CALENDAR_VIEWS } from "./calendar";
 import { PRINT_WEEKS } from "./week";
 
 export const eventEditSchema = z.object({
+  childId: z.string().min(1),
   title: z.string().trim().min(1).max(EVENT_TITLE_MAX),
   description: z.string().trim().max(EVENT_DESCRIPTION_MAX),
   category: z.enum(EVENT_CATEGORIES),

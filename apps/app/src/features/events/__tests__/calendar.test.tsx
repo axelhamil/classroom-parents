@@ -2,7 +2,7 @@
 import { shiftDate } from "@packages/ddd-kit/days";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { json, renderAppAt, resetApp } from "../../../__tests__/app-harness";
+import { type ApiCall, json, renderAppAt, resetApp } from "../../../__tests__/app-harness";
 import {
   calendarRequests,
   crunchDay,
@@ -31,6 +31,15 @@ function day(name: string): HTMLElement {
   if (!(section instanceof HTMLElement)) throw new Error(`no day section for ${name}`);
 
   return section;
+}
+
+function pick(dialog: HTMLElement, label: string, option: string): void {
+  fireEvent.keyDown(within(dialog).getByLabelText(label), { key: "Enter" });
+  fireEvent.click(screen.getByRole("option", { name: option }));
+}
+
+function posted(calls: ApiCall[]): unknown {
+  return calls.find((call) => call.method === "POST" && call.url.pathname === "/events")?.body;
 }
 
 describe("Accueil, the family calendar", () => {
@@ -241,14 +250,14 @@ describe("Accueil, the family calendar", () => {
     fireEvent.change(within(dialog).getByLabelText("Titre"), {
       target: { value: "Rendez-vous orthophoniste" },
     });
+    pick(dialog, "Type", "Autre");
     fireEvent.click(within(dialog).getByRole("button", { name: "Ajouter" }));
 
     await waitFor(() =>
-      expect(
-        stub.calls.find((call) => call.method === "POST" && call.url.pathname === "/events")?.body,
-      ).toMatchObject({
+      expect(posted(stub.calls)).toMatchObject({
         childId: CHILD.id,
         title: "Rendez-vous orthophoniste",
+        category: "other",
         deadlineDate: "2026-11-13",
       }),
     );
@@ -256,6 +265,53 @@ describe("Accueil, the family calendar", () => {
       expect(within(day("Demain")).getByText("Rendez-vous orthophoniste")).toBeDefined(),
     );
     expect(await screen.findByText("Échéance ajoutée")).toBeDefined();
+  });
+
+  it("with the whole family shown, adding asks which child and which type instead of guessing", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    const stub = givenCalendar([CHILD, HUGO], [deadline(1, "2026-11-13", "Piscine")]);
+    await renderAppAt("/");
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Ajouter une échéance pour demain" }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Nouvelle échéance" });
+    fireEvent.change(within(dialog).getByLabelText("Titre"), {
+      target: { value: "Sortie au zoo" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Ajouter" }));
+
+    await waitFor(() =>
+      expect(within(dialog).getAllByText("Ce champ est obligatoire.")).toHaveLength(2),
+    );
+    expect(posted(stub.calls)).toBeUndefined();
+
+    pick(dialog, "Enfant", "Hugo");
+    pick(dialog, "Type", "Sortie scolaire");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Ajouter" }));
+
+    await waitFor(() =>
+      expect(posted(stub.calls)).toMatchObject({
+        childId: HUGO.id,
+        category: "school_trip",
+      }),
+    );
+  });
+
+  it("adding while one child is filtered starts on that child", async () => {
+    at("2026-11-12T09:00:00.000Z");
+    givenCalendar(
+      [CHILD, HUGO],
+      [deadline(1, "2026-11-13", "Dictée de Hugo", { childId: HUGO.id })],
+    );
+    await renderAppAt(`/?childId=${HUGO.id}`);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Ajouter une échéance pour demain" }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Nouvelle échéance" });
+
+    expect(within(dialog).getByLabelText("Enfant").textContent).toContain("Hugo");
   });
 
   it("the child filter hides the other children's events and is remembered", async () => {

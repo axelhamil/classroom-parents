@@ -19,6 +19,7 @@
     "@packages/drizzle": "workspace:*",
     "@packages/events": "workspace:*",
     "@packages/http": "workspace:*",
+    "@packages/icalendar": "workspace:*",
     "@packages/outbox": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.14",
