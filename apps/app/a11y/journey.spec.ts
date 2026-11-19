@@ -308,16 +308,24 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     expect((await body(page, `/events/${edited.id}`, Event)).title).toBe(editedTitle);
   });
 
-  await test.step("history holds the deadline whose date has passed", async () => {
+  await test.step("history holds the passed deadline, ticked from the overdue block, which counts one less", async () => {
     await page.goto("/?tab=history");
     await expect(page.getByText(editedTitle)).toBeVisible();
 
     await page.goto("/");
     await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
-    await page.getByRole("button", { name: /^En retard, / }).click();
-    const late = page.getByRole("dialog", { name: /^En retard, / });
+    const late = page.getByRole("region", { name: /^En retard/ });
+    await expect(late).toHaveAccessibleName(/^En retard, \d+ échéances?$/);
+    const before = Number((await late.getAttribute("aria-label"))?.match(/\d+/)?.[0]);
     await expect(late.getByRole("link", { name: editedTitle })).toBeVisible();
     await expect(page.getByText(editedTitle)).toHaveCount(1);
+
+    await late.getByRole("checkbox", { name: `Marquer comme fait : ${editedTitle}` }).click();
+    const after = before - 1;
+    await expect(late).toHaveAccessibleName(
+      after === 0 ? "En retard" : `En retard, ${after} échéance${after > 1 ? "s" : ""}`,
+    );
+    await expect(late.getByRole("link", { name: editedTitle })).toHaveCount(0);
   });
 
   await test.step("a school block comes back from the sync as a failure", async () => {

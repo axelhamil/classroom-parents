@@ -127,7 +127,7 @@ export default {
       saving: "Enregistrement…",
       failed: "Non enregistré. Réessayez dans un instant.",
     },
-    more_one: "Voir l'autre",
+    more_one: "Voir {{count}} autre",
     more_other: "Voir les {{count}} autres",
     less: "Voir moins",
   },

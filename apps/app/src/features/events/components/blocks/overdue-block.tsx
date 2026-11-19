@@ -10,6 +10,7 @@ import { EventRows, forChild } from "./event-rows";
 
 function OverdueBlock({ family, childId, now, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
+  const { t: tEvents } = useTranslation("events");
   const today = schoolToday(now);
   const query = useQuery(calendarEventsQueryOptions(overdueWindow(today)));
   const late = forChild(query.data ?? [], childId)
@@ -19,6 +20,8 @@ function OverdueBlock({ family, childId, now, title, rows }: HomeBlockProps) {
   return (
     <BlockPanel
       title={title}
+      label={late.length > 0 ? tEvents("calendar.overdueCount", { count: late.length }) : undefined}
+      count={late.length}
       icon={ClockAlertIcon}
       note={query.isSuccess && late.length === 0 && t("blocks.overdue.empty")}
     >
