@@ -33,12 +33,127 @@ function readNotification(data) {
   }
 }
 
-self.addEventListener("install", () => {
-  self.skipWaiting();
+// The build writes /sw-precache.js (version + file list). Its bytes change with every
+// deploy, which is what makes the browser install a new worker; in dev it is absent and
+// the worker only relays push.
+const SHELL_CACHE_PREFIX = "keepupkids-shell-";
+const SHELL = "/index.html";
+const NAVIGATION_TIMEOUT_MS = 4000;
+// Built files are named by their hash, so a header such as `Vary: Origin` (a module script
+// carries Origin, the precache request does not) must not stop the cached copy matching.
+const CACHED = { ignoreVary: true };
+
+function loadPrecache() {
+  try {
+    self.importScripts("/sw-precache.js");
+  } catch {
+    return null;
+  }
+
+  const manifest = self.PRECACHE;
+  const valid =
+    typeof manifest?.version === "string" &&
+    Array.isArray(manifest.urls) &&
+    manifest.urls.every((url) => typeof url === "string");
+
+  return valid ? { cacheName: SHELL_CACHE_PREFIX + manifest.version, urls: manifest.urls } : null;
+}
+
+const precache = loadPrecache();
+
+async function fillPrecache() {
+  const cache = await self.caches.open(precache.cacheName);
+
+  try {
+    await cache.addAll(precache.urls.map((url) => new Request(url, { cache: "reload" })));
+  } catch {
+    await self.caches.delete(precache.cacheName);
+  }
+}
+
+async function dropOtherVersions() {
+  const names = await self.caches.keys();
+  const stale = names.filter(
+    (name) => name.startsWith(SHELL_CACHE_PREFIX) && name !== precache?.cacheName,
+  );
+
+  await Promise.all(stale.map((name) => self.caches.delete(name)));
+}
+
+// A new version waits until the parent accepts the reload the app offers, so an open page
+// never runs half on the old build and half on the new one. The very first worker has
+// nothing to replace and activates at once.
+const SKIP_WAITING_MESSAGE = "keepupkids:skip-waiting";
+
+self.addEventListener("install", (event) => {
+  if (precache) event.waitUntil(fillPrecache());
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === SKIP_WAITING_MESSAGE) self.skipWaiting();
+});
+
+// Navigation preload starts the HTML request while the worker boots, so network first
+// costs no extra latency. Only useful when the worker answers navigations.
+async function setNavigationPreload() {
+  const preload = self.registration?.navigationPreload;
+  if (!preload) return;
+
+  await (precache ? preload.enable() : preload.disable());
+}
+
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([dropOtherVersions(), setNavigationPreload(), self.clients.claim()]));
+});
+
+async function freshPage(event) {
+  const preloaded = await event.preloadResponse;
+
+  return preloaded ?? self.fetch(event.request);
+}
+
+// A navigation request cannot be rebuilt with a signal, so the timeout races the fetch
+// instead of aborting it.
+async function within(work, timeoutMs) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("navigation timed out")), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// HTML is never served from the cache while the network answers: a deploy is picked up
+// on the next open, and the cached shell only stands in when the network fails or hangs.
+async function networkFirstShell(event) {
+  try {
+    return await within(freshPage(event), NAVIGATION_TIMEOUT_MS);
+  } catch (error) {
+    const shell = await self.caches.match(SHELL, { ...CACHED, cacheName: precache.cacheName });
+    if (shell) return shell;
+
+    throw error;
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await self.caches.match(request, { ...CACHED, cacheName: precache.cacheName });
+
+  return cached ?? self.fetch(request);
+}
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (!precache || request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (request.mode === "navigate") return event.respondWith(networkFirstShell(event));
+  if (precache.urls.includes(url.pathname)) event.respondWith(cacheFirst(request));
 });
 
 self.addEventListener("push", (event) => {

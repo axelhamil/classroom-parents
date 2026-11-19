@@ -21,6 +21,7 @@
     "db:studio": "turbo db:studio",
     "ui:add": "turbo ui:add",
     "bootstrap": "bash scripts/bootstrap.sh",
+    "icons:generate": "bash scripts/generate-pwa-icons.sh",
     "clean": "rm -rf node_modules .turbo apps/*/.turbo packages/*/.turbo modules/*/.turbo apps/api/dist apps/app/dist apps/site/dist apps/site/.astro",
     "prepare": "husky"
   },

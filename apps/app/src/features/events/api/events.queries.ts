@@ -3,6 +3,7 @@ import { type QueryClient, queryOptions } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { api } from "../../../shared/api/api-client";
 import {
+  CALENDAR_KEY,
   type EventFilters,
   type EventItem,
   eventFilterQuery,
@@ -64,8 +65,6 @@ export interface CalendarRange {
   from: string;
   to: string;
 }
-
-export const CALENDAR_KEY = ["events", "calendar"] as const;
 
 export function calendarEventsQueryOptions({ from, to }: CalendarRange) {
   return queryOptions({

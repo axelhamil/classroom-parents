@@ -8,6 +8,7 @@ export const routes = rootRoute("router/__root.tsx", [
     layout("_shell", "router/_shell.tsx", [
       index("features/events/events.route.tsx"),
       route("/week/print", "features/events/print-week.route.tsx"),
+      route("/events/new", "features/events/event-new.route.tsx"),
       route("/events/$eventId", "features/events/event-detail.route.tsx"),
       route("/events/$eventId/edit", "features/events/event-edit.route.tsx"),
       route("/history", "features/history/history.route.tsx"),

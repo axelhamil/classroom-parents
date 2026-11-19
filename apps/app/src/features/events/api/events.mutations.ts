@@ -9,8 +9,6 @@ const $edit = api.events[":id"].$patch;
 const $customizeReminders = api.events[":eventId"].reminders.$put;
 const $resetReminders = api.events[":eventId"].reminders.$delete;
 const $add = api.events.$post;
-const $markDone = api.events[":id"].done.$post;
-const $markUndone = api.events[":id"].done.$delete;
 const $changeChecklist = api.events[":id"].checklist.$post;
 const $issueFeed = api["calendar-feed"].$post;
 const $revokeFeed = api["calendar-feed"].$delete;
@@ -77,16 +75,6 @@ export const changeChecklistMutationOptions = mutationOptions({
   mutationFn: async ({ eventId, change }: { eventId: string; change: ChecklistChange }) => {
     const res = await $changeChecklist({ param: { id: eventId }, json: change });
     if (!res.ok) await throwApiError(res, "changeChecklist");
-    return res.json();
-  },
-});
-
-export const markEventDoneMutationOptions = mutationOptions({
-  mutationKey: ["events", "done"] as const,
-  mutationFn: async ({ eventId, done }: { eventId: string; done: boolean }) => {
-    const call = done ? $markDone : $markUndone;
-    const res = await call({ param: { id: eventId } });
-    if (!res.ok) await throwApiError(res, "markEventDone");
     return res.json();
   },
 });

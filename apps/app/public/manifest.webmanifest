@@ -2,23 +2,72 @@
   "id": "/",
   "name": "KeepUpKids",
   "short_name": "KeepUpKids",
-  "description": "Les échéances scolaires de vos enfants, lues dans Google Classroom.",
+  "description": "Les échéances scolaires de vos enfants, lues dans Google Classroom, avec une alerte avant chacune.",
   "lang": "fr",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "display_override": ["standalone", "minimal-ui"],
   "theme_color": "#f5f5f1",
   "background_color": "#f5f5f1",
+  "categories": ["education", "productivity"],
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-monochrome-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "monochrome"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/week-narrow.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "La semaine de chaque enfant, échéance par échéance"
+    },
+    {
+      "src": "/screenshots/week-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Le point du jour à côté de la semaine de toute la famille"
+    }
+  ],
+  "share_target": {
+    "action": "/events/new",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
+  "shortcuts": [
+    {
+      "name": "Ajouter une échéance",
+      "short_name": "Ajouter",
+      "url": "/events/new",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Cette semaine",
+      "short_name": "Semaine",
+      "url": "/?view=week",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

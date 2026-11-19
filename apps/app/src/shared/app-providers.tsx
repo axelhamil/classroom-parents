@@ -17,6 +17,7 @@ import { AppErrorFallback } from "./components/app-error-fallback";
 import { BrandFavicon } from "./components/brand-favicon";
 import { ErrorBoundary } from "./observability/sentry";
 import { watchSession } from "./observability/session-watcher";
+import { NewVersionToast } from "./pwa/new-version";
 
 const TOOLTIP_OPEN_DELAY_MS = 300;
 
@@ -41,6 +42,7 @@ export function AppProviders({ i18n }: AppProvidersProps) {
               <RouterProvider router={router} />
             </TooltipProvider>
             <ThemedToaster />
+            <NewVersionToast />
             <ZodLocale />
             <BrandFavicon />
             {import.meta.env.DEV && (
