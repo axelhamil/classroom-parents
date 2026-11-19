@@ -42,6 +42,8 @@
   --google-border: #8e918f;
   --google-foreground: #e3e3e3;
   --ring-width: 3px;
+  /* The gap between a control and its focus ring: wide enough to read as a gap, so a control filled with the action keeps a visible edge. */
+  --focus-offset: 2px;
   --child-foreground: oklch(1 0 0);
   --category-assessment: oklch(0.5 0.17 350);
   --category-assessment-tint: oklch(0.945 0.03 350);
@@ -275,6 +277,8 @@
   --popover-foreground: var(--foreground);
   --accent-foreground: var(--foreground);
   --ring: var(--primary);
+  /* The surface under a focused control, restated by every card, panel and popover: the focus gap takes its colour. */
+  --focus-surface: var(--background);
   --sidebar: var(--background);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
@@ -1143,6 +1147,18 @@
 @layer base {
   * {
     @apply border-border outline-ring;
+  }
+
+  /*
+   * A double focus ring: a gap in the colour of the surface under the control, then the ring. The ring holds 3:1
+   * against that surface and the gap holds 3:1 against a control filled with the action, so the focus shows on the
+   * main button and the selected segment as on any other control (WCAG 2.4.7, toward 2.4.13).
+   */
+  :focus-visible {
+    --tw-ring-offset-width: var(--focus-offset);
+    --tw-ring-offset-color: var(--focus-surface);
+    --tw-ring-offset-shadow: var(--tw-ring-inset,) 0 0 0 var(--tw-ring-offset-width)
+      var(--tw-ring-offset-color);
   }
 
   /* A passage the app points at inside a quoted text: a soft amber, quieter than the warning of urgency. */

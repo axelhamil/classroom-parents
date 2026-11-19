@@ -8,7 +8,7 @@ function Briefing({ className, ...props }: React.ComponentProps<"section">) {
     <section
       data-slot="briefing"
       className={cn(
-        "@container/briefing flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-2xl border border-primary/30 bg-primary-container p-4 text-foreground shadow-raised outline-none md:p-5 focus-visible:ring focus-visible:ring-ring",
+        "@container/briefing flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-2xl border border-primary/30 bg-primary-container [--focus-surface:var(--color-primary-container)] p-4 text-foreground shadow-raised outline-none md:p-5 focus-visible:ring focus-visible:ring-ring",
         className,
       )}
       {...props}

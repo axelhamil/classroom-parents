@@ -62,7 +62,8 @@ async function ringContrastBelow(surface: Locator, control: Locator): Promise<nu
   if (!frame || !box) throw new Error("the dialog or its control has no box");
 
   const column = Math.round(box.x + box.width / 2 - frame.x);
-  const ringRow = Math.ceil(box.y + box.height - frame.y) + 1;
+  // Past the 2 px focus gap (`--focus-offset`), into the 3 px ring.
+  const ringRow = Math.ceil(box.y + box.height - frame.y) + 3;
   const shot = await surface.screenshot();
 
   return control.page().evaluate(

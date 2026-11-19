@@ -95,7 +95,7 @@ function DashboardTileContent({ className, ...props }: React.ComponentProps<"div
 }
 
 const dashboardPanelVariants = cva(
-  "group/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card p-4 text-card-foreground shadow-rest",
+  "group/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card [--focus-surface:var(--color-card)] p-4 text-card-foreground shadow-rest",
   {
     variants: {
       shape: {
@@ -109,7 +109,7 @@ const dashboardPanelVariants = cva(
       },
       tone: {
         default: "",
-        hero: "border-primary/30 bg-primary-container text-foreground",
+        hero: "border-primary/30 bg-primary-container [--focus-surface:var(--color-primary-container)] text-foreground",
       },
     },
     defaultVariants: { shape: "box", fit: "card", tone: "default" },

@@ -250,6 +250,9 @@ function hex(color: string) {
 
 type Pair = readonly [foreground: string, background: string, floor: number];
 
+// The surfaces whose colour fills the focus gap (`--focus-surface`): the page, a card or panel, a popover, the hero block.
+const FOCUS_SURFACES = ["focus-surface", "card", "popover", "primary-container"] as const;
+
 function criticalPairs(mode: ResolvedTheme): Pair[] {
   const mark = (child: number) => (mode === "dark" ? `child-${child}-mark` : `child-${child}`);
 
@@ -276,8 +279,12 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
     ["success-foreground", "success", TEXT],
     ["input", "background", GRAPHIC],
     ["input", "card", GRAPHIC],
-    ["ring", "background", GRAPHIC],
-    ["ring", "card", GRAPHIC],
+    // The double focus ring: the ring against the gap, the gap against a control filled with the action or the alert red.
+    ...FOCUS_SURFACES.flatMap((surface): Pair[] => [
+      ["ring", surface, GRAPHIC],
+      ["primary", surface, GRAPHIC],
+      ["destructive", surface, GRAPHIC],
+    ]),
     ...CHILDREN.flatMap((child): Pair[] => [
       ["child-foreground", `child-${child}`, TEXT],
       ["foreground", `child-${child}-container`, TEXT],
