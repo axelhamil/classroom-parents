@@ -125,6 +125,16 @@ export interface ExportedSchoolZone {
   chosenAt: string;
 }
 
+export interface ExportedHomeLayout {
+  blocks: unknown[];
+  chosenAt: string;
+}
+
+export interface ExportedHomeNote {
+  body: string;
+  writtenAt: string;
+}
+
 export interface ExportedQuietHours {
   enabled: boolean;
   start: string;
@@ -180,6 +190,8 @@ export interface UserDataSnapshot {
   assistantPreferences: ExportedAssistantPreferences | null;
   aiUsage: ExportedAiUsage[];
   aiCalls: ExportedAiCall[];
+  homeLayout: ExportedHomeLayout | null;
+  homeNote: ExportedHomeNote | null;
   sync: ExportedSyncState[];
 }
 

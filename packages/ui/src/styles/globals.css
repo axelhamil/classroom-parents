@@ -170,18 +170,10 @@
   --nav-height: 4.25rem;
   --app-bar-height: 4rem;
   --scroll-region-height: 30rem;
-  --scroll-edge-size: 1.5rem;
-  --scroll-edge-shadow: color-mix(in oklch, var(--foreground) 16%, transparent);
   --scroll-fade-size: 1rem;
   /* Inner gutter of a scroll region: holds the 3px focus ring and the 4px avatar ring (2px offset + 2px ring) its overflow would clip. */
   --scroll-gutter: 0.375rem;
   --scroll-thumb: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
-  /* One fixed column beside the week from 768: a briefing title keeps 296px, the week keeps 376px at 768. */
-  --briefing-panel-width: 21rem;
-  --briefing-panel-top: calc(var(--app-bar-height) + env(safe-area-inset-top) + 1rem);
-  /* Fits under the greeting, the toolbar and the family row before any scroll. */
-  --briefing-panel-height: calc(100dvh - var(--briefing-panel-top) - 13.5rem);
-  --briefing-phone-height: 40svh;
   /* Holds "Mercredi 18 novembre" on two lines beside the add button. */
   --day-gutter: 11rem;
   /* The title of an empty day stops where the add button of a full day starts. */
@@ -200,6 +192,15 @@
   --print-root-size-compact: 8.5pt;
   --print-item-space: 0.5rem;
   --print-item-space-compact: 0.2rem;
+  /* Home grid: the least height of one step of a block (a title and two cards); a block grows past it with its content, the page scrolls. */
+  /* A progress read at a glance: a faint track, the done part in ink (at least 3:1 against the card in both themes). */
+  --progress-track: color-mix(in oklch, var(--foreground) 10%, transparent);
+  --progress-ink: var(--foreground);
+  --dashboard-row-height: 12.5rem;
+  --dashboard-band-column: 18rem;
+  --dashboard-gap: 1.25rem;
+  --dashboard-height-2: calc(var(--dashboard-row-height) * 2 + var(--dashboard-gap));
+  --dashboard-height-3: calc(var(--dashboard-row-height) * 3 + var(--dashboard-gap) * 2);
 }
 
 .dark {
@@ -503,6 +504,8 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-child-foreground: var(--child-foreground);
+  --color-progress-track: var(--progress-track);
+  --color-progress-ink: var(--progress-ink);
   --color-child-1: var(--child-1);
   --color-child-1-container: var(--child-1-container);
   --color-child-2: var(--child-2);
@@ -556,12 +559,8 @@
   --spacing-app-bar: var(--app-bar-height);
   --spacing-scroll-region: var(--scroll-region-height);
   --spacing-scroll-gutter: var(--scroll-gutter);
-  --spacing-briefing-panel: var(--briefing-panel-width);
-  --spacing-briefing-top: var(--briefing-panel-top);
-  --spacing-briefing-panel-height: var(--briefing-panel-height);
   --spacing-day-gutter: var(--day-gutter);
   --spacing-day-gutter-title: var(--day-gutter-title);
-  --spacing-briefing-phone: var(--briefing-phone-height);
   --spacing-print-item: var(--print-item-space);
 
   --radius-xs: calc(var(--radius) * 0.4);
@@ -1453,15 +1452,25 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
   }
 }
 
-@utility scroll-edges {
-  background:
-    linear-gradient(var(--card) 30%, transparent) top / 100% var(--scroll-edge-size) no-repeat local,
-    linear-gradient(transparent, var(--card) 70%) bottom / 100% var(--scroll-edge-size) no-repeat
-    local,
-    radial-gradient(farthest-side at 50% 0, var(--scroll-edge-shadow), transparent) top / 100%
-    calc(var(--scroll-edge-size) / 2) no-repeat scroll,
-    radial-gradient(farthest-side at 50% 100%, var(--scroll-edge-shadow), transparent) bottom / 100%
-    calc(var(--scroll-edge-size) / 2) no-repeat scroll;
+/* The fade is a mask on the scrolling box: the content turns transparent
+   and lets the real background through, never a veil of colour laid over a
+   card. Each edge fades over its whole size, only on a side that still has
+   content to scroll to: two registered lengths, driven by the scroll
+   position, move the mask stops. A list with nothing to scroll has an
+   inactive timeline and no fade; a browser without scroll-driven
+   animations gets no mask at all. Focused, the box drops the mask, which
+   would clip its own ring; scroll padding keeps a focused item clear of
+   the fade. */
+@property --scroll-fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
 }
 
 @utility scroll-fade {
@@ -1470,27 +1479,46 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
   scrollbar-gutter: stable;
   scrollbar-color: var(--scroll-thumb) transparent;
   padding-block: var(--scroll-fade-size);
+  scroll-padding-block: var(--scroll-fade-size);
 
-  &::before,
-  &::after {
-    content: "";
-    position: sticky;
-    z-index: 1;
-    display: block;
-    height: var(--scroll-fade-size);
-    pointer-events: none;
+  @supports (animation-timeline: scroll()) {
+    mask-image: linear-gradient(
+      transparent,
+      black var(--scroll-fade-top),
+      black calc(100% - var(--scroll-fade-bottom)),
+      transparent
+    );
+    animation:
+      scroll-fade-top linear both,
+      scroll-fade-bottom linear both;
+    animation-timeline: scroll(self block), scroll(self block);
+    animation-range:
+      0 var(--scroll-fade-size),
+      calc(100% - var(--scroll-fade-size)) 100%;
+
+    &:focus-visible {
+      mask-image: none;
+    }
+  }
+}
+
+@keyframes scroll-fade-top {
+  from {
+    --scroll-fade-top: 0px;
   }
 
-  &::before {
-    top: 0;
-    margin-top: calc(-1 * var(--scroll-fade-size));
-    background: linear-gradient(var(--scroll-fade-surface, var(--background)), transparent);
+  to {
+    --scroll-fade-top: var(--scroll-fade-size);
+  }
+}
+
+@keyframes scroll-fade-bottom {
+  from {
+    --scroll-fade-bottom: var(--scroll-fade-size);
   }
 
-  &::after {
-    bottom: 0;
-    margin-bottom: calc(-1 * var(--scroll-fade-size));
-    background: linear-gradient(transparent, var(--scroll-fade-surface, var(--background)));
+  to {
+    --scroll-fade-bottom: 0px;
   }
 }
 

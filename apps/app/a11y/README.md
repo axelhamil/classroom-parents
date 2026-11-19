@@ -77,7 +77,13 @@ Three things bite when running repeatedly:
   `apps/api/src/shared/middleware/rate-limit.policies.ts`, now 600/min burst
   with the 1800/hour sustained ceiling unchanged). The hour window still holds:
   about five full sweeps per hour on one API process before it refuses the
-  parent. The pin to `4` stays as a courtesy cap on host load.
+  parent. The pin to `4` stays as a courtesy cap on host load. A spec that
+  fakes the family (`serveFamily`) fakes everything the home it opens reads,
+  `/home/*` included: each request left to the live API spends the seeded
+  parent's bucket (a full sweep measured 475 there, 19 November 2026). The
+  limiter is stored in Postgres and the API also keeps blocked keys in memory:
+  between two local sweeps inside the hour, empty `rate_limit` and restart the
+  API, or the second sweep fails on 429s that look like broken pages.
 - **Resetting the limiter takes two steps.** `DELETE FROM rate_limit` on the
   dev database *and* a restart of the API process, `inMemoryBlockOnConsumed`
   caches the block in-process, so clearing the table alone leaves it in place.

@@ -1,9 +1,10 @@
 import { shiftDate, weekdayOf } from "@packages/ddd-kit/days";
-import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
+import { blockingViolations, COLOR_SCHEMES, tabTo } from "@packages/test/a11y";
 import type { Page } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
 import { expect, test } from "./csp";
 import {
+  AGENDA_WITHOUT_OVERDUE_BLOCK,
   EVENTS,
   inDays,
   LEA,
@@ -38,7 +39,7 @@ async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
   expect(await views.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
 }
 
-async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void> {
+async function expectWholeWeekRowsUnderBriefing(page: Page): Promise<void> {
   const rows = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]");
   await expect(rows).toHaveCount(7);
   const titles = page.locator("[data-slot=calendar-week] [data-slot=calendar-entry-link]");
@@ -57,8 +58,7 @@ async function expectWeekBesideBriefing(page: Page, fold: number): Promise<void>
   expect(Math.min(...widths)).toBeGreaterThanOrEqual(180);
   const briefing = await page.locator("[data-slot=briefing]").boundingBox();
   const week = await page.locator("[data-slot=calendar-week]").boundingBox();
-  expect(briefing && week && briefing.x + briefing.width < week.x).toBe(true);
-  expect(week && week.y < fold / 2).toBe(true);
+  expect(briefing && week && briefing.y + briefing.height <= week.y).toBe(true);
 }
 
 function comingFriday(): string {
@@ -93,7 +93,11 @@ async function expectOverdueOverlay(
     deadlineDate: inDays(-3),
     deadlineAt: `${inDays(-3)}T07:00:00.000Z`,
   };
-  await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [late] });
+  await serveFamily(page, {
+    children: [LEA, MAXIMILIEN],
+    events: [late],
+    homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+  });
   await page.goto("/");
 
   const line = page.getByRole("button", { name: "En retard, 1 échéance" });
@@ -161,7 +165,11 @@ test.describe("the calendar on a phone", () => {
       const review = page.getByRole("button", { name: "1 date à vérifier" });
       await expect(review).toHaveAttribute("aria-haspopup", "dialog");
       await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
-      await expect(page.getByRole("link", { name: REVIEW_EVENT.title, exact: true })).toBeVisible();
+      await expect(
+        page
+          .getByRole("region", { name: "Agenda" })
+          .getByRole("link", { name: REVIEW_EVENT.title, exact: true }),
+      ).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
 
@@ -227,7 +235,7 @@ test.describe("the calendar on a phone", () => {
     });
   }
 
-  test("the briefing scrolls on its own from the keyboard, its items in the tab order", async ({
+  test("the briefing stays on the page, its first items then a button for the rest, all in the tab order", async ({
     page,
   }) => {
     await page.clock.setFixedTime(todayAt("19:00"));
@@ -243,27 +251,24 @@ test.describe("the calendar on a phone", () => {
     await serveFamily(page, { children: [LEA], events: due });
     await page.goto("/");
 
-    const briefing = page.getByRole("region", { name: /^Pour / });
-    const scroller = briefing.getByRole("region", { name: /^Échéances à préparer pour / });
-    await expect(scroller.getByRole("link", { name: "Piscine 1" })).toBeVisible();
-    expect(await scroller.evaluate((region) => region.scrollHeight > region.clientHeight)).toBe(
-      true,
-    );
-    const box = await briefing.boundingBox();
-    expect(box && box.height <= 844 * 0.4 + 1).toBe(true);
+    const briefing = page.locator("[data-slot=briefing]");
+    await expect(briefing.getByRole("link", { name: "Piscine 1" })).toBeVisible();
+    await expect(page.locator("[data-slot=dashboard] [data-slot=scroll-region]")).toHaveCount(0);
+    await expect(briefing.getByRole("link", { name: /^Piscine / })).toHaveCount(4);
 
-    await scroller.focus();
-    await page.keyboard.press("PageDown");
-    await expect.poll(() => scroller.evaluate((region) => region.scrollTop)).toBeGreaterThan(0);
-    await expect(briefing.getByText(/^Encore 6 échéances/)).toBeInViewport();
-
-    await page.keyboard.press("Tab");
-    expect(await scroller.evaluate((region) => region.contains(document.activeElement))).toBe(true);
+    await briefing.getByRole("link", { name: "Piscine 4" }).focus();
+    const more = briefing.getByRole("button", { name: "Voir les 2 autres" });
+    await tabTo(page, more);
+    await page.keyboard.press("Enter");
+    await expect(
+      briefing.getByRole("button", { name: "Voir moins", expanded: true }),
+    ).toBeFocused();
+    await expect(briefing.getByRole("link", { name: /^Piscine / })).toHaveCount(6);
     await page.keyboard.press("Shift+Tab");
-    await expect(scroller).toBeFocused();
+    await expect(briefing.getByRole("checkbox").last()).toBeFocused();
   });
 
-  test("the briefing clips neither an avatar ring nor a focus ring at its edges", async ({
+  test("the home clips neither an avatar ring nor a focus ring, no block scrolling on its own", async ({
     page,
   }) => {
     await page.clock.setFixedTime(todayAt("19:00"));
@@ -279,8 +284,10 @@ test.describe("the calendar on a phone", () => {
     await serveFamily(page, { children: [LEA], events: due });
     await page.goto("/");
 
-    const scroller = page.getByRole("region", { name: /^Échéances à préparer pour / });
-    await expect(scroller.getByRole("link", { name: "Piscine 1" })).toBeVisible();
+    await expect(
+      page.locator("[data-slot=briefing]").getByRole("link", { name: "Piscine 1" }),
+    ).toBeVisible();
+    await expect(page.locator("[data-slot=dashboard] [data-slot=scroll-region]")).toHaveCount(0);
 
     expect(await clippedInScrollRegions(page)).toEqual([]);
   });
@@ -310,6 +317,7 @@ test.describe("the calendar on a phone", () => {
 
     const strip = page.getByRole("radiogroup", { name: "Jours de la semaine" });
     await expect(strip.getByRole("radio")).toHaveCount(7);
+    await strip.scrollIntoViewIfNeeded();
     await expect(strip).toBeInViewport();
     const homework = page.getByRole("link", { name: "Exercices 4 à 9 page 112", exact: true });
     await expect(homework).toBeVisible();
@@ -369,12 +377,12 @@ test.describe("event overlay focus", () => {
 test.describe("the week on a tablet", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 768, height: 1024 } });
 
-  test("puts the briefing beside the week, whose rows replace the day strip", async ({ page }) => {
+  test("puts the week under the briefing, whose rows replace the day strip", async ({ page }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    await expectWeekBesideBriefing(page, 1024);
+    await expectWholeWeekRowsUnderBriefing(page);
     await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeHidden();
     await expectOnePageWithoutOverflow(page);
   });
@@ -387,14 +395,14 @@ test.describe("the week on a tablet", () => {
 test.describe("the week on a desktop", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
-  test("shows the week as rows of whole titles beside the briefing, and only the home widens", async ({
+  test("shows the week as rows of whole titles under the briefing, and only the home widens", async ({
     page,
   }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    await expectWeekBesideBriefing(page, 900);
+    await expectWholeWeekRowsUnderBriefing(page);
     await expectOnePageWithoutOverflow(page);
 
     await page.goto("/settings");
@@ -434,7 +442,11 @@ test.describe("a done tick inside the late deadlines overlay", () => {
         deadlineDate: inDays(-2),
         deadlineAt: `${inDays(-2)}T07:00:00.000Z`,
       };
-      await serveFamily(page, { children: [LEA], events: [late] });
+      await serveFamily(page, {
+        children: [LEA],
+        events: [late],
+        homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+      });
       await page.route(`**/events/${late.id}/done`, (route) => {
         late.done = route.request().method() === "POST";
         return route.fulfill({ json: late });
@@ -513,4 +525,87 @@ test.describe("the child dots of the month", () => {
     );
     await expectOnePageWithoutOverflow(page);
   });
+});
+
+test.describe("a list that scrolls on its own", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 390, height: 700 } });
+
+  for (const reducedMotion of ["no-preference", "reduce"] as const)
+    test(`fades through a mask only on the side with content left, the first item whole (${reducedMotion})`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      await page.clock.setFixedTime(todayAt("09:00"));
+      const late = Array.from({ length: 12 }, (_, index) => ({
+        ...REVIEW_EVENT,
+        id: `7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9d${String(index).padStart(2, "0")}`,
+        title: `Devoir oublié ${index + 1}`,
+        status: "confirmed",
+        done: false,
+        deadlineDate: inDays(-1 - (index % 6)),
+        deadlineAt: `${inDays(-1 - (index % 6))}T07:00:00.000Z`,
+      }));
+      await serveFamily(page, {
+        children: [LEA],
+        events: late,
+        homeLayout: AGENDA_WITHOUT_OVERDUE_BLOCK,
+      });
+      await page.goto("/");
+
+      await page.getByRole("button", { name: "En retard, 12 échéances" }).click();
+      const list = page.getByRole("dialog").locator("[data-slot=scroll-region]");
+      await expect(list.getByRole("link").first()).toBeVisible();
+      const fade = () =>
+        list.evaluate((region) => {
+          const style = getComputedStyle(region);
+
+          return {
+            masked: style.maskImage.startsWith("linear-gradient"),
+            veils: [
+              getComputedStyle(region, "::before").content,
+              getComputedStyle(region, "::after").content,
+            ],
+            topFades: Number.parseFloat(style.getPropertyValue("--scroll-fade-top")) > 0,
+            bottomFades: Number.parseFloat(style.getPropertyValue("--scroll-fade-bottom")) > 0,
+          };
+        });
+
+      expect(await list.evaluate((region) => region.scrollHeight > region.clientHeight)).toBe(true);
+      await expect
+        .poll(fade)
+        .toEqual({ masked: true, veils: ["none", "none"], topFades: false, bottomFades: true });
+
+      await list.evaluate((region) => region.scrollTo({ top: region.scrollHeight }));
+      await expect
+        .poll(fade)
+        .toEqual({ masked: true, veils: ["none", "none"], topFades: true, bottomFades: false });
+    });
+});
+
+test.describe("the bar of the day", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  for (const colorScheme of COLOR_SCHEMES)
+    test(`fills in ink at 3:1 or more against its track (${colorScheme})`, async ({ page }) => {
+      await showColorScheme(page, colorScheme);
+      await page.clock.setFixedTime(todayAt("19:00"));
+      const due = [0, 1].map((index) => ({
+        ...REVIEW_EVENT,
+        id: `7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9e0${index}`,
+        title: `Piscine ${index + 1}`,
+        category: "swimming",
+        status: "confirmed",
+        done: index === 0,
+        deadlineDate: inDays(1),
+        deadlineAt: `${inDays(1)}T07:00:00.000Z`,
+      }));
+      await serveFamily(page, { children: [LEA], events: due });
+      await page.goto("/");
+
+      const bar = page.locator("[data-slot=briefing]").getByRole("progressbar");
+      await expect(bar).toHaveAttribute("aria-valuetext", "1 sur 2");
+      expect(
+        await lowestGraphicContrast(page, "[data-slot=briefing] [data-slot=progress-indicator]"),
+      ).toBeGreaterThanOrEqual(3);
+    });
 });

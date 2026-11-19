@@ -2,25 +2,27 @@ import { Button } from "@packages/ui/components/ui/button";
 import { userStorageKey, useStoredValue } from "@packages/web-kit/storage/use-stored-value";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { ArrowLeftIcon, UsersRoundIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckIcon, LayoutGridIcon, UsersRoundIcon } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { type ChildDto, childrenQueryOptions } from "../../shared/api/queries/children";
 import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
+import { DashboardGrid } from "../../shared/dashboard/dashboard-grid";
 import { CategoryFilter } from "../../shared/events/category-filter";
 import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
-import { childHue, childLabelOf } from "../../shared/format/child-hue";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
 import { ScreenTour } from "../../shared/tour/screen-tour";
-import { reviewEventsQueryOptions } from "./api/events.queries";
+import { calendarEventsQueryOptions } from "./api/events.queries";
+import { placePeriod } from "./calendar";
 import { BlockedChildrenNotice } from "./components/blocked-children-notice";
-import { CalendarBoard, type CalendarPlace } from "./components/calendar/calendar-board";
 import { EventOverlay } from "./components/event-overlay";
-import { NextSchoolBriefing } from "./components/next-school-briefing";
-import { ReviewLine } from "./components/review-line";
+import { FamilyRow } from "./components/family-row";
 import { type HomeSearch, homeSearchSchema } from "./events.schema";
+import { useHomeRegistry } from "./home-blocks";
 import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
+import { useHomeLayout } from "./hooks/use-home-layout";
 import { useNow } from "./hooks/use-now";
 import { firstNameOf, greetingKind } from "./week";
 
@@ -38,6 +40,7 @@ function HomePage() {
   const search = Route.useSearch();
   const router = useRouter();
   const now = useNow();
+  const [editing, setEditing] = useState(false);
   const name = firstNameOf(user.name);
   const greeting =
     greetingKind(now) === "evening"
@@ -45,8 +48,16 @@ function HomePage() {
       : t("home.greeting.morning", { name });
 
   return (
-    <Screen width="wide" title={name ? greeting : t("list.title")}>
-      <HomeBoard now={now} />
+    <Screen
+      width="wide"
+      title={name ? greeting : t("list.title")}
+      actions={
+        search.tab !== "history" && (
+          <EditHomeButton editing={editing} onToggle={() => setEditing(!editing)} />
+        )
+      }
+    >
+      <HomeBoard now={now} editing={editing} />
       {search.event && (
         <EventOverlay eventId={search.event} onClose={() => router.history.back()} />
       )}
@@ -54,11 +65,34 @@ function HomePage() {
   );
 }
 
-interface HomeBoardProps {
-  now: Date;
+interface EditHomeButtonProps {
+  editing: boolean;
+  onToggle: () => void;
 }
 
-function HomeBoard({ now }: HomeBoardProps) {
+function EditHomeButton({ editing, onToggle }: EditHomeButtonProps) {
+  const { t } = useTranslation("home");
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={editing ? "default" : "outline"}
+      data-tour="home-edit"
+      onClick={onToggle}
+    >
+      {editing ? <CheckIcon aria-hidden /> : <LayoutGridIcon aria-hidden />}
+      {editing ? t("edit.done") : t("edit.start")}
+    </Button>
+  );
+}
+
+interface HomeBoardProps {
+  now: Date;
+  editing: boolean;
+}
+
+function HomeBoard({ now, editing }: HomeBoardProps) {
   const { t } = useTranslation("events");
   const children = useQuery(childrenQueryOptions);
 
@@ -80,7 +114,7 @@ function HomeBoard({ now }: HomeBoardProps) {
       }
       isEmpty={(family) => family.length === 0}
     >
-      {(family) => <FamilyHome family={family} now={now} />}
+      {(family) => <FamilyHome family={family} now={now} editing={editing} />}
     </QueryState>
   );
 }
@@ -88,9 +122,10 @@ function HomeBoard({ now }: HomeBoardProps) {
 interface FamilyHomeProps {
   family: readonly ChildDto[];
   now: Date;
+  editing: boolean;
 }
 
-function FamilyHome({ family, now }: FamilyHomeProps) {
+function FamilyHome({ family, now, editing }: FamilyHomeProps) {
   const { t } = useTranslation("events");
   const { user } = Route.useRouteContext();
   const search = Route.useSearch();
@@ -102,8 +137,12 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   );
   const requested = search.childId ?? stored;
   const childId = family.some((child) => child.id === requested) ? requested : null;
-  const review = useQuery(reviewEventsQueryOptions({ category: null, childId }));
-  const toReview = review.data ?? [];
+  const { period } = placePeriod(search, now);
+  const loaded = useQuery(calendarEventsQueryOptions(period)).data ?? [];
+  const registry = useHomeRegistry(family);
+  const home = useHomeLayout(registry.blocks, registry.defaults);
+  const shown = (blockId: string) =>
+    home.layout.some(({ id, hidden }) => id === blockId && !hidden);
   useCelebrateProgress(now);
 
   const setSearch = (next: Partial<HomeSearch>) =>
@@ -113,8 +152,6 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
     setStored(next);
     setSearch({ childId: next ?? undefined });
   };
-
-  const place: CalendarPlace = { view: search.view, date: search.date };
 
   if (search.tab === "history")
     return (
@@ -144,25 +181,26 @@ function FamilyHome({ family, now }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
-      <CalendarBoard
-        family={family}
-        childId={childId}
-        onChildChange={selectChild}
-        place={place}
-        onPlaceChange={setSearch}
-        now={now}
-        briefing={
-          <div className="flex min-w-0 flex-col gap-3 md:sticky md:top-briefing-top">
-            <NextSchoolBriefing family={family} childId={childId} now={now} />
-            <ReviewLine
-              events={toReview}
-              childLabel={(id) => childLabelOf(family, id)}
-              childColor={(id) => childHue(family, id)}
-            />
-          </div>
+      <DashboardGrid
+        layout={home.layout}
+        blocks={registry.blocks}
+        context={{
+          family,
+          childId,
+          now,
+          briefingShown: shown("today"),
+          overdueShown: shown("overdue"),
+        }}
+        editing={editing}
+        onChange={home.change}
+        onReset={home.reset}
+        header={
+          family.length > 1 && (
+            <FamilyRow family={family} events={loaded} value={childId} onChange={selectChild} />
+          )
         }
-        tour={!search.event && <ScreenTour screen="home" userId={user.id} />}
       />
+      {!editing && !search.event && <ScreenTour screen="home" userId={user.id} />}
     </div>
   );
 }

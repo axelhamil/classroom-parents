@@ -3,7 +3,15 @@ import { resetTours } from "@packages/web-kit/tour/tour-store";
 import { useTranslation } from "react-i18next";
 
 const TOURS = {
-  home: ["home.week", "home.family", "home.tabs", "home.share", "home.nav"],
+  home: [
+    "home.today",
+    "home.week",
+    "home.family",
+    "home.tabs",
+    "home.share",
+    "home.edit",
+    "home.nav",
+  ],
   "event-detail": [
     "event-detail.when",
     "event-detail.prepare",

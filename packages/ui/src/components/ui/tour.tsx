@@ -50,8 +50,15 @@ function placeSteps(steps: readonly TourStep[]): PlacedStep[] {
 
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), [tabindex='0']";
 
+/** The first control of a step Tab can reach: one a breakpoint hides is skipped. */
 function focusableIn(element: HTMLElement): HTMLElement | null {
-  return element.matches(FOCUSABLE) ? element : element.querySelector<HTMLElement>(FOCUSABLE);
+  if (element.matches(FOCUSABLE)) return element;
+
+  return (
+    [...element.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
+      (control) => control.checkVisibility?.() ?? true,
+    ) ?? null
+  );
 }
 
 const POPOVER_HEIGHT_REM = 12;

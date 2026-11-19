@@ -7,6 +7,10 @@ export default {
     finish: "C'est parti",
   },
   home: {
+    today: {
+      title: "Pour le prochain jour d'école",
+      body: "Ce qui tombe demain, enfant par enfant, avec ce qu'il faut préparer. Cochez sans quitter l'accueil.",
+    },
     week: {
       title: "Votre calendrier",
       body: "Les échéances de vos enfants jour par jour. Cochez ce qui est fait, touchez une échéance pour le détail.",
@@ -22,6 +26,10 @@ export default {
     share: {
       title: "Ajouter, partager, s'abonner",
       body: "Ajoutez ce que l'école n'a pas publié, partagez la semaine ou abonnez votre agenda.",
+    },
+    edit: {
+      title: "Votre accueil, à votre façon",
+      body: "Déplacez, agrandissez ou masquez les blocs. Votre disposition vous suit sur tous vos appareils.",
     },
     nav: {
       title: "Tout est ici",

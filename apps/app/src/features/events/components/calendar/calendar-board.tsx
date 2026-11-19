@@ -2,30 +2,29 @@ import { CalendarPeriod } from "@packages/ui/components/ui/calendar-day";
 import { Tabs, TabsContent } from "@packages/ui/components/ui/tabs";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HourglassIcon } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
-import type { EventItem } from "../../../../shared/api/queries/events";
 import {
   BoardEmpty,
   EventBoardSkeleton,
   isFirstSyncRunning,
 } from "../../../../shared/events/event-board";
-import { schoolToday } from "../../../../shared/format/school-today";
 import { QueryState } from "../../../../shared/query/query-state";
 import { calendarEventsQueryOptions } from "../../api/events.queries";
 import {
   CALENDAR_VIEWS,
+  type CalendarPlace,
   type CalendarView,
   calendarPeriod,
   daysOf,
   periodHolds,
+  placePeriod,
   shiftAnchor,
 } from "../../calendar";
 import { useShareDays } from "../../hooks/use-share-days";
 import { type SwipeStep, useSwipe } from "../../hooks/use-swipe";
 import { schoolMoment } from "../../week";
-import { FamilyRow } from "../family-row";
 import { AddEventDialog } from "./add-event-dialog";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
@@ -35,30 +34,17 @@ import { PeriodEmpty } from "./period-empty";
 import { WeekStrip } from "./week-strip";
 import { WeekView } from "./week-view";
 
-export interface CalendarPlace {
-  view?: CalendarView;
-  date?: string;
-}
-
 export interface CalendarBoardProps {
   family: readonly ChildDto[];
   childId: string | null;
-  onChildChange: (childId: string | null) => void;
   place: CalendarPlace;
   onPlaceChange: (place: CalendarPlace) => void;
   now: Date;
-  briefing: ReactNode;
-  tour: ReactNode;
+  briefingShown: boolean;
+  overdueShown: boolean;
 }
 
 type Direction = "none" | "forward" | "back";
-
-function countByChild(events: readonly EventItem[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const event of events) counts.set(event.childId, (counts.get(event.childId) ?? 0) + 1);
-
-  return counts;
-}
 
 function useNeighbourPrefetch(view: CalendarView, anchor: string): void {
   const queryClient = useQueryClient();
@@ -74,18 +60,14 @@ function useNeighbourPrefetch(view: CalendarView, anchor: string): void {
 export function CalendarBoard({
   family,
   childId,
-  onChildChange,
   place,
   onPlaceChange,
   now,
-  briefing,
-  tour,
+  briefingShown,
+  overdueShown,
 }: CalendarBoardProps) {
   const { t } = useTranslation("events");
-  const view = place.view ?? "week";
-  const today = schoolToday(now);
-  const anchor = place.date ?? today;
-  const period = calendarPeriod(view, anchor);
+  const { view, today, anchor, period } = placePeriod(place, now);
   const query = useQuery({
     ...calendarEventsQueryOptions(period),
     placeholderData: keepPreviousData,
@@ -137,20 +119,11 @@ export function CalendarBoard({
 
   return (
     <Tabs value={view} onValueChange={changeView} className="gap-4">
-      {family.length > 1 && (
-        <FamilyRow
-          family={family}
-          counts={countByChild(loaded)}
-          value={childId}
-          onChange={onChildChange}
-        />
-      )}
       {view === "week" && shown.length > 0 && (
         <WeekStrip days={days} family={family} now={now} today={today} />
       )}
-      <div className="flex flex-col gap-4 md:grid md:grid-cols-[var(--spacing-briefing-panel)_minmax(0,1fr)] md:items-start md:gap-6">
-        {briefing}
-        <div className="@container flex min-w-0 flex-col gap-4">
+      <div className="@container flex min-w-0 flex-col gap-4">
+        {!overdueShown && (
           <OverdueButton
             family={family}
             childId={childId}
@@ -158,54 +131,58 @@ export function CalendarBoard({
             today={today}
             before={period.from}
           />
-          <CalendarToolbar
-            view={view}
-            anchor={anchor}
-            period={period}
-            todayInView={periodHolds(view, anchor, today)}
-            onStep={step}
-            onToday={() => turnTo(today)}
-            onAdd={() => setAdding(anchor)}
-            onShare={() => shareDays(days)}
-            onSubscribe={() => setSubscribing(true)}
-          />
-          {CALENDAR_VIEWS.map((candidate) => (
-            <TabsContent key={candidate} value={candidate}>
-              <QueryState
-                query={query}
-                skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
-              >
-                {() =>
-                  loaded.length === 0 && isFirstSyncRunning(family) ? (
-                    <BoardEmpty
-                      icon={HourglassIcon}
-                      title={t("empty.syncing.title")}
-                      description={t("empty.syncing.description")}
-                    />
-                  ) : (
-                    <CalendarPeriod
-                      key={`${candidate}:${motion.turn}`}
-                      direction={motion.direction}
-                      data-tour="home-week"
-                      {...swipe}
-                    >
-                      {candidate === "week" &&
-                        (periodEmpty ?? <WeekView {...viewProps} briefed={schoolMoment(now)} />)}
-                      {candidate === "month" && (
-                        <MonthView
+        )}
+        <CalendarToolbar
+          view={view}
+          anchor={anchor}
+          period={period}
+          todayInView={periodHolds(view, anchor, today)}
+          onStep={step}
+          onToday={() => turnTo(today)}
+          onAdd={() => setAdding(anchor)}
+          onShare={() => shareDays(days)}
+          onSubscribe={() => setSubscribing(true)}
+        />
+        {CALENDAR_VIEWS.map((candidate) => (
+          <TabsContent key={candidate} value={candidate}>
+            <QueryState
+              query={query}
+              skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
+            >
+              {() =>
+                loaded.length === 0 && isFirstSyncRunning(family) ? (
+                  <BoardEmpty
+                    icon={HourglassIcon}
+                    title={t("empty.syncing.title")}
+                    description={t("empty.syncing.description")}
+                  />
+                ) : (
+                  <CalendarPeriod
+                    key={`${candidate}:${motion.turn}`}
+                    direction={motion.direction}
+                    {...swipe}
+                  >
+                    {candidate === "week" &&
+                      (periodEmpty ?? (
+                        <WeekView
                           {...viewProps}
-                          anchor={anchor}
-                          onSelect={select}
-                          emptyPeriod={periodEmpty}
+                          briefed={briefingShown ? schoolMoment(now) : null}
                         />
-                      )}
-                    </CalendarPeriod>
-                  )
-                }
-              </QueryState>
-            </TabsContent>
-          ))}
-        </div>
+                      ))}
+                    {candidate === "month" && (
+                      <MonthView
+                        {...viewProps}
+                        anchor={anchor}
+                        onSelect={select}
+                        emptyPeriod={periodEmpty}
+                      />
+                    )}
+                  </CalendarPeriod>
+                )
+              }
+            </QueryState>
+          </TabsContent>
+        ))}
       </div>
       <AddEventDialog
         date={adding}
@@ -214,7 +191,6 @@ export function CalendarBoard({
         onClose={() => setAdding(null)}
       />
       <CalendarFeedDialog open={subscribing} onOpenChange={setSubscribing} />
-      {query.isSuccess && tour}
     </Tabs>
   );
 }

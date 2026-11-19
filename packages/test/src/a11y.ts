@@ -32,13 +32,17 @@ export async function blockingViolations(page: Page, include?: string): Promise<
 // An entrance fade measured halfway reads as a contrast failure of text that is fine
 // once shown, and whether axe lands mid-fade depends on how loaded the host is. Waiting
 // for every finite animation makes the verdict about the page a reader actually sees.
+// An animation driven by scrolling (a fade at the edge of a list) follows the scroll
+// position, not time: it never finishes, so it is left out of the wait.
 async function settleAnimations(page: Page): Promise<void> {
   await page.evaluate(() =>
     Promise.all(
       document
         .getAnimations()
         .filter(
-          (animation) => animation.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY,
+          (animation) =>
+            animation.timeline === document.timeline &&
+            animation.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY,
         )
         .map((animation) => animation.finished.catch(() => undefined)),
     ),

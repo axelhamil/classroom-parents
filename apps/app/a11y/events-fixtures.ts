@@ -96,7 +96,14 @@ interface ApiFixtures {
   events: unknown[];
   detail?: unknown;
   reminders?: number;
+  homeLayout?: unknown[];
 }
+
+/** The line of late deadlines lives in the Agenda only while the "En retard" block is hidden. */
+export const AGENDA_WITHOUT_OVERDUE_BLOCK = [
+  { id: "calendar", w: 12, h: 3, hidden: false },
+  { id: "overdue", w: 4, h: 1, hidden: true },
+];
 
 function statusOf(event: unknown): unknown {
   return typeof event === "object" && event !== null && "status" in event
@@ -116,6 +123,9 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     const path = apiPath(request);
     if (path === "/children") return route.fulfill({ json: fixtures.children });
     if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
+    if (path === "/home/layout")
+      return route.fulfill({ json: { blocks: fixtures.homeLayout ?? null } });
+    if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
     if (path === "/events") {
       eventRequests.push(request);
       const status = new URL(request.url()).searchParams.get("status");

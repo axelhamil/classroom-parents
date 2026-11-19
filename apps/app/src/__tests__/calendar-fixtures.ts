@@ -13,6 +13,7 @@ export interface CalendarStubOptions {
   failDone?: Promise<Response>;
   refuseFirstDone?: boolean;
   detail?: Fixture;
+  homeLayout?: unknown[];
 }
 
 function created(body: unknown, index: number): Fixture | undefined {
@@ -43,7 +44,7 @@ function ticked(event: Fixture, body: unknown): Response {
 export function givenCalendar(
   children: unknown[],
   events: Fixture[],
-  { failDone, detail, refuseFirstDone = false }: CalendarStubOptions = {},
+  { failDone, detail, refuseFirstDone = false, homeLayout }: CalendarStubOptions = {},
 ): CalendarStub {
   const stub: CalendarStub = { calls: [], events: [...events] };
   let refusals = refuseFirstDone ? 1 : 0;
@@ -51,6 +52,8 @@ export function givenCalendar(
   stub.calls = stubApi(({ method, url, body }) => {
     if (url.pathname === "/children") return json(children);
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
+    if (url.pathname === "/home/layout" && method === "GET")
+      return json({ blocks: homeLayout ?? null });
     if (url.pathname === "/calendar-feed" && method === "GET") return json({ exists: false });
     if (url.pathname === "/events" && method === "GET") {
       const today = new Date().toISOString().slice(0, 10);

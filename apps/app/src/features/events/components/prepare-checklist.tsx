@@ -1,8 +1,13 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Checkbox } from "@packages/ui/components/ui/checkbox";
-import { Checklist, ChecklistItem } from "@packages/ui/components/ui/checklist";
+import {
+  Checklist,
+  type ChecklistDensity,
+  ChecklistItem,
+} from "@packages/ui/components/ui/checklist";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
 import { Label } from "@packages/ui/components/ui/label";
+import { Separator } from "@packages/ui/components/ui/separator";
 import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
 import { CheckCheckIcon, XIcon } from "lucide-react";
 import { useId } from "react";
@@ -14,19 +19,20 @@ import { type Checklist as ChecklistState, useChecklist } from "../hooks/use-che
 export interface ChecklistRowsProps {
   checklist: ChecklistState;
   removable?: boolean;
+  density?: ChecklistDensity;
 }
 
-export function ChecklistRows({ checklist, removable = false }: ChecklistRowsProps) {
+export function ChecklistRows({ checklist, removable = false, density }: ChecklistRowsProps) {
   const { t } = useTranslation("events");
   const prefix = useId();
 
   return (
-    <Checklist>
+    <Checklist density={density}>
       {checklist.items.map((item) => {
         const id = `${prefix}-${item.id}`;
 
         return (
-          <ChecklistItem key={item.id}>
+          <ChecklistItem key={item.id} density={density}>
             <Checkbox
               id={id}
               checked={item.done}
@@ -48,6 +54,22 @@ export function ChecklistRows({ checklist, removable = false }: ChecklistRowsPro
         );
       })}
     </Checklist>
+  );
+}
+
+export interface EventStepsProps {
+  event: Pick<EventItem, "id" | "category" | "checklist">;
+}
+
+export function EventSteps({ event }: EventStepsProps) {
+  const checklist = useChecklist(event);
+  if (checklist.items.length === 0) return null;
+
+  return (
+    <>
+      <Separator />
+      <ChecklistRows checklist={checklist} density="compact" />
+    </>
   );
 }
 

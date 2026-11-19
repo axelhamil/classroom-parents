@@ -17,6 +17,7 @@ import { aiUsage, assistantPreference } from "@modules/assistant/schemas/assista
 import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
+import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
 import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type AppError, type IInstrumentation, Result } from "@packages/ddd-kit";
 import { and, asc, count, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
@@ -143,6 +144,14 @@ export class UserDataQuery implements IUserDataReader {
           .select({ zone: schoolZonePreference.zone, updatedAt: schoolZonePreference.updatedAt })
           .from(schoolZonePreference)
           .where(eq(schoolZonePreference.userId, userId));
+        const [layout] = await exec
+          .select({ blocks: homeLayout.blocks, updatedAt: homeLayout.updatedAt })
+          .from(homeLayout)
+          .where(eq(homeLayout.userId, userId));
+        const [note] = await exec
+          .select({ body: homeNote.body, updatedAt: homeNote.updatedAt })
+          .from(homeNote)
+          .where(eq(homeNote.userId, userId));
 
         const [preferences] = await exec
           .select({
@@ -297,6 +306,10 @@ export class UserDataQuery implements IUserDataReader {
             at: createdAt.toISOString(),
             ...call,
           })),
+          homeLayout: layout
+            ? { blocks: layout.blocks, chosenAt: layout.updatedAt.toISOString() }
+            : null,
+          homeNote: note ? { body: note.body, writtenAt: note.updatedAt.toISOString() } : null,
           sync: children.map((child) => ({
             childId: child.id,
             status: child.status,

@@ -36,6 +36,10 @@ export default {
       "Le calendrier officiel ne répond pas pour le moment. Les vacances s'afficheront dès son retour.",
     ASSISTANT_PREFERENCE_INVALID:
       "Cette langue, ce fuseau horaire ou ce pays n'est pas reconnu. Choisissez une valeur de la liste.",
+    HOME_LAYOUT_INVALID:
+      "Cette disposition de l'accueil n'est pas valide : 40 blocs au plus, chacun une seule fois. Rétablissez la disposition par défaut.",
+    HOME_NOTE_INVALID:
+      "La note compte au plus 4000 caractères. Raccourcissez-la pour l'enregistrer.",
     ALERT_EVENT_DONE_CONFLICT: "Cette échéance est déjà faite, aucun rappel n'est nécessaire.",
     ACCOUNT_REAUTH_REQUIRED:
       "Reconnectez-vous avec Google, puis relancez la suppression de votre compte.",
@@ -169,6 +173,10 @@ export default {
     setLanguageAndRegion: "Échec de l'enregistrement de la langue et de la région",
     setExtraction: "Échec de l'enregistrement du choix de lecture par l'IA",
     loadSchoolCalendar: "Échec du chargement des vacances scolaires",
+    loadHomeLayout: "Échec du chargement de la disposition de l'accueil",
+    saveHomeLayout: "Échec de l'enregistrement de la disposition de l'accueil",
+    loadHomeNote: "Échec du chargement du pense-bête",
+    saveHomeNote: "Échec de l'enregistrement du pense-bête",
     requestSync: "Échec de la lecture de Classroom",
     acceptPolicies: "Échec de l'acceptation des politiques",
     cancelAccountDeletion: "Échec de l'annulation",

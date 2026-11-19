@@ -68,6 +68,6 @@ describe("guided tour per screen", () => {
     );
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
-    expect(await screen.findByRole("dialog", { name: tour.home.week.title })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: tour.home.today.title })).toBeTruthy();
   });
 });

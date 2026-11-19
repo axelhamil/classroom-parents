@@ -113,27 +113,30 @@ describe("Accueil briefs the next school moment", () => {
     expect(within(tomorrow).getByText("Encore 2 échéances à boucler")).toBeDefined();
   });
 
-  it("scrolls what is due in its own keyboard reachable region, title and count staying in view", async () => {
+  it("lists what is due on the page itself, a long day folded behind a button that shows the rest", async () => {
     at(THURSDAY_EVENING);
     givenCalendar(
       [CHILD, HUGO],
       [
         deadline(1, "2026-11-13", "Fiche à signer", { childId: HUGO.id }),
-        deadline(2, "2026-11-13", "Sac de piscine", { category: "swimming" }),
+        ...[2, 3, 4, 5, 6, 7].map((n) => deadline(n, "2026-11-13", `Exercice ${n}`)),
       ],
     );
     await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
-    const scroller = await within(tomorrow).findByRole("region", {
-      name: "Échéances à préparer pour demain",
-    });
-    expect(scroller.tabIndex).toBe(0);
-    expect(within(scroller).getByRole("region", { name: "Léa" })).toBeDefined();
-    expect(within(scroller).getByRole("region", { name: "Hugo" })).toBeDefined();
-    expect(within(scroller).queryByText("Encore 2 échéances à boucler")).toBeNull();
-    expect(within(scroller).queryByRole("heading", { name: "Pour demain" })).toBeNull();
-    expect(within(tomorrow).getByText("Encore 2 échéances à boucler")).toBeDefined();
+    const lea = await within(tomorrow).findByRole("region", { name: "Léa" });
+    expect(within(tomorrow).queryByRole("region", { name: /^Échéances à préparer/ })).toBeNull();
+    expect(within(lea).getAllByRole("link")).toHaveLength(4);
+    expect(within(tomorrow).getByRole("region", { name: "Hugo" })).toBeDefined();
+
+    const more = within(lea).getByRole("button", { name: "Voir les 2 autres" });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(more);
+
+    expect(within(lea).getAllByRole("link")).toHaveLength(6);
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    expect(more.textContent).toBe("Voir moins");
   });
 
   it("ticks done at once and rolls back when the server refuses", async () => {
@@ -206,19 +209,24 @@ describe("Accueil briefs the next school moment", () => {
     expect(ready.className).toContain("animate-none");
   });
 
-  it("lists what to prepare under an open item, ticked from the briefing", async () => {
+  it("lists what to prepare inside the card of its deadline, ticked without opening the deadline", async () => {
     at(THURSDAY_EVENING);
     const stub = givenCalendar(
       [CHILD],
       [deadline(1, "2026-11-13", "Sac de piscine", { category: "swimming" })],
     );
-    await renderAppAt("/");
+    const router = await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
     const swimsuit = await within(tomorrow).findByRole("checkbox", { name: "Maillot de bain" });
+    const card = swimsuit.closest("[data-slot=calendar-entry]");
+    expect(card?.querySelector("a")?.textContent).toBe("Sac de piscine");
+    expect(swimsuit.closest("a, button:not([role=checkbox])")).toBeNull();
     fireEvent.click(swimsuit);
 
     await waitFor(() => expect(swimsuit.getAttribute("aria-checked")).toBe("true"));
+    expect(router.state.location.search).not.toHaveProperty("event");
+    expect(screen.queryByRole("dialog")).toBeNull();
     await waitFor(() =>
       expect(
         stub.calls.some(
@@ -268,24 +276,35 @@ describe("Accueil briefs the next school moment", () => {
     expect(titlesIn(next)).toEqual([expect.stringContaining("Sortie au musée")]);
   });
 
-  it("counts what the seven days ahead hold, assessments named", async () => {
+  it("counts what the day it covers holds, assessments named, and reads its bar as done out of all", async () => {
     at(THURSDAY_EVENING);
     givenCalendar(
       [CHILD],
       [
         deadline(1, "2026-11-13", "Sac de piscine", { category: "swimming" }),
-        deadline(2, "2026-11-16", "Évaluation de calcul", { category: "assessment" }),
-        deadline(3, "2026-11-17", "Fiche déjà rendue", { done: true }),
+        deadline(2, "2026-11-13", "Évaluation de calcul", { category: "assessment" }),
+        deadline(3, "2026-11-17", "Exposé de la semaine prochaine"),
       ],
     );
     await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
     expect(
-      await within(tomorrow).findByText(
-        "2 échéances sur les 7 prochains jours, dont 1 évaluation.",
-      ),
+      await within(tomorrow).findByText("2 échéances pour demain, dont 1 évaluation"),
     ).toBeDefined();
+    const bar = within(tomorrow).getByRole("progressbar");
+    expect(bar.getAttribute("aria-valuetext")).toBe("0 sur 2");
+    const legend = document.getElementById(bar.getAttribute("aria-describedby") ?? "");
+    expect(legend?.textContent).toBe("0 sur 2");
+  });
+
+  it("names no assessment when the day has none, and says today in the morning", async () => {
+    at("2026-11-12T07:00:00.000Z");
+    givenCalendar([CHILD], [deadline(1, "2026-11-12", "Mot signé")]);
+    await renderAppAt("/");
+
+    const today = await briefing("Pour aujourd'hui");
+    expect(await within(today).findByText("1 échéance pour aujourd'hui")).toBeDefined();
   });
 
   it("while the first sync runs it says so instead of nothing to prepare", async () => {

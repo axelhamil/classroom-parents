@@ -9,6 +9,7 @@ import {
 import { Checkbox } from "@packages/ui/components/ui/checkbox";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { DeadlineCategory } from "@packages/ui/components/ui/deadline-sheet";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
@@ -33,6 +34,7 @@ export interface CalendarEventRowProps {
   withChild?: boolean;
   compact?: boolean;
   withCountdown?: boolean;
+  children?: ReactNode;
 }
 
 function stateOf(event: EventItem, now: Date, today: string) {
@@ -52,6 +54,7 @@ export function CalendarEventRow({
   withChild = true,
   compact = false,
   withCountdown = false,
+  children,
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
@@ -99,6 +102,7 @@ export function CalendarEventRow({
             deadlineTime={event.deadlineTime}
           />
         </CalendarEntryMeta>
+        {children}
       </CalendarEntryBody>
     </CalendarEntry>
   );

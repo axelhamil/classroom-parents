@@ -8,7 +8,7 @@ function Briefing({ className, ...props }: React.ComponentProps<"section">) {
     <section
       data-slot="briefing"
       className={cn(
-        "@container/briefing flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-2xl border bg-card p-4 text-card-foreground shadow-raised outline-none [--scroll-fade-surface:var(--card)] md:p-5 focus-visible:ring focus-visible:ring-ring",
+        "@container/briefing flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-2xl border bg-card p-4 text-card-foreground shadow-raised outline-none md:p-5 focus-visible:ring focus-visible:ring-ring",
         className,
       )}
       {...props}
@@ -131,7 +131,7 @@ function BriefingItem({ className, ...props }: React.ComponentProps<"li">) {
   return (
     <li
       data-slot="briefing-item"
-      className={cn("flex min-w-0 flex-col gap-1 [&>[data-slot=checklist]]:ps-6", className)}
+      className={cn("flex min-w-0 flex-col gap-1", className)}
       {...props}
     />
   );

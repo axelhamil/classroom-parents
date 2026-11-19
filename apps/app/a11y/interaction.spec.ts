@@ -3,7 +3,15 @@ import type { Locator, Page } from "@playwright/test";
 import { FIXTURE_CHILD_LABEL, stubChildrenApi } from "./children-fixture";
 import { showColorScheme } from "./color-scheme";
 import { expect, test } from "./csp";
-import { LEA, serveFamily } from "./events-fixtures";
+import {
+  EVENTS,
+  inDays,
+  LEA,
+  MAXIMILIEN,
+  REVIEW_EVENT,
+  serveFamily,
+  todayAt,
+} from "./events-fixtures";
 import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
 
@@ -37,12 +45,18 @@ async function openCustomizeDialog(page: Page): Promise<{ trigger: Locator; dial
   return { trigger, dialog };
 }
 
-async function ringContrastBelow(surface: Locator, control: Locator): Promise<number> {
-  await control
-    .page()
-    .waitForFunction(() =>
-      document.getAnimations().every((animation) => animation.playState !== "running"),
+// A fade driven by scrolling follows the scroll position and never stops running: only
+// the animations that run in time can settle.
+function noTimedAnimationRunning(): boolean {
+  return document
+    .getAnimations()
+    .every(
+      (animation) => animation.timeline !== document.timeline || animation.playState !== "running",
     );
+}
+
+async function ringContrastBelow(surface: Locator, control: Locator): Promise<number> {
+  await control.page().waitForFunction(noTimedAnimationRunning);
   const [frame, box] = await Promise.all([surface.boundingBox(), control.boundingBox()]);
   if (!frame || !box) throw new Error("the dialog or its control has no box");
 
@@ -152,11 +166,8 @@ test.describe("signed in", () => {
       const nav = page.getByRole("navigation", { name: "Navigation principale" });
       const boxes = async () => {
         await expect(nav.getByRole("link")).toHaveCount(3);
-        await page.waitForFunction(
-          () =>
-            document.fonts.status === "loaded" &&
-            document.getAnimations().every((animation) => animation.playState !== "running"),
-        );
+        await page.waitForFunction(() => document.fonts.status === "loaded");
+        await page.waitForFunction(noTimedAnimationRunning);
         return Promise.all(
           [nav, ...(await nav.getByRole("link").all())].map((element) => element.boundingBox()),
         );
@@ -350,5 +361,223 @@ test.describe("calendar month grid", () => {
     await expect(page.getByRole("heading", { level: 2, name: "décembre 2026" })).toBeVisible();
     await page.keyboard.press("PageUp");
     await expect(day("2026-11-21")).toBeFocused();
+  });
+});
+
+const DEFAULT_HOME = [
+  "today",
+  "tonight",
+  "review",
+  "calendar",
+  "overdue",
+  "assessments",
+  "documents",
+  "notes",
+];
+
+async function serveHome(page: Page): Promise<unknown[]> {
+  const saved: unknown[] = [];
+  let layout: unknown = null;
+  await page.route(
+    (url) => url.pathname.startsWith("/home/"),
+    async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
+      if (request.method() === "PUT") {
+        const body: { blocks: unknown } = request.postDataJSON();
+        saved.push(body);
+        layout = body.blocks;
+      }
+      return route.fulfill({ json: { blocks: layout } });
+    },
+  );
+
+  return saved;
+}
+
+function placedBlocks(page: Page): Promise<(string | undefined)[]> {
+  return page
+    .locator("[data-block]")
+    .evaluateAll((blocks) => blocks.map((block) => (block as HTMLElement).dataset.block).sort());
+}
+
+function homeOrder(page: Page): Promise<(string | undefined)[]> {
+  return page
+    .locator("[data-slot=dashboard-tile]")
+    .evaluateAll((tiles) => tiles.map((tile) => (tile as HTMLElement).dataset.block));
+}
+
+test.describe("home grid", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(new Date(2026, 10, 12, 10));
+    await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [] });
+  });
+
+  test("arranges the home from the keyboard: move, resize, hide, add back and reset", async ({
+    page,
+  }) => {
+    const saved = await serveHome(page);
+    await page.goto("/");
+    await expect.poll(() => placedBlocks(page)).toEqual([...DEFAULT_HOME].sort());
+
+    const edit = page.getByRole("button", { name: "Modifier l'accueil" });
+    await tabTo(page, edit);
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Terminé" })).toBeFocused();
+    await expect.poll(() => homeOrder(page)).toEqual(DEFAULT_HOME);
+
+    await tabTo(page, page.getByRole("button", { name: "Déplacer Pour ce soir" }));
+    await page.keyboard.press("Space");
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.locator("[id^=dnd-kit-announcement]")).toHaveText(
+      "Pour ce soir, position 1 sur 8",
+    );
+    await page.keyboard.press("Space");
+    await expect
+      .poll(() => homeOrder(page))
+      .toEqual(["tonight", "today", ...DEFAULT_HOME.slice(2)]);
+    await expect(page.locator("[id^=dnd-kit-announcement]")).toHaveText(
+      "Pour ce soir posé en position 1 sur 8",
+    );
+
+    await page.getByRole("button", { name: "Élargir Pour ce soir" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("[data-block=tonight]")).toHaveAttribute("data-w", "6");
+    await expect(page.getByRole("status").filter({ hasText: "Élargi" })).toHaveText(
+      "Élargi, 6 colonnes sur 12",
+    );
+
+    await page.getByRole("button", { name: "Masquer Pense-bête" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("[data-block=notes]")).toHaveCount(0);
+    const add = page.getByRole("button", { name: "Ajouter un bloc" });
+    await expect(add).toBeFocused();
+    await page.keyboard.press("Enter");
+    const drawer = page.getByRole("dialog", { name: "Ajouter un bloc" });
+    await tabTo(page, drawer.getByRole("button", { name: "Ajouter Pense-bête" }));
+    await page.keyboard.press("Enter");
+    await expect(drawer).toBeHidden();
+    await expect(add).toBeFocused();
+    await expect.poll(async () => (await homeOrder(page)).at(-1)).toBe("notes");
+
+    await page.getByRole("button", { name: "Rétablir l'accueil par défaut" }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("alertdialog").getByRole("button", { name: "Rétablir" }).click();
+    await expect.poll(() => homeOrder(page)).toEqual(DEFAULT_HOME);
+    await expect.poll(() => saved.at(-1)).toEqual({ blocks: null });
+  });
+
+  for (const width of [768, 1440]) {
+    test(`leaves no hole between two blocks of a column at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.clock.setFixedTime(todayAt("09:00"));
+      const nothingForTomorrow = EVENTS.filter((event) => event.deadlineDate !== inDays(1));
+      await serveFamily(page, { children: [LEA, MAXIMILIEN], events: nothingForTomorrow });
+      await serveHome(page);
+      await page.goto("/");
+      await expect.poll(() => placedBlocks(page)).toEqual([...DEFAULT_HOME].sort());
+      await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
+      await expect(
+        page
+          .locator("[data-slot=dashboard-band] [data-block=tonight]")
+          .getByText(/^Rien à préparer/),
+      ).toBeVisible();
+
+      const lines = await page
+        .locator("[data-slot=dashboard-panel][data-shape=line]")
+        .evaluateAll((panels) => panels.map((panel) => panel.getBoundingClientRect().height));
+      expect(lines.length).toBeGreaterThan(0);
+      expect(Math.max(...lines)).toBeLessThanOrEqual(72);
+      expect(
+        await page.locator("[data-slot=dashboard] [data-shape=line]").count(),
+        "a line never takes a cell of the grid",
+      ).toBe(0);
+
+      const holes = await page.locator("[data-slot=dashboard-tile]").evaluateAll((tiles) => {
+        const surfaces = tiles.map((tile) => ({
+          block: (tile as HTMLElement).dataset.block,
+          box: (tile.firstElementChild ?? tile).getBoundingClientRect(),
+        }));
+
+        return surfaces.flatMap(({ block, box }) => {
+          const below = surfaces.filter(
+            (other) =>
+              other.box.top >= box.bottom - 1 &&
+              other.box.left < box.right - 1 &&
+              other.box.right > box.left + 1,
+          );
+          if (below.length === 0) return [];
+          const gap = Math.min(...below.map((other) => other.box.top)) - box.bottom;
+
+          return gap > 24 ? [`${block} ${Math.round(gap)}px`] : [];
+        });
+      });
+      expect(holes).toEqual([]);
+    });
+  }
+
+  for (const colorScheme of COLOR_SCHEMES) {
+    test(`passes axe while the home is being arranged (${colorScheme})`, async ({ page }) => {
+      await showColorScheme(page, colorScheme);
+      await serveHome(page);
+      await page.goto("/");
+      await page.getByRole("button", { name: "Modifier l'accueil" }).click();
+      await expect(page.getByRole("button", { name: "Déplacer Pour ce soir" })).toBeVisible();
+
+      expect(await blockingViolations(page)).toEqual([]);
+      await expect(page.locator("main")).toHaveCount(1);
+      await expect(page.locator("h1")).toHaveCount(1);
+    });
+  }
+});
+
+test.describe("deadline steps", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  test("keeps each step its own control inside the card, after the title, ticked with Space", async ({
+    page,
+  }) => {
+    const swimming = {
+      ...REVIEW_EVENT,
+      title: "Piscine",
+      category: "swimming",
+      status: "confirmed",
+      deadlineDate: "2026-11-12",
+      deadlineAt: "2026-11-12T07:00:00.000Z",
+      checklist: { done: [] as string[], removed: [], extra: [] },
+    };
+    await page.clock.setFixedTime(new Date(2026, 10, 12, 10));
+    await serveFamily(page, { children: [LEA], events: [swimming] });
+    await serveHome(page);
+    await page.route(`**/events/${swimming.id}/checklist`, async (route) => {
+      const change: { kind: string; itemId: string; done: boolean } = route
+        .request()
+        .postDataJSON();
+      if (change.kind === "tick" && change.done) swimming.checklist.done.push(change.itemId);
+      await route.fulfill({ json: swimming });
+    });
+    await page.goto("/");
+
+    const briefing = page.getByRole("region", { name: "Pour aujourd'hui" });
+    const title = briefing.getByRole("link", { name: "Piscine" });
+    const swimsuit = briefing.getByRole("checkbox", { name: "Maillot de bain" });
+    await expect(swimsuit).toBeVisible();
+
+    const nested = await page.evaluate(() =>
+      [...document.querySelectorAll("a, button, input, [role=checkbox]")].some((control) =>
+        control.parentElement?.closest("a, button"),
+      ),
+    );
+    expect(nested).toBe(false);
+
+    await title.focus();
+    await page.keyboard.press("Tab");
+    await expect(swimsuit).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect(swimsuit).toHaveAttribute("aria-checked", "true");
+    await expect(page).not.toHaveURL(/[?&]event=/);
   });
 });
