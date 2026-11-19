@@ -98,7 +98,7 @@ describe("shell without network", () => {
     expect(onlineManager.isOnline()).toBe(false);
   });
 
-  it("given today's open deadlines, then the app icon shows how many are left", async () => {
+  it("given unread notifications and open deadlines today, then the app icon shows the server unread count only", async () => {
     const setAppBadge = vi.fn(async (_count?: number) => undefined);
     vi.stubGlobal("navigator", {
       ...navigator,
@@ -115,10 +115,11 @@ describe("shell without network", () => {
         deadline(3, "2026-11-19", "Exposé"),
         deadline(4, "2026-11-20", "Dictée"),
       ],
+      { unread: 5 },
     );
 
     await renderAppAt("/");
 
-    await waitFor(() => expect(setAppBadge).toHaveBeenLastCalledWith(2));
+    await waitFor(() => expect(setAppBadge).toHaveBeenLastCalledWith(5));
   });
 });

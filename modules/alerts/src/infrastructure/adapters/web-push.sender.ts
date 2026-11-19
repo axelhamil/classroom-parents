@@ -1,4 +1,5 @@
 import { type IInstrumentation, Result } from "@packages/ddd-kit";
+import { linkWithNotificationRef } from "@packages/events/notification-ref";
 import { generateRequestDetails } from "web-push";
 import type { AlertsSettings } from "../../application/config/alerts-settings";
 import { SEND_TIMEOUT_MS } from "../../application/config/dispatch-budget";
@@ -12,10 +13,12 @@ import type {
 
 const GONE_STATUSES = new Set([404, 410]);
 
-function declarativePayload({ title, body, url, tag }: PushMessage): string {
+function declarativePayload({ title, body, url, tag, notificationRef }: PushMessage): string {
+  const navigate = linkWithNotificationRef(url, notificationRef);
+
   return JSON.stringify({
     web_push: 8030,
-    notification: { title, body, navigate: url, tag, renotify: true },
+    notification: { title, body, navigate, tag, renotify: true },
   });
 }
 

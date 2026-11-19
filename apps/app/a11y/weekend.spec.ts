@@ -1,6 +1,6 @@
 import { shiftDate } from "@packages/ddd-kit/days";
 import { blockingViolations } from "@packages/test/a11y";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator } from "@playwright/test";
 import { expect, test } from "./csp";
 import { LEA, parisTime, REVIEW_EVENT, SCHOOL_THURSDAY, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
@@ -36,28 +36,6 @@ const MONDAY = deadline(3, 2, "Piscine du lundi", { category: "swimming" });
 const MONDAY_DONE = deadline(4, 2, "Dictée à revoir", { done: true });
 const TUESDAY = deadline(5, 3, "Contrôle sur les fractions", { category: "assessment" });
 
-async function recordBadge(page: Page): Promise<() => Promise<number | null>> {
-  await page.addInitScript(() => {
-    const shown = { count: null as number | null };
-    Object.assign(window, { shownBadge: shown });
-    Object.assign(navigator, {
-      setAppBadge: async (count: number) => {
-        shown.count = count;
-      },
-      clearAppBadge: async () => {
-        shown.count = 0;
-      },
-    });
-  });
-
-  return () =>
-    page.evaluate(() => {
-      const shown = Reflect.get(window, "shownBadge");
-
-      return typeof shown?.count === "number" ? shown.count : null;
-    });
-}
-
 const ALL = [LATE, SUNDAY, MONDAY, MONDAY_DONE, TUESDAY];
 
 async function titlesIn(region: Locator): Promise<string[]> {
@@ -78,7 +56,6 @@ test.describe("the home on a Saturday", () => {
       page,
     }) => {
       await page.clock.setFixedTime(parisTime(SATURDAY, time));
-      const badge = await recordBadge(page);
       await serveFamily(page, {
         children: [LEA],
         events: ALL,
@@ -100,7 +77,6 @@ test.describe("the home on a Saturday", () => {
       await expect(late.getByText(LATE.title, { exact: true })).toBeVisible();
       expect(await titlesIn(late)).toEqual([LATE.title]);
 
-      await expect.poll(badge).toBe(2);
       expect(await blockingViolations(page)).toEqual([]);
     });
 });

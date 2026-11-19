@@ -14,6 +14,7 @@ export interface CalendarStubOptions {
   refuseFirstDone?: boolean;
   detail?: Fixture;
   homeLayout?: unknown[];
+  unread?: number;
 }
 
 function created(body: unknown, index: number): Fixture | undefined {
@@ -44,7 +45,7 @@ function ticked(event: Fixture, body: unknown): Response {
 export function givenCalendar(
   children: unknown[],
   events: Fixture[],
-  { failDone, detail, refuseFirstDone = false, homeLayout }: CalendarStubOptions = {},
+  { failDone, detail, refuseFirstDone = false, homeLayout, unread = 0 }: CalendarStubOptions = {},
 ): CalendarStub {
   const stub: CalendarStub = { calls: [], events: [...events] };
   let refusals = refuseFirstDone ? 1 : 0;
@@ -54,6 +55,7 @@ export function givenCalendar(
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     if (url.pathname === "/home/layout" && method === "GET")
       return json({ blocks: homeLayout ?? null });
+    if (url.pathname === "/notifications/unread-count") return json({ count: unread });
     if (url.pathname === "/calendar-feed" && method === "GET") return json({ exists: false });
     if (url.pathname === "/events" && method === "GET") {
       const today = new Date().toISOString().slice(0, 10);

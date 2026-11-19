@@ -44,7 +44,12 @@ export const alertsEvents = defineEventContribution({
       origin: z.enum(["default", "user"]),
       actorUserId: z.string().nullable(),
     }),
-    "alert.alert.sent": AlertRef.extend({ channel: Channel, actorUserId: z.null() }),
+    "alert.alert.sent": AlertRef.extend({
+      eventId: z.string(),
+      group: z.object({ key: z.string(), size: z.number().int().positive() }),
+      channel: Channel,
+      actorUserId: z.null(),
+    }),
     "alert.delivery.failed": AlertRef.extend({
       channel: Channel,
       code: z.string(),
@@ -155,7 +160,7 @@ export const alertsEvents = defineEventContribution({
     "alert.alert.scheduled":
       "One reminder of a school event was scheduled, from the parent's default reminders or from the reminders the parent set for this event.",
     "alert.alert.sent":
-      "A scheduled alert reached the parent by web push or, failing that, by email.",
+      "A scheduled alert reached the parent by web push or, failing that, by email, alone or grouped with the alerts due within the same half hour.",
     "alert.delivery.failed":
       "One delivery channel of a scheduled alert failed; the alert is retried until it is sent or missed.",
     "alert.alert.skipped":

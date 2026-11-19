@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./user-stream-message": "./src/user-stream-message.ts",
-    "./agenda-contract": "./src/agenda-contract.ts"
+    "./agenda-contract": "./src/agenda-contract.ts",
+    "./notification-ref": "./src/notification-ref.ts"
   },
   "scripts": {
     "format": "biome format . --write",

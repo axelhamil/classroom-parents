@@ -2,6 +2,9 @@ import { LLM_FEATURES } from "@packages/llm/contract/language-model.port";
 import { z } from "zod";
 import { validateEnvBounds, validateHostsEnv, validateTrustedProxiesEnv } from "./env-bounds";
 
+/** The per-parent minute burst a production API grants; a test API may raise it, never production. */
+export const PRODUCTION_GLOBAL_BURST_PER_MINUTE = 600;
+
 const commaList = (value: string): string[] =>
   value
     .split(",")
@@ -99,6 +102,12 @@ export const envSchema = z
     SENTRY_ENVIRONMENT: z.string().optional(),
     SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
     RATE_LIMIT_STORE: z.enum(["memory", "postgres"]).default("memory"),
+    RATE_LIMIT_GLOBAL_PER_MINUTE: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(10_000)
+      .default(PRODUCTION_GLOBAL_BURST_PER_MINUTE),
     TRUSTED_PROXIES: z.string().transform(commaList).optional(),
     CAPTCHA_SECRET_KEY: z.string().optional(),
     CAPTCHA_VERIFY_URL: z
@@ -133,9 +142,11 @@ function isProductionRequiredKey(key: string): key is ProductionRequiredKey {
 }
 
 function validateProductionEnv(
-  value: { NODE_ENV: string; FAKE_PROVIDERS: boolean } & Partial<
-    Record<ProductionRequiredKey, string | string[]>
-  >,
+  value: {
+    NODE_ENV: string;
+    FAKE_PROVIDERS: boolean;
+    RATE_LIMIT_GLOBAL_PER_MINUTE: number;
+  } & Partial<Record<ProductionRequiredKey, string | string[]>>,
   ctx: z.RefinementCtx,
 ): void {
   if (value.NODE_ENV !== "production") return;
@@ -146,6 +157,14 @@ function validateProductionEnv(
       path: ["FAKE_PROVIDERS"],
       message:
         "FAKE_PROVIDERS is refused in production: the fake Classroom, extractor and push sink would replace the real providers.",
+    });
+  }
+
+  if (value.RATE_LIMIT_GLOBAL_PER_MINUTE > PRODUCTION_GLOBAL_BURST_PER_MINUTE) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["RATE_LIMIT_GLOBAL_PER_MINUTE"],
+      message: `RATE_LIMIT_GLOBAL_PER_MINUTE above ${PRODUCTION_GLOBAL_BURST_PER_MINUTE} is refused in production: it exists so a test run signing every browser in as one parent fits in a minute.`,
     });
   }
 

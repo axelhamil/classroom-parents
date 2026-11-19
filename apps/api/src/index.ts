@@ -4,7 +4,7 @@ import { EventCollector } from "@packages/ddd-kit";
 import { closeDb, closeRateLimitDb } from "@packages/drizzle";
 import { type Server, serve } from "bun";
 import { app } from "./app";
-import { assistant, di } from "./container";
+import { assistant, di, eventHandlers } from "./container";
 import { buildServerOptions } from "./server-options";
 import { env } from "./shared/env";
 import { logger } from "./shared/logger";
@@ -34,7 +34,7 @@ declare global {
 EventCollector.setOutOfContextLogger((msg, meta) => logger.warn(meta ?? {}, msg));
 
 await di.preload();
-await di.OutboxDispatcher.start(di);
+await di.OutboxDispatcher.start(eventHandlers());
 await di.EmailDeliveryWorker.start();
 await di.NotificationStreamHub.start();
 

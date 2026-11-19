@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Context } from "hono";
+import { env } from "../env";
 import type { WindowConfig } from "../ports/rate-limiter.port";
 import { resolveClientIp } from "./rate-limit.ip";
 
@@ -30,8 +31,10 @@ function ipKeyFn(name: string): (c: Context) => string {
 // page 6. Four browsers of one parent opening the app back to back (the accessibility
 // gate) spend 337 in under a minute, so 300 refused that parent mid-burst. 600 leaves
 // that burst near half its room, and at a third of the hour window a runaway client is
-// still stopped within three minutes. Every credential path carries its own far tighter,
-// fail-closed policy below.
+// still stopped within three minutes. 600 is the production value
+// (`RATE_LIMIT_GLOBAL_PER_MINUTE`, refused above it in production): a test run that signs
+// every browser in as one parent raises it through that variable, never through this file.
+// Every credential path carries its own far tighter, fail-closed policy below.
 //
 // `sessionMiddleware` deliberately nulls the user for `/api/auth/*`, so BetterAuth
 // traffic, including a signed-in user's session query, keys on
@@ -44,7 +47,7 @@ export const GLOBAL_POLICY: PolicyConfig = {
     return `global:${user?.id ?? resolveClientIp(c)}`;
   },
   windows: [
-    { policyName: "global", windowSec: 60, maxRequests: 600 },
+    { policyName: "global", windowSec: 60, maxRequests: env.RATE_LIMIT_GLOBAL_PER_MINUTE },
     { policyName: "global", windowSec: 3600, maxRequests: 1800 },
   ],
 };

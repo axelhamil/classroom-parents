@@ -3,6 +3,7 @@ import { dismissedEventBefore, pastEventBefore } from "@modules/agenda/schemas/e
 import { aiUsage, aiUsageAlert } from "@modules/assistant/schemas/assistant.schema";
 import { firstSyncedDay } from "@modules/classroom-sync/application/sync-lookback";
 import { extractionResult } from "@modules/extraction/schemas/extraction-result.schema";
+import { notification } from "@modules/notifications/schemas/notification.schema";
 import type { IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
 import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
 import {
@@ -52,6 +53,8 @@ export const EXTRACTION_RESULT_RETENTION_LABEL = "sweep-extraction-results";
 export const EXTRACTION_RESULT_RETENTION_DAYS = 60;
 export const AI_USAGE_RETENTION_LABEL = "sweep-ai-usage";
 export const AI_USAGE_RETENTION_DAYS = 400;
+export const NOTIFICATION_RETENTION_LABEL = "sweep-notifications";
+export const NOTIFICATION_RETENTION_DAYS = 90;
 
 const { emailMessage } = emailSchema;
 const { outboxEvent } = outboxSchema;
@@ -167,6 +170,15 @@ const sentAiUsageAlerts: PassTarget = {
   idColumn: aiUsageAlert.id,
   orderBy: aiUsageAlert.sentAt,
   before: (cutoff) => lt(aiUsageAlert.sentAt, cutoff),
+};
+
+const postedNotifications: PassTarget = {
+  label: "posted",
+  sweep: NOTIFICATION_RETENTION_LABEL,
+  table: notification,
+  idColumn: notification.id,
+  orderBy: notification.createdAt,
+  before: (cutoff) => lt(notification.createdAt, cutoff),
 };
 
 type EventsPurgedPayload = z.infer<(typeof PayloadByEventType)[typeof EventTypes.EVENTS_PURGED]>;
@@ -318,5 +330,11 @@ export function sweepAiUsage(deps: RetentionDeps): Promise<SweepResponse> {
   return sweep(AI_USAGE_RETENTION_LABEL, deps, (spans) => [
     retentionPass(countedAiUsage, AI_USAGE_RETENTION_DAYS, spans, deps.uow),
     retentionPass(sentAiUsageAlerts, AI_USAGE_RETENTION_DAYS, spans, deps.uow),
+  ]);
+}
+
+export function sweepNotifications(deps: RetentionDeps): Promise<SweepResponse> {
+  return sweep(NOTIFICATION_RETENTION_LABEL, deps, (spans) => [
+    retentionPass(postedNotifications, NOTIFICATION_RETENTION_DAYS, spans, deps.uow),
   ]);
 }

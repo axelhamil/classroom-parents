@@ -162,6 +162,7 @@ describe("sending the warning", () => {
         body: "Reconnectez le compte de Jade pour continuer à recevoir ses échéances.",
         url: "https://app.example.com/children",
         tag: `access-${JADE}`,
+        notificationRef: `access-loss:${WARNING}`,
       },
     ]);
     expect(email.sendAccessLoss).not.toHaveBeenCalled();

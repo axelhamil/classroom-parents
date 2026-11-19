@@ -77,7 +77,11 @@ Three things bite when running repeatedly:
   app costs, the signed-in home fires 9 calls in that bucket
   (`GLOBAL_POLICY` in
   `apps/api/src/shared/middleware/rate-limit.policies.ts`, now 600/min burst
-  with the 1800/hour sustained ceiling unchanged). The hour window still holds:
+  with the 1800/hour sustained ceiling unchanged). The gate's API runs with
+  `RATE_LIMIT_GLOBAL_PER_MINUTE=1200` (CI and locally), its own room for one
+  parent signed in on four browsers; production keeps 600 and refuses a higher
+  value at startup. A full sweep measured 790 requests in the parent's bucket
+  over 2.4 min, none refused at 600, 20 November 2026. The hour window still holds:
   about five full sweeps per hour on one API process before it refuses the
   parent. The pin to `4` stays as a courtesy cap on host load. A spec that
   fakes the family (`serveFamily`) fakes everything the home it opens reads,
@@ -107,7 +111,7 @@ every page's clock is pinned (`csp.ts`) to `TODAY` at 9:00, a school Thursday
 (`SCHOOL_THURSDAY`, `events-fixtures.ts`), in the `Europe/Paris` zone. A spec that needs
 another hour pins it with `todayAt(...)` and dates its fixtures with `inDays(...)`, never
 from `new Date()`. The `weekend` project pins a Saturday and checks that the briefing,
-tonight, the late block and the icon badge agree on Monday (`weekend.spec.ts`).
+tonight and the late block agree on Monday (`weekend.spec.ts`); the icon badge counts the unread notifications (`notifications.spec.ts`).
 `A11Y_TODAY` moves the audit to another day, which is how a change is checked across a
 week, a month or a year boundary:
 

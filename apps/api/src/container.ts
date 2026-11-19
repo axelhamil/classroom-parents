@@ -59,6 +59,7 @@ import { deliveryModule, runtimeModule } from "./composition/delivery";
 import { fakeProviderBindings } from "./composition/fake-bindings";
 import { homeContainer } from "./composition/home";
 import { llmModule } from "./composition/llm";
+import { notificationsContainer } from "./composition/notifications";
 import { schoolCalendarContainer } from "./composition/school-calendar";
 import { apiSettings } from "./composition/settings";
 import { healthModule } from "./modules/health/module";
@@ -270,7 +271,7 @@ export const di = container()
           sweepDeadlineMs: env.SWEEP_DEADLINE_MS,
         },
       },
-      (): Record<string, unknown> => di,
+      () => eventHandlers(),
       () => assistant.AiUsageWatchService,
     ),
   )
@@ -280,3 +281,10 @@ export const schoolCalendar = schoolCalendarContainer(di);
 
 export const assistant = assistantContainer(di, env, logger);
 export const home = homeContainer(di);
+
+export const notifications = notificationsContainer(di);
+
+/** Everything the outbox relay looks for `onEvent` handlers in: the main container and the containers composed beside it. */
+export function eventHandlers(): Record<string, unknown> {
+  return { ...di, ...notifications };
+}

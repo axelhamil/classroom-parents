@@ -94,16 +94,6 @@ export function tonightView(events: Events, clock: SchoolClock, childId: string 
   return { ...plan, leftToday: [] };
 }
 
-/** The number on the app icon: the open deadlines of the school day the home looks at. */
-export function badgeCount(events: Events, clock: SchoolClock): number {
-  return dayPlanView(events, clock, { childId: null }).open.length;
-}
-
-/** The range of days the badge needs loaded to count. */
-export function badgeRange(clock: SchoolClock): DateRange {
-  return daysUpTo(clock, clock.focus);
-}
-
 function openWithin(
   events: Events,
   clock: SchoolClock,

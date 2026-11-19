@@ -52,6 +52,20 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * The scrolling body of a `size="panel"` popover: the header stays put while a long
+ * content (a feed, a list) scrolls inside the height the popover was given.
+ */
+function PopoverBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="popover-body"
+      className={cn("flex min-h-0 flex-col gap-6 overflow-y-auto p-4", className)}
+      {...props}
+    />
+  );
+}
+
 function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return <div data-slot="popover-title" className={cn("font-medium", className)} {...props} />;
 }
@@ -69,6 +83,7 @@ function PopoverDescription({ className, ...props }: React.ComponentProps<"p">) 
 export {
   Popover,
   PopoverAnchor,
+  PopoverBody,
   PopoverContent,
   PopoverDescription,
   PopoverHeader,

@@ -35,6 +35,7 @@ import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schem
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedChild } from "@modules/children/schemas/testing/seed-child";
 import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
+import { notification } from "@modules/notifications/schemas/notification.schema";
 import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type IInstrumentation, Result } from "@packages/ddd-kit";
 import {
@@ -178,6 +179,14 @@ async function seedFamilyData(id: string): Promise<void> {
     .insert(alertWeeklyDigest)
     .values({ userId: id, weekStart: "2030-03-04", expiresAt: at, status: "sent" });
   await db.insert(schoolZonePreference).values({ userId: id, zone: "zone-b", updatedAt: at });
+  await db.insert(notification).values({
+    userId: id,
+    ref: `reminders:${event.id}`,
+    kind: "deadline_reminder",
+    childId,
+    params: { eventId: event.id },
+    createdAt: at,
+  });
   await db
     .insert(assistantPreference)
     .values({ userId: id, locale: "ar", extractionEnabled: false, updatedAt: at });
@@ -258,6 +267,9 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
     ),
     homeNotes: await tally(
       db.select({ total: count() }).from(homeNote).where(eq(homeNote.userId, id)),
+    ),
+    notifications: await tally(
+      db.select({ total: count() }).from(notification).where(eq(notification.userId, id)),
     ),
   };
 }
@@ -446,7 +458,7 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
   const familyLeft = await familyRowsLeft(erasedId);
   check(
-    "its children, events, reminders, calendar feed, Sunday digest, school zone, AI and home rows are deleted",
+    "its children, events, reminders, calendar feed, Sunday digest, school zone, AI rows, home rows and notifications are deleted",
     Object.values(familyLeft).every((total) => total === 0),
     familyLeft,
   );

@@ -8,6 +8,7 @@ const skeletonVariants = cva("bg-accent", {
     shape: {
       card: "rounded-xl",
       line: "h-4 rounded-full",
+      circle: "shrink-0 rounded-full",
     },
   },
   defaultVariants: { shape: "card" },
