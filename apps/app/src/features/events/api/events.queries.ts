@@ -77,6 +77,15 @@ export function calendarEventsQueryOptions({ from, to }: CalendarRange) {
   });
 }
 
+export function calendarEventOf(queryClient: QueryClient, eventId: string) {
+  for (const [, items] of queryClient.getQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY })) {
+    const event = items?.find((candidate) => candidate.id === eventId);
+    if (event) return event;
+  }
+
+  return undefined;
+}
+
 export type CalendarFeedStatus = InferResponseType<typeof $feed, 200>;
 
 export const CALENDAR_FEED_KEY = ["calendar-feed"] as const;

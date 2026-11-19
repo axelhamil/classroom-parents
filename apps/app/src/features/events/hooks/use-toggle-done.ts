@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { markEventDoneMutationOptions } from "../../../shared/api/mutations/mark-event-done";
 import { EVENTS_KEY } from "../../../shared/api/queries/events";
 import { useUndoChannel } from "../../../shared/layout/responsive-overlay";
+import { confirmByTouch } from "../../../shared/motion/haptic";
 import { patchCachedEvent } from "../api/events.queries";
 
 export function useToggleDone() {
@@ -13,9 +14,11 @@ export function useToggleDone() {
   const undoChannel = useUndoChannel();
   const toggle = useMutation({
     ...markEventDoneMutationOptions,
-    onMutate: async ({ eventId, done }) => ({
-      rollback: await patchCachedEvent(queryClient, eventId, () => ({ done })),
-    }),
+    onMutate: async ({ eventId, done }) => {
+      if (done) confirmByTouch();
+
+      return { rollback: await patchCachedEvent(queryClient, eventId, () => ({ done })) };
+    },
     onError: (error, _toggle, context) => {
       context?.rollback();
       toastError(error, errorFallback("markEventDone"));

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { departFrom } from "../motion/deadline-morph";
 
 export interface EventLinkProps {
   eventId: string;
@@ -14,6 +15,8 @@ export function EventLink({ eventId, ...props }: EventLinkProps) {
       to="/"
       search={(prev) => ({ ...prev, event: eventId })}
       mask={{ to: "/events/$eventId", params: { eventId } }}
+      viewTransition={{ types: ["deadline-open"] }}
+      onClick={(event) => departFrom(event.currentTarget)}
       {...props}
     />
   );

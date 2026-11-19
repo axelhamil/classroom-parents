@@ -13,7 +13,12 @@ import { vi } from "vitest";
 import { router } from "../router";
 import { sessionQueryOptions } from "../shared/api/queries/session";
 import { queryClient } from "../shared/api/query-client";
-import { ensureGetAnimations, ensureMatchMedia, ensureScrollIntoView } from "./match-media";
+import {
+  ensureAnimationsSkipped,
+  ensureGetAnimations,
+  ensureMatchMedia,
+  ensureScrollIntoView,
+} from "./match-media";
 
 export { queryClient };
 
@@ -95,6 +100,7 @@ export async function renderAppAt(
   if (!firstRun) markToursSeen("user-1");
   ensureMatchMedia();
   ensureGetAnimations();
+  ensureAnimationsSkipped();
   ensureScrollIntoView();
   queryClient.setQueryData(sessionQueryOptions.queryKey, {
     user: { id: "user-1", name: "Parent", email: "parent@example.com" },
