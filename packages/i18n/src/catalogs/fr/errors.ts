@@ -148,6 +148,7 @@ export default {
     loadEvent: "Échec du chargement de l'échéance",
     loadEventReminders: "Échec du chargement des rappels",
     confirmEvent: "Échec de la confirmation de l'échéance",
+    unconfirmEvent: "Échec de l'annulation : la date reste confirmée",
     deleteEvent: "Échec de la suppression de l'échéance",
     editEvent: "Échec de l'enregistrement de l'échéance",
     addEvent: "Échec de l'ajout de l'échéance",

@@ -114,7 +114,7 @@ test.describe("a long list of dates to check inside its dialog", () => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA], events: TO_CHECK });
     await page.goto("/");
-    await page.getByRole("button", { name: "80 dates à vérifier" }).click();
+    await page.getByRole("button", { name: "Voir les 80 dates à vérifier" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.locator("li[aria-setsize='80']").first()).toBeVisible();
     await dialog.locator("li[aria-posinset='1'] a").first().focus();

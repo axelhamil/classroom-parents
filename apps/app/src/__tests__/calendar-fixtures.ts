@@ -64,6 +64,12 @@ export function givenCalendar(
             .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate))
             .slice(0, Number(url.searchParams.get("limit") ?? stub.events.length)),
         });
+      if (url.searchParams.get("status") === "needs_review")
+        return json({
+          items: stub.events.filter(
+            (event) => event.status === "needs_review" && event.deadlineDate >= today,
+          ),
+        });
       if (url.searchParams.get("status") !== "confirmed") return json({ items: [] });
       const next = stub.events
         .filter((event) => event.deadlineDate >= today)
@@ -97,6 +103,14 @@ export function givenCalendar(
       if (!event) return json({ code: "EVENT_NOT_FOUND" }, 404);
 
       return ticked(event, body);
+    }
+    const confirmed = url.pathname.match(/^\/events\/([^/]+)\/confirm$/);
+    if (confirmed) {
+      const event = stub.events.find((candidate) => candidate.id === confirmed[1]);
+      if (!event) return json({ code: "EVENT_NOT_FOUND" }, 404);
+      Object.assign(event, { status: method === "DELETE" ? "needs_review" : "confirmed" });
+
+      return json(event);
     }
     const done = url.pathname.match(/^\/events\/([^/]+)\/done$/);
     if (done) {

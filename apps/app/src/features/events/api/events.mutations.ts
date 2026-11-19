@@ -4,6 +4,7 @@ import type { InferRequestType } from "hono/client";
 import { api } from "../../../shared/api/api-client";
 
 const $confirm = api.events[":id"].confirm.$post;
+const $unconfirm = api.events[":id"].confirm.$delete;
 const $delete = api.events[":id"].$delete;
 const $edit = api.events[":id"].$patch;
 const $customizeReminders = api.events[":eventId"].reminders.$put;
@@ -21,8 +22,17 @@ export type ChecklistChange = InferRequestType<typeof $changeChecklist>["json"];
 export const confirmEventMutationOptions = mutationOptions({
   mutationKey: ["events", "confirm"] as const,
   mutationFn: async (eventId: string) => {
-    const res = await $confirm({ param: { id: eventId } });
+    const res = await $confirm({ param: { id: eventId } }, { init: { keepalive: true } });
     if (!res.ok) await throwApiError(res, "confirmEvent");
+    return res.json();
+  },
+});
+
+export const unconfirmEventMutationOptions = mutationOptions({
+  mutationKey: ["events", "unconfirm"] as const,
+  mutationFn: async (eventId: string) => {
+    const res = await $unconfirm({ param: { id: eventId } }, { init: { keepalive: true } });
+    if (!res.ok) await throwApiError(res, "unconfirmEvent");
     return res.json();
   },
 });

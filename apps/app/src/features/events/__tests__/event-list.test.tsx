@@ -66,7 +66,7 @@ describe("Accueil around the calendar", () => {
     givenFamily([CHILD], [{ ...EVENT, status: "needs_review" }]);
     await renderAppAt("/");
 
-    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Voir la date à vérifier" }));
     const dialog = await screen.findByRole("dialog", { name: "1 date à vérifier" });
 
     expect(dialog.textContent).toContain(EVENT.title);
@@ -116,7 +116,7 @@ describe("Accueil around the calendar", () => {
     });
     await renderAppAt("/");
 
-    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Voir la date à vérifier" }));
     const dialog = await screen.findByRole("dialog", { name: "1 date à vérifier" });
 
     expect(dialog.textContent).toContain(late.title);
@@ -135,7 +135,7 @@ describe("Accueil around the calendar", () => {
     });
     await renderAppAt("/");
 
-    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Voir la date à vérifier" }));
     fireEvent.click(await screen.findByRole("button", { name: "C'est bon" }));
 
     expect(await screen.findByText("Échéance confirmée")).toBeDefined();

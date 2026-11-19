@@ -145,6 +145,10 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     }
     if (path === `/events/${REVIEW_EVENT.id}`)
       return route.fulfill({ json: fixtures.detail ?? REVIEW_EVENT });
+    if (path === `/events/${REVIEW_EVENT.id}/confirm`) {
+      const status = request.method() === "DELETE" ? "needs_review" : "confirmed";
+      return route.fulfill({ json: { ...REVIEW_EVENT, status } });
+    }
     if (path === `/events/${REVIEW_EVENT.id}/reminders`)
       return route.fulfill({
         json: {

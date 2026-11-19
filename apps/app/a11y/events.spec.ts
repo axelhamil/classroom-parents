@@ -162,7 +162,7 @@ test.describe("the calendar on a phone", () => {
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
       await page.goto("/");
 
-      const review = page.getByRole("button", { name: "1 date à vérifier" });
+      const review = page.getByRole("button", { name: "Voir la date à vérifier" });
       await expect(review).toHaveAttribute("aria-haspopup", "dialog");
       await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
       await expect(
@@ -181,6 +181,32 @@ test.describe("the calendar on a phone", () => {
       expect(await blockingViolations(page)).toEqual([]);
       await page.keyboard.press("Escape");
       await expect(review).toBeFocused();
+
+      const block = page.getByRole("region", { name: "À vérifier" });
+      const confirm = block.getByRole("button", { name: `C'est bon : ${REVIEW_EVENT.title}` });
+      await confirm.focus();
+      await page.keyboard.press("Tab");
+      await expect(
+        block.getByRole("link", { name: `Corriger : ${REVIEW_EVENT.title}` }),
+      ).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      const confirmed = page.waitForRequest(
+        (request) => request.method() === "POST" && request.url().endsWith("/confirm"),
+      );
+      await page.keyboard.press("Enter");
+      await confirmed;
+      const allClear = block.locator("[data-slot=dashboard-panel-empty]");
+      await expect(allClear).toBeFocused();
+      await expect(
+        page.locator("[aria-live]").getByText(`${REVIEW_EVENT.title} : date confirmée`),
+      ).toBeVisible();
+      expect(await blockingViolations(page)).toEqual([]);
+      const unconfirmed = page.waitForRequest(
+        (request) => request.method() === "DELETE" && request.url().endsWith("/confirm"),
+      );
+      await page.getByRole("button", { name: "Annuler" }).click();
+      await expect(confirm).toBeVisible();
+      await unconfirmed;
     });
 
     test(`a late deadline waits folded above the week and opens in a drawer (${colorScheme})`, async ({

@@ -23,13 +23,16 @@ export interface ReviewListProps {
 
 export interface ReviewLineProps extends ReviewListProps {
   stretched?: boolean;
+  label?: string;
 }
 
 /**
  * The count of dates to check, opening them in a dialog. `stretched` lays the
  * trigger over its whole positioned parent: the line of a block is the button.
+ * `label` names a trigger that shows only its chevron, when the count is already
+ * written beside it.
  */
-export function ReviewLine({ events, childLabel, childColor, stretched }: ReviewLineProps) {
+export function ReviewLine({ events, childLabel, childColor, stretched, label }: ReviewLineProps) {
   const { t } = useTranslation("events");
   const trigger = useRef<HTMLButtonElement>(null);
   const [opened, setOpened] = useState<readonly string[] | null>(null);
@@ -43,12 +46,16 @@ export function ReviewLine({ events, childLabel, childColor, stretched }: Review
         <Button
           ref={trigger}
           variant={stretched ? "ghost" : "outline"}
-          className={stretched ? "ms-auto after:absolute after:inset-0" : "w-full"}
+          size={stretched ? "icon-sm" : "default"}
+          className={
+            stretched ? "ms-auto after:absolute after:inset-0 @2xs/panel:after:hidden" : "w-full"
+          }
           aria-haspopup="dialog"
+          aria-label={label}
           onClick={() => setOpened(events.map((event) => event.id))}
         >
           {!stretched && <SearchCheckIcon aria-hidden />}
-          {title}
+          {!label && title}
           <ChevronRightIcon aria-hidden className="ms-auto" />
         </Button>
       )}

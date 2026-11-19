@@ -95,7 +95,7 @@ function DashboardTileContent({ className, ...props }: React.ComponentProps<"div
 }
 
 const dashboardPanelVariants = cva(
-  "group/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card [--focus-surface:var(--color-card)] p-4 text-card-foreground shadow-rest",
+  "group/panel @container/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card [--focus-surface:var(--color-card)] p-4 text-card-foreground shadow-rest",
   {
     variants: {
       shape: {
@@ -122,7 +122,8 @@ interface DashboardPanelProps
 
 /**
  * A titled block on paper; label it with `aria-labelledby` pointing at its
- * title. `line` draws it as one row (title, a short sentence, an action),
+ * title. The panel is a size container (`@container/panel`): a block reads its own width,
+ * so the same block can be a glance in a narrow tile and a list in a wide one. `line` draws it as one row (title, a short sentence, an action),
  * centred in the size its tile keeps: an empty block reads calm at its size. `natural` is for a block made of cards of its own (the
  * week): a phone shows it at full width on the page, without a card around
  * the cards. `hero` tints the block with the action: only the block that
@@ -176,9 +177,49 @@ function DashboardPanelNote({ className, ...props }: React.ComponentProps<"p">) 
   );
 }
 
+/**
+ * The figure a block is read by at a glance: its first child is the number, set large in a
+ * narrow tile and inline once the panel is wide enough to list what it counts, the rest is its
+ * label.
+ */
+function DashboardPanelFigure({ className, ...props }: React.ComponentProps<"p">) {
+  return (
+    <p
+      data-slot="dashboard-panel-figure"
+      className={cn(
+        "flex min-w-0 items-baseline gap-2 text-sm text-muted-foreground [&>:first-child]:font-display [&>:first-child]:text-4xl [&>:first-child]:leading-none [&>:first-child]:font-bold [&>:first-child]:tracking-tight [&>:first-child]:text-foreground [&>:first-child]:tabular-nums @2xs/panel:[&>:first-child]:text-2xl",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * What a block says when it has nothing to show, composed at the size its tile keeps: a mark
+ * on a soft disc, a short title and one sentence, centred in the room left under the header.
+ * Focusable from code (`tabIndex={-1}`) so the focus has a place to land when the last row
+ * leaves. From `md` it adds no height of its own: it fills the tile, so an empty block never
+ * pushes its row, reading or arranging.
+ */
+function DashboardPanelEmpty({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dashboard-panel-empty"
+      className={cn(
+        "flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl md:contain-size text-center text-sm text-balance text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring [&>p:first-of-type]:font-display [&>p:first-of-type]:text-base [&>p:first-of-type]:font-semibold [&>p:first-of-type]:text-foreground [&>svg]:size-8 [&>svg]:rounded-full [&>svg]:bg-primary-container [&>svg]:p-2 [&>svg]:text-primary motion-safe:[&>svg]:animate-pop-in",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export {
   Dashboard,
   DashboardPanel,
+  DashboardPanelEmpty,
+  DashboardPanelFigure,
   DashboardPanelHeader,
   DashboardPanelNote,
   DashboardPanelTitle,
