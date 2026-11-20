@@ -6,7 +6,7 @@ const twMerge = extendTailwindMerge({
     theme: {
       text: ["display", "title", "heading", "body", "small", "meta"],
       radius: ["mark", "inner", "popover", "surface"],
-      shadow: ["rest", "raised", "float"],
+      shadow: ["rest", "raised", "float", "stripe"],
       spacing: [
         "surface",
         "popover",
@@ -14,6 +14,7 @@ const twMerge = extendTailwindMerge({
         "control-sm",
         "control",
         "control-lg",
+        "icon-mark",
         "icon-sm",
         "icon",
         "icon-lg",

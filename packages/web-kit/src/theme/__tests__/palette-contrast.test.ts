@@ -37,6 +37,8 @@ const AGENDA_PAPERS = [
 
 const TEXT = 4.5;
 const GRAPHIC = 3;
+// The old amber edge read 1.57:1 in light and 9.76:1 in dark: one shouts while the other vanishes. Capping it keeps them alike.
+const URGENCY_CEILING = 4.5;
 
 const topLevelRules = [...css.matchAll(/^([^\s@}/][^{]*)\{([^{}]*)\}/gm)].map((match, order) => ({
   selectors: (match[1] ?? "").split(",").map((selector) => selector.trim()),
@@ -279,6 +281,19 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
     ["success-foreground", "success", TEXT],
     ["input", "background", GRAPHIC],
     ["input", "card", GRAPHIC],
+    // A field inside a block: the block is filled, not bordered, so the field edge carries the control alone.
+    ["input", "surface-container", GRAPHIC],
+    ["ring", "surface-container", GRAPHIC],
+    // Urgency is a 2 px edge and nothing else: it must read on every paper an entry can sit on.
+    ["warning-edge", "card", GRAPHIC],
+    ["warning-edge", "background", GRAPHIC],
+    ["warning-edge", "surface-container", GRAPHIC],
+    ...CHILDREN.flatMap((child): Pair[] => [
+      ["input", `child-${child}-container`, GRAPHIC],
+      ["ring", `child-${child}-container`, GRAPHIC],
+      ["warning-edge", `child-${child}-container`, GRAPHIC],
+      ["destructive", `child-${child}-container`, GRAPHIC],
+    ]),
     // The double focus ring: the ring against the gap, the gap against a control filled with the action or the alert red.
     ...FOCUS_SURFACES.flatMap((surface): Pair[] => [
       ["ring", surface, GRAPHIC],
@@ -396,6 +411,13 @@ describe("palettes", () => {
           .map(({ pair, ratio, floor }) => `${pair} ${ratio.toFixed(2)} < ${floor}`);
 
         expect(failures).toEqual([]);
+      });
+
+      it(`${palette} in ${mode} draws the urgency edge with the same weight in both themes`, () => {
+        const color = tokenColor(pageTokens(palette, mode));
+        const ratio = contrast(color("warning-edge"), color("card"));
+
+        expect(ratio).toBeLessThanOrEqual(URGENCY_CEILING);
       });
 
       it(`${palette} in ${mode} keeps every child colour apart from the action, the urgent amber and the alerts`, () => {

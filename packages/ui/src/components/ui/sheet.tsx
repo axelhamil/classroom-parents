@@ -77,7 +77,7 @@ function SheetContent({
         {showCloseButton && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <SheetPrimitive.Close className="absolute top-surface right-surface rounded-full opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-secondary">
+              <SheetPrimitive.Close className="absolute top-surface right-surface inline-flex size-control-sm items-center justify-center rounded-full opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-secondary">
                 <XIcon className="size-icon" />
                 <span className="sr-only">{closeLabel}</span>
               </SheetPrimitive.Close>

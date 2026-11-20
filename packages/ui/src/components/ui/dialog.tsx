@@ -76,7 +76,7 @@ function DialogContent({
             <TooltipTrigger asChild>
               <DialogPrimitive.Close
                 data-slot="dialog-close"
-                className="absolute top-surface right-surface rounded-full opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-icon"
+                className="absolute top-surface right-surface inline-flex size-control-sm items-center justify-center rounded-full opacity-70 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-icon"
               >
                 <XIcon />
                 <span className="sr-only">{closeLabel}</span>

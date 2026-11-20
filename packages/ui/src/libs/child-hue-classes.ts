@@ -48,24 +48,24 @@ export const childHueContainer = {
 /** A child's colour index, the one type every hue prop of the kit accepts. */
 export type ChildTone = keyof typeof childHueFill;
 
-/** The thin edge in the child's hue (an inset shadow) that marks a deadline laid on neutral paper. */
+/** The thin edge in the child's hue (the `shadow-stripe` utility) that marks a deadline laid on neutral paper. */
 export const childHueEdge = {
-  1: "shadow-[inset_0.1875rem_0_0_var(--child-1)]",
-  2: "shadow-[inset_0.1875rem_0_0_var(--child-2)]",
-  3: "shadow-[inset_0.1875rem_0_0_var(--child-3)]",
-  4: "shadow-[inset_0.1875rem_0_0_var(--child-4)]",
-  5: "shadow-[inset_0.1875rem_0_0_var(--child-5)]",
-  6: "shadow-[inset_0.1875rem_0_0_var(--child-6)]",
-  7: "shadow-[inset_0.1875rem_0_0_var(--child-7)]",
-  8: "shadow-[inset_0.1875rem_0_0_var(--child-8)]",
-  9: "shadow-[inset_0.1875rem_0_0_var(--child-9)]",
-  10: "shadow-[inset_0.1875rem_0_0_var(--child-10)]",
-  11: "shadow-[inset_0.1875rem_0_0_var(--child-11)]",
-  12: "shadow-[inset_0.1875rem_0_0_var(--child-12)]",
-  13: "shadow-[inset_0.1875rem_0_0_var(--child-13)]",
-  14: "shadow-[inset_0.1875rem_0_0_var(--child-14)]",
-  15: "shadow-[inset_0.1875rem_0_0_var(--child-15)]",
-  16: "shadow-[inset_0.1875rem_0_0_var(--child-16)]",
+  1: "shadow-stripe [--stripe-color:var(--child-1)]",
+  2: "shadow-stripe [--stripe-color:var(--child-2)]",
+  3: "shadow-stripe [--stripe-color:var(--child-3)]",
+  4: "shadow-stripe [--stripe-color:var(--child-4)]",
+  5: "shadow-stripe [--stripe-color:var(--child-5)]",
+  6: "shadow-stripe [--stripe-color:var(--child-6)]",
+  7: "shadow-stripe [--stripe-color:var(--child-7)]",
+  8: "shadow-stripe [--stripe-color:var(--child-8)]",
+  9: "shadow-stripe [--stripe-color:var(--child-9)]",
+  10: "shadow-stripe [--stripe-color:var(--child-10)]",
+  11: "shadow-stripe [--stripe-color:var(--child-11)]",
+  12: "shadow-stripe [--stripe-color:var(--child-12)]",
+  13: "shadow-stripe [--stripe-color:var(--child-13)]",
+  14: "shadow-stripe [--stripe-color:var(--child-14)]",
+  15: "shadow-stripe [--stripe-color:var(--child-15)]",
+  16: "shadow-stripe [--stripe-color:var(--child-16)]",
 } as const satisfies Record<ChildTone, string>;
 
 /** Every hue index, for the variant tables that pair a hue with another variant. */

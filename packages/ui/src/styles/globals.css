@@ -79,12 +79,14 @@
   --control-sm: 2rem;
   --control-md: 2.75rem;
   --control-lg: 3.25rem;
+  --icon-mark: 0.5rem;
   --icon-sm: 0.875rem;
   --icon-md: 1rem;
   --icon-lg: 1.25rem;
   --icon-stroke: 1.75;
   /* The urgency edge, the same in both themes: 3.10 to 4.28:1 in light and 3.01 to 4.90:1 in dark on every palette surface and child container, at most 4.5:1 on any card. */
   --warning-edge: oklch(0.585 0.12 75);
+  --stripe-width: 0.1875rem;
   /*
    * Paper lying on a desk under one light from above: every shadow falls straight down, a tight contact line first, then a soft
    * spread pulled in by a negative spread so no sheet glows on its sides. Tinted by the palette's ink, never neutral black.
@@ -202,9 +204,6 @@
   --tour-halo: color-mix(in oklch, var(--primary) 22%, transparent);
   --skeleton-shine: color-mix(in oklch, var(--card) 75%, transparent);
   --confetti-reach: 1.5rem;
-  --sidebar-width: 16rem;
-  --sidebar-width-icon: 3.5rem;
-  --sidebar-width-mobile: 18rem;
   --print-paper: oklch(1 0 0);
   --print-ink: oklch(0.2 0.01 60);
   --print-ink-muted: oklch(0.4 0.01 60);
@@ -291,14 +290,6 @@
   --ring: var(--primary);
   /* The surface under a focused control, restated by every card, panel and popover: the focus gap takes its colour. */
   --focus-surface: var(--background);
-  --sidebar: var(--background);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--secondary);
-  --sidebar-accent-foreground: var(--secondary-foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
 }
 
 /*
@@ -1082,14 +1073,6 @@
   --color-category-swimming-tint: var(--category-swimming-tint);
   --color-category-document-due: var(--category-document-due);
   --color-category-document-due-tint: var(--category-document-due-tint);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
@@ -1119,6 +1102,7 @@
   --spacing-control-sm: var(--control-sm);
   --spacing-control: var(--control-md);
   --spacing-control-lg: var(--control-lg);
+  --spacing-icon-mark: var(--icon-mark);
   --spacing-icon-sm: var(--icon-sm);
   --spacing-icon: var(--icon-md);
   --spacing-icon-lg: var(--icon-lg);
@@ -1291,7 +1275,10 @@
     cursor: pointer;
   }
 
+  /* An icon a primitive does not size draws at the default role, never at the library's 24 px. */
   svg.lucide {
+    width: var(--icon-md);
+    height: var(--icon-md);
     stroke-width: var(--icon-stroke);
   }
 
@@ -1316,8 +1303,7 @@
   [role="button"],
   [role="tab"],
   [data-slot="nav-link"],
-  [data-slot="app-navigation-item"],
-  [data-slot="sidebar-menu-button"] {
+  [data-slot="app-navigation-item"] {
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
@@ -1560,6 +1546,11 @@ html.theme-veil-out::after {
   }
 }
 
+/* The child's stripe on the leading edge of a paper entry; the entry names its child colour in --stripe-color. */
+@utility shadow-stripe {
+  box-shadow: inset var(--stripe-width) 0 0 var(--stripe-color, currentColor);
+}
+
 @utility scrollbar-none {
   scrollbar-width: none;
 
@@ -1587,6 +1578,12 @@ html.theme-switching *::after {
 
 [data-sonner-toaster].toaster {
   font-family: var(--font-sans);
+}
+
+/* Sonner ships a 20 px close button, under the 24 px floor of WCAG 2.5.8. */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 [data-sonner-toaster] [data-sonner-toast] [data-icon]:has(> [data-slot="celebration-stamp"]) {
