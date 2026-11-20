@@ -1,6 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { Item, ItemContent, ItemGroup, ItemTitle } from "@packages/ui/components/ui/item";
-import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { SettingsGroup } from "@packages/ui/components/ui/settings";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,8 @@ export function DataSourcesCard() {
   const { t: tCommon } = useTranslation("common");
 
   return (
-    <SectionCard
+    <SettingsGroup
+      id="sub-processors"
       title={t("privacy.dataSources.title")}
       description={t("privacy.dataSources.description")}
       footer={
@@ -32,6 +33,6 @@ export function DataSourcesCard() {
           </Item>
         ))}
       </ItemGroup>
-    </SectionCard>
+    </SettingsGroup>
   );
 }

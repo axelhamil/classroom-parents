@@ -187,7 +187,10 @@
   /* A text page holds 70 characters per line, the middle of the 65 to 75 readable measure. */
   --page-reading-width: calc(70ch + 2 * var(--page-gutter));
   --page-form-width: calc(28rem + 2 * var(--page-gutter));
-  --section-nav-height: 3.5rem;
+  /* The list of settings sections beside the open one: holds "Confidentialité" with its icon and room to breathe. */
+  --settings-sidebar-width: 15rem;
+  /* A settings row stays readable: its label and help on the left, its control on the right, no farther apart than the eye follows. */
+  --settings-row-width: 47.5rem;
   --scroll-region-height: 30rem;
   --scroll-fade-size: 1rem;
   /* Header of a home tile: the title row beside its menu button, fixed so the body takes what is left. */
@@ -1094,7 +1097,8 @@
   --spacing-nav: var(--nav-height);
   --spacing-app-bar: var(--app-bar-height);
   --spacing-page-gutter: var(--page-gutter);
-  --spacing-section-nav: var(--section-nav-height);
+  --spacing-settings-sidebar: var(--settings-sidebar-width);
+  --container-settings: var(--settings-row-width);
 
   --container-reading: var(--page-reading-width);
   --container-form: var(--page-form-width);

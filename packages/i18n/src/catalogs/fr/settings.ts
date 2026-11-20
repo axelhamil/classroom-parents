@@ -1,30 +1,62 @@
 export default {
   home: {
     title: "Réglages",
-    description: "Vos alertes, vos appareils et les données de votre famille.",
   },
   sections: {
     label: "Sections des réglages",
-    notifications: "Rappels et notifications",
-    region: "Langue, région et IA",
-    appearance: "Apparence et aide",
-    account: "Compte et appareils",
-    privacy: "Données et confidentialité",
+    back: "Réglages",
+    notifications: "Notifications",
+    region: "Langue et région",
+    ai: "Intelligence artificielle",
+    appearance: "Apparence",
+    account: "Compte",
+    privacy: "Confidentialité",
+    help: "Aide",
+  },
+  saved: {
+    toast: "Enregistré",
+    undo: "Annuler",
+  },
+  more: "En savoir plus",
+  search: {
+    label: "Rechercher un réglage",
+    placeholder: "Rechercher un réglage",
+    empty: "Aucun réglage ne correspond.",
+    results: "Réglages trouvés",
+    keywords: {
+      push: "alertes, notifications, téléphone, push, écran verrouillé",
+      reminders: "rappels, jours avant, heure, échéance",
+      quietHours: "nuit, silence, ne pas déranger, heures calmes",
+      digest: "dimanche, résumé, semaine, e-mail",
+      languageAndRegion: "langue, fuseau horaire, heure, pays",
+      schoolCalendar: "vacances, jours fériés, zone, académie, calendrier, école",
+      aiReading: "IA, Claude, Anthropic, annonces, lecture",
+      theme: "thème, clair, sombre, nuit, automatique",
+      palette: "couleurs, palette, apparence",
+      account: "compte, Google, déconnexion, se déconnecter",
+      devices: "appareils, sessions, téléphones, ordinateurs",
+      data: "données, Classroom, lecture seule, conservation, sous-traitants",
+      export: "export, télécharger, copie, portabilité",
+      deletion: "supprimer, effacer, compte, RGPD",
+      tour: "visite, guide, aide, repères",
+      schoolHelp: "école, bloquée, autorisation, administrateur",
+      contact: "contact, e-mail, question, support",
+    },
   },
   appearance: {
-    title: "Apparence",
-    description:
-      "Le thème et les couleurs de l'application sur cet appareil. Automatique suit le réglage clair ou sombre de l'appareil.",
     mode: "Thème",
+    modeHint: "Sur cet appareil. Automatique suit le réglage de l'appareil.",
     palette: "Couleurs",
+    paletteHint: "Survolez une palette pour la voir, choisissez-la pour la garder.",
+    previewOf: "Aperçu : {{name}}",
     sample: "Exercices de maths",
+    sampleSecond: "Sortie au musée",
     groups: {
       classic: "Classiques",
       vivid: "Vives",
       soft: "Douces",
       dark: "Sombres",
     },
-    paletteHint: "Passez sur une palette pour l'essayer sur la page, choisissez-la pour la garder.",
     sampleAction: "Ajouter",
     sampleChild: "Léa",
     palettes: {
@@ -80,14 +112,18 @@ export default {
   },
   tour: {
     title: "Visite guidée",
-    description: "Les repères de chaque écran, montrés une fois. Relancez-les à tout moment.",
-    action: "Revoir la visite guidée",
+    description: "Les repères de chaque écran, montrés une fois.",
+    action: "Revoir la visite",
+  },
+  help: {
+    title: "Aide",
+    contact: "Nous écrire",
+    contactDescription: "Une question, un souci : nous répondons par e-mail.",
   },
   schoolHelp: {
     title: "L'école bloque l'application ?",
-    description:
-      "Certains établissements doivent autoriser l'application pour les comptes élèves. Nous vous préparons la demande à leur envoyer.",
-    action: "Faire autoriser l'application",
+    description: "Nous préparons la demande d'autorisation à envoyer à l'école.",
+    action: "Faire autoriser",
   },
   devices: {
     title: "Appareils connectés",
@@ -130,7 +166,8 @@ export default {
       "Vos autres appareils n'ont pas pu être déconnectés. Réessayez dans un instant.",
   },
   push: {
-    title: "Notifications sur ce téléphone",
+    title: "Sur cet appareil",
+    receive: "Recevoir les alertes",
     description: "Une notification à chaque rappel de vos échéances, même application fermée.",
     enabled: "Activées",
     enabledBody: "Ce téléphone reçoit les alertes de vos échéances.",
@@ -168,8 +205,7 @@ export default {
   },
   reminders: {
     title: "Rappels par défaut",
-    description:
-      "De 0 à 5 rappels pour chaque échéance. Une échéance dont vous avez choisi les rappels garde les siens.",
+    description: "De 0 à 5 rappels par échéance, sauf celles dont vous avez choisi les rappels.",
     loading: "Chargement des rappels par défaut",
     saved: "Rappels par défaut enregistrés",
   },
@@ -195,15 +231,11 @@ export default {
     saved: "Heures calmes enregistrées",
   },
   schoolHolidays: {
-    title: "Vacances scolaires",
-    description:
-      "Choisissez le calendrier de l'école pour voir les vacances et les jours fériés dans votre agenda, en France comme à l'étranger.",
-    country: "Pays de l'école",
-    countryPlaceholder: "Choisir un pays",
-    countrySearch: "Rechercher un pays",
-    countryEmpty: "Aucun pays ne correspond.",
-    countryUnknown: "Je ne sais pas",
-    countrySuggested: "Proposé d'après votre pays dans Langue et région.",
+    title: "Calendrier scolaire",
+    offer: "Vacances et jours fériés : {{country}}",
+    show: "Afficher",
+    none: "{{country}} : aucun calendrier scolaire",
+    noneHint: "Si l'école est dans un autre pays, changez le pays ci-dessus.",
     academy: "Académie",
     academyPlaceholder: "Trouver ma zone par l'académie",
     academyHint: "L'académie propose sa zone, vous gardez le dernier mot.",
@@ -252,24 +284,25 @@ export default {
       empty: "Aucune période pour l'instant.",
       origin: { ics: "Importée", manual: "Saisie" },
     },
-    missing: "Aucun calendrier choisi : les vacances et les jours fériés ne s'affichent pas.",
+    missing: "Pour l'instant, ni vacances ni jours fériés dans votre agenda.",
     loading: "Chargement du calendrier scolaire",
-    saved: "Calendrier scolaire enregistré",
   },
   languageAndRegion: {
     title: "Langue et région",
-    description: "Votre langue, votre fuseau horaire et votre pays.",
     language: "Langue",
-    languageHint:
-      "L'interface reste en français pour l'instant. La langue choisie servira aux traductions à venir.",
+    languageHint: "L'interface reste en français pour l'instant.",
     timeZone: "Fuseau horaire",
     country: "Pays",
-    fromDevice: "Valeurs proposées par cet appareil. Enregistrez pour les garder.",
+    countryHint: "Le calendrier scolaire suit ce pays.",
+    countrySearch: "Rechercher un pays",
+    countryEmpty: "Aucun pays ne correspond.",
+    fromDeviceTitle: "Proposés par cet appareil",
+    fromDevice: "Gardez ces valeurs ou changez-les ci-dessous.",
+    keep: "Garder",
     loading: "Chargement de la langue et de la région",
-    saved: "Langue et région enregistrées",
   },
   aiReading: {
-    title: "Intelligence artificielle",
+    title: "Annonces des enseignants",
     description:
       "Anthropic (modèles Claude), sous-traitant, lit le texte des annonces de vos enfants pour en tirer les dates, sans s'en servir pour entraîner ses modèles.",
     enabled: "Lecture des annonces par l'IA",
@@ -290,11 +323,17 @@ export default {
     },
   },
   links: {
-    title: "Confidentialité",
-    description: "Ce que l'application lit, ce qu'elle garde, et vos droits.",
-    privacy: "Confidentialité et données",
     policy: "Politique de confidentialité",
     dataRights: "Vos droits sur vos données",
+  },
+  export: {
+    groupTitle: "Vos données",
+    title: "Exporter mes données",
+    description:
+      "Votre compte, vos enfants et leurs échéances, dans un fichier. Une fois par jour.",
+    action: "Exporter",
+    pending: "Préparation…",
+    done: "Vos données sont téléchargées.",
   },
   account: {
     title: "Compte",
@@ -340,8 +379,6 @@ export default {
     cancelFailed: "La suppression n'a pas pu être annulée. Réessayez dans un instant.",
   },
   privacy: {
-    pageTitle: "Confidentialité et données",
-    pageDescription: "Ce que l'application lit, ce qu'elle garde et ce qu'elle ne fait jamais.",
     reads: {
       title: "Ce que nous lisons",
       description:
@@ -352,11 +389,9 @@ export default {
       coursework: "Ses devoirs et leur date limite, et s'ils sont rendus.",
     },
     limitedUse: {
-      title: "Usage limité des données Google",
       body: "L'utilisation des données reçues des API Google respecte la politique Google API Services User Data Policy, y compris ses exigences d'usage limité (Limited Use). Ces données servent uniquement à afficher les échéances de vos enfants et à vous prévenir : jamais de publicité, de revente, ni d'entraînement de modèles d'IA.",
     },
     ai: {
-      title: "Lecture des annonces par l'IA",
       body: "Le texte d'une annonce est envoyé à Anthropic (modèles Claude), sous-traitant, pour en extraire les dates. Anthropic n'utilise pas ces données pour entraîner ses modèles. Les devoirs Classroom, eux, sont lus sans IA. Vous pouvez désactiver la lecture des annonces par l'IA dans Réglages.",
     },
     dataSources: {
@@ -365,14 +400,7 @@ export default {
       viewAll: "Voir le registre des sous-traitants",
     },
     retention: {
-      title: "Combien de temps nous gardons vos échéances",
       body: "Une échéance reste 12 mois après sa date, puis elle est effacée avec ses rappels. Une échéance que vous supprimez ou que l'enseignant retire est effacée 30 jours plus tard ; un devoir Classroom reste au moins 61 jours après sa date, pour qu'une synchronisation ne le recrée pas.",
-    },
-    rights: {
-      title: "Vos droits",
-      description:
-        "Retirez un enfant depuis l'écran Enfants pour révoquer son accès et effacer ses données. Supprimez votre compte depuis Réglages.",
-      contact: "Pour toute question : <mail>{{email}}</mail>",
     },
   },
 } as const;

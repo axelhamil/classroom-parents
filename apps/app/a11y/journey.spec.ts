@@ -383,7 +383,7 @@ test("a parent links two children, follows their deadlines and alerts, then eras
   });
 
   await test.step("deleting the account leaves no row behind once the grace period ends", async () => {
-    await page.goto("/settings");
+    await page.goto("/settings/privacy");
     await page.getByRole("button", { name: "Supprimer mon compte" }).click();
     await page.getByRole("button", { name: "Oui, supprimer mon compte" }).click();
     await expect(page.getByRole("heading", { name: "Suppression programmée" })).toBeVisible();

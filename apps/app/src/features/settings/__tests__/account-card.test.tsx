@@ -44,7 +44,7 @@ describe("AccountCard", () => {
         "POST /api/auth/sign-out": () => json({ success: true }),
       }),
     );
-    const appRouter = await renderAppAt("/settings");
+    const appRouter = await renderAppAt("/settings/account");
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Se déconnecter" }));

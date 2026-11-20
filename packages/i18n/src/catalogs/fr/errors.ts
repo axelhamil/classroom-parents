@@ -62,6 +62,8 @@ export default {
     PUSH_SUBSCRIPTION_INVALID:
       "Ce navigateur a fourni un abonnement aux notifications que nous ne pouvons pas utiliser. Réessayez depuis Chrome, Edge, Firefox ou Safari.",
     ACCOUNT_DELETION_NOT_FOUND: "Aucune suppression à annuler.",
+    DATA_EXPORT_RATE_LIMITED:
+      "Vous avez déjà téléchargé vos données il y a moins de 24 h. Réessayez demain.",
     INVALID_EMAIL_OR_PASSWORD: "Adresse e-mail ou mot de passe invalide.",
     INVALID_EMAIL: "Saisissez une adresse e-mail valide.",
     INVALID_PASSWORD: "Mot de passe invalide.",
@@ -182,6 +184,7 @@ export default {
     setQuietHours: "Échec de l'enregistrement des heures calmes",
     loadDigest: "Échec du chargement du choix de résumé du dimanche",
     setDigest: "Échec de l'enregistrement du choix de résumé du dimanche",
+    exportData: "Échec de la préparation de vos données",
     loadSchoolCalendarSettings: "Échec du chargement du calendrier scolaire",
     loadSchoolCalendarRegions: "Échec du chargement des régions",
     loadSchoolCalendarPreview: "Échec du chargement de l'aperçu",

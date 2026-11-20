@@ -18,7 +18,7 @@ import {
   ItemTitle,
 } from "@packages/ui/components/ui/item";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
-import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { SettingsGroup } from "@packages/ui/components/ui/settings";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
@@ -37,6 +37,7 @@ import {
   type DeviceKind,
   summarizeUserAgent,
 } from "../device-labels";
+import { SETTINGS_ANCHORS } from "../settings-search-index";
 
 const DEVICE_ICONS: Record<DeviceKind, Icon> = {
   ios: PhoneIcon,
@@ -83,8 +84,8 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
   const others = sessions.filter((session) => session.token !== currentSessionToken);
 
   return (
-    <SectionCard
-      data-tour="settings-devices"
+    <SettingsGroup
+      id={SETTINGS_ANCHORS.devices}
       title={t("devices.title")}
       description={t("devices.description")}
       footer={
@@ -140,7 +141,7 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
       {query.isSuccess && others.length === 0 ? (
         <TypographyMuted>{t("devices.alone")}</TypographyMuted>
       ) : null}
-    </SectionCard>
+    </SettingsGroup>
   );
 }
 

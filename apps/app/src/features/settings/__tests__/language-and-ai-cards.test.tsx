@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -8,6 +9,11 @@ import {
   resetApp,
   stubApi,
 } from "../../../__tests__/app-harness";
+import {
+  ensurePointerCapture,
+  ensureResizeObserver,
+  ensureScrollIntoView,
+} from "../../../__tests__/match-media";
 import { AiReadingCard } from "../components/ai-reading-card";
 import { LanguageAndRegionCard } from "../components/language-and-region-card";
 
@@ -50,19 +56,17 @@ async function choose(label: string, option: string) {
   fireEvent.keyDown(item, { key: "Enter" });
 }
 
+function savedLanguageAndRegion(calls: ReturnType<typeof givenPreferences>) {
+  return calls
+    .filter(({ url }) => url.pathname === "/assistant/preferences/language-and-region")
+    .map(({ body }) => body);
+}
+
 describe("language and AI reading cards", () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
-    Element.prototype.hasPointerCapture = () => false;
-    Element.prototype.releasePointerCapture = () => {};
-    Element.prototype.scrollIntoView = () => {};
+    ensureResizeObserver();
+    ensurePointerCapture();
+    ensureScrollIntoView();
   });
 
   afterEach(() => {
@@ -77,7 +81,7 @@ describe("language and AI reading cards", () => {
     givenDevice(["de-DE", "pt-BR"], "America/Sao_Paulo");
     await renderWithProviders(<LanguageAndRegionCard userId="user-1" />);
 
-    expect(await screen.findByText(/Valeurs proposées par cet appareil/)).toBeDefined();
+    expect(await screen.findByText("Proposés par cet appareil")).toBeDefined();
     expect(screen.getByRole("combobox", { name: "Langue" }).textContent).toBe("Português");
     expect(screen.getByRole("combobox", { name: "Fuseau horaire" }).textContent).toBe(
       "America/Sao Paulo",
@@ -85,23 +89,34 @@ describe("language and AI reading cards", () => {
     expect(screen.getByRole("combobox", { name: "Pays" }).textContent).toBe("Brésil");
   });
 
-  it("given a parent who saves, then the language, time zone and country are sent", async () => {
+  it("given a parent who keeps the device values, then the language, time zone and country are sent", async () => {
+    const calls = givenPreferences(NOTHING_CHOSEN);
+    givenDevice(["fr-BE"], "Europe/Brussels");
+    await renderWithProviders(<LanguageAndRegionCard userId="user-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Garder" }));
+
+    await waitFor(() =>
+      expect(savedLanguageAndRegion(calls)).toEqual([
+        { locale: "fr", timeZone: "Europe/Brussels", country: "BE" },
+      ]),
+    );
+    await waitFor(() => expect(screen.queryByText("Proposés par cet appareil")).toBeNull());
+  });
+
+  it("given a parent who picks another language, then it is saved at once with the rest of the region", async () => {
     const calls = givenPreferences(NOTHING_CHOSEN);
     givenDevice(["fr-FR"], "Europe/Paris");
     await renderWithProviders(<LanguageAndRegionCard userId="user-1" />);
 
     await choose("Langue", "Español");
-    await choose("Pays", "Belgique");
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
 
     await waitFor(() =>
-      expect(
-        calls.find((call) => call.url.pathname === "/assistant/preferences/language-and-region")
-          ?.body,
-      ).toEqual({ locale: "es", timeZone: "Europe/Paris", country: "BE" }),
+      expect(savedLanguageAndRegion(calls)).toEqual([
+        { locale: "es", timeZone: "Europe/Paris", country: "FR" },
+      ]),
     );
-    expect(await screen.findByText("Langue et région enregistrées")).toBeDefined();
-    expect(screen.queryByText(/Valeurs proposées par cet appareil/)).toBeNull();
+    expect(await screen.findByText("Enregistré")).toBeDefined();
   });
 
   it("given AI reading is on, when the parent turns it off, then it is saved at once and only Classroom work is read", async () => {

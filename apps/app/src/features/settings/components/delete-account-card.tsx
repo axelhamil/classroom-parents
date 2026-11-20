@@ -2,7 +2,7 @@ import { Alert, AlertDescription, AlertTitle } from "@packages/ui/components/ui/
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
 import { DeleteIcon, SecurityCheckIcon } from "@packages/ui/components/ui/icons";
-import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { SettingsGroup } from "@packages/ui/components/ui/settings";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
@@ -10,8 +10,9 @@ import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../../../shared/api/queries/session";
 import { useGoogleReauth } from "../../rgpd/hooks/use-google-reauth";
 import { useRequestDeletion } from "../../rgpd/hooks/use-request-deletion";
+import { SETTINGS_ANCHORS } from "../settings-search-index";
 
-const RETURN_PATH = "/settings";
+const RETURN_PATH = "/settings/privacy";
 const GOOGLE_CANCELLED = "access_denied";
 
 export interface DeleteAccountCardProps {
@@ -37,7 +38,8 @@ function ScheduledDeletion({ until }: ScheduledDeletionProps) {
   const formatDateTime = useFormatDateTime();
 
   return (
-    <SectionCard
+    <SettingsGroup
+      id={SETTINGS_ANCHORS.deletion}
       tone="destructive"
       title={t("deletion.scheduledTitle")}
       description={t("deletion.scheduledDescription", { date: formatDateTime(until) })}
@@ -60,7 +62,8 @@ function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
   const reauthRequired = deletion.reauthRequired || reauthError !== undefined;
 
   return (
-    <SectionCard
+    <SettingsGroup
+      id={SETTINGS_ANCHORS.deletion}
       tone="destructive"
       title={t("deletion.title")}
       description={t("deletion.description")}
@@ -110,6 +113,6 @@ function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
           />
         </>
       )}
-    </SectionCard>
+    </SettingsGroup>
   );
 }

@@ -19,7 +19,7 @@ const TOURS = {
     "event-detail.reminders",
   ],
   children: ["children.card", "children.menu", "children.add"],
-  settings: ["settings.push", "settings.reminders", "settings.devices", "settings.tour"],
+  settings: ["settings.notifications", "settings.account", "settings.help"],
 } as const;
 
 export type TourScreen = keyof typeof TOURS;

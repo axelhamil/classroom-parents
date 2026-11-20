@@ -29,7 +29,14 @@ import { Route as featuresChildrenLinkErrorDotrouteRouteImport } from './feature
 import { Route as featuresOnboardingNewChildDotrouteRouteImport } from './features/onboarding/new-child.route'
 import { Route as featuresEventsEventDetailDotrouteRouteImport } from './features/events/event-detail.route'
 import { Route as featuresEventsEventNewDotrouteRouteImport } from './features/events/event-new.route'
-import { Route as featuresPrivacyPrivacyDotrouteRouteImport } from './features/privacy/privacy.route'
+import { Route as featuresSettingsSettingsIndexDotrouteRouteImport } from './features/settings/settings-index.route'
+import { Route as featuresSettingsSectionsAccountDotrouteRouteImport } from './features/settings/sections/account.route'
+import { Route as featuresSettingsSectionsAiDotrouteRouteImport } from './features/settings/sections/ai.route'
+import { Route as featuresSettingsSectionsAppearanceDotrouteRouteImport } from './features/settings/sections/appearance.route'
+import { Route as featuresSettingsSectionsHelpDotrouteRouteImport } from './features/settings/sections/help.route'
+import { Route as featuresSettingsSectionsNotificationsDotrouteRouteImport } from './features/settings/sections/notifications.route'
+import { Route as featuresSettingsSectionsPrivacyDotrouteRouteImport } from './features/settings/sections/privacy.route'
+import { Route as featuresSettingsSectionsRegionDotrouteRouteImport } from './features/settings/sections/region.route'
 import { Route as featuresEventsPrintWeekDotrouteRouteImport } from './features/events/print-week.route'
 import { Route as featuresEventsEventEditDotrouteRouteImport } from './features/events/event-edit.route'
 
@@ -147,11 +154,53 @@ const featuresEventsEventNewDotrouteRoute =
     path: '/events/new',
     getParentRoute: () => routerShellRoute,
   } as any)
-const featuresPrivacyPrivacyDotrouteRoute =
-  featuresPrivacyPrivacyDotrouteRouteImport.update({
-    id: '/settings/privacy',
-    path: '/settings/privacy',
-    getParentRoute: () => routerShellRoute,
+const featuresSettingsSettingsIndexDotrouteRoute =
+  featuresSettingsSettingsIndexDotrouteRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
+  } as any)
+const featuresSettingsSectionsAccountDotrouteRoute =
+  featuresSettingsSectionsAccountDotrouteRouteImport.update({
+    id: '/account',
+    path: '/account',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
+  } as any)
+const featuresSettingsSectionsAiDotrouteRoute =
+  featuresSettingsSectionsAiDotrouteRouteImport.update({
+    id: '/ai',
+    path: '/ai',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
+  } as any)
+const featuresSettingsSectionsAppearanceDotrouteRoute =
+  featuresSettingsSectionsAppearanceDotrouteRouteImport.update({
+    id: '/appearance',
+    path: '/appearance',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
+  } as any)
+const featuresSettingsSectionsHelpDotrouteRoute =
+  featuresSettingsSectionsHelpDotrouteRouteImport.update({
+    id: '/help',
+    path: '/help',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
+  } as any)
+const featuresSettingsSectionsNotificationsDotrouteRoute =
+  featuresSettingsSectionsNotificationsDotrouteRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
+  } as any)
+const featuresSettingsSectionsPrivacyDotrouteRoute =
+  featuresSettingsSectionsPrivacyDotrouteRouteImport.update({
+    id: '/privacy',
+    path: '/privacy',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
+  } as any)
+const featuresSettingsSectionsRegionDotrouteRoute =
+  featuresSettingsSectionsRegionDotrouteRouteImport.update({
+    id: '/region',
+    path: '/region',
+    getParentRoute: () => featuresSettingsSettingsDotrouteRoute,
   } as any)
 const featuresEventsPrintWeekDotrouteRoute =
   featuresEventsPrintWeekDotrouteRouteImport.update({
@@ -178,13 +227,20 @@ export interface FileRoutesByFullPath {
   '/legal/terms': typeof featuresLegalTermsDotrouteRoute
   '/children': typeof featuresChildrenChildrenDotrouteRoute
   '/history': typeof featuresHistoryHistoryDotrouteRoute
-  '/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/settings': typeof featuresSettingsSettingsDotrouteRouteWithChildren
+  '/settings/': typeof featuresSettingsSettingsIndexDotrouteRoute
   '/aide/ecole': typeof featuresHelpSchoolHelpDotrouteRoute
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/events/new': typeof featuresEventsEventNewDotrouteRoute
-  '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/settings/account': typeof featuresSettingsSectionsAccountDotrouteRoute
+  '/settings/ai': typeof featuresSettingsSectionsAiDotrouteRoute
+  '/settings/appearance': typeof featuresSettingsSectionsAppearanceDotrouteRoute
+  '/settings/help': typeof featuresSettingsSectionsHelpDotrouteRoute
+  '/settings/notifications': typeof featuresSettingsSectionsNotificationsDotrouteRoute
+  '/settings/privacy': typeof featuresSettingsSectionsPrivacyDotrouteRoute
+  '/settings/region': typeof featuresSettingsSectionsRegionDotrouteRoute
   '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
@@ -200,13 +256,19 @@ export interface FileRoutesByTo {
   '/legal/terms': typeof featuresLegalTermsDotrouteRoute
   '/children': typeof featuresChildrenChildrenDotrouteRoute
   '/history': typeof featuresHistoryHistoryDotrouteRoute
-  '/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/settings': typeof featuresSettingsSettingsIndexDotrouteRoute
   '/aide/ecole': typeof featuresHelpSchoolHelpDotrouteRoute
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/events/new': typeof featuresEventsEventNewDotrouteRoute
-  '/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/settings/account': typeof featuresSettingsSectionsAccountDotrouteRoute
+  '/settings/ai': typeof featuresSettingsSectionsAiDotrouteRoute
+  '/settings/appearance': typeof featuresSettingsSectionsAppearanceDotrouteRoute
+  '/settings/help': typeof featuresSettingsSectionsHelpDotrouteRoute
+  '/settings/notifications': typeof featuresSettingsSectionsNotificationsDotrouteRoute
+  '/settings/privacy': typeof featuresSettingsSectionsPrivacyDotrouteRoute
+  '/settings/region': typeof featuresSettingsSectionsRegionDotrouteRoute
   '/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
@@ -226,13 +288,20 @@ export interface FileRoutesById {
   '/_protected/_shell/': typeof featuresEventsEventsDotrouteRoute
   '/_protected/_shell/children': typeof featuresChildrenChildrenDotrouteRoute
   '/_protected/_shell/history': typeof featuresHistoryHistoryDotrouteRoute
-  '/_protected/_shell/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/_protected/_shell/settings': typeof featuresSettingsSettingsDotrouteRouteWithChildren
+  '/_protected/_shell/settings/': typeof featuresSettingsSettingsIndexDotrouteRoute
   '/_protected/_shell/aide/ecole': typeof featuresHelpSchoolHelpDotrouteRoute
   '/_protected/_shell/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/_protected/_shell/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/_protected/_shell/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
   '/_protected/_shell/events/new': typeof featuresEventsEventNewDotrouteRoute
-  '/_protected/_shell/settings/privacy': typeof featuresPrivacyPrivacyDotrouteRoute
+  '/_protected/_shell/settings/account': typeof featuresSettingsSectionsAccountDotrouteRoute
+  '/_protected/_shell/settings/ai': typeof featuresSettingsSectionsAiDotrouteRoute
+  '/_protected/_shell/settings/appearance': typeof featuresSettingsSectionsAppearanceDotrouteRoute
+  '/_protected/_shell/settings/help': typeof featuresSettingsSectionsHelpDotrouteRoute
+  '/_protected/_shell/settings/notifications': typeof featuresSettingsSectionsNotificationsDotrouteRoute
+  '/_protected/_shell/settings/privacy': typeof featuresSettingsSectionsPrivacyDotrouteRoute
+  '/_protected/_shell/settings/region': typeof featuresSettingsSectionsRegionDotrouteRoute
   '/_protected/_shell/week/print': typeof featuresEventsPrintWeekDotrouteRoute
   '/_protected/_shell/events/$eventId/edit': typeof featuresEventsEventEditDotrouteRoute
 }
@@ -251,12 +320,19 @@ export interface FileRouteTypes {
     | '/children'
     | '/history'
     | '/settings'
+    | '/settings/'
     | '/aide/ecole'
     | '/children/link-error'
     | '/children/new'
     | '/events/$eventId'
     | '/events/new'
+    | '/settings/account'
+    | '/settings/ai'
+    | '/settings/appearance'
+    | '/settings/help'
+    | '/settings/notifications'
     | '/settings/privacy'
+    | '/settings/region'
     | '/week/print'
     | '/events/$eventId/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -278,7 +354,13 @@ export interface FileRouteTypes {
     | '/children/new'
     | '/events/$eventId'
     | '/events/new'
+    | '/settings/account'
+    | '/settings/ai'
+    | '/settings/appearance'
+    | '/settings/help'
+    | '/settings/notifications'
     | '/settings/privacy'
+    | '/settings/region'
     | '/week/print'
     | '/events/$eventId/edit'
   id:
@@ -298,12 +380,19 @@ export interface FileRouteTypes {
     | '/_protected/_shell/children'
     | '/_protected/_shell/history'
     | '/_protected/_shell/settings'
+    | '/_protected/_shell/settings/'
     | '/_protected/_shell/aide/ecole'
     | '/_protected/_shell/children/link-error'
     | '/_protected/_shell/children/new'
     | '/_protected/_shell/events/$eventId'
     | '/_protected/_shell/events/new'
+    | '/_protected/_shell/settings/account'
+    | '/_protected/_shell/settings/ai'
+    | '/_protected/_shell/settings/appearance'
+    | '/_protected/_shell/settings/help'
+    | '/_protected/_shell/settings/notifications'
     | '/_protected/_shell/settings/privacy'
+    | '/_protected/_shell/settings/region'
     | '/_protected/_shell/week/print'
     | '/_protected/_shell/events/$eventId/edit'
   fileRoutesById: FileRoutesById
@@ -461,12 +550,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof featuresEventsEventNewDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
+    '/_protected/_shell/settings/': {
+      id: '/_protected/_shell/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof featuresSettingsSettingsIndexDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
+    }
+    '/_protected/_shell/settings/account': {
+      id: '/_protected/_shell/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof featuresSettingsSectionsAccountDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
+    }
+    '/_protected/_shell/settings/ai': {
+      id: '/_protected/_shell/settings/ai'
+      path: '/ai'
+      fullPath: '/settings/ai'
+      preLoaderRoute: typeof featuresSettingsSectionsAiDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
+    }
+    '/_protected/_shell/settings/appearance': {
+      id: '/_protected/_shell/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof featuresSettingsSectionsAppearanceDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
+    }
+    '/_protected/_shell/settings/help': {
+      id: '/_protected/_shell/settings/help'
+      path: '/help'
+      fullPath: '/settings/help'
+      preLoaderRoute: typeof featuresSettingsSectionsHelpDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
+    }
+    '/_protected/_shell/settings/notifications': {
+      id: '/_protected/_shell/settings/notifications'
+      path: '/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof featuresSettingsSectionsNotificationsDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
+    }
     '/_protected/_shell/settings/privacy': {
       id: '/_protected/_shell/settings/privacy'
-      path: '/settings/privacy'
+      path: '/privacy'
       fullPath: '/settings/privacy'
-      preLoaderRoute: typeof featuresPrivacyPrivacyDotrouteRouteImport
-      parentRoute: typeof routerShellRoute
+      preLoaderRoute: typeof featuresSettingsSectionsPrivacyDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
+    }
+    '/_protected/_shell/settings/region': {
+      id: '/_protected/_shell/settings/region'
+      path: '/region'
+      fullPath: '/settings/region'
+      preLoaderRoute: typeof featuresSettingsSectionsRegionDotrouteRouteImport
+      parentRoute: typeof featuresSettingsSettingsDotrouteRoute
     }
     '/_protected/_shell/week/print': {
       id: '/_protected/_shell/week/print'
@@ -497,17 +635,52 @@ const routerGuestRouteWithChildren = routerGuestRoute._addFileChildren(
   routerGuestRouteChildren,
 )
 
+interface featuresSettingsSettingsDotrouteRouteChildren {
+  featuresSettingsSettingsIndexDotrouteRoute: typeof featuresSettingsSettingsIndexDotrouteRoute
+  featuresSettingsSectionsAccountDotrouteRoute: typeof featuresSettingsSectionsAccountDotrouteRoute
+  featuresSettingsSectionsAiDotrouteRoute: typeof featuresSettingsSectionsAiDotrouteRoute
+  featuresSettingsSectionsAppearanceDotrouteRoute: typeof featuresSettingsSectionsAppearanceDotrouteRoute
+  featuresSettingsSectionsHelpDotrouteRoute: typeof featuresSettingsSectionsHelpDotrouteRoute
+  featuresSettingsSectionsNotificationsDotrouteRoute: typeof featuresSettingsSectionsNotificationsDotrouteRoute
+  featuresSettingsSectionsPrivacyDotrouteRoute: typeof featuresSettingsSectionsPrivacyDotrouteRoute
+  featuresSettingsSectionsRegionDotrouteRoute: typeof featuresSettingsSectionsRegionDotrouteRoute
+}
+
+const featuresSettingsSettingsDotrouteRouteChildren: featuresSettingsSettingsDotrouteRouteChildren =
+  {
+    featuresSettingsSettingsIndexDotrouteRoute:
+      featuresSettingsSettingsIndexDotrouteRoute,
+    featuresSettingsSectionsAccountDotrouteRoute:
+      featuresSettingsSectionsAccountDotrouteRoute,
+    featuresSettingsSectionsAiDotrouteRoute:
+      featuresSettingsSectionsAiDotrouteRoute,
+    featuresSettingsSectionsAppearanceDotrouteRoute:
+      featuresSettingsSectionsAppearanceDotrouteRoute,
+    featuresSettingsSectionsHelpDotrouteRoute:
+      featuresSettingsSectionsHelpDotrouteRoute,
+    featuresSettingsSectionsNotificationsDotrouteRoute:
+      featuresSettingsSectionsNotificationsDotrouteRoute,
+    featuresSettingsSectionsPrivacyDotrouteRoute:
+      featuresSettingsSectionsPrivacyDotrouteRoute,
+    featuresSettingsSectionsRegionDotrouteRoute:
+      featuresSettingsSectionsRegionDotrouteRoute,
+  }
+
+const featuresSettingsSettingsDotrouteRouteWithChildren =
+  featuresSettingsSettingsDotrouteRoute._addFileChildren(
+    featuresSettingsSettingsDotrouteRouteChildren,
+  )
+
 interface routerShellRouteChildren {
   featuresEventsEventsDotrouteRoute: typeof featuresEventsEventsDotrouteRoute
   featuresChildrenChildrenDotrouteRoute: typeof featuresChildrenChildrenDotrouteRoute
   featuresHistoryHistoryDotrouteRoute: typeof featuresHistoryHistoryDotrouteRoute
-  featuresSettingsSettingsDotrouteRoute: typeof featuresSettingsSettingsDotrouteRoute
+  featuresSettingsSettingsDotrouteRoute: typeof featuresSettingsSettingsDotrouteRouteWithChildren
   featuresHelpSchoolHelpDotrouteRoute: typeof featuresHelpSchoolHelpDotrouteRoute
   featuresChildrenLinkErrorDotrouteRoute: typeof featuresChildrenLinkErrorDotrouteRoute
   featuresOnboardingNewChildDotrouteRoute: typeof featuresOnboardingNewChildDotrouteRoute
   featuresEventsEventDetailDotrouteRoute: typeof featuresEventsEventDetailDotrouteRoute
   featuresEventsEventNewDotrouteRoute: typeof featuresEventsEventNewDotrouteRoute
-  featuresPrivacyPrivacyDotrouteRoute: typeof featuresPrivacyPrivacyDotrouteRoute
   featuresEventsPrintWeekDotrouteRoute: typeof featuresEventsPrintWeekDotrouteRoute
   featuresEventsEventEditDotrouteRoute: typeof featuresEventsEventEditDotrouteRoute
 }
@@ -516,7 +689,8 @@ const routerShellRouteChildren: routerShellRouteChildren = {
   featuresEventsEventsDotrouteRoute: featuresEventsEventsDotrouteRoute,
   featuresChildrenChildrenDotrouteRoute: featuresChildrenChildrenDotrouteRoute,
   featuresHistoryHistoryDotrouteRoute: featuresHistoryHistoryDotrouteRoute,
-  featuresSettingsSettingsDotrouteRoute: featuresSettingsSettingsDotrouteRoute,
+  featuresSettingsSettingsDotrouteRoute:
+    featuresSettingsSettingsDotrouteRouteWithChildren,
   featuresHelpSchoolHelpDotrouteRoute: featuresHelpSchoolHelpDotrouteRoute,
   featuresChildrenLinkErrorDotrouteRoute:
     featuresChildrenLinkErrorDotrouteRoute,
@@ -525,7 +699,6 @@ const routerShellRouteChildren: routerShellRouteChildren = {
   featuresEventsEventDetailDotrouteRoute:
     featuresEventsEventDetailDotrouteRoute,
   featuresEventsEventNewDotrouteRoute: featuresEventsEventNewDotrouteRoute,
-  featuresPrivacyPrivacyDotrouteRoute: featuresPrivacyPrivacyDotrouteRoute,
   featuresEventsPrintWeekDotrouteRoute: featuresEventsPrintWeekDotrouteRoute,
   featuresEventsEventEditDotrouteRoute: featuresEventsEventEditDotrouteRoute,
 }

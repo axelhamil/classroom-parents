@@ -14,12 +14,11 @@ import {
 const EMPTY_PERIOD: HolidayPeriodDraft = { name: "", startsOn: "", endsOn: "" };
 
 export interface AddHolidayPeriodFormProps {
-  beforeAdd: () => Promise<boolean>;
   onAdded: () => void;
 }
 
 /** One school holiday typed by hand, from its first to its last day off. */
-export function AddHolidayPeriodForm({ beforeAdd, onAdded }: AddHolidayPeriodFormProps) {
+export function AddHolidayPeriodForm({ onAdded }: AddHolidayPeriodFormProps) {
   const { t } = useTranslation("settings");
   const form = useForm<HolidayPeriodDraft>({ defaultValues: EMPTY_PERIOD });
   const add = useMutation({
@@ -32,9 +31,7 @@ export function AddHolidayPeriodForm({ beforeAdd, onAdded }: AddHolidayPeriodFor
     onError: (error) => toastError(error, errorFallback("addSchoolHoliday")),
   });
 
-  const submit = async (period: HolidayPeriodDraft) => {
-    if (await beforeAdd()) add.mutate(period);
-  };
+  const submit = (period: HolidayPeriodDraft) => add.mutate(period);
 
   return (
     <Form {...form}>

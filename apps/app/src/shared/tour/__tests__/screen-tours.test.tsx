@@ -61,7 +61,7 @@ describe("guided tour per screen", () => {
 
   it("restart from settings shows it again", async () => {
     givenFamily();
-    const router = await renderAppAt("/settings");
+    const router = await renderAppAt("/settings/help");
 
     await userEvent.click(
       await screen.findByRole("button", { name: frCatalog.settings.tour.action }),

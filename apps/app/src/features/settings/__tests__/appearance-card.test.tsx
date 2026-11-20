@@ -15,7 +15,7 @@ describe("appearance card", () => {
 
   it("settings appearance repaints the app in Forêt and keeps it for the next visit", async () => {
     stubApi(byRoute({ "GET /push/status": () => json({ live: 1 }) }));
-    await renderAppAt("/settings");
+    await renderAppAt("/settings/appearance");
 
     const paper = await screen.findByRole("radio", { name: "Papier" });
     const forest = screen.getByRole("radio", { name: "Forêt" });
@@ -30,7 +30,7 @@ describe("appearance card", () => {
 
   it("settings appearance switches to Sombre and persists", async () => {
     stubApi(byRoute({ "GET /push/status": () => json({ live: 1 }) }));
-    await renderAppAt("/settings");
+    await renderAppAt("/settings/appearance");
 
     const light = await screen.findByRole("radio", { name: "Clair" });
     const dark = screen.getByRole("radio", { name: "Sombre" });
@@ -45,7 +45,7 @@ describe("appearance card", () => {
 
   it("settings appearance offers Automatique, which follows the device and is kept", async () => {
     stubApi(byRoute({ "GET /push/status": () => json({ live: 1 }) }));
-    await renderAppAt("/settings");
+    await renderAppAt("/settings/appearance");
 
     const system = await screen.findByRole("radio", { name: "Automatique" });
     await userEvent.setup().click(system);

@@ -7,7 +7,7 @@ const SRC = fileURLToPath(new URL("..", import.meta.url));
 const SCANNED = ["features", "shared", "router"];
 
 const PAGE_MAX_WIDTH =
-  /\bmax-w-(?:\[|\(|(?:3xs|2xs|xs|sm|md|lg|xl|[2-7]xl|prose|screen|reading|form|ultrawide)\b)/;
+  /\bmax-w-(?:\[|\(|(?:3xs|2xs|xs|sm|md|lg|xl|[2-7]xl|prose|screen|reading|form|settings|ultrawide)\b)/;
 
 function componentFiles(): string[] {
   return SCANNED.flatMap((dir) =>

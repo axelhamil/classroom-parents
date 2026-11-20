@@ -48,7 +48,9 @@ describe("PushCard", () => {
 
     expect(screen.getByText("Notifications bloquées")).toBeTruthy();
     expect(screen.getByText(/Autorisations, puis Notifications/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Activer les alertes" })).toBeNull();
+    expect(
+      screen.getByRole("switch", { name: "Recevoir les alertes" }).hasAttribute("disabled"),
+    ).toBe(true);
   });
 
   it("given no device receives alerts, then it says reminders go by email", async () => {
@@ -65,8 +67,9 @@ describe("PushCard", () => {
 
     await renderCard(0);
 
-    expect(await screen.findByText("Activées")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Ne plus recevoir d'alertes ici" })).toBeTruthy();
+    const alerts = await screen.findByRole("switch", { name: "Recevoir les alertes" });
+    await waitFor(() => expect(alerts.getAttribute("aria-checked")).toBe("true"));
+    expect(alerts.hasAttribute("disabled")).toBe(false);
     expect(screen.queryByText(EMAIL_FALLBACK)).toBeNull();
   });
 
@@ -77,8 +80,9 @@ describe("PushCard", () => {
     await renderCard(0);
 
     expect(await screen.findByText(EMAIL_FALLBACK)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Activer les alertes" })).toBeTruthy();
-    expect(screen.queryByText("Activées")).toBeNull();
+    const alerts = screen.getByRole("switch", { name: "Recevoir les alertes" });
+    expect(alerts.getAttribute("aria-checked")).toBe("false");
+    expect(alerts.hasAttribute("disabled")).toBe(false);
   });
 
   it("given a browser without push support, then it says so instead of offering a button", async () => {
@@ -87,7 +91,9 @@ describe("PushCard", () => {
     await renderCard(0);
 
     expect(screen.getByText(/ne sait pas recevoir de notifications/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Activer les alertes" })).toBeNull();
+    expect(
+      screen.getByRole("switch", { name: "Recevoir les alertes" }).hasAttribute("disabled"),
+    ).toBe(true);
   });
 
   it("given this phone is subscribed, then the parent can choose to show the children's details on the lock screen", async () => {
@@ -153,7 +159,7 @@ describe("PushCard", () => {
       value: { query: vi.fn(async () => status) },
     });
     await renderCard(0);
-    await screen.findByRole("button", { name: "Activer les alertes" });
+    await screen.findByRole("switch", { name: "Recevoir les alertes" });
 
     await act(async () => {
       status.state = "denied";

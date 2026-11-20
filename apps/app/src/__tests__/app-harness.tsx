@@ -16,6 +16,7 @@ import {
   ensureAnimationsSkipped,
   ensureGetAnimations,
   ensureMatchMedia,
+  ensureResizeObserver,
   ensureScrollIntoView,
 } from "./match-media";
 
@@ -103,6 +104,7 @@ export async function renderAppAt(
   ensureGetAnimations();
   ensureAnimationsSkipped();
   ensureScrollIntoView();
+  ensureResizeObserver();
   queryClient.setQueryData(sessionQueryOptions.queryKey, {
     user: { id: "user-1", name: "Parent", email: "parent@example.com" },
     session: { token: "token-1" },

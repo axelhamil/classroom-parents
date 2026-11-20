@@ -24,11 +24,10 @@ type HolidayPeriod = SchoolCalendarSettings["periods"][number];
 
 export interface OwnHolidaysProps {
   periods: readonly HolidayPeriod[];
-  beforeEdit: () => Promise<boolean>;
 }
 
 /** The school's own holidays: imported from its iCalendar link or file, or typed one by one. */
-export function OwnHolidays({ periods, beforeEdit }: OwnHolidaysProps) {
+export function OwnHolidays({ periods }: OwnHolidaysProps) {
   const { t } = useTranslation("settings");
   const { today } = useSchoolClock();
   const queryClient = useQueryClient();
@@ -51,21 +50,16 @@ export function OwnHolidays({ periods, beforeEdit }: OwnHolidaysProps) {
     onError: (error) => toastError(error, errorFallback("removeSchoolHoliday")),
   });
 
-  const importFrom = async (source: IcsImport) => {
-    if (await beforeEdit()) importer.mutate(source);
-  };
+  const importFrom = (source: IcsImport) => importer.mutate(source);
 
   const importFile = async (file: File | undefined) => {
-    if (file) await importFrom({ content: await file.text() });
+    if (file) importFrom({ content: await file.text() });
   };
 
   return (
     <section aria-labelledby="own-holidays-title" className="flex flex-col gap-4">
       <TypographyH4 id="own-holidays-title">{t("schoolHolidays.own.title")}</TypographyH4>
-      <ImportIcsLinkForm
-        pending={importer.isPending}
-        onImport={(url) => void importFrom({ url })}
-      />
+      <ImportIcsLinkForm pending={importer.isPending} onImport={(url) => importFrom({ url })} />
       <div className="flex flex-col gap-2">
         <Label htmlFor="own-holidays-file">{t("schoolHolidays.own.importFile")}</Label>
         <Input
@@ -77,7 +71,7 @@ export function OwnHolidays({ periods, beforeEdit }: OwnHolidaysProps) {
         />
         <TypographyMuted>{t("schoolHolidays.own.importFileHint")}</TypographyMuted>
       </div>
-      <AddHolidayPeriodForm beforeAdd={beforeEdit} onAdded={refresh} />
+      <AddHolidayPeriodForm onAdded={refresh} />
       {periods.length === 0 ? (
         <TypographyMuted>{t("schoolHolidays.own.empty")}</TypographyMuted>
       ) : (
