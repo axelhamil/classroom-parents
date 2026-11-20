@@ -11,6 +11,7 @@ export interface PushMessage {
   body: string;
   url: string;
   tag: string;
+  notificationRef: string;
 }
 
 export interface PushOptions {

@@ -19,9 +19,12 @@ export type EventReminders = InferResponseType<typeof $reminders, 200>;
 
 const REVIEW_LIMIT = 100;
 
+const REVIEW_KEY = ["events", "review"] as const;
+const LATE_BACKLOG_KEY = ["events", "late-backlog"] as const;
+
 export function reviewEventsQueryOptions(filters: EventFilters) {
   return queryOptions({
-    queryKey: ["events", "review", filters] as const,
+    queryKey: [...REVIEW_KEY, filters] as const,
     queryFn: async ({ signal }) => {
       const res = await $list(
         {
@@ -66,7 +69,7 @@ const LATE_BACKLOG_LIMIT = 100;
 /** Unticked deadlines already past, latest first, whatever their age: what the late window does not hold. */
 export function lateBacklogQueryOptions(childId: string | null) {
   return queryOptions({
-    queryKey: ["events", "late-backlog", childId] as const,
+    queryKey: [...LATE_BACKLOG_KEY, childId] as const,
     queryFn: async ({ signal }) => {
       const res = await $list(
         {
@@ -145,7 +148,7 @@ export function eventRemindersQueryOptions(eventId: string) {
   });
 }
 
-type PatchedFields = Pick<EventItem, "done" | "checklist">;
+type PatchedFields = Pick<EventItem, "done" | "checklist" | "status">;
 
 export async function patchCachedEvent(
   queryClient: QueryClient,
@@ -153,17 +156,22 @@ export async function patchCachedEvent(
   patch: (event: PatchedFields) => Partial<PatchedFields>,
 ): Promise<() => void> {
   const detailKey = eventQueryOptions(eventId).queryKey;
-  await queryClient.cancelQueries({ queryKey: CALENDAR_KEY });
-  await queryClient.cancelQueries({ queryKey: detailKey });
-  const calendars = queryClient.getQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY });
-  const detail = queryClient.getQueryData(detailKey);
-  queryClient.setQueriesData<EventItem[]>({ queryKey: CALENDAR_KEY }, (items) =>
-    items?.map((event) => (event.id === eventId ? { ...event, ...patch(event) } : event)),
+  const listKeys = [CALENDAR_KEY, REVIEW_KEY, LATE_BACKLOG_KEY];
+  await Promise.all(
+    [...listKeys, detailKey].map((queryKey) => queryClient.cancelQueries({ queryKey })),
   );
+  const lists = listKeys.flatMap((queryKey) =>
+    queryClient.getQueriesData<EventItem[]>({ queryKey }),
+  );
+  const detail = queryClient.getQueryData(detailKey);
+  for (const queryKey of listKeys)
+    queryClient.setQueriesData<EventItem[]>({ queryKey }, (items) =>
+      items?.map((event) => (event.id === eventId ? { ...event, ...patch(event) } : event)),
+    );
   queryClient.setQueryData(detailKey, (event) => event && { ...event, ...patch(event) });
 
   return () => {
-    for (const [key, items] of calendars) queryClient.setQueryData(key, items);
+    for (const [key, items] of lists) queryClient.setQueryData(key, items);
     queryClient.setQueryData(detailKey, detail);
   };
 }

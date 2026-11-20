@@ -15,6 +15,7 @@ export interface CalendarStubOptions {
   refuseFirstDone?: boolean;
   detail?: Fixture;
   homeLayout?: unknown[];
+  unread?: number;
 }
 
 function created(body: unknown, index: number): Fixture | undefined {
@@ -45,7 +46,7 @@ function ticked(event: Fixture, body: unknown): Response {
 export function givenCalendar(
   children: unknown[],
   events: Fixture[],
-  { failDone, detail, refuseFirstDone = false, homeLayout }: CalendarStubOptions = {},
+  { failDone, detail, refuseFirstDone = false, homeLayout, unread = 0 }: CalendarStubOptions = {},
 ): CalendarStub {
   const stub: CalendarStub = { calls: [], events: [...events] };
   let refusals = refuseFirstDone ? 1 : 0;
@@ -55,6 +56,7 @@ export function givenCalendar(
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     if (url.pathname === "/home/layout" && method === "GET")
       return json({ blocks: homeLayout ? readStoredLayout(homeLayout) : null, revision: 0 });
+    if (url.pathname === "/notifications/unread-count") return json({ count: unread });
     if (url.pathname === "/calendar-feed" && method === "GET") return json({ exists: false });
     if (url.pathname === "/events" && method === "GET") {
       const today = new Date().toISOString().slice(0, 10);
@@ -64,6 +66,12 @@ export function givenCalendar(
             .filter((event) => event.deadlineDate < today && !event.done)
             .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate))
             .slice(0, Number(url.searchParams.get("limit") ?? stub.events.length)),
+        });
+      if (url.searchParams.get("status") === "needs_review")
+        return json({
+          items: stub.events.filter(
+            (event) => event.status === "needs_review" && event.deadlineDate >= today,
+          ),
         });
       if (url.searchParams.get("status") !== "confirmed") return json({ items: [] });
       const next = stub.events
@@ -98,6 +106,14 @@ export function givenCalendar(
       if (!event) return json({ code: "EVENT_NOT_FOUND" }, 404);
 
       return ticked(event, body);
+    }
+    const confirmed = url.pathname.match(/^\/events\/([^/]+)\/confirm$/);
+    if (confirmed) {
+      const event = stub.events.find((candidate) => candidate.id === confirmed[1]);
+      if (!event) return json({ code: "EVENT_NOT_FOUND" }, 404);
+      Object.assign(event, { status: method === "DELETE" ? "needs_review" : "confirmed" });
+
+      return json(event);
     }
     const done = url.pathname.match(/^\/events\/([^/]+)\/done$/);
     if (done) {

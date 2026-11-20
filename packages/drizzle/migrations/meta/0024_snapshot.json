@@ -1,5 +1,5 @@
 {
-  "id": "319a07a9-9776-45c9-a61c-7fb8bc7a9c10",
+  "id": "5f9e4a69-ac19-4958-8ab9-669d70f0ebf2",
   "prevId": "9cfb4038-ff7e-4bbe-b09b-8ebb12ae5fe5",
   "version": "7",
   "dialect": "postgresql",
@@ -2767,7 +2767,7 @@
       "checkConstraints": {
         "child_account_color_hue": {
           "name": "child_account_color_hue",
-          "value": "\"child_account\".\"color\" BETWEEN 1 AND 8"
+          "value": "\"child_account\".\"color\" BETWEEN 1 AND 16"
         }
       },
       "isRLSEnabled": false
@@ -3056,14 +3056,7 @@
           "name": "blocks",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": false
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "notNull": true
         },
         "updated_at": {
           "name": "updated_at",

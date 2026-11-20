@@ -7,8 +7,8 @@
  *    temporary CHECK constraint on `email_message.to_address`, dropped again in cleanup.
  * 2. A completed wipe revokes the child tokens while the user still exists, deletes the user row
  *    (sessions, accounts, children with their color and picture, events hand-added ones included,
- *    reminders, the calendar feed, the Sunday digest choice and history, the school zone
- *    choice, the home layout and the home note follow by FK cascade), purges every outbox row whose payload names the user as
+ *    reminders, the calendar feed, the Sunday digest choice and history, the school calendar
+ *    choice and holiday periods, the home layout and the home note follow by FK cascade), purges every outbox row whose payload names the user as
  *    `userId` or `actorUserId`, keeps other users' rows, and leaves exactly one
  *    `USER_DELETED` without any email.
  * 3. A pending deletion inside its grace period is not returned by the sweep query.
@@ -35,7 +35,11 @@ import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schem
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedChild } from "@modules/children/schemas/testing/seed-child";
 import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
-import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
+import { notification } from "@modules/notifications/schemas/notification.schema";
+import {
+  schoolCalendarChoice,
+  schoolHolidayPeriod,
+} from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type IInstrumentation, Result } from "@packages/ddd-kit";
 import {
   authSchema,
@@ -177,7 +181,29 @@ async function seedFamilyData(id: string): Promise<void> {
   await db
     .insert(alertWeeklyDigest)
     .values({ userId: id, weekStart: "2030-03-04", expiresAt: at, status: "sent" });
-  await db.insert(schoolZonePreference).values({ userId: id, zone: "zone-b", updatedAt: at });
+  await db.insert(schoolCalendarChoice).values({
+    userId: id,
+    country: "CH",
+    region: "CH-GE",
+    schoolHolidays: "official",
+    updatedAt: at,
+  });
+  await db.insert(schoolHolidayPeriod).values({
+    userId: id,
+    name: "Winter break",
+    startsOn: "2030-12-21",
+    endsOn: "2031-01-01",
+    origin: "ics",
+    createdAt: at,
+  });
+  await db.insert(notification).values({
+    userId: id,
+    ref: `reminders:${event.id}`,
+    kind: "deadline_reminder",
+    childId,
+    params: { eventId: event.id },
+    createdAt: at,
+  });
   await db
     .insert(assistantPreference)
     .values({ userId: id, locale: "ar", extractionEnabled: false, updatedAt: at });
@@ -239,11 +265,17 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
     digestWeeks: await tally(
       db.select({ total: count() }).from(alertWeeklyDigest).where(eq(alertWeeklyDigest.userId, id)),
     ),
-    schoolZones: await tally(
+    schoolCalendars: await tally(
       db
         .select({ total: count() })
-        .from(schoolZonePreference)
-        .where(eq(schoolZonePreference.userId, id)),
+        .from(schoolCalendarChoice)
+        .where(eq(schoolCalendarChoice.userId, id)),
+    ),
+    schoolHolidayPeriods: await tally(
+      db
+        .select({ total: count() })
+        .from(schoolHolidayPeriod)
+        .where(eq(schoolHolidayPeriod.userId, id)),
     ),
     assistantPreferences: await tally(
       db
@@ -258,6 +290,9 @@ async function familyRowsLeft(id: string): Promise<Record<string, number>> {
     ),
     homeNotes: await tally(
       db.select({ total: count() }).from(homeNote).where(eq(homeNote.userId, id)),
+    ),
+    notifications: await tally(
+      db.select({ total: count() }).from(notification).where(eq(notification.userId, id)),
     ),
   };
 }
@@ -446,7 +481,7 @@ async function checkCompletedWipeErasesTheAccount(): Promise<void> {
   check("its accounts and sealed tokens are deleted", (await accountsOf(erasedId)) === 0);
   const familyLeft = await familyRowsLeft(erasedId);
   check(
-    "its children, events, reminders, calendar feed, Sunday digest, school zone, AI and home rows are deleted",
+    "its children, events, reminders, calendar feed, Sunday digest, school calendar, holiday periods, AI rows, home rows and notifications are deleted",
     Object.values(familyLeft).every((total) => total === 0),
     familyLeft,
   );

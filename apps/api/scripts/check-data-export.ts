@@ -3,7 +3,7 @@
  * the export reads only the requesting parent's rows (the owner filter lives in the host query),
  * keeps withdrawn, deleted and hand-added events, the child color and picture, the calendar feed
  * (never its secret), the Sunday digest choice and history, with the default choice for a
- * parent who never made one, the school zone choice, the language, region and AI opposition
+ * parent who never made one, the school calendar choice and own holiday periods, the language, region and AI opposition
  * choices, the AI usage counters, the AI call journal (no hash, no prompt), the home layout
  * and the home note (the requester's, never another parent's); each Classroom deadline carries its
  * course name read through the same port as the api, a hand-added one none; it never carries a
@@ -35,7 +35,11 @@ import { seedParentWithChild } from "@modules/children/schemas/testing/seed-chil
 import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
 import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
-import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
+import { notification } from "@modules/notifications/schemas/notification.schema";
+import {
+  schoolCalendarChoice,
+  schoolHolidayPeriod,
+} from "@modules/school-calendar/schemas/school-calendar.schema";
 import {
   and,
   authSchema,
@@ -185,7 +189,17 @@ async function family(name: string): Promise<{ userId: string; childId: string }
     lastFetchedAt: NOW,
   });
   await db.insert(alertDigestPreference).values({ userId, enabled: false, updatedAt: NOW });
-  await db.insert(schoolZonePreference).values({ userId, zone: "zone-b", updatedAt: NOW });
+  await db
+    .insert(schoolCalendarChoice)
+    .values({ userId, country: "MA", region: null, schoolHolidays: "own", updatedAt: NOW });
+  await db.insert(schoolHolidayPeriod).values({
+    userId,
+    name: "Aïd al-Fitr",
+    startsOn: "2030-03-05",
+    endsOn: "2030-03-06",
+    origin: "manual",
+    createdAt: NOW,
+  });
   await db.insert(assistantPreference).values({
     userId,
     locale: "pt",
@@ -218,6 +232,15 @@ async function family(name: string): Promise<{ userId: string; childId: string }
   });
   await db.insert(homeLayout).values({ userId, blocks: HOME_BLOCKS, updatedAt: NOW });
   await db.insert(homeNote).values({ userId, body: `Piscine de ${name}`, updatedAt: NOW });
+  await db.insert(notification).values({
+    userId,
+    ref: `access-loss:${name}`,
+    kind: "access_lost",
+    childId,
+    params: {},
+    createdAt: NOW,
+    readAt: name === "a" ? null : NOW,
+  });
   await db.insert(pushLockScreen).values({ userId, details: true, updatedAt: NOW });
   await db
     .insert(alertQuietHours)
@@ -359,9 +382,13 @@ run(async () => {
     document.weeklyDigest,
   );
   await step(
-    "the school zone choice comes along",
-    document.schoolZone?.zone === "zone-b" && document.schoolZone.chosenAt === NOW.toISOString(),
-    document.schoolZone,
+    "the school calendar choice and the parent's own holiday periods come along",
+    document.schoolCalendar?.country === "MA" &&
+      document.schoolCalendar.schoolHolidays === "own" &&
+      document.schoolCalendar.chosenAt === NOW.toISOString() &&
+      document.schoolHolidayPeriods[0]?.name === "Aïd al-Fitr" &&
+      document.schoolHolidayPeriods[0]?.addedAt === NOW.toISOString(),
+    { calendar: document.schoolCalendar, periods: document.schoolHolidayPeriods },
   );
   await step(
     "the language, region and AI opposition choices and the family's AI usage come along, its own only",
@@ -393,6 +420,14 @@ run(async () => {
     "the home note of the requester comes along, never another parent's",
     document.homeNote?.body === "Piscine de a" && document.homeNote.writtenAt === NOW.toISOString(),
     document.homeNote,
+  );
+  await step(
+    "the notification center comes along, its own notifications only, with their reading state",
+    document.notifications.length === 1 &&
+      document.notifications[0]?.kind === "access_lost" &&
+      document.notifications[0]?.readAt === null &&
+      document.notifications[0]?.childId === document.children[0]?.id,
+    document.notifications,
   );
   await step(
     "the lock screen choice comes along",

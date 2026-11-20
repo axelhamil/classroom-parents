@@ -26,7 +26,7 @@ interface Declaration {
 }
 
 const MODES = ["light", "dark"] as const satisfies readonly ResolvedTheme[];
-const CHILDREN = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+const CHILDREN = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 const CATEGORIES = ["assessment", "homework", "school-trip", "swimming", "document-due"] as const;
 
 const AGENDA_PAPERS = [
@@ -206,14 +206,14 @@ function hueGap(first: Oklab, second: Oklab) {
   return Math.min(gap, 360 - gap);
 }
 
-// The 8 child hues split the wheel into 45° slices: a role colour less than half a slice from a child reads as that child.
-const SAME_HUE = 22.5;
+// A colour word (blue, green, plum) spans about 30° of hue: closer than that, two colours read as one family.
+const SAME_HUE = 30;
 // Under this OKLab chroma a colour reads as a tinted grey, so its hue names nothing.
 const HUED = 0.03;
-// Twice the gap between the two closest child fills (0.074): a role sits further from any child than children sit from each other.
-const APART = 0.15;
+// Five just noticeable OKLab steps (0.02 each): two shades of one family this far apart are told apart at a glance.
+const APART = 0.1;
 
-/** A child colour and a role colour are confused when they share a hue and sit close in OKLab. */
+/** Two colours are confused when they share a hue family and sit close in OKLab. */
 function confusable(first: Oklab, second: Oklab) {
   const [lightness = 0, a = 0, b = 0] = first.map((value, index) => value - (second[index] ?? 0));
   const distance = Math.hypot(lightness, a, b);
@@ -234,6 +234,8 @@ function rolePairs(mode: ResolvedTheme): RolePair[] {
       ["destructive", (child) => `child-${child}${suffix}`],
     ]),
     ["secondary", (child) => `child-${child}-container`],
+    // The home's hero block is tinted by the action: it must not read as one child's card.
+    ["primary-container", (child) => `child-${child}-container`],
     // A crunched day of the month planner is tinted `bg-warning/30`.
     ["warning at 30% over card", (child) => `child-${child}-container`],
   ];
@@ -247,6 +249,9 @@ function hex(color: string) {
 }
 
 type Pair = readonly [foreground: string, background: string, floor: number];
+
+// The surfaces whose colour fills the focus gap (`--focus-surface`): the page, a card or panel, a popover, the hero block.
+const FOCUS_SURFACES = ["focus-surface", "card", "popover", "primary-container"] as const;
 
 function criticalPairs(mode: ResolvedTheme): Pair[] {
   const mark = (child: number) => (mode === "dark" ? `child-${child}-mark` : `child-${child}`);
@@ -274,8 +279,12 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
     ["success-foreground", "success", TEXT],
     ["input", "background", GRAPHIC],
     ["input", "card", GRAPHIC],
-    ["ring", "background", GRAPHIC],
-    ["ring", "card", GRAPHIC],
+    // The double focus ring: the ring against the gap, the gap against a control filled with the action or the alert red.
+    ...FOCUS_SURFACES.flatMap((surface): Pair[] => [
+      ["ring", surface, GRAPHIC],
+      ["primary", surface, GRAPHIC],
+      ["destructive", surface, GRAPHIC],
+    ]),
     ...CHILDREN.flatMap((child): Pair[] => [
       ["child-foreground", `child-${child}`, TEXT],
       ["foreground", `child-${child}-container`, TEXT],
@@ -286,12 +295,18 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
       ),
       [mark(child), "background", GRAPHIC],
       [mark(child), "card", GRAPHIC],
+      [mark(child), "primary-container", GRAPHIC],
     ]),
     // The agenda of a one child family: deadlines on neutral paper, the weekend on a lighter paper, today's column breathed with ink.
     ...AGENDA_PAPERS.flatMap((paper): Pair[] => [
       ["foreground", paper, TEXT],
       ["muted-foreground", paper, TEXT],
     ]),
+    // The hero block and the active navigation item sit on the action-tinted surface.
+    ...["foreground", "muted-foreground", "primary", "destructive"].map(
+      (foreground): Pair => [foreground, "primary-container", TEXT],
+    ),
+    ...CATEGORIES.map((category): Pair => [`category-${category}`, "primary-container", TEXT]),
     ...CATEGORIES.flatMap((category): Pair[] => [
       [`category-${category}`, `category-${category}-tint`, TEXT],
       [`category-${category}`, "card", TEXT],
@@ -307,6 +322,64 @@ function paletteTokenNames() {
 
   return [...new Set(names)];
 }
+
+// What a reader of the high contrast palette reads: its ink, muted ink and action hold AAA.
+const AAA = 7;
+const INK_PAIRS = [
+  ["foreground", "background"],
+  ["foreground", "card"],
+  ["muted-foreground", "background"],
+  ["muted-foreground", "card"],
+  ["muted-foreground", "surface-container-high"],
+  ["primary-foreground", "primary"],
+  ["primary", "background"],
+] as const;
+
+// Five just noticeable OKLab steps between two palettes, summed over the page and the action: under that, two light palettes read as one.
+const DISTINCT = 0.1;
+
+describe("the light palettes", () => {
+  const signature = (palette: Palette) => {
+    const color = tokenColor(pageTokens(palette, "light"));
+
+    return { page: oklab(color("background")), action: oklab(color("primary")) };
+  };
+  const distance = (first: Oklab, second: Oklab) =>
+    Math.hypot(...first.map((value, index) => value - (second[index] ?? 0)));
+
+  it("each differ from every other by their page and their action", () => {
+    const failures = PALETTES.flatMap((first, index) =>
+      PALETTES.slice(index + 1).map((second) => {
+        const [one, two] = [signature(first), signature(second)];
+
+        return {
+          pair: `${first} and ${second}`,
+          gap: distance(one.page, two.page) + distance(one.action, two.action),
+        };
+      }),
+    )
+      .filter(({ gap }) => gap < DISTINCT)
+      .map(({ pair, gap }) => `${pair}: ΔE ${gap.toFixed(3)} < ${DISTINCT}`);
+
+    expect(failures).toEqual([]);
+  });
+});
+
+describe("the high contrast palette", () => {
+  for (const mode of MODES) {
+    it(`holds AAA on its ink and action in ${mode}`, () => {
+      const color = tokenColor(pageTokens("contrast", mode));
+      const failures = INK_PAIRS.map(([foreground, background]) => ({
+        pair: `${foreground} on ${background}`,
+        ratio: contrast(color(foreground), color(background)),
+      }))
+        .filter(({ ratio }) => ratio < AAA)
+        .map(({ pair, ratio }) => `${pair} ${ratio.toFixed(2)} < ${AAA}`);
+
+      expect(failures).toEqual([]);
+    });
+  }
+});
 
 describe("palettes", () => {
   for (const palette of PALETTES) {
@@ -339,7 +412,19 @@ describe("palettes", () => {
         expect(failures).toEqual([]);
       });
 
-      it(`${palette} in ${mode} keeps the 8 child colours apart from each other`, () => {
+      it(`${palette} in ${mode} keeps the action apart from the urgent amber and the alerts`, () => {
+        const color = tokenColor(pageTokens(palette, mode));
+        const failures = ["warning", "destructive"]
+          .map((role) => ({ role, ...confusable(oklab(color("primary")), oklab(color(role))) }))
+          .filter(({ confused }) => confused)
+          .map(
+            ({ role, distance }) => `primary like ${role}: ΔE ${distance.toFixed(3)} < ${APART}`,
+          );
+
+        expect(failures).toEqual([]);
+      });
+
+      it(`${palette} in ${mode} keeps the 16 child colours apart from each other`, () => {
         const color = tokenColor(pageTokens(palette, mode));
         const mark = (child: number) =>
           oklab(color(mode === "dark" ? `child-${child}-mark` : `child-${child}`));

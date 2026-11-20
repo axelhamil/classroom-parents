@@ -3,7 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { FIXTURE_CHILD_LABEL, stubChildrenApi } from "./children-fixture";
 import { showColorScheme } from "./color-scheme";
 import { expect, test } from "./csp";
-import { LEA, REVIEW_EVENT, serveFamily } from "./events-fixtures";
+import { LEA, parisTime, REVIEW_EVENT, serveFamily } from "./events-fixtures";
 import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
 
@@ -53,7 +53,8 @@ async function ringContrastBelow(surface: Locator, control: Locator): Promise<nu
   if (!frame || !box) throw new Error("the dialog or its control has no box");
 
   const column = Math.round(box.x + box.width / 2 - frame.x);
-  const ringRow = Math.ceil(box.y + box.height - frame.y) + 1;
+  // Past the 2 px focus gap (`--focus-offset`), into the 3 px ring.
+  const ringRow = Math.ceil(box.y + box.height - frame.y) + 3;
   const shot = await surface.screenshot();
 
   return control.page().evaluate(
@@ -349,7 +350,7 @@ test.describe("calendar month grid", () => {
   test("walks the days with the arrows, Home, End and the page keys, Enter picks one", async ({
     page,
   }) => {
-    await page.clock.setFixedTime(new Date(2026, 10, 11, 10));
+    await page.clock.setFixedTime(parisTime("2026-11-11", "10:00"));
     await serveFamily(page, { children: [LEA], events: [] });
     await page.goto("/?view=month&date=2026-11-11");
 
@@ -394,7 +395,7 @@ test.describe("deadline steps", () => {
       deadlineAt: "2026-11-12T07:00:00.000Z",
       checklist: { done: [] as string[], removed: [], extra: [] },
     };
-    await page.clock.setFixedTime(new Date(2026, 10, 12, 10));
+    await page.clock.setFixedTime(parisTime("2026-11-12", "10:00"));
     await serveFamily(page, { children: [LEA], events: [swimming] });
     await page.route(`**/events/${swimming.id}/checklist`, async (route) => {
       const change: { kind: string; itemId: string; done: boolean } = route

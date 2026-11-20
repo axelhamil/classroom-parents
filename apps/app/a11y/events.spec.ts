@@ -162,9 +162,9 @@ test.describe("the calendar on a phone", () => {
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
       await page.goto("/");
 
-      const review = page.getByRole("button", { name: "1 date à vérifier" });
+      const review = page.getByRole("button", { name: "Voir la date à vérifier" });
       await expect(review).toHaveAttribute("aria-haspopup", "dialog");
-      await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Que faire ?" })).toBeVisible();
       await expect(
         page
           .getByRole("region", { name: "Agenda" })
@@ -181,6 +181,32 @@ test.describe("the calendar on a phone", () => {
       expect(await blockingViolations(page)).toEqual([]);
       await page.keyboard.press("Escape");
       await expect(review).toBeFocused();
+
+      const block = page.getByRole("region", { name: "À vérifier" });
+      const confirm = block.getByRole("button", { name: `C'est bon : ${REVIEW_EVENT.title}` });
+      await confirm.focus();
+      await page.keyboard.press("Tab");
+      await expect(
+        block.getByRole("link", { name: `Corriger : ${REVIEW_EVENT.title}` }),
+      ).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      const confirmed = page.waitForRequest(
+        (request) => request.method() === "POST" && request.url().endsWith("/confirm"),
+      );
+      await page.keyboard.press("Enter");
+      await confirmed;
+      const allClear = block.locator("[data-slot=dashboard-panel-empty]");
+      await expect(allClear).toBeFocused();
+      await expect(
+        page.locator("[aria-live]").getByText(`${REVIEW_EVENT.title} : date confirmée`),
+      ).toBeVisible();
+      expect(await blockingViolations(page)).toEqual([]);
+      const unconfirmed = page.waitForRequest(
+        (request) => request.method() === "DELETE" && request.url().endsWith("/confirm"),
+      );
+      await page.getByRole("button", { name: "Annuler" }).click();
+      await expect(confirm).toBeVisible();
+      await unconfirmed;
     });
 
     test(`a late deadline waits folded above the week and opens in a drawer (${colorScheme})`, async ({
@@ -523,7 +549,7 @@ test.describe("the child dots of the month", () => {
 
   for (const colorScheme of COLOR_SCHEMES) {
     test(`stand out at 3:1 on a plain and a crunch day (${colorScheme})`, async ({ page }) => {
-      await page.clock.setFixedTime(new Date("2026-11-12T09:00:00"));
+      await page.clock.setFixedTime(parisTime("2026-11-12", "09:00"));
       await showColorScheme(page, colorScheme);
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [...crunch, single] });
       await page.goto("/?view=month&date=2026-11-25");
@@ -534,7 +560,7 @@ test.describe("the child dots of the month", () => {
   }
 
   test("a crunch day keeps its whole date next to the badge", async ({ page }) => {
-    await page.clock.setFixedTime(new Date("2026-11-12T09:00:00"));
+    await page.clock.setFixedTime(parisTime("2026-11-12", "09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: crunch });
     await page.goto("/?view=week&date=2026-11-17");
 

@@ -1,13 +1,13 @@
 import { type IInstrumentation, Option, Result } from "@packages/ddd-kit";
-import type { BankHolidayTerritory, SchoolZone } from "../../domain/value-objects/school-zone.vo";
+import {
+  type CalendarEntry,
+  type CalendarFeed,
+  feedKey,
+} from "../../domain/calendar/calendar-feed";
 import { CACHE_FRESHNESS_MS } from "../config/cache-freshness";
 import { calendarUnavailable, type SchoolCalendarError } from "../errors/school-calendar-errors";
 import type { Cached, ISchoolCalendarCache } from "../ports/school-calendar-cache.port";
-import type {
-  BankHoliday,
-  ISchoolCalendarSource,
-  SchoolHoliday,
-} from "../ports/school-calendar-source.port";
+import type { ISchoolCalendarSource, Region } from "../ports/school-calendar-source.port";
 
 type Outcome<T> = Promise<Result<T, SchoolCalendarError>>;
 
@@ -17,6 +17,10 @@ interface CachedSlice<T> {
   save(entries: T[], at: Date): Outcome<void>;
 }
 
+/**
+ * Reads the official calendars through the cache: a copy younger than a week is served, an older
+ * one is refetched, and when the source fails the last copy is served however old.
+ */
 export class OfficialCalendarService {
   constructor(
     private readonly source: ISchoolCalendarSource,
@@ -25,32 +29,38 @@ export class OfficialCalendarService {
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
-  async holidays(zone: SchoolZone, schoolYears: string[]): Outcome<SchoolHoliday[]> {
-    return this.span("holidays", () =>
-      this.collect(schoolYears, (schoolYear) => ({
-        read: () => this.cache.holidays(zone, schoolYear),
-        fetch: () => this.source.holidays(zone, schoolYear),
-        save: (entries, at) => this.cache.saveHolidays(zone, schoolYear, entries, at),
-      })),
+  async entries(feed: CalendarFeed, periods: string[]): Outcome<CalendarEntry[][]> {
+    return this.span("entries", async () => {
+      const slices = await Promise.all(
+        periods.map((period) => this.entriesOf(this.feedSlice(feed, period))),
+      );
+      const failed = slices.find((slice) => slice.isFailure);
+      if (failed) return Result.fail(failed.getError());
+
+      return Result.ok(slices.map((slice) => slice.getValue()));
+    });
+  }
+
+  async regions(country: string): Outcome<Region[]> {
+    const key = `openholidays:regions:${country}`;
+
+    return this.span("regions", () =>
+      this.entriesOf({
+        read: () => this.cache.regions(key),
+        fetch: () => this.source.regions(country),
+        save: (regions, at) => this.cache.saveRegions(key, regions, at),
+      }),
     );
   }
 
-  async bankHolidays(territory: BankHolidayTerritory, years: number[]): Outcome<BankHoliday[]> {
-    return this.span("bankHolidays", () =>
-      this.collect(years, (year) => ({
-        read: () => this.cache.bankHolidays(territory, year),
-        fetch: () => this.source.bankHolidays(territory, year),
-        save: (entries, at) => this.cache.saveBankHolidays(territory, year, entries, at),
-      })),
-    );
-  }
+  private feedSlice(feed: CalendarFeed, period: string): CachedSlice<CalendarEntry> {
+    const key = feedKey(feed, period);
 
-  private async collect<K, T>(keys: K[], sliceOf: (key: K) => CachedSlice<T>): Outcome<T[]> {
-    const slices = await Promise.all(keys.map((key) => this.entriesOf(sliceOf(key))));
-    const failed = slices.find((slice) => slice.isFailure);
-    if (failed) return Result.fail(failed.getError());
-
-    return Result.ok(slices.flatMap((slice) => slice.getValue()));
+    return {
+      read: () => this.cache.entries(key),
+      fetch: () => this.source.entries(feed, period),
+      save: (entries, at) => this.cache.saveEntries(key, entries, at),
+    };
   }
 
   private async entriesOf<T>(slice: CachedSlice<T>): Outcome<T[]> {

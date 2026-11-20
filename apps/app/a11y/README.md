@@ -77,7 +77,11 @@ Three things bite when running repeatedly:
   app costs, the signed-in home fires 9 calls in that bucket
   (`GLOBAL_POLICY` in
   `apps/api/src/shared/middleware/rate-limit.policies.ts`, now 600/min burst
-  with the 1800/hour sustained ceiling unchanged). The hour window still holds:
+  with the 1800/hour sustained ceiling unchanged). The gate's API runs with
+  `RATE_LIMIT_GLOBAL_PER_MINUTE=1200` (CI and locally), its own room for one
+  parent signed in on four browsers; production keeps 600 and refuses a higher
+  value at startup. A full sweep measured 790 requests in the parent's bucket
+  over 2.4 min, none refused at 600, 20 November 2026. The hour window still holds:
   about five full sweeps per hour on one API process before it refuses the
   parent. The pin to `4` stays as a courtesy cap on host load. A spec that
   fakes the family (`serveFamily`) fakes everything the home it opens reads,
@@ -102,15 +106,17 @@ for width in 390 768 1280 1440 1920; do A11Y_WIDTH=$width pnpm --filter app chec
 
 The home changes with the day: on a weekday morning the briefing covers today, from
 the evening and over the weekend it covers the next school day and pulls in the
-deadlines that fall before it, which a phone then leaves out of the week below. A
-spec that renders dated fixtures therefore pins the browser clock with
-`todayAt(...)` and dates its fixtures with `inDays(...)` (`events-fixtures.ts`), both
-read from one Paris day, `TODAY`, never from `new Date()`, and asserts what holds on
-every day of the week. `A11Y_TODAY` overrides that day, which is how a change is
-checked on every weekday and across a month or a year boundary:
+deadlines that fall before it. So the gate never runs on the day it happens to run:
+every page's clock is pinned (`csp.ts`) to `TODAY` at 9:00, a school Thursday
+(`SCHOOL_THURSDAY`, `events-fixtures.ts`), in the `Europe/Paris` zone. A spec that needs
+another hour pins it with `todayAt(...)` and dates its fixtures with `inDays(...)`, never
+from `new Date()`. The `weekend` project pins a Saturday and checks that the briefing,
+tonight and the late block agree on Monday (`weekend.spec.ts`); the icon badge counts the unread notifications (`notifications.spec.ts`).
+`A11Y_TODAY` moves the audit to another day, which is how a change is checked across a
+week, a month or a year boundary:
 
 ```sh
-for day in 2026-11-16 2026-11-17 2026-11-18 2026-11-19 2026-11-20 2026-11-21 2026-11-22 2026-11-30 2026-12-31; do
+for day in 2026-11-16 2026-11-17 2026-11-18 2026-11-19 2026-11-20 2026-11-30 2026-12-31; do
   A11Y_TODAY=$day pnpm --filter app check:a11y
 done
 ```

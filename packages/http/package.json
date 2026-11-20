@@ -8,7 +8,8 @@
     "./time-id-cursor": "./src/time-id-cursor.ts",
     "./route-guards": "./src/route-guards.ts",
     "./testing/route-guards": "./src/testing/route-guards.ts",
-    "./instrumented-fetch": "./src/instrumented-fetch.ts"
+    "./instrumented-fetch": "./src/instrumented-fetch.ts",
+    "./private-ranges": "./src/private-ranges.ts"
   },
   "scripts": {
     "format": "biome format . --write",

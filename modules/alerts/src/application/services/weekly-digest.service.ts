@@ -6,6 +6,7 @@ import {
   Result,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
+import { notificationRef } from "@packages/events/notification-ref";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import {
@@ -164,7 +165,13 @@ export class WeeklyDigestService {
     const pushed = await pushToParent(
       ports,
       digest.userId,
-      { title: DIGEST_TITLE, body, url: appUrl, tag: `week-${digest.weekStart}` },
+      {
+        title: DIGEST_TITLE,
+        body,
+        url: appUrl,
+        tag: `week-${digest.weekStart}`,
+        notificationRef: notificationRef.weeklyDigest(digest.lease.digestId),
+      },
       {
         ttlSeconds: DIGEST_PUSH_TTL_SECONDS,
         topic: digest.lease.digestId.replaceAll("-", ""),

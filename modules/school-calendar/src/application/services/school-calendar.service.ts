@@ -1,52 +1,68 @@
-import { type IInstrumentation, type IUnitOfWork, Option, Result } from "@packages/ddd-kit";
-import { EventTypes } from "@packages/events";
-import { emitEvent } from "@packages/outbox/event-emitter";
-import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import { ACADEMIES } from "../../domain/academies";
+import { type IInstrumentation, Result } from "@packages/ddd-kit";
+import { shiftDate } from "@packages/ddd-kit/days";
+import { ACADEMIES, FRENCH_ZONE_NAMES } from "../../domain/academies";
+import { nameIn } from "../../domain/calendar/calendar-feed";
+import { COUNTRIES, coverageOf, FRANCE } from "../../domain/calendar/coverage";
+import { SchoolCalendarChoice } from "../../domain/calendar/school-calendar-choice.vo";
 import { DateRange } from "../../domain/value-objects/date-range.vo";
-import { SchoolZone, type SchoolZoneValue } from "../../domain/value-objects/school-zone.vo";
-import type {
-  SchoolCalendarDto,
-  SchoolCalendarQuery,
-  SchoolZoneDto,
+import { SCHOOL_ZONES } from "../../domain/value-objects/school-zone.vo";
+import {
+  type CountryDto,
+  choiceDtoOf,
+  type PreviewDto,
+  type PreviewQuery,
+  type RegionDto,
+  type SchoolCalendarDto,
+  type SchoolCalendarQuery,
+  type SchoolCalendarSettingsDto,
 } from "../dto/school-calendar.dto";
 import {
+  choiceInvalid,
+  countryInvalid,
   rangeInvalid,
   type SchoolCalendarError,
-  zoneInvalid,
 } from "../errors/school-calendar-errors";
-import type { BankHoliday, SchoolHoliday } from "../ports/school-calendar-source.port";
-import type { ISchoolZoneRepository } from "../ports/school-zone-repository.port";
+import type { IOwnPeriodRepository } from "../ports/own-period-repository.port";
+import type { IParentPreferences } from "../ports/parent-preferences.port";
+import type { ISchoolCalendarChoiceRepository } from "../ports/school-calendar-choice-repository.port";
+import type { HolidayReader } from "./holiday-reader.service";
 import type { OfficialCalendarService } from "./official-calendar.service";
 
 type Outcome<T> = Promise<Result<T, SchoolCalendarError>>;
 
-type ZoneChoice = Option<SchoolZone>;
+const DEFAULT_LANGUAGE = "fr";
+const PREVIEW_DAYS = 365;
+const PREVIEW_HOLIDAYS = 3;
 
-const NO_ZONE_CALENDAR: SchoolCalendarDto = { zone: null, holidays: [], bankHolidays: [] };
+const NO_CALENDAR: SchoolCalendarDto = {
+  choice: null,
+  holidays: [],
+  bankHolidays: [],
+  schoolHolidaysCovered: false,
+};
 
-function byStart(left: SchoolHoliday, right: SchoolHoliday): number {
-  return left.startsOn.localeCompare(right.startsOn) || left.endsOn.localeCompare(right.endsOn);
-}
+const COUNTRY_LIST: CountryDto[] = COUNTRIES.map(({ code, schoolHolidays, bankHolidays }) => ({
+  code,
+  officialSchoolHolidays: schoolHolidays !== null,
+  bankHolidays: bankHolidays !== null,
+}));
 
-function byDate(left: BankHoliday, right: BankHoliday): number {
-  return left.date.localeCompare(right.date);
-}
+const FRENCH_REGIONS: RegionDto[] = SCHOOL_ZONES.map((zone) => ({
+  code: zone,
+  name: FRENCH_ZONE_NAMES[zone],
+}));
 
-function zoneValueOf(choice: ZoneChoice): SchoolZoneValue | null {
-  return choice.map(({ value }) => value).toNull();
-}
-
-function sameChoice(left: ZoneChoice, right: ZoneChoice): boolean {
-  return left.equals(right, (a, b) => a.equals(b));
+function todayOf(now: Date): string {
+  return now.toISOString().slice(0, 10);
 }
 
 export class SchoolCalendarService {
   constructor(
-    private readonly zones: ISchoolZoneRepository,
-    private readonly official: Pick<OfficialCalendarService, "holidays" | "bankHolidays">,
-    private readonly transactions: IUnitOfWork,
-    private readonly outbox: IOutboxRepository,
+    private readonly choices: ISchoolCalendarChoiceRepository,
+    private readonly periods: IOwnPeriodRepository,
+    private readonly official: Pick<OfficialCalendarService, "regions">,
+    private readonly reader: HolidayReader,
+    private readonly preferences: IParentPreferences,
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
@@ -56,81 +72,107 @@ export class SchoolCalendarService {
       const range = DateRange.create(query);
       if (range.isFailure) return Result.fail(rangeInvalid(range.getError()));
 
-      const zone = await this.zones.zoneOf(userId);
-      if (zone.isFailure) return Result.fail(zone.getError());
-      if (zone.getValue().isNone()) return Result.ok(NO_ZONE_CALENDAR);
+      const choice = await this.choices.choiceOf(userId);
+      if (choice.isFailure) return Result.fail(choice.getError());
+      if (choice.getValue().isNone()) return Result.ok(NO_CALENDAR);
 
-      return this.calendarOf(zone.getValue().unwrap(), range.getValue());
+      const reading = {
+        choice: choice.getValue().unwrap(),
+        range: range.getValue(),
+        language: await this.languageOf(userId),
+      };
+
+      const school = await this.reader.schoolHolidays(userId, reading);
+      if (school.isFailure) return Result.fail(school.getError());
+
+      const bankHolidays = await this.reader.bankHolidays(reading);
+      if (bankHolidays.isFailure) return Result.fail(bankHolidays.getError());
+
+      return Result.ok({
+        choice: choiceDtoOf(choice.getValue()),
+        holidays: school.getValue().holidays,
+        bankHolidays: bankHolidays.getValue(),
+        schoolHolidaysCovered: school.getValue().covered,
+      });
     });
   }
 
-  async zone(userId: string): Outcome<SchoolZoneDto> {
-    return this.span("zone", async () =>
-      (await this.zones.zoneOf(userId)).map((zone) => ({
-        zone: zoneValueOf(zone),
-        academies: ACADEMIES,
-      })),
-    );
-  }
-
-  async setZone(userId: string, zoneValue: SchoolZoneValue | null): Outcome<SchoolZoneDto> {
-    return this.span("setZone", async () => {
-      const choice = this.choiceOf(zoneValue);
+  async settings(userId: string): Outcome<SchoolCalendarSettingsDto> {
+    return this.span("settings", async () => {
+      const choice = await this.choices.choiceOf(userId);
       if (choice.isFailure) return Result.fail(choice.getError());
 
-      const saved = await this.transactions.run(() => this.store(userId, choice.getValue()));
-      if (saved.isFailure) return Result.fail(saved.getError());
+      const periods = await this.periods.periodsOf(userId);
+      if (periods.isFailure) return Result.fail(periods.getError());
 
-      return Result.ok({ zone: zoneValueOf(choice.getValue()), academies: ACADEMIES });
+      const { country } = await this.preferences.of(userId);
+
+      return Result.ok({
+        choice: choiceDtoOf(choice.getValue()),
+        periods: periods.getValue(),
+        suggestedCountry: country !== null && coverageOf(country).isSome() ? country : null,
+        countries: COUNTRY_LIST,
+        academies: ACADEMIES,
+      });
     });
   }
 
-  private async calendarOf(zone: SchoolZone, range: DateRange): Outcome<SchoolCalendarDto> {
-    const holidays = await this.official.holidays(zone, range.schoolYears());
-    if (holidays.isFailure) return Result.fail(holidays.getError());
+  async regions(userId: string, country: string): Outcome<RegionDto[]> {
+    return this.span("regions", async () => {
+      const coverage = coverageOf(country);
+      if (coverage.isNone()) return Result.fail(countryInvalid);
+      if (country === FRANCE) return Result.ok(FRENCH_REGIONS);
+      if (coverage.unwrap().schoolHolidays !== "openholidays") return Result.ok([]);
 
-    const bankHolidays = await this.official.bankHolidays(
-      zone.bankHolidayTerritory(),
-      range.calendarYears(),
-    );
-    if (bankHolidays.isFailure) return Result.fail(bankHolidays.getError());
+      const regions = await this.official.regions(country);
+      if (regions.isFailure) return Result.fail(regions.getError());
 
-    return Result.ok({
-      zone: zone.value,
-      holidays: holidays
-        .getValue()
-        .filter(({ startsOn, endsOn }) => range.overlaps(startsOn, endsOn))
-        .sort(byStart),
-      bankHolidays: bankHolidays
-        .getValue()
-        .filter(({ date }) => range.contains(date))
-        .sort(byDate),
+      const language = await this.languageOf(userId);
+
+      return Result.ok(
+        regions
+          .getValue()
+          .map(({ code, names }) => ({ code, name: nameIn(names, language) }))
+          .sort((left, right) => left.name.localeCompare(right.name, language)),
+      );
     });
   }
 
-  private choiceOf(zoneValue: SchoolZoneValue | null): Result<ZoneChoice, SchoolCalendarError> {
-    if (zoneValue === null) return Result.ok(Option.none());
+  async preview(userId: string, query: PreviewQuery): Outcome<PreviewDto> {
+    return this.span("preview", async () => {
+      const official = coverageOf(query.country).filter(
+        ({ schoolHolidays }) => schoolHolidays !== null,
+      );
+      const choice = SchoolCalendarChoice.create({
+        country: query.country,
+        region: query.region ?? null,
+        schoolHolidays: official.isSome() ? "official" : "unknown",
+      });
+      if (choice.isFailure) return Result.fail(choiceInvalid(choice.getError()));
 
-    return SchoolZone.create(zoneValue)
-      .map((zone) => Option.some(zone))
-      .mapError(() => zoneInvalid);
+      const today = todayOf(this.clock());
+      const reading = {
+        choice: choice.getValue(),
+        range: DateRange.create({ from: today, to: shiftDate(today, PREVIEW_DAYS) }).getValue(),
+        language: await this.languageOf(userId),
+      };
+
+      const school = await this.reader.schoolHolidays(null, reading);
+      if (school.isFailure) return Result.fail(school.getError());
+
+      const bankHolidays = await this.reader.bankHolidays(reading);
+      if (bankHolidays.isFailure) return Result.fail(bankHolidays.getError());
+
+      return Result.ok({
+        holidays: school.getValue().holidays.slice(0, PREVIEW_HOLIDAYS),
+        bankHoliday: bankHolidays.getValue()[0] ?? null,
+        schoolHolidaysCovered: school.getValue().covered,
+      });
+    });
   }
 
-  private async store(userId: string, choice: ZoneChoice): Outcome<void> {
-    const current = await this.zones.zoneOf(userId);
-    if (current.isFailure) return Result.fail(current.getError());
-    if (sameChoice(current.getValue(), choice)) return Result.ok();
-
-    const written = choice.isSome()
-      ? await this.zones.save(userId, choice.unwrap(), this.clock())
-      : await this.zones.clear(userId);
-    if (written.isFailure) return Result.fail(written.getError());
-
-    await emitEvent(this.outbox, EventTypes.SCHOOL_ZONE_CHANGED, "user", userId, {
-      userId,
-      zone: zoneValueOf(choice),
-    });
-    return Result.ok();
+  private async languageOf(userId: string): Promise<string> {
+    return (await this.preferences.of(userId)).language ?? DEFAULT_LANGUAGE;
   }
 
   private span<T>(method: string, work: () => Promise<T>): Promise<T> {

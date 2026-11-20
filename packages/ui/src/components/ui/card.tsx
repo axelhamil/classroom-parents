@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const cardVariants = cva(
-  "flex break-inside-avoid flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-rest",
+  "flex break-inside-avoid flex-col gap-6 rounded-xl border bg-card [--focus-surface:var(--color-card)] py-6 text-card-foreground shadow-rest",
   {
     variants: {
       variant: {

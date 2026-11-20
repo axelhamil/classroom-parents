@@ -204,6 +204,9 @@ importers:
       '@modules/home':
         specifier: workspace:*
         version: link:modules/home
+      '@modules/notifications':
+        specifier: workspace:*
+        version: link:modules/notifications
       '@modules/school-calendar':
         specifier: workspace:*
         version: link:modules/school-calendar
@@ -264,6 +267,9 @@ importers:
       '@noble/hashes':
         specifier: ^2.4.0
         version: 2.4.0
+      '@packages/classroom-scopes':
+        specifier: workspace:*
+        version: link:../../packages/classroom-scopes
       '@packages/ddd-kit':
         specifier: workspace:*
         version: link:../../packages/ddd-kit
@@ -536,6 +542,9 @@ importers:
       '@astrojs/sitemap':
         specifier: ^3.7.4
         version: 3.7.4
+      '@packages/classroom-scopes':
+        specifier: workspace:*
+        version: link:../../packages/classroom-scopes
       '@packages/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -796,6 +805,9 @@ importers:
 
   modules/children:
     dependencies:
+      '@packages/classroom-scopes':
+        specifier: workspace:*
+        version: link:../../packages/classroom-scopes
       '@packages/ddd-kit':
         specifier: workspace:*
         version: link:../../packages/ddd-kit
@@ -960,6 +972,49 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  modules/notifications:
+    dependencies:
+      '@packages/ddd-kit':
+        specifier: workspace:*
+        version: link:../../packages/ddd-kit
+      '@packages/drizzle':
+        specifier: workspace:*
+        version: link:../../packages/drizzle
+      '@packages/events':
+        specifier: workspace:*
+        version: link:../../packages/events
+      '@packages/http':
+        specifier: workspace:*
+        version: link:../../packages/http
+      '@packages/outbox':
+        specifier: workspace:*
+        version: link:../../packages/outbox
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.4)(kysely@0.29.6)(pg@8.23.1)
+      hono:
+        specifier: ^4.13.14
+        version: 4.13.14
+      inwire:
+        specifier: ^4.0.1
+        version: 4.0.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@packages/test':
+        specifier: workspace:*
+        version: link:../../packages/test
+      '@packages/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/bun':
+        specifier: ^1.4.4
+        version: 1.4.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   modules/school-calendar:
     dependencies:
       '@packages/ddd-kit':
@@ -999,6 +1054,15 @@ importers:
       '@types/bun':
         specifier: ^1.4.4
         version: 1.4.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/classroom-scopes:
+    devDependencies:
+      '@packages/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

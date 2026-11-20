@@ -13,11 +13,20 @@ interface Props {
   title: string;
   description: string;
   indexed: boolean;
+  ogTitle?: string;
+  ogDescription?: string;
 }
 
-const { title, description, indexed } = Astro.props;
 const { common, site } = frCatalog;
-const canonical = new URL(Astro.url.pathname, env.PUBLIC_SITE_URL).href;
+const {
+  title,
+  description,
+  indexed,
+  ogTitle = site.meta.ogTitle,
+  ogDescription = site.meta.ogDescription,
+} = Astro.props;
+const cleanPath = Astro.url.pathname.replace(/(index)?\.html$/, "");
+const canonical = new URL(cleanPath, env.PUBLIC_SITE_URL).href;
 const ogImage = new URL("/icons/icon-512.png", env.PUBLIC_SITE_URL).href;
 const legal = common.legal.routes;
 const legalLinks = [
@@ -45,8 +54,8 @@ const legalLinks = [
     <meta property="og:locale" content="fr_FR" />
     <meta property="og:site_name" content={common.brand} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:title" content={site.meta.ogTitle} />
-    <meta property="og:description" content={site.meta.ogDescription} />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={ogDescription} />
     <meta property="og:image" content={ogImage} />
     <meta name="twitter:card" content="summary" />
     <meta name="format-detection" content="telephone=no" />

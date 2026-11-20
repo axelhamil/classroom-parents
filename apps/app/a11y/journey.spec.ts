@@ -337,10 +337,20 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     expect(blocked).toEqual({ children: 2, failures: 1 });
   });
 
-  await test.step("the parent sees what the school must do, then reconnects", async () => {
+  await test.step("the parent prepares the request for the school, then reconnects", async () => {
     await page.goto("/children");
     await expect(childCard(page, HUGO).getByText("Bloqué par l'école")).toBeVisible();
-    await expect(page.getByText("Ce que l'école doit faire")).toBeVisible();
+    await childCard(page, HUGO)
+      .getByRole("link", { name: "Préparer la demande à l'école" })
+      .click();
+    await expect(page).toHaveURL((url) => url.pathname === "/aide/ecole");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Faire autoriser l'application par l'école" }),
+    ).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Message à envoyer" })).toHaveValue(
+      /ID client OAuth : \S+/,
+    );
+    await page.getByRole("link", { name: "Voir mes enfants" }).click();
 
     await control("/schools/hugo/unblock");
     await googleAnswersAs(page, HUGO);

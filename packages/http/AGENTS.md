@@ -10,6 +10,7 @@ src/
   time-id-cursor.ts            keyset cursor on `(time, id)`: `timeIdCursorSchema` (decode; refuses an id that is not a uuid or an instant that does not exist, so a forged cursor is a 400, never a database error), `encodeTimeIdCursor`, `afterTimeIdCursor` (`WHERE`, newest first by default, `"asc"` for oldest first), `exactInstant`
   route-guards.ts              `RouteGuards` contract, `RouteGuard`, `RouteEnv`
   testing/route-guards.ts      `openRouteGuards(requester)`: every gate open, for a module's route tests
+  private-ranges.ts            `isPublicAddress`: false for loopback, private, link-local, CGNAT, metadata, multicast and reserved ranges (v4, v6, v4-mapped); every server-side fetch of a user-typed URL checks each resolved address with it
 ```
 
 ## Rules

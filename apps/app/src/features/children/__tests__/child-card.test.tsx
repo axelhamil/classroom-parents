@@ -13,15 +13,6 @@ vi.mock("../../../shared/api/user-stream", () => ({
   connectUserStream: () => new Promise(() => undefined),
 }));
 
-const LINK_CONFIG = {
-  providerId: "google-classroom",
-  scopes: [
-    "https://www.googleapis.com/auth/classroom.courses.readonly",
-    "https://www.googleapis.com/auth/classroom.announcements.readonly",
-  ],
-  clientId: "school-client.apps.googleusercontent.com",
-};
-
 function child(id: string, label: string, status: string) {
   return { id, label, googleEmail: `${id.slice(0, 4)}@college.example`, status, syncing: false };
 }
@@ -48,37 +39,16 @@ async function openMenu(label: string) {
 describe("children list", () => {
   afterEach(resetApp);
 
-  it("given a child blocked by the school, then it shows what the school must do with the client id and every scope", async () => {
-    fakeApi({
-      "GET /children": { body: [BLOCKED] },
-      "GET /children/link-config": { body: LINK_CONFIG },
-    });
+  it("given a child blocked by the school, then it points to the request for the school and offers to reconnect", async () => {
+    fakeApi({ "GET /children": { body: [BLOCKED] } });
 
     await renderApp("/children");
 
     expect(await screen.findByText(copy.school.kinds.admin_blocked)).toBeTruthy();
-    expect(await screen.findByText(LINK_CONFIG.clientId)).toBeTruthy();
-    for (const scope of LINK_CONFIG.scopes) expect(screen.getByText(scope)).toBeTruthy();
-    expect(screen.getByRole("button", { name: copy.school.share })).toBeTruthy();
+    expect(screen.getByRole("link", { name: copy.school.guide }).getAttribute("href")).toBe(
+      "/aide/ecole",
+    );
     expect(screen.getByRole("button", { name: copy.reconnect.action })).toBeTruthy();
-  });
-
-  it("given the school procedure and no Web Share, then sharing copies the whole procedure", async () => {
-    const writeText = vi.fn(async (_text: string) => undefined);
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    fakeApi({
-      "GET /children": { body: [BLOCKED] },
-      "GET /children/link-config": { body: LINK_CONFIG },
-    });
-
-    await renderApp("/children");
-    await screen.findByText(LINK_CONFIG.clientId);
-    await userEvent.click(screen.getByRole("button", { name: copy.school.share }));
-
-    await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
-    const shared = writeText.mock.calls[0]?.[0];
-    expect(shared).toContain(LINK_CONFIG.clientId);
-    expect(shared).toContain(copy.school.steps.path);
   });
 
   it("child card exposes customize, sync and disconnect in its menu", async () => {

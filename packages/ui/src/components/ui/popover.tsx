@@ -28,7 +28,7 @@ function PopoverContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-float outline-hidden data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border bg-popover [--focus-surface:var(--color-popover)] p-4 text-popover-foreground shadow-float outline-hidden data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           size === "panel" && "w-96 max-w-[calc(100vw-2rem)] p-0",
           className,
         )}
@@ -52,6 +52,20 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/**
+ * The scrolling body of a `size="panel"` popover: the header stays put while a long
+ * content (a feed, a list) scrolls inside the height the popover was given.
+ */
+function PopoverBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="popover-body"
+      className={cn("flex min-h-0 flex-col gap-6 overflow-y-auto p-4", className)}
+      {...props}
+    />
+  );
+}
+
 function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return <div data-slot="popover-title" className={cn("font-medium", className)} {...props} />;
 }
@@ -69,6 +83,7 @@ function PopoverDescription({ className, ...props }: React.ComponentProps<"p">) 
 export {
   Popover,
   PopoverAnchor,
+  PopoverBody,
   PopoverContent,
   PopoverDescription,
   PopoverHeader,

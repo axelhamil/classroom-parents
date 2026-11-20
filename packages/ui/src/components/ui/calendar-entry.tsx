@@ -2,22 +2,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
 import type * as React from "react";
 
+import { CHILD_TONES, childHueContainer, childHueEdge } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 
 const calendarEntryVariants = cva(
   "relative flex w-full min-w-0 items-start gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
   {
     variants: {
-      hue: {
-        1: "bg-child-1-container",
-        2: "bg-child-2-container",
-        3: "bg-child-3-container",
-        4: "bg-child-4-container",
-        5: "bg-child-5-container",
-        6: "bg-child-6-container",
-        7: "bg-child-7-container",
-        8: "bg-child-8-container",
-      },
+      hue: childHueContainer,
       surface: {
         tint: "",
         paper: "bg-surface-container",
@@ -33,48 +25,11 @@ const calendarEntryVariants = cva(
         compact: "gap-2 px-2 py-1.5 [&_[data-slot=calendar-entry-link]]:line-clamp-3",
       },
     },
-    compoundVariants: [
-      {
-        surface: "paper",
-        hue: 1,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-1)]",
-      },
-      {
-        surface: "paper",
-        hue: 2,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-2)]",
-      },
-      {
-        surface: "paper",
-        hue: 3,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-3)]",
-      },
-      {
-        surface: "paper",
-        hue: 4,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-4)]",
-      },
-      {
-        surface: "paper",
-        hue: 5,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-5)]",
-      },
-      {
-        surface: "paper",
-        hue: 6,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-6)]",
-      },
-      {
-        surface: "paper",
-        hue: 7,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-7)]",
-      },
-      {
-        surface: "paper",
-        hue: 8,
-        className: "bg-surface-container shadow-[inset_0.1875rem_0_0_var(--child-8)]",
-      },
-    ],
+    compoundVariants: CHILD_TONES.map((hue) => ({
+      surface: "paper" as const,
+      hue,
+      className: `bg-surface-container ${childHueEdge[hue]}`,
+    })),
     defaultVariants: { surface: "tint", state: "open", density: "comfortable" },
   },
 );

@@ -10,9 +10,10 @@ import { IconButton } from "@packages/ui/components/ui/icon-button";
 import { FlameIcon, PlusIcon } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { dayTone, isCrunchDay } from "../../../../shared/agenda/calendar-days";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { dayLabel, inSentence } from "../../../../shared/format/deadline-label";
-import { type CalendarDay as Day, dayTone, isCrunchDay } from "../../calendar";
+import type { CalendarDay as Day } from "../../calendar";
 import { CalendarEventRow } from "./calendar-event-row";
 
 export interface CalendarDaySectionProps {

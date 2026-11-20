@@ -146,6 +146,31 @@ export class EventEditService {
     );
   }
 
+  async unconfirm(userId: string, eventId: string): Promise<Result<EventDto, EditError>> {
+    return traced(this.instrumentation, "EventEditService > unconfirm", async () =>
+      this.presented(
+        await this.transactions.run(async (): Edited => {
+          const found = await this.owned(userId, eventId);
+          if (found.isFailure) return Result.fail(found.getError());
+          const event = found.getValue();
+
+          const reopened = event.unconfirm();
+          if (reopened.isFailure) return Result.fail(eventNotFound);
+          if (!reopened.getValue()) return Result.ok(event);
+
+          const saved = await this.events.save(event);
+          if (saved.isFailure) return Result.fail(saved.getError());
+
+          const replanned = await this.alerts.replan(plannedDeadline(event, userId));
+          if (replanned.isFailure) return Result.fail(replanned.getError());
+
+          await this.emitUpdated(event, ["status"]);
+          return Result.ok(event);
+        }),
+      ),
+    );
+  }
+
   async markDone(
     userId: string,
     eventId: string,

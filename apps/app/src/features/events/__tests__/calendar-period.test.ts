@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarPeriod, isCrunchDay, shiftAnchor } from "../calendar";
+import { calendarPeriod, shiftAnchor } from "../calendar";
 
 describe("calendarPeriod", () => {
   it("Semaine covers the seven days that start on the anchor day", () => {
@@ -23,22 +23,5 @@ describe("shiftAnchor", () => {
     expect(shiftAnchor("week", "2026-11-12", -1)).toBe("2026-11-05");
     expect(shiftAnchor("month", "2026-01-31", 1)).toBe("2026-02-01");
     expect(shiftAnchor("month", "2026-01-15", -1)).toBe("2025-12-01");
-  });
-});
-
-describe("crunch and overdue", () => {
-  const open = { done: false, deadlineDate: "2026-11-13" };
-
-  it("a day is a crunch from three open deadlines, done ones do not count", () => {
-    expect(isCrunchDay("2026-11-13", [open, open], "2026-11-12")).toBe(false);
-    expect(isCrunchDay("2026-11-13", [open, open, { ...open, done: true }], "2026-11-12")).toBe(
-      false,
-    );
-    expect(isCrunchDay("2026-11-13", [open, open, open], "2026-11-12")).toBe(true);
-  });
-
-  it("only today and the days ahead warn, a past day is no longer a crunch", () => {
-    expect(isCrunchDay("2026-11-13", [open, open, open], "2026-11-13")).toBe(true);
-    expect(isCrunchDay("2026-11-13", [open, open, open], "2026-11-14")).toBe(false);
   });
 });

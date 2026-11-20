@@ -12,6 +12,7 @@ import {
   sweepDeliveredOutbox,
   sweepEventHistory,
   sweepExtractionResults,
+  sweepNotifications,
   sweepOldEmails,
 } from "./retention";
 
@@ -102,6 +103,10 @@ export function sweepJobs(
     {
       name: "ai-usage-retention",
       run: async () => sweepOutcome(await sweepAiUsage(retention)),
+    },
+    {
+      name: "notification-retention",
+      run: async () => sweepOutcome(await sweepNotifications(retention)),
     },
     {
       name: "event-history-retention",

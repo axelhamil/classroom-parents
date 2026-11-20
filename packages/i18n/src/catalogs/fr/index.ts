@@ -6,8 +6,10 @@ import emails from "./emails";
 import errors from "./errors";
 import eventEdit from "./event-edit";
 import events from "./events";
+import help from "./help";
 import history from "./history";
 import home from "./home";
+import notifications from "./notifications";
 import onboarding from "./onboarding";
 import push from "./push";
 import settings from "./settings";
@@ -24,8 +26,10 @@ const catalog = {
   children,
   events,
   eventEdit,
+  help,
   history,
   home,
+  notifications,
   onboarding,
   push,
   site,

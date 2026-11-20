@@ -142,6 +142,7 @@ describe("fake push sink", () => {
       body: "jeudi",
       url: "https://app/events/1",
       tag: "event-1",
+      notificationRef: "reminders:a1",
     };
     const options = { ttlSeconds: 7200, topic: "event1", urgency: "high" as const };
 

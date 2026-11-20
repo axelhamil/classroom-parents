@@ -18,7 +18,11 @@ import { calendarFeed } from "@modules/calendar-feed/schemas/calendar-feed.schem
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
 import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
-import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
+import { notification } from "@modules/notifications/schemas/notification.schema";
+import {
+  schoolCalendarChoice,
+  schoolHolidayPeriod,
+} from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type AppError, type IInstrumentation, Result } from "@packages/ddd-kit";
 import { and, asc, count, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
 import { aiCall } from "@packages/llm/schemas/ai-call.schema";
@@ -140,10 +144,26 @@ export class UserDataQuery implements IUserDataReader {
           .from(alertAccessLoss)
           .where(eq(alertAccessLoss.userId, userId))
           .orderBy(asc(alertAccessLoss.dueAt));
-        const [schoolZone] = await exec
-          .select({ zone: schoolZonePreference.zone, updatedAt: schoolZonePreference.updatedAt })
-          .from(schoolZonePreference)
-          .where(eq(schoolZonePreference.userId, userId));
+        const [schoolCalendar] = await exec
+          .select({
+            country: schoolCalendarChoice.country,
+            region: schoolCalendarChoice.region,
+            schoolHolidays: schoolCalendarChoice.schoolHolidays,
+            updatedAt: schoolCalendarChoice.updatedAt,
+          })
+          .from(schoolCalendarChoice)
+          .where(eq(schoolCalendarChoice.userId, userId));
+        const schoolHolidayPeriods = await exec
+          .select({
+            name: schoolHolidayPeriod.name,
+            startsOn: schoolHolidayPeriod.startsOn,
+            endsOn: schoolHolidayPeriod.endsOn,
+            origin: schoolHolidayPeriod.origin,
+            createdAt: schoolHolidayPeriod.createdAt,
+          })
+          .from(schoolHolidayPeriod)
+          .where(eq(schoolHolidayPeriod.userId, userId))
+          .orderBy(asc(schoolHolidayPeriod.startsOn));
         const [layout] = await exec
           .select({ blocks: homeLayout.blocks, updatedAt: homeLayout.updatedAt })
           .from(homeLayout)
@@ -189,6 +209,19 @@ export class UserDataQuery implements IUserDataReader {
           .from(aiCall)
           .where(eq(aiCall.userId, userId))
           .orderBy(asc(aiCall.createdAt));
+
+        const notifications = await exec
+          .select({
+            kind: notification.kind,
+            childId: notification.childId,
+            params: notification.params,
+            members: notification.members,
+            createdAt: notification.createdAt,
+            readAt: notification.readAt,
+          })
+          .from(notification)
+          .where(eq(notification.userId, userId))
+          .orderBy(asc(notification.createdAt));
 
         const seen = await exec
           .select({ childId: seenAnnouncement.childId, total: count() })
@@ -289,9 +322,18 @@ export class UserDataQuery implements IUserDataReader {
             sentAt: iso(warning.sentAt),
             closedAt: iso(warning.closedAt),
           })),
-          schoolZone: schoolZone
-            ? { zone: schoolZone.zone, chosenAt: schoolZone.updatedAt.toISOString() }
+          schoolCalendar: schoolCalendar
+            ? {
+                country: schoolCalendar.country,
+                region: schoolCalendar.region,
+                schoolHolidays: schoolCalendar.schoolHolidays,
+                chosenAt: schoolCalendar.updatedAt.toISOString(),
+              }
             : null,
+          schoolHolidayPeriods: schoolHolidayPeriods.map(({ createdAt, ...period }) => ({
+            ...period,
+            addedAt: createdAt.toISOString(),
+          })),
           assistantPreferences: preferences
             ? {
                 locale: preferences.locale,
@@ -310,6 +352,11 @@ export class UserDataQuery implements IUserDataReader {
             ? { blocks: layout.blocks, chosenAt: layout.updatedAt.toISOString() }
             : null,
           homeNote: note ? { body: note.body, writtenAt: note.updatedAt.toISOString() } : null,
+          notifications: notifications.map(({ createdAt, readAt, ...row }) => ({
+            ...row,
+            createdAt: createdAt.toISOString(),
+            readAt: iso(readAt),
+          })),
           sync: children.map((child) => ({
             childId: child.id,
             status: child.status,

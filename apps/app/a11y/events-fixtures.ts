@@ -21,9 +21,14 @@ export const MAXIMILIEN = {
   syncing: false,
 };
 
-export const TODAY =
-  process.env.A11Y_TODAY ??
-  new Intl.DateTimeFormat("en-CA", { timeZone: PARIS_TIME_ZONE }).format(Date.now());
+/**
+ * A Thursday of school term: what the home shows depends on the day (evening, weekend, holidays),
+ * so the gate pins its pages to one day instead of the day it happens to run on. `A11Y_TODAY` moves
+ * it, which is how a change is checked on other days; the weekend has its own project.
+ */
+export const SCHOOL_THURSDAY = "2026-11-19";
+
+export const TODAY = process.env.A11Y_TODAY ?? SCHOOL_THURSDAY;
 
 export function inDays(days: number): string {
   return shiftDate(TODAY, days);
@@ -129,6 +134,7 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     if (path === "/home/layout")
       return route.fulfill({ json: { blocks: fixtures.homeLayout ?? null, revision: 0 } });
     if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
+    if (path === "/notifications/unread-count") return route.fulfill({ json: { count: 0 } });
     if (path === "/events") {
       eventRequests.push(request);
       const status = new URL(request.url()).searchParams.get("status");
@@ -143,6 +149,10 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     }
     if (path === `/events/${REVIEW_EVENT.id}`)
       return route.fulfill({ json: fixtures.detail ?? REVIEW_EVENT });
+    if (path === `/events/${REVIEW_EVENT.id}/confirm`) {
+      const status = request.method() === "DELETE" ? "needs_review" : "confirmed";
+      return route.fulfill({ json: { ...REVIEW_EVENT, status } });
+    }
     if (path === `/events/${REVIEW_EVENT.id}/reminders`)
       return route.fulfill({
         json: {

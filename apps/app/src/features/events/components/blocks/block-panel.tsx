@@ -24,6 +24,7 @@ export interface BlockPanelProps {
   fit?: "card" | "natural";
   startAt?: string;
   jump?: string;
+  hero?: boolean;
   children?: ReactNode;
 }
 
@@ -36,6 +37,7 @@ export function BlockPanel({
   fit,
   startAt,
   jump,
+  hero,
   children,
 }: BlockPanelProps) {
   const { t } = useTranslation("home");
@@ -48,6 +50,7 @@ export function BlockPanel({
       aria-label={label}
       aria-labelledby={label ? undefined : titleId}
       fit={fit}
+      tone={hero ? "hero" : "default"}
       data-jump={jump}
       tabIndex={jump ? -1 : undefined}
     >

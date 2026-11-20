@@ -13,6 +13,7 @@ src/
   event-descriptions.ts   `EVENT_DESCRIPTIONS: Record<EventType, string>`, English only
   user-stream-message.ts  `UserStreamMessage`, the Zod union pushed on `GET /stream`
   agenda-contract.ts      event categories and title/description bounds, read by the agenda and the app forms
+  notification-ref.ts     the reference a push and its in-app notification share, and the link parameter carrying it
   contribution.ts         `defineEventContribution`, the shape of a module's events
   contrib/<module>.ts     one contribution per business module, one owner each
   registry.ts             spreads every contribution into the five maps above

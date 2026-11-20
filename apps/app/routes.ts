@@ -17,6 +17,7 @@ export const routes = rootRoute("router/__root.tsx", [
       route("/children/link-error", "features/children/link-error.route.tsx"),
       route("/settings", "features/settings/settings.route.tsx"),
       route("/settings/privacy", "features/privacy/privacy.route.tsx"),
+      route("/aide/ecole", "features/help/school-help.route.tsx"),
     ]),
   ]),
 

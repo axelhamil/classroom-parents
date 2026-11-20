@@ -287,6 +287,37 @@ describe("confirm", () => {
   });
 });
 
+describe("unconfirm", () => {
+  it("given a date the parent confirmed, then it goes back to review, its default alerts are replanned away and EVENT_UPDATED names the parent", async () => {
+    given({ confirmedByParentAt: NOW });
+
+    const result = await service.unconfirm(PARENT, event.id.value);
+
+    expect(result.getValue().status).toBe("needs_review");
+    expect(repo.save.mock.calls[0]?.[0].get("confirmedByParentAt").isNone()).toBe(true);
+    expect(planner.replan).toHaveBeenCalledWith({
+      eventId: event.id.value,
+      userId: PARENT,
+      actorUserId: PARENT,
+    });
+    expect(enqueuedEvents(outbox)).toMatchObject([
+      {
+        eventType: EventTypes.EVENT_UPDATED,
+        payload: { eventId: event.id.value, fields: ["status"], actorUserId: PARENT },
+      },
+    ]);
+  });
+
+  it("given a date the parent never confirmed, then nothing is sent back to review", async () => {
+    const result = await service.unconfirm(PARENT, event.id.value);
+
+    expect(result.getValue().status).toBe("confirmed");
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(planner.replan).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+});
+
 describe("markDone", () => {
   it("given an event to do, when the parent marks it done, then it is saved done, its reminders are replanned and EVENT_UPDATED names the parent", async () => {
     const result = await service.markDone(PARENT, event.id.value, true);

@@ -187,7 +187,7 @@ function FamilyHome({ family, clock, home }: FamilyHomeProps) {
   );
   const requested = search.childId ?? stored;
   const childId = family.some((child) => child.id === requested) ? requested : null;
-  const { period } = placePeriod(search, clock.now);
+  const { period } = placePeriod(search, clock);
   const loaded = useQuery(calendarEventsQueryOptions(period)).data ?? [];
   const shown = (blockId: string) => home.order.some(({ id }) => id === blockId);
   const briefingShown = shown("today");

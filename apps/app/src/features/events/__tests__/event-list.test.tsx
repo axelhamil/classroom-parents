@@ -3,6 +3,7 @@ import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
+import { at } from "../../../__tests__/week-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({
@@ -50,22 +51,22 @@ function eventListRequests(calls: ApiCall[]): URLSearchParams[] {
     .map((call) => call.url.searchParams);
 }
 
+const THURSDAY_BEFORE = "2026-11-12T09:00:00.000Z";
+
 describe("Accueil around the calendar", () => {
-  beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-16T09:00:00.000Z") });
-  });
+  beforeEach(() => at(THURSDAY_BEFORE));
 
   afterEach(() => {
-    vi.useRealTimers();
     cleanup();
     resetApp();
+    vi.useRealTimers();
   });
 
   it("given an event to review, then its line opens the dates to confirm or to edit", async () => {
     givenFamily([CHILD], [{ ...EVENT, status: "needs_review" }]);
     await renderAppAt("/");
 
-    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Voir la date à vérifier" }));
     const dialog = await screen.findByRole("dialog", { name: "1 date à vérifier" });
 
     expect(dialog.textContent).toContain(EVENT.title);
@@ -82,13 +83,13 @@ describe("Accueil around the calendar", () => {
     expect(await screen.findByText(/analyse en cours/)).toBeDefined();
   });
 
-  it("given a child blocked by the school, then the list points the parent to the children screen", async () => {
+  it("given a child blocked by the school, then the notice points the parent to the request for the school", async () => {
     givenFamily([{ ...CHILD, status: "blocked_by_school", cause: "school_blocked" }], [EVENT]);
     await renderAppAt("/");
 
-    const pointer = await screen.findByRole("link", { name: "Voir les enfants" });
+    const pointer = await screen.findByRole("link", { name: "Que faire ?" });
 
-    expect(pointer.getAttribute("href")).toBe("/children");
+    expect(pointer.getAttribute("href")).toBe("/aide/ecole");
   });
 
   it("given a child whose Google access was lost, then the notice offers to reconnect at once", async () => {
@@ -96,7 +97,7 @@ describe("Accueil around the calendar", () => {
     await renderAppAt("/");
 
     expect(await screen.findByRole("button", { name: "Reconnecter" })).toBeDefined();
-    expect(screen.queryByRole("link", { name: "Voir les enfants" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Que faire ?" })).toBeNull();
   });
 
   it("given an event to review beyond the loaded page, then the review line still lists it", async () => {
@@ -115,7 +116,7 @@ describe("Accueil around the calendar", () => {
     });
     await renderAppAt("/");
 
-    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Voir la date à vérifier" }));
     const dialog = await screen.findByRole("dialog", { name: "1 date à vérifier" });
 
     expect(dialog.textContent).toContain(late.title);
@@ -134,7 +135,7 @@ describe("Accueil around the calendar", () => {
     });
     await renderAppAt("/");
 
-    fireEvent.click(await screen.findByRole("button", { name: "1 date à vérifier" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Voir la date à vérifier" }));
     fireEvent.click(await screen.findByRole("button", { name: "C'est bon" }));
 
     expect(await screen.findByText("Échéance confirmée")).toBeDefined();

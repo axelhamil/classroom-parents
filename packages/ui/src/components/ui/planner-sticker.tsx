@@ -2,22 +2,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
 import type * as React from "react";
 
+import { childHueContainer } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 
 const plannerStickerVariants = cva(
   "flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-transparent p-2.5 text-sm text-foreground outline-none hover:shadow-raised focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
-      hue: {
-        1: "bg-child-1-container",
-        2: "bg-child-2-container",
-        3: "bg-child-3-container",
-        4: "bg-child-4-container",
-        5: "bg-child-5-container",
-        6: "bg-child-6-container",
-        7: "bg-child-7-container",
-        8: "bg-child-8-container",
-      },
+      hue: childHueContainer,
       urgent: {
         true: "border-warning",
         false: "",

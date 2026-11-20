@@ -6,7 +6,7 @@ interface PaletteSwatchProps extends React.ComponentProps<"div"> {
   palette: string;
 }
 
-/** A corner of the page drawn in another palette: its children render with that palette's tokens, in the current light or dark mode. Decorative, hidden from assistive technology. */
+/** A corner of the home drawn in another palette: its children render with that palette's tokens, in the current light or dark mode, on the palette's own page colour. Decorative and inert, hidden from assistive technology. */
 function PaletteSwatch({ palette, className, ...props }: PaletteSwatchProps) {
   return (
     <div
@@ -14,7 +14,7 @@ function PaletteSwatch({ palette, className, ...props }: PaletteSwatchProps) {
       data-palette={palette}
       aria-hidden
       className={cn(
-        "flex rounded-lg border bg-background p-2 text-foreground [&>[data-slot=planner-card]]:pointer-events-none",
+        "pointer-events-none flex flex-col gap-2 rounded-xl border bg-background p-2.5 text-foreground shadow-rest",
         className,
       )}
       {...props}

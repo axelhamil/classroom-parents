@@ -10,6 +10,8 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { SchoolClockProvider, useLiveSchoolClock } from "../agenda/school-clock-context";
 import { DeletionPendingBanner } from "../components/deletion-pending-banner";
+import { NotificationBell } from "../notifications/notification-bell";
+import { useReadNotificationFromLink } from "../notifications/use-read-notification-from-link";
 import { OfflineBanner } from "../offline/offline-banner";
 import { InstallInvite } from "../pwa/install-invite";
 import { useAppBadge } from "../pwa/use-app-badge";
@@ -33,8 +35,9 @@ export function AppShell({ user, sessionId, children }: AppShellProps) {
   useSyncOnOpen();
   usePushEndpointSync(user.id, sessionId);
   useNotificationNavigation();
+  useReadNotificationFromLink();
+  useAppBadge();
   const clock = useLiveSchoolClock(user.id);
-  useAppBadge(clock);
 
   return (
     <div className="flex min-h-dvh flex-col pb-nav md:pb-0 print:min-h-0 print:pb-0">
@@ -59,7 +62,10 @@ export function AppShell({ user, sessionId, children }: AppShellProps) {
             </li>
           ))}
         </AppNavigation>
-        <UserMenu user={user} className="lg:justify-self-end" />
+        <div className="flex items-center gap-1 lg:justify-self-end">
+          <NotificationBell />
+          <UserMenu user={user} />
+        </div>
       </AppBar>
       <OfflineBanner />
       <DeletionPendingBanner />

@@ -54,7 +54,7 @@ export interface EventsRoutesDeps {
   >;
   EventEditService: Pick<
     EventEditService,
-    "add" | "edit" | "confirm" | "markDone" | "changeChecklist" | "remove"
+    "add" | "edit" | "confirm" | "unconfirm" | "markDone" | "changeChecklist" | "remove"
   >;
 }
 
@@ -120,6 +120,11 @@ export function createEventsRoutes(deps: EventsRoutesDeps) {
     )
     .post("/:id/confirm", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
       const result = await edits.confirm(g.currentUserId(c), c.req.valid("param").id);
+      if (result.isFailure) throw new AppErrorException(result.getError());
+      return c.json(result.getValue());
+    })
+    .delete("/:id/confirm", g.requireAuth, zV("param", eventIdParamSchema), async (c) => {
+      const result = await edits.unconfirm(g.currentUserId(c), c.req.valid("param").id);
       if (result.isFailure) throw new AppErrorException(result.getError());
       return c.json(result.getValue());
     })

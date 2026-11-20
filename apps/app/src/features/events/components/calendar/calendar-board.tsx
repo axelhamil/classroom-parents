@@ -75,7 +75,7 @@ export function CalendarBoard({
   const { t } = useTranslation("events");
   const clock = useSchoolClock();
   const { now } = clock;
-  const { view, today, anchor, period } = placePeriod(place, now);
+  const { view, today, anchor, period } = placePeriod(place, clock);
   const query = useQuery({
     ...calendarEventsQueryOptions(period),
     placeholderData: keepPreviousData,

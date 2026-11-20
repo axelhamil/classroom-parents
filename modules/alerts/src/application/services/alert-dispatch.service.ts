@@ -7,6 +7,7 @@ import {
   Result,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
+import { notificationRef as notificationRefs } from "@packages/events/notification-ref";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import type { Alert } from "../../domain/alert.aggregate";
@@ -52,6 +53,11 @@ interface Deliverable {
   context: AlertContext;
 }
 
+interface SentGroup {
+  key: string;
+  size: number;
+}
+
 interface Settled {
   alertId: string;
   delivered: Result<Delivered, AppError>;
@@ -88,11 +94,21 @@ function slotOf(group: Deliverable[]): string {
   return `${opening?.date ?? ""}-${opening?.time ?? ""}`;
 }
 
+function membersDigest(group: Deliverable[]): string {
+  const members = group.map(({ item }) => item.lease.alertId).toSorted();
+  return createHash("sha256").update(members.join(",")).digest("hex").slice(0, 16);
+}
+
 function groupEmailKey(group: Deliverable[]): string {
   const userId = group[0]?.item.alert.get("userId") ?? "";
-  const members = group.map(({ item }) => item.lease.alertId).toSorted();
-  const digest = createHash("sha256").update(members.join(",")).digest("hex").slice(0, 16);
-  return `alerts-${slotOf(group)}-${userId}-${digest}`;
+  return `alerts-${slotOf(group)}-${userId}-${membersDigest(group)}`;
+}
+
+function sentGroupOf(group: Deliverable[]): SentGroup {
+  const [only] = group;
+  const key = only && group.length === 1 ? only.item.lease.alertId : membersDigest(group);
+
+  return { key, size: group.length };
 }
 
 function leaseLost({ alertId }: AlertLease): AlertsError {
@@ -102,11 +118,19 @@ function leaseLost({ alertId }: AlertLease): AlertsError {
   };
 }
 
-function addressing(group: Deliverable[]): Pick<PushMessage, "url" | "tag"> & { topic: string } {
+type Addressing = Pick<PushMessage, "url" | "tag" | "notificationRef"> & { topic: string };
+
+function addressing(group: Deliverable[]): Addressing {
+  const notificationRef = notificationRefs.reminders(sentGroupOf(group).key);
   const [only] = group;
   if (only && group.length === 1) {
     const eventId = only.item.alert.get("eventId");
-    return { url: only.context.eventUrl, tag: `event-${eventId}`, topic: hex(eventId) };
+    return {
+      url: only.context.eventUrl,
+      tag: `event-${eventId}`,
+      topic: hex(eventId),
+      notificationRef,
+    };
   }
 
   const slot = slotOf(group);
@@ -114,6 +138,7 @@ function addressing(group: Deliverable[]): Pick<PushMessage, "url" | "tag"> & { 
     url: new URL("/", group[0]?.context.eventUrl).toString(),
     tag: `alerts-${slot}`,
     topic: `alerts${slot.replace(/\D/g, "")}`,
+    notificationRef,
   };
 }
 
@@ -212,7 +237,9 @@ export class AlertDispatchService {
 
     if (pushed.isFailure) return each(async () => Result.fail(pushed.getError()));
     if (pushed.getValue())
-      return each(({ item }) => this.markSent(item.alert, item.lease, "push", now));
+      return each(({ item }) =>
+        this.markSent(item.alert, item.lease, "push", now, sentGroupOf(group)),
+      );
     if (group.length > 1) return this.emailGroup(group, now);
 
     return each((deliverable) => this.sendEmail(deliverable, now));
@@ -223,7 +250,13 @@ export class AlertDispatchService {
     const queued = await this.transactions.run(async (): Promise<Result<Settled[], AppError>> => {
       const settled: Settled[] = [];
       for (const { item } of group) {
-        const delivered = await this.markSent(item.alert, item.lease, "email", now);
+        const delivered = await this.markSent(
+          item.alert,
+          item.lease,
+          "email",
+          now,
+          sentGroupOf(group),
+        );
         if (delivered.isFailure) return Result.fail(delivered.getError());
         if (delivered.getValue() !== "email") return Result.fail(leaseLost(item.lease));
         settled.push({ alertId: item.lease.alertId, delivered });
@@ -262,9 +295,13 @@ export class AlertDispatchService {
   }
 
   private async sendEmail(
-    { item: { alert, lease, failures }, context }: Deliverable,
+    deliverable: Deliverable,
     now: Date,
   ): Promise<Result<Delivered, AppError>> {
+    const {
+      item: { alert, lease, failures },
+      context,
+    } = deliverable;
     const emailed = await this.email.send(context.email, {
       alertId: alert.id.value,
       version: alert.get("version"),
@@ -273,7 +310,8 @@ export class AlertDispatchService {
       deadlineLabel: context.deadlineLabel,
       eventUrl: context.eventUrl,
     });
-    if (emailed.isSuccess) return this.markSent(alert, lease, "email", now);
+    if (emailed.isSuccess)
+      return this.markSent(alert, lease, "email", now, sentGroupOf([deliverable]));
 
     return this.emailFailed(alert, { lease, failures }, emailed.getError().code, now);
   }
@@ -295,11 +333,11 @@ export class AlertDispatchService {
       group.map(({ context }) => context),
       { details: details.getValue().unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT) },
     );
-    const { url, tag, topic } = addressing(group);
+    const { url, tag, topic, notificationRef } = addressing(group);
     const fanout = await pushToParent(
       ports,
       userId,
-      { ...text, url, tag },
+      { ...text, url, tag, notificationRef },
       { ttlSeconds: PUSH_TTL_SECONDS, topic, urgency: "high" },
     );
     if (fanout.isFailure) return Result.fail(fanout.getError());
@@ -316,6 +354,7 @@ export class AlertDispatchService {
     lease: AlertLease,
     channel: DeliveryChannel,
     now: Date,
+    group: SentGroup,
   ): Promise<Result<Delivered, AppError>> {
     return this.transactions.run(async (): Promise<Result<Delivered, AppError>> => {
       alert.markSent(now);
@@ -334,6 +373,8 @@ export class AlertDispatchService {
       await emitEvent(this.outbox, EventTypes.ALERT_SENT, "alert", alert.id.value, {
         userId: alert.get("userId"),
         alertId: alert.id.value,
+        eventId: alert.get("eventId"),
+        group,
         channel,
         actorUserId: null,
       });

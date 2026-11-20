@@ -1,26 +1,21 @@
 import type { Result } from "@packages/ddd-kit";
-import type { BankHolidayTerritory, SchoolZone } from "../../domain/value-objects/school-zone.vo";
+import type {
+  CalendarEntry,
+  CalendarFeed,
+  HolidayNames,
+} from "../../domain/calendar/calendar-feed";
 import type { SchoolCalendarError } from "../errors/school-calendar-errors";
 
-export interface SchoolHoliday {
-  name: string;
-  startsOn: string;
-  endsOn: string;
-}
-
-export interface BankHoliday {
-  date: string;
-  name: string;
+export interface Region {
+  code: string;
+  names: HolidayNames;
 }
 
 export interface ISchoolCalendarSource {
-  holidays(
-    zone: SchoolZone,
-    schoolYear: string,
-  ): Promise<Result<SchoolHoliday[], SchoolCalendarError>>;
+  entries(
+    feed: CalendarFeed,
+    period: string,
+  ): Promise<Result<CalendarEntry[], SchoolCalendarError>>;
 
-  bankHolidays(
-    territory: BankHolidayTerritory,
-    year: number,
-  ): Promise<Result<BankHoliday[], SchoolCalendarError>>;
+  regions(country: string): Promise<Result<Region[], SchoolCalendarError>>;
 }

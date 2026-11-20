@@ -35,11 +35,11 @@ describe("palette store", () => {
     const listener = vi.fn();
     store.subscribe(listener);
 
-    store.setPalette("ink");
+    store.setPalette("night");
 
-    expect(store.getPalette()).toBe("ink");
-    expect(host.writeStored).toHaveBeenCalledWith("ink");
-    expect(host.apply).toHaveBeenCalledWith("ink");
+    expect(store.getPalette()).toBe("night");
+    expect(host.writeStored).toHaveBeenCalledWith("night");
+    expect(host.apply).toHaveBeenCalledWith("night");
     expect(listener).toHaveBeenCalledOnce();
   });
 

@@ -120,8 +120,18 @@ export interface ExportedAccessLossWarning {
   closedAt: string | null;
 }
 
-export interface ExportedSchoolZone {
-  zone: string;
+export interface ExportedSchoolHolidayPeriod {
+  name: string;
+  startsOn: string;
+  endsOn: string;
+  origin: string;
+  addedAt: string;
+}
+
+export interface ExportedSchoolCalendar {
+  country: string;
+  region: string | null;
+  schoolHolidays: string;
   chosenAt: string;
 }
 
@@ -175,6 +185,15 @@ export interface ExportedAiCall {
   outcome: string;
 }
 
+export interface ExportedNotification {
+  kind: string;
+  childId: string | null;
+  params: Record<string, unknown>;
+  members: string[];
+  createdAt: string;
+  readAt: string | null;
+}
+
 export interface UserDataSnapshot {
   children: ExportedChild[];
   events: CollectedEvent[];
@@ -186,12 +205,14 @@ export interface UserDataSnapshot {
   calendarFeed: ExportedCalendarFeed | null;
   weeklyDigest: ExportedWeeklyDigest;
   accessLossWarnings: ExportedAccessLossWarning[];
-  schoolZone: ExportedSchoolZone | null;
+  schoolCalendar: ExportedSchoolCalendar | null;
+  schoolHolidayPeriods: ExportedSchoolHolidayPeriod[];
   assistantPreferences: ExportedAssistantPreferences | null;
   aiUsage: ExportedAiUsage[];
   aiCalls: ExportedAiCall[];
   homeLayout: ExportedHomeLayout | null;
   homeNote: ExportedHomeNote | null;
+  notifications: ExportedNotification[];
   sync: ExportedSyncState[];
 }
 

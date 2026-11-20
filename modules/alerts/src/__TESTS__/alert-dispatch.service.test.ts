@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
-import { EventTypes } from "@packages/events";
+import { EventTypes, PayloadByEventType } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
@@ -163,6 +163,7 @@ describe("runOnce", () => {
       body: "Contrôle de maths",
       url: CONTEXT.eventUrl,
       tag: `event-${ALERT_EVENT}`,
+      notificationRef: `reminders:${ALERT_ID}`,
     });
     expect(push.send.mock.calls[0]?.[2]).toEqual({
       ttlSeconds: 7200,
@@ -175,7 +176,14 @@ describe("runOnce", () => {
       {
         eventType: EventTypes.ALERT_SENT,
         aggregateId: ALERT_ID,
-        payload: { userId: PARENT, alertId: ALERT_ID, channel: "push", actorUserId: null },
+        payload: {
+          userId: PARENT,
+          alertId: ALERT_ID,
+          eventId: ALERT_EVENT,
+          group: { key: ALERT_ID, size: 1 },
+          channel: "push",
+          actorUserId: null,
+        },
       },
     ]);
   });
@@ -404,6 +412,7 @@ describe("grouping", () => {
       body: "Devoir 0 | Devoir 1 | Devoir 2 | Devoir 3 | Devoir 4",
       url: "https://app.example.com/",
       tag: "alerts-2026-11-13-18:00",
+      notificationRef: expect.stringMatching(/^reminders:[0-9a-f]{16}$/),
     });
     expect(push.send.mock.calls[0]?.[2]).toEqual({
       ttlSeconds: 7200,
@@ -413,6 +422,13 @@ describe("grouping", () => {
     expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual(
       Array(5).fill(EventTypes.ALERT_SENT),
     );
+    const groups = enqueuedEvents(outbox).map(
+      ({ payload }) => PayloadByEventType[EventTypes.ALERT_SENT].parse(payload).group,
+    );
+    const ref = push.send.mock.calls[0]?.[1].notificationRef;
+    expect(new Set(groups.map((group) => JSON.stringify(group))).size).toBe(1);
+    expect(groups[0]?.size).toBe(5);
+    expect(ref).toBe(`reminders:${groups[0]?.key}`);
   });
 
   it("given two parents with a deadline each, then each parent gets their own notification", async () => {

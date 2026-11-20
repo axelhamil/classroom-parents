@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   byRoute,
@@ -36,9 +36,18 @@ function givenDevice(languages: readonly string[], timeZone: string) {
   });
 }
 
+/**
+ * Opens a select and picks an option by its text: the time zone and country lists hold hundreds of
+ * options, and an accessible-name lookup over each of them made this test slow enough to time out
+ * under a loaded CI.
+ */
 async function choose(label: string, option: string) {
   fireEvent.keyDown(await screen.findByRole("combobox", { name: label }), { key: "Enter" });
-  fireEvent.keyDown(await screen.findByRole("option", { name: option }), { key: "Enter" });
+  const text = await within(await screen.findByRole("listbox")).findByText(option);
+  const item = text.closest<HTMLElement>("[role=option]");
+  if (!item) throw new Error(`${option} is not an option of ${label}`);
+
+  fireEvent.keyDown(item, { key: "Enter" });
 }
 
 describe("language and AI reading cards", () => {

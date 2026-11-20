@@ -22,10 +22,10 @@ import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { alert, alertDelivery } from "@modules/alerts/schemas/alert.schema";
 import { pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
 import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
-import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Result } from "@packages/ddd-kit";
 import {
   type AnyPgTable,
@@ -52,7 +52,7 @@ import { makeSignature } from "better-auth/crypto";
 import { z } from "zod";
 import { app } from "../src/app";
 import { auth } from "../src/auth";
-import { di } from "../src/container";
+import { di, eventHandlers } from "../src/container";
 import { GOOGLE_IDENTITY_SCOPES } from "../src/shared/auth/google-scopes";
 import { env, FRONT_ORIGINS } from "../src/shared/env";
 import { PgUserStreamPublisher } from "../src/shared/services/user-stream-relay";
@@ -131,6 +131,16 @@ async function rowsIn(table: AnyPgTable, where: SQL | undefined): Promise<number
   const [row] = await db.select({ total: count() }).from(table).where(where);
   return row?.total ?? 0;
 }
+
+const NotificationFeed = z.object({
+  notifications: z.array(
+    z.object({
+      content: z.object({ kind: z.string() }),
+      childId: z.string().nullable(),
+      readAt: z.string().nullable(),
+    }),
+  ),
+});
 
 function nextMessage(userId: string, type: UserStreamMessage["type"]) {
   return new Promise<UserStreamMessage | undefined>((resolve) => {
@@ -407,7 +417,24 @@ run(async () => {
     message,
   );
 
-  await di.OutboxDispatcher.start(di);
+  const notificationArrived = nextMessage(family.userId, "notification.created");
+  await di.OutboxDispatcher.start(eventHandlers());
+  await step(
+    "what the first syncs found reaches the parent's notification center through the outbox",
+    (await notificationArrived)?.type === "notification.created",
+  );
+  const center = NotificationFeed.parse(await (await call("/notifications")).json());
+  await step(
+    "the notification center lists the new deadlines of a child of the family, unread",
+    center.notifications.some(
+      ({ content, childId, readAt }) =>
+        content.kind === "new_deadlines" &&
+        [hugo.id, lea.id].includes(childId ?? "") &&
+        readAt === null,
+    ),
+    center,
+  );
+
   const childrenChanged = nextMessage(family.userId, "children.changed");
   fakes.blockSchool("hugo");
   const blockedSync = await syncDue(new Date(now + 3 * HOUR_MS));

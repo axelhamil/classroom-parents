@@ -1,8 +1,8 @@
 import type { ChildDto } from "../api/queries/children";
 
-export type ChildHue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export const HUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 
-export const HUES = [1, 2, 3, 4, 5, 6, 7, 8] as const satisfies readonly ChildHue[];
+export type ChildHue = (typeof HUES)[number];
 
 export function childHue(children: readonly ChildDto[], childId: string): ChildHue {
   const color = children.find((child) => child.id === childId)?.color;

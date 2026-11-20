@@ -12,7 +12,7 @@ test("lists every child state on a phone with one main, one h1 and no overflow",
   await stubChildrenApi(page);
   await page.goto("/children");
 
-  await expect(page.getByRole("button", { name: "Partager avec l'école" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Préparer la demande à l'école" })).toBeVisible();
   await expect(page.locator("main")).toHaveCount(1);
   await expect(page.locator("h1")).toHaveCount(1);
   const overflow = await page.evaluate(

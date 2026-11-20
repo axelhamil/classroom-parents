@@ -173,8 +173,29 @@
     {
       "idx": 24,
       "version": "7",
-      "when": 1795111609220,
-      "tag": "0024_home_layout_revision",
+      "when": 1795110764362,
+      "tag": "0024_far_santa_claus",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795167364344,
+      "tag": "0025_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795168603125,
+      "tag": "0026_international_school_calendars",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795170409722,
+      "tag": "0027_home_layout_revision",
       "breakpoints": true
     }
   ]

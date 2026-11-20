@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Option, Result, UnitOfWorkContext } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import type { PortMock } from "@packages/test/bun";
 import type { UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
-import { CLASSROOM_SCOPES } from "../application/config/classroom-scopes";
 import type {
   DisconnectingChild,
   IChildRepository,
@@ -147,8 +147,19 @@ describe("register", () => {
     expect(repo.create.mock.calls[0]?.[0]?.get("color").value).toBe(4);
   });
 
+  it("given no color and eight siblings on the first hues, then the ninth child gets hue 9", async () => {
+    const siblings = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+    repo.listForUser.mockResolvedValue(
+      ok(siblings.map((color, index) => child({ linkedAccountId: `sibling-${index}`, color }))),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().color).toBe(9);
+  });
+
   it("given no color and every hue taken, then the hues cycle from the least used", async () => {
-    const siblings = [1, 2, 3, 4, 5, 6, 7, 8, 1] as const;
+    const siblings = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1] as const;
     repo.listForUser.mockResolvedValue(
       ok(siblings.map((color, index) => child({ linkedAccountId: `sibling-${index}`, color }))),
     );
@@ -343,6 +354,27 @@ describe("reconnect", () => {
     expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.CHILD_CONNECTED]);
   });
 
+  it("given the school had blocked the app, then the reconnection says the school block is over", async () => {
+    const blocked = child({ status: ChildStatus.brokenBy("school_blocked") });
+    repo.findOwned.mockResolvedValue(ok(Option.some(blocked)));
+
+    await connection.reconnect(PARENT, blocked.id.value);
+
+    expect(enqueuedEvents(outbox)[0]?.payload).toMatchObject({ restoredFrom: "school_blocked" });
+  });
+
+  it("given a connected child, then the reconnection names no break", async () => {
+    const connected = child({});
+    repo.findOwned.mockResolvedValue(ok(Option.some(connected)));
+
+    await connection.reconnect(PARENT, connected.id.value);
+
+    expect(enqueuedEvents(outbox)[0]?.payload).not.toHaveProperty(
+      "restoredFrom",
+      expect.anything(),
+    );
+  });
+
   it("given the Google picture changed, then the reconnect refreshes the avatar", async () => {
     const stale = child({ avatarUrl: "https://lh3.googleusercontent.com/a/old" });
     repo.findOwned.mockResolvedValue(ok(Option.some(stale)));
@@ -460,18 +492,28 @@ describe("edit", () => {
     const result = await connection.edit(PARENT, owned.id.value, { label: "Lili", color: 2 });
 
     expect(result.getValue()).toMatchObject({ label: "Lili", color: 2 });
-    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(repo.save).toHaveBeenCalledWith(owned);
     expect(enqueuedEvents(outbox).map((event) => event.eventType)).toEqual([
       EventTypes.CHILD_RENAMED,
       EventTypes.CHILD_COLOR_CHANGED,
     ]);
   });
 
-  it("given a hue outside the 8 colors, then CHILD_COLOR_INVALID and nothing is saved", async () => {
+  it("given the last of the 16 hues, then the color is saved", async () => {
     const owned = child({ color: 1 });
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
 
-    const result = await connection.edit(PARENT, owned.id.value, { color: 9 });
+    const result = await connection.edit(PARENT, owned.id.value, { color: 16 });
+
+    expect(result.getValue()).toMatchObject({ color: 16 });
+    expect(repo.save).toHaveBeenCalledWith(owned);
+  });
+
+  it("given a hue outside the 16 colors, then CHILD_COLOR_INVALID and nothing is saved", async () => {
+    const owned = child({ color: 1 });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { color: 17 });
 
     expect(result.getError().code).toBe("CHILD_COLOR_INVALID");
     expect(repo.save).not.toHaveBeenCalled();

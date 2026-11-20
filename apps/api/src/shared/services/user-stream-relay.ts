@@ -31,7 +31,10 @@ const CHILDREN_TYPES: ReadonlySet<string> = new Set([
   EventTypes.CHILD_NEEDS_RECONNECT,
 ]);
 
-const StreamRecipient = z.object({ userId: z.string(), childId: z.string().optional() });
+const NOTIFICATIONS_READ_TYPES: ReadonlySet<string> = new Set([
+  EventTypes.NOTIFICATION_READ,
+  EventTypes.NOTIFICATIONS_READ_ALL,
+]);
 
 const HomeLayoutRevision = z.object({ revision: z.number().int() });
 
@@ -41,11 +44,32 @@ function homeMessagesFor(payload: unknown): UserStreamMessage[] {
   return home.success ? [{ type: "home.changed", revision: home.data.revision }] : [];
 }
 
-function streamMessagesFor(event: DeliveredEvent, childId?: string): UserStreamMessage[] {
+const StreamRecipient = z.object({
+  userId: z.string(),
+  childId: z.string().optional(),
+  notificationId: z.string().optional(),
+});
+
+type Recipient = z.infer<typeof StreamRecipient>;
+
+function notificationMessagesFor(
+  event: DeliveredEvent,
+  { notificationId }: Recipient,
+): UserStreamMessage[] {
+  if (NOTIFICATIONS_READ_TYPES.has(event.eventType)) return [{ type: "notifications.read" }];
+  if (event.eventType !== EventTypes.NOTIFICATION_CREATED || notificationId === undefined)
+    return [];
+
+  return [{ type: "notification.created", notificationId }];
+}
+
+function streamMessagesFor(event: DeliveredEvent, recipient: Recipient): UserStreamMessage[] {
+  const { childId } = recipient;
   if (AGENDA_TYPES.has(event.eventType)) return [{ type: "events.changed" }];
   if (event.eventType === EventTypes.HOME_LAYOUT_CHANGED) return homeMessagesFor(event.payload);
   if (CHILDREN_TYPES.has(event.eventType)) return [{ type: "children.changed" }];
-  if (event.eventType !== EventTypes.ANNOUNCEMENT_SYNCED || childId === undefined) return [];
+  if (event.eventType !== EventTypes.ANNOUNCEMENT_SYNCED || childId === undefined)
+    return notificationMessagesFor(event, recipient);
 
   return [{ type: "sync.finished", childId }, { type: "events.changed" }];
 }
@@ -57,7 +81,7 @@ export function userStreamRelay(publisher: IUserStreamPublisher): BuiltInEventHa
       const recipient = StreamRecipient.safeParse(event.payload);
       if (!recipient.success) return;
 
-      for (const message of streamMessagesFor(event, recipient.data.childId))
+      for (const message of streamMessagesFor(event, recipient.data))
         await publisher.publish(recipient.data.userId, message);
     },
   };

@@ -47,6 +47,9 @@
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/classroom-scopes": {
+      "project": ["src/**/*.ts"]
+    },
     "packages/icalendar": {
       "project": ["src/**/*.ts"]
     },

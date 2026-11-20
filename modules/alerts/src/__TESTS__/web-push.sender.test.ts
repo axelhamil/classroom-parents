@@ -53,6 +53,7 @@ const message: PushMessage = {
   body: "Léa, échéance dimanche 15 novembre",
   url: "https://app.example.com/events/1",
   tag: "event-1",
+  notificationRef: "reminders:a1",
 };
 const payload = JSON.stringify(message);
 const options: PushOptions = {
@@ -198,7 +199,7 @@ describe("WebPushSender", () => {
     expect(request?.body.length ?? 0).toBeGreaterThan(payload.length);
   });
 
-  it("given a message, then the browser decrypts a declarative RFC 8030 notification that opens the event", async () => {
+  it("given a message, then the browser decrypts a declarative RFC 8030 notification that opens the event and names its in-app notification", async () => {
     await sendTo(201);
 
     const [request] = service?.received ?? [];
@@ -207,7 +208,7 @@ describe("WebPushSender", () => {
       notification: {
         title: "Contrôle de maths",
         body: "Léa, échéance dimanche 15 novembre",
-        navigate: "https://app.example.com/events/1",
+        navigate: "https://app.example.com/events/1?notification=reminders%3Aa1",
         tag: "event-1",
         renotify: true,
       },

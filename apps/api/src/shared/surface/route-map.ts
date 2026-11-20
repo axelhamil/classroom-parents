@@ -24,11 +24,26 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /calendar-feed": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "GET /calendar/:file": { uiLess: "external-client" },
   "GET /school-calendar": { consumer: "apps/app/src/shared/api/queries/school-calendar.ts" },
-  "GET /school-calendar/zone": {
-    consumer: "apps/app/src/features/settings/api/settings.queries.ts",
+  "GET /school-calendar/settings": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.queries.ts",
   },
-  "PUT /school-calendar/zone": {
-    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
+  "GET /school-calendar/regions": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.queries.ts",
+  },
+  "GET /school-calendar/preview": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.queries.ts",
+  },
+  "PUT /school-calendar/choice": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
+  },
+  "POST /school-calendar/periods": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
+  },
+  "DELETE /school-calendar/periods/:id": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
+  },
+  "POST /school-calendar/periods/import": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
   },
   "GET /assistant/preferences": {
     consumer: "apps/app/src/features/settings/api/settings.queries.ts",
@@ -43,6 +58,21 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "PUT /home/layout": { consumer: "apps/app/src/features/events/api/home.mutations.ts" },
   "GET /home/note": { consumer: "apps/app/src/features/events/api/home.queries.ts" },
   "PUT /home/note": { consumer: "apps/app/src/features/events/api/home.mutations.ts" },
+  "GET /notifications": {
+    consumer: "apps/app/src/shared/notifications/notifications.queries.ts",
+  },
+  "GET /notifications/unread-count": {
+    consumer: "apps/app/src/shared/notifications/notifications.queries.ts",
+  },
+  "POST /notifications/read-all": {
+    consumer: "apps/app/src/shared/notifications/notifications.mutations.ts",
+  },
+  "POST /notifications/read-by-ref": {
+    consumer: "apps/app/src/shared/notifications/notifications.mutations.ts",
+  },
+  "POST /notifications/:id/read": {
+    consumer: "apps/app/src/shared/notifications/notifications.mutations.ts",
+  },
   "GET /children": { consumer: "apps/app/src/shared/api/queries/children.ts" },
   "GET /children/link-config": {
     consumer: "apps/app/src/shared/children/child-link.queries.ts",
@@ -103,6 +133,9 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "POST /events/:id/done": { consumer: "apps/app/src/shared/api/mutations/mark-event-done.ts" },
   "DELETE /events/:id/done": { consumer: "apps/app/src/shared/api/mutations/mark-event-done.ts" },
   "POST /events/:id/confirm": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
+  "DELETE /events/:id/confirm": {
+    consumer: "apps/app/src/features/events/api/events.mutations.ts",
+  },
   "POST /events/:id/checklist": {
     consumer: "apps/app/src/features/events/api/events.mutations.ts",
   },
