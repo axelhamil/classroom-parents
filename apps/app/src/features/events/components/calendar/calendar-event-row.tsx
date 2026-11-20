@@ -19,6 +19,7 @@ import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import {
   CATEGORY_LABEL_KEYS,
+  CATEGORY_SHORT_KEYS,
   CATEGORY_TONES,
   categoryIcon,
 } from "../../../../shared/events/event-labels";
@@ -91,12 +92,17 @@ export function CalendarEventRow({
         <CalendarEntryMeta>
           <DeadlineCategory tone={CATEGORY_TONES[event.category]} size="xs">
             <CategoryIcon aria-hidden />
-            <span className={withCategoryWord ? undefined : "sr-only"}>
+            <span data-part="word" className={withCategoryWord ? undefined : "sr-only"}>
               {t(CATEGORY_LABEL_KEYS[event.category])}
             </span>
+            {withCategoryWord && compact && (
+              <span data-part="short" aria-hidden>
+                {t(CATEGORY_SHORT_KEYS[event.category])}
+              </span>
+            )}
           </DeadlineCategory>
-          {courseName && <span data-part="course">{courseName}</span>}
           <WhenMeta when={when} clock={clock} />
+          {courseName && <CourseName short={courseName} full={event.course?.name ?? courseName} />}
           {childLabel && (
             <span className="flex min-w-0 items-center gap-1">
               <ChildAvatar name={childLabel} tone={hue} size="xs" />
@@ -109,5 +115,26 @@ export function CalendarEventRow({
         {children}
       </CalendarEntryBody>
     </CalendarEntry>
+  );
+}
+
+interface CourseNameProps {
+  short: string;
+  full: string;
+}
+
+function CourseName({ short, full }: CourseNameProps) {
+  if (short === full)
+    return (
+      <span data-part="course" title={full}>
+        {full}
+      </span>
+    );
+
+  return (
+    <span data-part="course" title={full}>
+      <span aria-hidden>{short}</span>
+      <span className="sr-only">{full}</span>
+    </span>
   );
 }

@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { wordlessCategories } from "./agenda-board";
 import { expect, test } from "./csp";
 import {
   BUSY_WEEK,
@@ -175,14 +176,18 @@ test.describe("the Agenda tile", () => {
 
 /**
  * What spills out of a planner's column: a descendant wider than its own box or than the column.
- * Left out: a checkbox, whose overflow is the invisible 44 px target drawn around it, and what is
- * only read (a visually hidden word, one pixel wide), neither of which is drawn content.
+ * Left out: a checkbox, whose overflow is the invisible 44 px target drawn around it, what is
+ * only read (a visually hidden word, one pixel wide), and a name that gives way on purpose, cut by
+ * an ellipsis with its full text in its `title`.
  */
 function spills(board: Locator): Promise<string[]> {
   return board.evaluate((element) =>
     [...element.children].flatMap((column) => {
       const edge = column.getBoundingClientRect();
       const label = column.getAttribute("data-jump") ?? column.getAttribute("data-slot") ?? "";
+
+      const ellipsed = (inner: Element): boolean =>
+        getComputedStyle(inner).textOverflow === "ellipsis" && inner.hasAttribute("title");
 
       const readOnly = (inner: Element): boolean => {
         for (let node: Element | null = inner; node && node !== column; node = node.parentElement)
@@ -196,6 +201,7 @@ function spills(board: Locator): Promise<string[]> {
           (inner) =>
             inner.clientWidth > 0 &&
             !readOnly(inner) &&
+            !ellipsed(inner) &&
             inner.getAttribute("data-slot") !== "checkbox",
         )
         .filter((inner) => {
@@ -224,12 +230,15 @@ const FRIDAY_ONLY = [
 ];
 
 test.describe("the planner's columns", () => {
-  for (const width of [768, 1280, 1440]) {
+  for (const width of [768, 993, 1280, 1440]) {
     test(`hold everything they show, folded or not (${width} px)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const agenda = await openAgenda(page, EVENTS);
 
-      expect(await spills(agenda.locator("[data-arrangement=board]"))).toEqual([]);
+      const board = agenda.locator("[data-arrangement=board]");
+
+      expect(await spills(board)).toEqual([]);
+      expect(await wordlessCategories(board)).toEqual([]);
     });
 
     test(`keep the weekend open when Saturday is tomorrow (${width} px)`, async ({ page }) => {
