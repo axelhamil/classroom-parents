@@ -19,6 +19,10 @@ import { lowestGraphicContrast } from "./graphic-contrast";
 import { STORAGE_STATE } from "./playwright.config";
 
 const FRIDAY = 5;
+/** Late before the Monday of the shown week, whatever today is: the planner holds the rest itself. */
+const LATE_BEFORE_THE_WEEK = -10;
+/** A deadline title in a column of the week planner keeps room for a word of 10 letters a line. */
+const MIN_COLUMN_TITLE_PX = 72;
 
 const TOM = {
   id: "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
@@ -40,8 +44,10 @@ async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
 }
 
 async function expectWholeWeekRowsUnderBriefing(page: Page): Promise<void> {
-  const rows = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]");
-  await expect(rows).toHaveCount(7);
+  const columns = page.locator(
+    "[data-slot=calendar-week][data-arrangement=board] [data-slot=calendar-day]",
+  );
+  await expect(columns).toHaveCount(7);
   const titles = page.locator("[data-slot=calendar-week] [data-slot=calendar-entry-link]");
   await expect(titles.first()).toBeVisible();
   const clipped = await titles.evaluateAll(
@@ -55,7 +61,7 @@ async function expectWholeWeekRowsUnderBriefing(page: Page): Promise<void> {
   const widths = await titles.evaluateAll((links) =>
     links.map((link) => link.getBoundingClientRect().width),
   );
-  expect(Math.min(...widths)).toBeGreaterThanOrEqual(180);
+  expect(Math.min(...widths)).toBeGreaterThanOrEqual(MIN_COLUMN_TITLE_PX);
   const briefing = await page.locator("[data-slot=briefing]").boundingBox();
   const week = await page.locator("[data-slot=calendar-week]").boundingBox();
   expect(briefing && week && briefing.y + briefing.height <= week.y).toBe(true);
@@ -65,16 +71,29 @@ function comingFriday(): string {
   return inDays((FRIDAY - weekdayOf(TODAY) + 7) % 7);
 }
 
-async function expectSevenRowsOnFridayEvening(page: Page): Promise<void> {
+/**
+ * On Friday evening the planner already shows the week Monday opens, the very day "Pour ce soir"
+ * prepares: both read the school day of the shared clock, so they never speak of two days.
+ */
+async function expectNextWeekOnFridayEvening(page: Page): Promise<void> {
   const friday = comingFriday();
+  const monday = shiftDate(friday, 3);
   await page.clock.setFixedTime(parisTime(friday, "17:00"));
   await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
-  await page.goto(`/?view=week&date=${friday}`);
+  await page.goto("/");
 
-  const rows = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]");
-  await expect(rows).toHaveCount(7);
-  await expect(rows.and(page.locator(`[data-jump="${shiftDate(friday, 3)}"]`))).toHaveCount(1);
-  await expect(page.locator("[data-slot=briefing]")).toBeVisible();
+  const week = page.locator("[data-slot=calendar-week][data-arrangement=board]");
+  const columns = week.locator("[data-slot=calendar-day]");
+  await expect(columns).toHaveCount(7);
+  await expect(columns.first()).toHaveAttribute("data-jump", monday);
+  const mondayName = await columns
+    .first()
+    .locator("[data-slot=calendar-day-mark] .sr-only")
+    .textContent();
+  await expect(page.getByRole("region", { name: "Pour ce soir" })).toContainText(
+    new RegExp(mondayName ?? "", "i"),
+  );
+  await expect(page.getByRole("button", { name: "Revenir à aujourd'hui" })).toHaveCount(0);
 }
 
 async function expectOverdueOverlay(
@@ -90,8 +109,8 @@ async function expectOverdueOverlay(
     title: "Cahier de liaison à signer",
     status: "confirmed",
     done: false,
-    deadlineDate: inDays(-3),
-    deadlineAt: `${inDays(-3)}T07:00:00.000Z`,
+    deadlineDate: inDays(LATE_BEFORE_THE_WEEK),
+    deadlineAt: `${inDays(LATE_BEFORE_THE_WEEK)}T07:00:00.000Z`,
   };
   await serveFamily(page, {
     children: [LEA, MAXIMILIEN],
@@ -347,7 +366,7 @@ test.describe("the calendar on a phone", () => {
     await expect(strip).toBeInViewport();
     const homework = page.getByRole("link", { name: "Exercices 4 à 9 page 112", exact: true });
     await expect(homework).toBeVisible();
-    const row = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]", {
+    const row = page.locator("[data-slot=calendar-week] [data-slot=calendar-day]", {
       has: homework,
     });
     const date = await row.getAttribute("data-jump");
@@ -395,6 +414,9 @@ test.describe("event overlay focus", () => {
       await page.clock.setFixedTime(todayAt("09:00"));
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
       await page.goto("/");
+      await expect(
+        page.locator("[data-slot=calendar-week] a[href^='/events/']").first(),
+      ).toBeVisible();
 
       const card = page.locator("main a[href^='/events/']").last();
       await card.scrollIntoViewIfNeeded();
@@ -440,7 +462,7 @@ test.describe("event overlay focus", () => {
 test.describe("the week on a tablet", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 768, height: 1024 } });
 
-  test("puts the week under the briefing, whose rows replace the day strip", async ({ page }) => {
+  test("puts the week planner under the briefing, without the day strip", async ({ page }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
@@ -450,15 +472,17 @@ test.describe("the week on a tablet", () => {
     await expectOnePageWithoutOverflow(page);
   });
 
-  test("keeps its seven rows on Friday evening, Monday briefed beside them", async ({ page }) => {
-    await expectSevenRowsOnFridayEvening(page);
+  test("already shows the week Monday opens on Friday evening, like Pour ce soir", async ({
+    page,
+  }) => {
+    await expectNextWeekOnFridayEvening(page);
   });
 });
 
 test.describe("the week on a desktop", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
-  test("shows the week as rows of whole titles under the briefing", async ({ page }) => {
+  test("shows the week as a planner of whole titles under the briefing", async ({ page }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
@@ -467,8 +491,10 @@ test.describe("the week on a desktop", () => {
     await expectOnePageWithoutOverflow(page);
   });
 
-  test("keeps its seven rows on Friday evening, Monday briefed beside them", async ({ page }) => {
-    await expectSevenRowsOnFridayEvening(page);
+  test("already shows the week Monday opens on Friday evening, like Pour ce soir", async ({
+    page,
+  }) => {
+    await expectNextWeekOnFridayEvening(page);
   });
 });
 
@@ -496,8 +522,8 @@ test.describe("a done tick inside the late deadlines overlay", () => {
         title: "Mot du carnet à signer",
         status: "confirmed",
         done: false,
-        deadlineDate: inDays(-2),
-        deadlineAt: `${inDays(-2)}T07:00:00.000Z`,
+        deadlineDate: inDays(LATE_BEFORE_THE_WEEK),
+        deadlineAt: `${inDays(LATE_BEFORE_THE_WEEK)}T07:00:00.000Z`,
       };
       await serveFamily(page, {
         children: [LEA],

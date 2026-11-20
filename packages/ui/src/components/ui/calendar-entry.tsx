@@ -22,7 +22,8 @@ const calendarEntryVariants = cva(
       },
       density: {
         comfortable: "",
-        compact: "gap-2 px-2 py-1.5 [&_[data-slot=calendar-entry-link]]:line-clamp-3",
+        compact:
+          "flex-wrap gap-2 px-2 py-1.5 [&>[data-slot=calendar-entry-body]]:basis-full [&>[data-slot=checkbox]]:order-last",
       },
     },
     compoundVariants: CHILD_TONES.map((hue) => ({

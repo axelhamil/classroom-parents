@@ -27,6 +27,7 @@ import { useIntlLocale } from "../../../../shared/i18n/use-intl-locale";
 import { CALENDAR_VIEWS, type CalendarPeriod, type CalendarView } from "../../calendar";
 import type { SwipeStep } from "../../hooks/use-swipe";
 import { CourseFilter } from "./course-filter";
+import { useSummaryLabel } from "./use-summary-label";
 
 export interface CalendarToolbarProps {
   view: CalendarView;
@@ -62,14 +63,6 @@ function usePeriodLabel(view: CalendarView, anchor: string, { from, to }: Calend
   });
 }
 
-function useSummaryLabel({ count, assessments }: AgendaSummary): string {
-  const { t } = useTranslation("events");
-  if (assessments === 0) return t("calendar.summary", { count });
-  if (count === 1) return t("calendar.summaryOnlyAssessment");
-
-  return t("calendar.summaryAssessments", { count: assessments, total: count });
-}
-
 export function CalendarToolbar({
   view,
   anchor,
@@ -88,7 +81,7 @@ export function CalendarToolbar({
 }: CalendarToolbarProps) {
   const { t } = useTranslation("events");
   const label = usePeriodLabel(view, anchor, period);
-  const summaryLabel = useSummaryLabel(summary);
+  const summaryLabel = useSummaryLabel()(summary);
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 [grid-template-areas:'title_actions''views_nav'] @2xl:grid-cols-[auto_minmax(0,1fr)_auto_auto] @2xl:gap-x-4 @2xl:[grid-template-areas:'nav_title_views_actions']">

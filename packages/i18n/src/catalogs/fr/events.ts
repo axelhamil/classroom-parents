@@ -46,6 +46,8 @@ export default {
     undo: "Annuler",
     crunch: "Journée chargée",
     dayEmpty: "Rien de prévu",
+    quietDays: "{{from}} à {{to}}",
+    weekend: "Week-end",
     periodEmpty: "Rien de prévu sur cette période. De quoi souffler un peu.",
     nextEvent: "Prochaine échéance : {{title}}, {{day}}",
     addEvent: "Ajouter une échéance",
