@@ -13,6 +13,16 @@ export const CATEGORY_LABEL_KEYS = {
   other: "categories.other",
 } as const satisfies Record<EventCategory, string>;
 
+/** The word a narrow card shows for its category, the full one staying its accessible name. */
+export const CATEGORY_SHORT_KEYS = {
+  assessment: "categoriesShort.assessment",
+  homework: "categoriesShort.homework",
+  school_trip: "categoriesShort.school_trip",
+  swimming: "categoriesShort.swimming",
+  document_due: "categoriesShort.document_due",
+  other: "categoriesShort.other",
+} as const satisfies Record<EventCategory, string>;
+
 export const CATEGORY_TONES = {
   assessment: "assessment",
   homework: "homework",

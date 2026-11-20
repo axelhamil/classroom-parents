@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { wordlessCategories } from "./agenda-board";
 import { expect, test } from "./csp";
 import { inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily, todayAt } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
@@ -88,7 +89,7 @@ async function busiestDay(page: Page, homeLayout: unknown[]): Promise<Locator> {
 }
 
 test.describe("the Agenda shows three deadlines of a day without a gesture", () => {
-  for (const width of [768, 1280, 1440])
+  for (const width of [768, 993, 1280, 1440])
     for (const size of ["l", "xl"])
       test(`in a tile ${size.toUpperCase()} at ${width} px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
@@ -96,6 +97,7 @@ test.describe("the Agenda shows three deadlines of a day without a gesture", () 
 
         await expect.poll(() => wholeCards(day)).toBeGreaterThanOrEqual(3);
         for (const offset of await checkboxOffsets(day)) expect(offset).toBeLessThanOrEqual(2);
+        expect(await wordlessCategories(day)).toEqual([]);
       });
 
   test("in the phone's thread at 390 px", async ({ page }) => {
