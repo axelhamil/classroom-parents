@@ -30,8 +30,6 @@ export const HOME_BLOCK_SIZES: Readonly<Record<string, BlockSizes>> = {
   [CHILD_BLOCK_PATTERN]: LIST_OR_RICH,
 };
 
-export const ADVICE_ONLY_BLOCK_IDS: ReadonlySet<string> = new Set(["welcome"]);
-
 export function blockSizesOf(id: string): BlockSizes | undefined {
   const key = id.startsWith(CHILD_BLOCK_PREFIX) ? CHILD_BLOCK_PATTERN : id;
 

@@ -14,8 +14,6 @@
     "check:perf": "playwright test --config a11y/perf.config.ts"
   },
   "dependencies": {
-    "@dnd-kit/dom": "0.5.3",
-    "@dnd-kit/react": "0.5.3",
     "@hookform/resolvers": "^6.0.1",
     "@packages/ddd-kit": "workspace:*",
     "@packages/events": "workspace:*",
@@ -63,8 +61,8 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "fast-check": "^4.10.3",
     "@xstate/graph": "3.0.4",
+    "fast-check": "^4.10.3",
     "jsdom": "^31.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
