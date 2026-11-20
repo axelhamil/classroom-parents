@@ -2260,6 +2260,9 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
    and only its inner panel rises, never the element the library moves. */
 @utility dashboard-edit {
   position: relative;
+  /* No text is read while blocks are arranged, so a carried tile never starts a selection; held here rather than by a class on the page's body, whose restyle of every element cost the lift a long task. */
+  -webkit-user-select: none;
+  user-select: none;
 
   & .react-grid-item {
     box-sizing: border-box;

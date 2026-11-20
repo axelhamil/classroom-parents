@@ -287,6 +287,7 @@ test.describe("arranging the home", () => {
     const before = await page
       .locator("[data-block][data-size]")
       .evaluateAll((tiles) => tiles.map((tile) => (tile as HTMLElement).dataset.block));
+    const seen = await page.evaluate(() => window.__interactions.length);
     await recordGesture(page);
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
@@ -302,8 +303,9 @@ test.describe("arranging the home", () => {
     const carried = await page.evaluate(() => window.__bodyMutations);
     await page.mouse.up();
     await page.waitForTimeout(600);
-    const inputMs = await page.evaluate(() =>
-      Math.max(0, ...window.__interactions.map((entry) => entry.duration)),
+    const inputMs = await page.evaluate(
+      (from) => Math.max(0, ...window.__interactions.slice(from).map((entry) => entry.duration)),
+      seen,
     );
     const figures = await page.evaluate(() => {
       window.__recording = false;

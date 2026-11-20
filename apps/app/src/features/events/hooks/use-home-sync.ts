@@ -275,10 +275,16 @@ function blocksOf(draft: Draft): LayoutBlock[] | null {
   return draft === ADVISED_LAYOUT ? null : [...draft];
 }
 
+/**
+ * The order the page draws. While a pointer carries a tile, the grid engine moves the tiles itself
+ * and the page keeps the order the gesture started from, so a step of the tile renders nothing else.
+ */
 function orderOf(snapshot: HomeSyncSnapshot): Draft | null {
-  const { draft } = snapshot.context;
+  const { draft, gestureStart } = snapshot.context;
+  const carried = snapshot.matches({ mode: { editing: "dragging" } }) && gestureStart !== null;
+  const shown = carried ? gestureStart : draft;
 
-  return draft === ADVISED_LAYOUT ? null : draft;
+  return shown === ADVISED_LAYOUT ? null : shown;
 }
 
 function editStateOf(snapshot: HomeSyncSnapshot) {

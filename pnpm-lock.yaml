@@ -165,7 +165,7 @@ settings:
 packageExtensionsChecksum: sha256-SnMSkLkXNE5plHJYnsUYA75DIvlfthPeV45+LdJRT/g=
 
 patchedDependencies:
-  react-grid-layout@2.3.0: bee7e5b126167745f40f2e4c03cff070b94142c2d48a752f6b6df672aff9eda5
+  react-grid-layout@2.3.0: ca5a42c01a1c92ba83f8a19245aaf31f0d00ffae267c0f7f5d41899d7a3e2ffd
 
 importers:
 
@@ -432,7 +432,7 @@ importers:
         version: 19.3.1(react@19.3.1)
       react-grid-layout:
         specifier: 2.3.0
-        version: 2.3.0(patch_hash=bee7e5b126167745f40f2e4c03cff070b94142c2d48a752f6b6df672aff9eda5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 2.3.0(patch_hash=ca5a42c01a1c92ba83f8a19245aaf31f0d00ffae267c0f7f5d41899d7a3e2ffd)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react-hook-form:
         specifier: ^7.91.0
         version: 7.91.0(@types/react@19.3.0)(react@19.3.1)
@@ -12968,7 +12968,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  react-grid-layout@2.3.0(patch_hash=bee7e5b126167745f40f2e4c03cff070b94142c2d48a752f6b6df672aff9eda5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  react-grid-layout@2.3.0(patch_hash=ca5a42c01a1c92ba83f8a19245aaf31f0d00ffae267c0f7f5d41899d7a3e2ffd)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       clsx: 2.1.1
       fast-equals: 4.0.3

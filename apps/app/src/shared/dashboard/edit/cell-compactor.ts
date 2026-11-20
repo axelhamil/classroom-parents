@@ -33,19 +33,50 @@ interface Rect {
   h: number;
 }
 
+interface Placed {
+  order: readonly string[];
+  sizes: string;
+  metrics: GridMetrics;
+  agendaPx: number | undefined;
+  geometry: Layout;
+  slots: readonly EditSlot[];
+}
+
 export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
   let drag: Drag | null = null;
+  let placed: Placed | null = null;
 
   const geometryOf = (order: readonly string[]) =>
     editGeometry(order, refs.sizeOf.current, refs.metrics.current, refs.agendaPx.current);
 
-  const slotsOf = (order: readonly string[]) =>
-    editSlots(order, refs.sizeOf.current, refs.metrics.current, refs.agendaPx.current);
+  const placedFor = (order: readonly string[]): Placed => {
+    const sizeOf = refs.sizeOf.current;
+    const metrics = refs.metrics.current;
+    const agendaPx = refs.agendaPx.current;
+    const sizes = order.map(sizeOf).join();
+    const same =
+      placed?.order === order &&
+      placed.sizes === sizes &&
+      placed.metrics === metrics &&
+      placed.agendaPx === agendaPx;
+    if (placed && same) return placed;
+
+    placed = {
+      order,
+      sizes,
+      metrics,
+      agendaPx,
+      geometry: editGeometry(order, sizeOf, metrics, agendaPx),
+      slots: editSlots(order, sizeOf, metrics, agendaPx),
+    };
+
+    return placed;
+  };
 
   const follow = (dragged: LayoutItem, current: Drag): Drag => {
     const order = current.order;
     const from = order.indexOf(dragged.i);
-    const to = targetIndex(order, slotsOf(order), dragged);
+    const to = targetIndex(order, placedFor(order).slots, dragged);
     if (to === from) return current;
 
     refs.onIndexChange.current(dragged.i, to);
@@ -60,6 +91,7 @@ export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
       const active = refs.active.current;
       if (active === null) {
         drag = null;
+        placed = null;
         return geometryOf(refs.order.current);
       }
 
@@ -67,7 +99,7 @@ export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
       const dragged = layout.find(({ i }) => i === active);
       drag = dragged ? follow(dragged, current) : current;
 
-      return geometryOf(drag.order);
+      return placedFor(drag.order).geometry.map((item) => ({ ...item }));
     },
     currentOrder: () => drag?.order ?? refs.order.current,
   };

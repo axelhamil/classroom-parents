@@ -1,5 +1,5 @@
 diff --git a/dist/chunk-CUP5Y2ZG.js b/dist/chunk-CUP5Y2ZG.js
-index 23399caefebeefb2038279331382aa20e5932bc1..fc7110bb6075e4a9b2fade3bd5e2390370203fe8 100644
+index 23399caefebeefb2038279331382aa20e5932bc1..9f890f529a0b29e28636d5b76c6162b2a40f927b 100644
 --- a/dist/chunk-CUP5Y2ZG.js
 +++ b/dist/chunk-CUP5Y2ZG.js
 @@ -125,6 +125,7 @@ function GridItemInner(props) {
@@ -36,8 +36,16 @@ index 23399caefebeefb2038279331382aa20e5932bc1..fc7110bb6075e4a9b2fade3bd5e23903
        containerWidth,
        positionParams,
        i,
+@@ -613,6 +619,7 @@ function GridItemInner(props) {
+       cancel: ".react-resizable-handle" + (cancel ? "," + cancel : ""),
+       scale: transformScale,
+       allowMobileScroll,
++      enableUserSelectHack: false,
+       nodeRef: elementRef,
+       children: newChild
+     }
 diff --git a/dist/chunk-Z6CWRR74.mjs b/dist/chunk-Z6CWRR74.mjs
-index 5d3ee00ad7b14cfe15445fcf7bfdbee04408236e..4d9f7d0085e55eaa71631099e07f7fbe8bef996d 100644
+index 5d3ee00ad7b14cfe15445fcf7bfdbee04408236e..a59eddf5c0180dd77cbe9e884ab6963a65ae0ccd 100644
 --- a/dist/chunk-Z6CWRR74.mjs
 +++ b/dist/chunk-Z6CWRR74.mjs
 @@ -118,6 +118,7 @@ function GridItemInner(props) {
@@ -74,6 +82,14 @@ index 5d3ee00ad7b14cfe15445fcf7bfdbee04408236e..4d9f7d0085e55eaa71631099e07f7fbe
        containerWidth,
        positionParams,
        i,
+@@ -606,6 +612,7 @@ function GridItemInner(props) {
+       cancel: ".react-resizable-handle" + (cancel ? "," + cancel : ""),
+       scale: transformScale,
+       allowMobileScroll,
++      enableUserSelectHack: false,
+       nodeRef: elementRef,
+       children: newChild
+     }
 diff --git a/dist/types-DlzNckle.d.mts b/dist/types-DlzNckle.d.mts
 index 7733e862ba99967e57c8c06ca4342e4daab5449e..e118120836cc779c2bab596d8f39c72e55531b6c 100644
 --- a/dist/types-DlzNckle.d.mts

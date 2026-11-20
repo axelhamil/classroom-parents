@@ -1,7 +1,15 @@
 import { writeFileSync } from "node:fs";
 import type { Page, Route } from "@playwright/test";
 import { expect, test } from "./csp";
-import { inDays, LEA, MAXIMILIEN, REVIEW_EVENT, TODAY, todayAt } from "./events-fixtures";
+import {
+  AGENDA_WITHOUT_OVERDUE_BLOCK,
+  inDays,
+  LEA,
+  MAXIMILIEN,
+  REVIEW_EVENT,
+  TODAY,
+  todayAt,
+} from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
 /*
@@ -43,6 +51,9 @@ function deadlineAt(index: number) {
   };
 }
 
+/** The late deadlines open as a list from the Agenda only while the "En retard" block is hidden. */
+const HOME_WITH_THE_LATE_LINE = [{ id: "review", size: "m" }, ...AGENDA_WITHOUT_OVERDUE_BLOCK];
+
 const ALL = Array.from({ length: DEADLINES }, (_, index) => deadlineAt(index));
 type Deadline = (typeof ALL)[number];
 
@@ -61,6 +72,8 @@ function answer(route: Route): Promise<void> {
   const scoped = ALL.filter((event) => !child || event.childId === child);
 
   if (path === "/children") return route.fulfill({ json: FAMILY });
+  if (path === "/home/layout")
+    return route.fulfill({ json: { blocks: HOME_WITH_THE_LATE_LINE, revision: 1 } });
   if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
   if (path === "/events/calendar") {
     const from = query.get("from") ?? "";
