@@ -48,6 +48,8 @@ const SCREENS: readonly Screen[] = [
 
 /**
  * Waits for every timed animation that ends: a sheet still scaling in measures its icons at 19 px.
+ * A block that loads later starts its entrance after this wait, so the measure is polled: a size
+ * caught mid-entrance settles, a wrong one stays and fails.
  * A scroll-driven one (the scroll region's fade) follows the scroll, not the clock, and never finishes.
  */
 function settled(page: Page) {
@@ -84,9 +86,13 @@ for (const width of WIDTHS) {
         await screen.prepare?.(page);
         await page.goto(screen.path);
         await screen.ready(page);
-        await settled(page);
+        await expect
+          .poll(async () => {
+            await settled(page);
 
-        expect(await visualSystemOffenders(page)).toEqual([]);
+            return visualSystemOffenders(page);
+          })
+          .toEqual([]);
       });
     }
   });

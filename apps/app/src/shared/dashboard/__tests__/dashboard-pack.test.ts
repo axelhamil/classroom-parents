@@ -6,6 +6,8 @@ import {
   type GridUnits,
   type PackedItem,
   pack,
+  TABLET_COLUMNS,
+  tallOnTablet,
   toGrid,
 } from "../dashboard-pack";
 
@@ -96,6 +98,54 @@ function moved<T>(list: readonly T[], from: number, to: number): T[] {
 
   return [...rest.slice(0, to), item, ...rest.slice(to)];
 }
+
+/** Any sizes, with the first L or XL among them made tall. */
+const tallArb = sizesArb
+  .filter((sizes) => sizes.some((size) => size === "l" || size === "xl"))
+  .map((sizes) => ({
+    sizes,
+    tall: `b${sizes.findIndex((size) => size === "l" || size === "xl")}`,
+  }));
+
+describe("a tall block takes one more row with the row of cells it sits in", () => {
+  it("given a tall L or XL on the wide grid, then nothing overlaps or leaves a hole, the tall block is one row higher and everything below moves down by one row", async () => {
+    await fc.assert(
+      fc.property(tallArb, ({ sizes, tall }) => {
+        const { order, sizeOf } = layoutOf(sizes);
+        const base = pack(order, sizeOf, 4).items;
+        const items = pack(order, sizeOf, 4, (id) => id === tall).items;
+        const before = base.find(({ id }) => id === tall);
+        const after = items.find(({ id }) => id === tall);
+        if (!before || !after) throw new Error("the tall block is not packed");
+        const bottom = before.y + before.h;
+
+        expect(coverage(items, 4).every((count) => count === 1)).toBe(true);
+        expect(items.map(({ id }) => id)).toEqual(base.map(({ id }) => id));
+        expect(after).toEqual({ ...before, h: before.h + 1 });
+        for (const [index, item] of items.entries()) {
+          const was = base[index];
+          if (!was) continue;
+
+          if (was.y >= bottom) expect(item).toEqual({ ...was, y: was.y + 1 });
+          else if (was.y + was.h < bottom) expect(item).toEqual(was);
+          else expect(item.h).toBe(was.h + 1);
+        }
+      }),
+    );
+  });
+
+  it("given the table's tall sizes, then a block is tall only on a tablet and only at those sizes", () => {
+    const sizes: Record<string, BlockSize> = { calendar: "l", notes: "l" };
+    const tallSizesOf = (id: string) => (id === "calendar" ? (["l", "xl"] as const) : []);
+    const sizeOf = (id: string) => sizes[id] ?? "s";
+
+    expect(tallOnTablet(tallSizesOf, sizeOf, TABLET_COLUMNS)("calendar")).toBe(true);
+    expect(tallOnTablet(tallSizesOf, sizeOf, TABLET_COLUMNS)("notes")).toBe(false);
+    expect(tallOnTablet(tallSizesOf, sizeOf, 12)("calendar")).toBe(false);
+    expect(tallOnTablet(tallSizesOf, sizeOf, 4)("calendar")).toBe(false);
+    expect(tallOnTablet(tallSizesOf, () => "m", TABLET_COLUMNS)("calendar")).toBe(false);
+  });
+});
 
 describe("blocks are packed by cells of 2 x 2 units", () => {
   it("given any order and sizes, then every row is covered exactly once, without overlap or hole", async () => {

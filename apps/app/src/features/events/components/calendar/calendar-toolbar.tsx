@@ -85,7 +85,7 @@ export function CalendarToolbar({
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 [grid-template-areas:'title_actions''views_nav'] @xl:grid-cols-[auto_minmax(0,1fr)_auto_auto] @xl:gap-x-4 @xl:[grid-template-areas:'nav_title_views_actions']">
-      <div className="flex min-w-0 flex-col items-start [grid-area:title]">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 [grid-area:title]">
         <TypographyH2 variant="section">{label}</TypographyH2>
         <TypographyMuted>{summaryLabel}</TypographyMuted>
         {!todayInView && (

@@ -11,6 +11,8 @@ export interface BlockIdentity {
 export interface BlockSizeChoice {
   allowed: readonly BlockSize[];
   defaultSize: BlockSize;
+  /** Sizes that take one more row on a tablet, whose rows are too short for what they must show. */
+  tallOnTablet?: readonly BlockSize[];
 }
 
 export interface FullViewProps {

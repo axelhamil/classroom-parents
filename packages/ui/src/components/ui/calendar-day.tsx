@@ -36,7 +36,7 @@ const calendarWeekVariants = cva("min-w-0", {
       fil: "flex flex-col [&>*+*]:border-t [&>*+*]:border-border",
       board: [
         "flex items-stretch gap-2 [&>*]:min-w-0 [&>*]:flex-1 [&>[data-folded]]:w-max [&>[data-folded]]:min-w-(--day-rail) [&>[data-folded]]:flex-none",
-        "[&>[data-slot=calendar-weekend]]:pt-0 [&>[data-slot=calendar-weekend]>[data-part=label]]:sticky [&>[data-slot=calendar-weekend]>[data-part=label]]:top-0 [&>[data-slot=calendar-weekend]>[data-part=label]]:z-30 [&>[data-slot=calendar-weekend]>[data-part=label]]:flex [&>[data-slot=calendar-weekend]>[data-part=label]]:h-(--weekend-label-height) [&>[data-slot=calendar-weekend]>[data-part=label]]:items-end [&>[data-slot=calendar-weekend]>[data-part=label]]:bg-surface-weekend [&>[data-slot=calendar-weekend]_[data-slot=calendar-day-mark]]:top-(--weekend-label-height)",
+        "[&>[data-slot=calendar-weekend]]:pt-0 [&>[data-slot=calendar-weekend]>[data-part=label]]:sticky [&>[data-slot=calendar-weekend]>[data-part=label]]:top-0 [&>[data-slot=calendar-weekend]>[data-part=label]]:z-30 [&>[data-slot=calendar-weekend]>[data-part=label]]:flex [&>[data-slot=calendar-weekend]>[data-part=label]]:h-(--weekend-label-height) [&>[data-slot=calendar-weekend]>[data-part=label]]:items-end [&>[data-slot=calendar-weekend]>[data-part=label]]:bg-surface-weekend [&>[data-slot=calendar-weekend]_:is([data-slot=calendar-day-mark],[data-slot=calendar-day-note])]:top-(--weekend-label-height)",
       ],
     },
   },
@@ -133,8 +133,10 @@ const calendarDayVariants = cva(
       layout: {
         stack: "",
         rail: "grid scroll-mt-day-strip grid-cols-[var(--spacing-day-rail)_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-none py-3 data-[quiet=true]:py-2 [&>:not([data-slot=calendar-day-mark])]:col-start-2",
-        column:
-          "gap-1.5 rounded-inner bg-card pb-2 [&_[data-slot=calendar-entry-link]]:scroll-mt-12 [&>[data-slot=calendar-day-mark]]:px-1 [&>[data-slot=calendar-day-note]]:px-1 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
+        column: [
+          "grid grid-cols-[minmax(0,1fr)_auto] content-start gap-1.5 rounded-inner bg-card pb-2 [&>*]:col-span-full [&_[data-slot=calendar-entry-link]]:scroll-mt-12 [&>[data-slot=calendar-day-mark]]:row-start-1 [&>[data-slot=calendar-day-mark]]:px-1 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
+          "[&>[data-slot=calendar-day-note]]:sticky [&>[data-slot=calendar-day-note]]:top-0 [&>[data-slot=calendar-day-note]]:z-30 [&>[data-slot=calendar-day-note]]:col-span-1 [&>[data-slot=calendar-day-note]]:col-start-2 [&>[data-slot=calendar-day-note]]:row-start-1 [&>[data-slot=calendar-day-note]]:h-8 [&>[data-slot=calendar-day-note]]:min-h-0 [&>[data-slot=calendar-day-note]]:pe-1",
+        ],
         row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0",
       },
       tone: {
@@ -196,9 +198,8 @@ function CalendarDayMark({ className, ...props }: React.ComponentProps<"h3">) {
         "group-data-[layout=rail]/day:sticky group-data-[layout=rail]/day:top-[calc(var(--spacing-app-bar)+var(--spacing-day-strip)+env(safe-area-inset-top))] group-data-[layout=rail]/day:row-span-full group-data-[layout=rail]/day:flex-col group-data-[layout=rail]/day:items-center group-data-[layout=rail]/day:self-start",
         "group-data-[layout=rail]/day:[&>[data-part=day]]:min-w-10 group-data-[layout=rail]/day:[&>[data-part=day]]:h-10 group-data-[layout=rail]/day:[&>[data-part=day]]:px-1 group-data-[layout=rail]/day:[&>[data-part=day]]:text-2xl",
         "group-data-[quiet=true]/day:[&>[data-part=day]]:h-7 group-data-[quiet=true]/day:[&>[data-part=day]]:text-body group-data-[quiet=true]/day:[&>[data-part=day]]:whitespace-nowrap group-data-[quiet=true]/day:[&>[data-part=day]]:text-muted-foreground group-data-[quiet=true]/day:[&>[data-part=weekday]]:text-meta",
-        "group-data-[layout=column]/day:sticky group-data-[layout=column]/day:z-20 group-data-[layout=column]/day:top-0 group-data-[layout=column]/day:flex-wrap group-data-[layout=column]/day:items-baseline group-data-[layout=column]/day:gap-1.5 group-data-[layout=column]/day:border-b group-data-[layout=column]/day:border-border group-data-[layout=column]/day:bg-inherit group-data-[layout=column]/day:px-0.5 group-data-[layout=column]/day:pt-1 group-data-[layout=column]/day:pb-1.5",
-        "group-data-[folded]/day:flex-col group-data-[folded]/day:items-center",
-        "group-data-[layout=column]/day:[&>[data-part=day]]:min-w-7 group-data-[layout=column]/day:[&>[data-part=day]]:px-1 group-data-[layout=column]/day:[&>[data-part=day]]:text-xl",
+        "group-data-[layout=column]/day:sticky group-data-[layout=column]/day:z-20 group-data-[layout=column]/day:top-0 group-data-[layout=column]/day:h-8 group-data-[layout=column]/day:items-center group-data-[layout=column]/day:gap-1 group-data-[layout=column]/day:border-b group-data-[layout=column]/day:border-border group-data-[layout=column]/day:bg-inherit group-data-[layout=column]/day:px-0.5 group-data-[layout=column]/day:whitespace-nowrap",
+        "group-data-[layout=column]/day:[&>[data-part=day]]:h-6 group-data-[layout=column]/day:[&>[data-part=day]]:min-w-6 group-data-[layout=column]/day:[&>[data-part=day]]:px-1 group-data-[layout=column]/day:[&>[data-part=day]]:text-heading",
         className,
       )}
       {...props}

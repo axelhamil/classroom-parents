@@ -41,7 +41,7 @@ export function OverdueList({ events, family, today }: OverdueListProps) {
             <CalendarDayList>
               {due.map((event) => (
                 <li key={event.id}>
-                  <CalendarEventRow event={event} family={family} compact />
+                  <CalendarEventRow event={event} family={family} compact overdueImplied />
                 </li>
               ))}
             </CalendarDayList>

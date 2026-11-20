@@ -32,6 +32,7 @@ export interface CalendarEventRowProps {
   dated?: boolean;
   withChild?: boolean;
   compact?: boolean;
+  overdueImplied?: boolean;
   withCountdown?: boolean;
   courseName?: string;
   withCategoryWord?: boolean;
@@ -51,6 +52,7 @@ export function CalendarEventRow({
   dated = false,
   withChild = true,
   compact = false,
+  overdueImplied = false,
   withCountdown = false,
   courseName,
   withCategoryWord = !compact,
@@ -63,7 +65,7 @@ export function CalendarEventRow({
   const hue = childHue(family, event.childId);
   const childLabel = withChild && family.length > 1 ? childLabelOf(family, event.childId) : "";
   const status = stateOf(event, clock);
-  const state = compact && status === "overdue" ? "open" : status;
+  const state = overdueImplied && status === "overdue" ? "open" : status;
   const when = whenOf(event, clock, {
     dated,
     withBadge: withCountdown && (state === "open" || state === "urgent"),
@@ -93,12 +95,12 @@ export function CalendarEventRow({
               {t(CATEGORY_LABEL_KEYS[event.category])}
             </span>
           </DeadlineCategory>
-          {courseName && <span>{courseName}</span>}
+          {courseName && <span data-part="course">{courseName}</span>}
           <WhenMeta when={when} clock={clock} />
           {childLabel && (
             <span className="flex min-w-0 items-center gap-1">
               <ChildAvatar name={childLabel} tone={hue} size="xs" />
-              <span className="truncate">{childLabel}</span>
+              <span className={compact ? "sr-only" : "truncate"}>{childLabel}</span>
             </span>
           )}
           {state === "overdue" && <Badge variant="destructive">{t("calendar.overdue")}</Badge>}
