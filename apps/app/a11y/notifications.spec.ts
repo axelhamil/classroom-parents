@@ -28,7 +28,9 @@ for (const width of [390, 1440]) {
 
       const center = page.getByRole("dialog", { name: "Notifications" });
       await expect(center).toHaveAttribute("data-slot", SURFACE[width] ?? "");
-      await expect(center.getByText("Rappel : Exercices page 42")).toBeVisible();
+      await expect(
+        center.getByText("Rappel · Marie-Charlotte Delacroix-Beaumont de la : Exercices page 42"),
+      ).toBeVisible();
       expect(await center.evaluate((el) => el.contains(document.activeElement))).toBe(true);
       await expect(center.getByRole("heading", { name: "Aujourd'hui" })).toBeVisible();
       await expect(center.getByRole("heading", { name: "Hier" })).toBeVisible();

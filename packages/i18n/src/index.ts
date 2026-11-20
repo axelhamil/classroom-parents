@@ -7,8 +7,11 @@ import "./types";
 export { default as frCatalog, NAMESPACES, type Namespace } from "./catalogs/fr";
 export { type CreateI18nOptions, createI18n, fixedT, i18nFor } from "./create-instance";
 export {
+  type DeadlineWhen,
+  datedDeadlineLabel,
   deadlineLine,
   relativeDayLabel,
+  relativeDeadlineLabel,
   utcDay,
   wallDateLabel,
   wallTimeLabel,

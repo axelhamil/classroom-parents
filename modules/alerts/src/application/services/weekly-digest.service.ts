@@ -5,6 +5,7 @@ import {
   mapBounded,
   Result,
 } from "@packages/ddd-kit";
+import { todayIn } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import { notificationRef } from "@packages/events/notification-ref";
 import { emitEvent } from "@packages/outbox/event-emitter";
@@ -19,11 +20,11 @@ import type { IAlertEmailSender } from "../ports/alert-email-sender.port";
 import type { DeliveryChannel } from "../ports/alert-repository.port";
 import {
   DIGEST_ENABLED_BY_DEFAULT,
-  type DigestDeadline,
   type IDigestAudience,
   type IDigestDeadlines,
 } from "../ports/digest-audience.port";
-import type { IPushCopy } from "../ports/push-copy.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
+import type { IPushCopy, PushText } from "../ports/push-copy.port";
 import type { IPushSender } from "../ports/push-sender.port";
 import {
   type IPushSubscriptionRepository,
@@ -34,7 +35,7 @@ import type {
   DigestSettlement,
   IWeeklyDigestRepository,
 } from "../ports/weekly-digest-repository.port";
-import { DIGEST_TITLE, digestSummary } from "./digest-message";
+import { type DigestDeadlines, digestSummaryOf, hasDeadline } from "./digest-message";
 import { digestWeekDue, digestWeekOf } from "./digest-week";
 import { pushToParent } from "./push-fanout";
 
@@ -54,6 +55,11 @@ type Delivered = "push" | "email" | "skipped" | "missed" | "none";
 
 type SkipReason = "opted_out" | "no_deadline";
 
+interface DigestMessages {
+  detailed: PushText;
+  lockScreen: PushText;
+}
+
 function corrupted(digestId: string, error: string): AppError {
   return { code: "ALERT_PROVIDER_FAILURE", message: `digest ${digestId}: ${error}` };
 }
@@ -63,6 +69,7 @@ export class WeeklyDigestService {
     private readonly digests: IWeeklyDigestRepository,
     private readonly audience: IDigestAudience,
     private readonly deadlines: IDigestDeadlines,
+    private readonly timeZones: IParentTimeZone,
     private readonly subscriptions: IPushSubscriptionRepository,
     private readonly push: IPushSender,
     private readonly email: IAlertEmailSender,
@@ -139,22 +146,21 @@ export class WeeklyDigestService {
     const { from, to } = week.getValue();
     const deadlines = await this.deadlines.within(digest.userId, from, to);
     if (deadlines.isFailure) return Result.fail(deadlines.getError());
-    if (deadlines.getValue().length === 0) return this.skip(digest, "no_deadline");
+    const due = deadlines.getValue();
+    if (!hasDeadline(due)) return this.skip(digest, "no_deadline");
 
-    return this.deliver(digest, deadlines.getValue(), now);
+    return this.deliver(digest, due, now);
   }
 
   private async deliver(
     digest: ClaimedDigest,
-    deadlines: DigestDeadline[],
+    deadlines: DigestDeadlines,
     now: Date,
   ): Promise<Result<Delivered, AppError>> {
-    const summary = digestSummary(deadlines);
-    const details = await this.subscriptions.lockScreenDetailsFor(digest.userId);
-    if (details.isFailure) return Result.fail(details.getError());
-    const body = details.getValue().unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT)
-      ? summary
-      : await this.copy.forWeek(deadlines.length);
+    const composed = await this.compose(digest, deadlines, now);
+    if (composed.isFailure) return Result.fail(composed.getError());
+
+    const { detailed, lockScreen } = composed.getValue();
     const appUrl = new URL("/", this.appOrigin).toString();
     const ports = {
       subscriptions: this.subscriptions,
@@ -166,8 +172,8 @@ export class WeeklyDigestService {
       ports,
       digest.userId,
       {
-        title: DIGEST_TITLE,
-        body,
+        title: lockScreen.title,
+        body: lockScreen.body,
         url: appUrl,
         tag: `week-${digest.weekStart}`,
         notificationRef: notificationRef.weeklyDigest(digest.lease.digestId),
@@ -187,12 +193,29 @@ export class WeeklyDigestService {
 
     const emailed = await this.email.sendDigest(recipient.getValue().unwrap(), {
       digestId: digest.lease.digestId,
-      summary,
+      summary: detailed.body,
       appUrl,
     });
     if (emailed.isSuccess) return this.markSent(digest, "email", deadlines.length, now);
 
     return this.emailFailed(digest, emailed.getError().code);
+  }
+
+  private async compose(
+    digest: ClaimedDigest,
+    deadlines: DigestDeadlines,
+    now: Date,
+  ): Promise<Result<DigestMessages, AppError>> {
+    const today = todayIn(now, await this.timeZones.of(digest.userId));
+    const summary = digestSummaryOf(deadlines, today);
+    const details = await this.subscriptions.lockScreenDetailsFor(digest.userId);
+    if (details.isFailure) return Result.fail(details.getError());
+
+    const detailed = await this.copy.forDigest(summary, { details: true });
+    const shown = details.getValue().unwrapOr(LOCK_SCREEN_DETAILS_BY_DEFAULT);
+    const lockScreen = shown ? detailed : await this.copy.forDigest(summary, { details: false });
+
+    return Result.ok({ detailed, lockScreen });
   }
 
   private markSent(

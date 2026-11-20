@@ -1,4 +1,4 @@
-import { createI18n, frCatalog } from "@packages/i18n";
+import { createI18n, deadlineLine, frCatalog } from "@packages/i18n";
 import { describe, expect, it } from "vitest";
 import { type NotificationTarget, notificationView } from "../notification-view";
 import type { NotificationItem } from "../notifications.queries";
@@ -23,7 +23,15 @@ const CASES: [
     { kind: "deadline_reminder", eventId: "e1" },
     MUSEUM,
     "Jade",
-    "Rappel : Sortie au musée",
+    "Rappel · Jade : Sortie au musée",
+    EVENT,
+  ],
+  [
+    "a reminder of a child no longer listed",
+    { kind: "deadline_reminder", eventId: "e1" },
+    MUSEUM,
+    null,
+    "Rappel · Sortie au musée",
     EVENT,
   ],
   [
@@ -111,7 +119,7 @@ const CASES: [
     { kind: "deadline_amended", eventId: "e1", reason: "moved" },
     MUSEUM,
     "Jade",
-    "Date déplacée : Sortie au musée",
+    "Date déplacée · Jade : Sortie au musée",
     EVENT,
   ],
   [
@@ -119,7 +127,7 @@ const CASES: [
     { kind: "deadline_amended", eventId: "e1", reason: "cancelled" },
     MUSEUM,
     "Jade",
-    "Échéance annulée : Sortie au musée",
+    "Échéance annulée · Jade : Sortie au musée",
     EVENT,
   ],
   [
@@ -157,6 +165,17 @@ const CASES: [
 ];
 
 describe("notification view", () => {
+  it("given a reminder, then it names the deadline with the same line as the rest of the app, without a relative day", () => {
+    const view = notificationView(
+      { content: { kind: "deadline_reminder", eventId: "e1" }, event: MUSEUM },
+      "Jade",
+    );
+
+    expect(view.copy.values).toEqual({
+      line: deadlineLine({ child: "Jade", title: "Sortie au musée" }),
+    });
+  });
+
   it.each(CASES)(
     "given %s, then the row reads its sentence and opens its target",
     async (_, content, event, child, sentence, target) => {

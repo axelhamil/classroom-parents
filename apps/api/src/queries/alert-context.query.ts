@@ -1,12 +1,14 @@
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import type {
   AlertContext,
+  AlertDeadline,
   IAlertContextReader,
 } from "@modules/alerts/application/ports/alert-context-reader.port";
+import type { IParentTimeZone } from "@modules/alerts/application/ports/parent-time-zone.port";
 import { alert } from "@modules/alerts/schemas/alert.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { type AppError, type IInstrumentation, Result } from "@packages/ddd-kit";
-import { PARIS_TIME_ZONE, utcToZonedWall } from "@packages/ddd-kit/zoned-time";
+import { PARIS_TIME_ZONE, todayIn } from "@packages/ddd-kit/zoned-time";
 import {
   and,
   authSchema,
@@ -16,24 +18,33 @@ import {
   not,
   resolveExecutor,
 } from "@packages/drizzle";
-import { wallDateLabel, withWallTime } from "@packages/i18n";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
 
 const queryFailure = dbOperationFailure("ALERT_PROVIDER_FAILURE");
 
-function deadlineLabel(date: string, time: string | null, now: Date): string {
-  const today = utcToZonedWall(now, PARIS_TIME_ZONE)
-    .map((wall) => wall.date)
-    .unwrapOr(date);
+interface DeadlineRow {
+  deadlineDate: string;
+  deadlineTime: string | null;
+}
 
-  return withWallTime(wallDateLabel(date, today), time?.slice(0, 5));
+/**
+ * When a deadline falls for the parent reading the message: the school's wall date and time, and
+ * the parent's today in their own zone, so "demain" means the parent's tomorrow.
+ */
+export function alertDeadlineOf(row: DeadlineRow, now: Date, timeZone: string): AlertDeadline {
+  return {
+    date: row.deadlineDate,
+    time: row.deadlineTime?.slice(0, 5),
+    today: todayIn(now, timeZone),
+  };
 }
 
 export class AlertContextQuery implements IAlertContextReader {
   constructor(
     private readonly instrumentation: IInstrumentation,
     private readonly appOrigin: string,
+    private readonly timeZones: IParentTimeZone,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
@@ -46,6 +57,7 @@ export class AlertContextQuery implements IAlertContextReader {
         const query = exec
           .select({
             alertId: alert.id,
+            userId: alert.userId,
             eventId: agendaEvent.id,
             email: authSchema.user.email,
             eventTitle: agendaEvent.title,
@@ -74,13 +86,15 @@ export class AlertContextQuery implements IAlertContextReader {
         );
 
         const now = this.clock();
+        const zones = await this.zonesOf(rows.map(({ userId }) => userId));
+
         return Result.ok(
           rows.map((row) => ({
             alertId: row.alertId,
             email: row.email,
             eventTitle: row.eventTitle,
             childLabel: row.childLabel,
-            deadlineLabel: deadlineLabel(row.deadlineDate, row.deadlineTime, now),
+            deadline: alertDeadlineOf(row, now, zones.get(row.userId) ?? PARIS_TIME_ZONE),
             eventUrl: new URL(`/events/${row.eventId}`, this.appOrigin).toString(),
           })),
         );
@@ -89,5 +103,14 @@ export class AlertContextQuery implements IAlertContextReader {
         return Result.fail(queryFailure("load", err));
       }
     });
+  }
+
+  private async zonesOf(userIds: string[]): Promise<Map<string, string>> {
+    const parents = [...new Set(userIds)];
+    const zones = await Promise.all(
+      parents.map(async (userId) => [userId, await this.timeZones.of(userId)] as const),
+    );
+
+    return new Map(zones);
   }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   matchesZonedWall,
   PARIS_TIME_ZONE,
+  todayIn,
   utcToZonedWall,
   zonedWallTimeToUtc,
   zonedWallTimeToUtcShifted,
@@ -131,5 +132,18 @@ describe("matchesZonedWall", () => {
     expect(matchesZonedWall("2027-03-28", "02:30", at, PARIS).getError()).toBe(
       "ZONED_TIME_NONEXISTENT_WALL_TIME",
     );
+  });
+});
+
+describe("todayIn", () => {
+  const THURSDAY_LATE_UTC = new Date("2026-11-19T23:30:00.000Z");
+
+  it("given 23:30 UTC on a Thursday, then Montreal is still on Thursday while Paris is already on Friday", () => {
+    expect(todayIn(THURSDAY_LATE_UTC, "America/Montreal")).toBe("2026-11-19");
+    expect(todayIn(THURSDAY_LATE_UTC, PARIS)).toBe("2026-11-20");
+  });
+
+  it("given a zone the runtime does not know, then today is read in Paris", () => {
+    expect(todayIn(THURSDAY_LATE_UTC, "Mars/Olympus_Mons")).toBe("2026-11-20");
   });
 });

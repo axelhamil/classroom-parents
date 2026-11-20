@@ -25,6 +25,7 @@ import {
   eventDeadlinesFor,
   eventIngestFor,
   manualSyncGateFor,
+  parentTimeZoneFor,
   visibleChildrenFor,
 } from "../bindings";
 
@@ -257,6 +258,34 @@ describe("alerts IDigestDeadlines bound to the agenda and children", () => {
         deadlineDate: "2026-11-17",
       },
     ]);
+  });
+});
+
+describe("alerts IParentTimeZone bound to the assistant's preferences", () => {
+  function preferencesAnswering(read: Result<{ timeZone: string | null }, AppError>) {
+    return () => ({ preferences: async () => read });
+  }
+
+  it("given a parent who chose Montreal, then their messages read their day in Montreal", async () => {
+    const zones = parentTimeZoneFor(
+      preferencesAnswering(Result.ok({ timeZone: "America/Montreal" })),
+    );
+
+    expect(await zones.of(FAMILY_A)).toBe("America/Montreal");
+  });
+
+  it("given a parent who never chose a zone, then Paris, as the app's clock", async () => {
+    const zones = parentTimeZoneFor(preferencesAnswering(Result.ok({ timeZone: null })));
+
+    expect(await zones.of(FAMILY_A)).toBe("Europe/Paris");
+  });
+
+  it("given the preferences cannot be read, then Paris and the message still goes out", async () => {
+    const zones = parentTimeZoneFor(
+      preferencesAnswering(Result.fail({ code: "ASSISTANT_PROVIDER_FAILURE", message: "down" })),
+    );
+
+    expect(await zones.of(FAMILY_A)).toBe("Europe/Paris");
   });
 });
 

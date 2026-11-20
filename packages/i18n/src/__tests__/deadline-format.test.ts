@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  datedDeadlineLabel,
   deadlineLine,
   relativeDayLabel,
   wallDateLabel,
@@ -46,6 +47,43 @@ describe("relativeDayLabel", () => {
 
   it("given a later date in the next year, then the year is spelled out", () => {
     expect(relativeDayLabel("2031-01-05", "2030-12-30")).toBe("Dimanche 5 janvier 2031");
+  });
+});
+
+describe("datedDeadlineLabel", () => {
+  it("given today, then the relative day is followed by its date and time", () => {
+    expect(datedDeadlineLabel({ date: TODAY, time: "08:30", today: TODAY })).toBe(
+      "aujourd'hui, mardi 15 janvier, 8 h 30",
+    );
+  });
+
+  it("given tomorrow, then the relative day is followed by its date", () => {
+    expect(datedDeadlineLabel({ date: "2030-01-16", today: TODAY })).toBe(
+      "demain, mercredi 16 janvier",
+    );
+  });
+
+  it("given another day, then the date is written once", () => {
+    expect(datedDeadlineLabel({ date: "2030-01-17", time: "18:00", today: TODAY })).toBe(
+      "jeudi 17 janvier, 18 h",
+    );
+  });
+
+  it("given tomorrow in the next year, then the date carries its year", () => {
+    expect(datedDeadlineLabel({ date: "2031-01-01", today: "2030-12-31" })).toBe(
+      "demain, mercredi 1 janvier 2031",
+    );
+  });
+
+  it("given a dated line, then the line closes with the relative day and its date", () => {
+    expect(
+      deadlineLine({
+        child: "Léa",
+        title: "Exposé",
+        when: { date: "2030-01-16", time: "08:30", today: TODAY },
+        dated: true,
+      }),
+    ).toBe("Léa : Exposé, demain, mercredi 16 janvier, 8 h 30");
   });
 });
 

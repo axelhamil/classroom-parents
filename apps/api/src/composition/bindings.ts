@@ -7,6 +7,7 @@ import type { EventQueryService } from "@modules/agenda/application/services/eve
 import type { EventRereadService } from "@modules/agenda/application/services/event-reread.service";
 import type { IDigestDeadlines } from "@modules/alerts/application/ports/digest-audience.port";
 import type { IEventDeadlines } from "@modules/alerts/application/ports/event-deadlines.port";
+import type { IParentTimeZone } from "@modules/alerts/application/ports/parent-time-zone.port";
 import type { AlertPlanningService } from "@modules/alerts/application/services/alert-planning.service";
 import type { IFeedEntries } from "@modules/calendar-feed/application/ports/feed-entries.port";
 import type { ChildrenError } from "@modules/children/application/ports/child-repository.port";
@@ -27,6 +28,7 @@ import type { CourseNamesService } from "@modules/classroom-sync/application/ser
 import type { SyncError } from "@modules/classroom-sync/application/sync-error";
 import type { ExtractionService } from "@modules/extraction/application/services/extraction.service";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { frCatalog } from "@packages/i18n";
 import type { IChildConnections } from "../modules/rgpd/application/ports/child-connections.port";
 import type { FeedAlarmsQuery } from "../queries/feed-alarms.query";
@@ -143,6 +145,25 @@ export function digestDeadlinesFor(
             : [{ title, childId, childLabel, deadlineAt, deadlineDate }];
         }),
       );
+    },
+  };
+}
+
+export interface TimeZonePreference {
+  preferences(userId: string): Promise<Result<{ timeZone: string | null }, unknown>>;
+}
+
+/**
+ * The zone a parent chose in the assistant's preferences, the zone the app's clock runs in. None
+ * chosen, or a failed read (already captured by the assistant), is Paris, as in the app: a message
+ * is never held back for a preference.
+ */
+export function parentTimeZoneFor(preferences: () => TimeZonePreference): IParentTimeZone {
+  return {
+    of: async (userId) => {
+      const read = await preferences().preferences(userId);
+
+      return read.map(({ timeZone }) => timeZone ?? PARIS_TIME_ZONE).unwrapOr(PARIS_TIME_ZONE);
     },
   };
 }
