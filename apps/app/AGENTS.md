@@ -163,6 +163,10 @@ Primitives, tokens and their authoring rules live in `packages/ui/CLAUDE.md`. As
 - **Cross-tab sync via `BroadcastChannel`** (`auth-broadcast.ts`): any auth state change calls `broadcastAuthChange()`; `app-providers.tsx` listens once and refetches the session. No payload, the cookie is shared, each tab refetches live state.
 - **Ownership is the signed-in user.** There is no organization scope: the server filters every row on `user_id`, the front never sends an owner id.
 
+## Pinned clocks
+
+**A test never reads the day it runs on.** A vitest test that renders dated data pins an instant (`at("…Z")`, never `new Date(y, m, d, h)`, a device wall time), and every run executes in UTC and in `Europe/Paris` (two vitest projects); the accessibility gate pins every page to a school Thursday in Paris and has a `weekend` project. **Why**: the home changes with the hour, the weekday and the holidays, so a test reading the real clock passes on the day it was written and breaks `develop` a day later, and a device wall time passes in Paris and fails in CI.
+
 ## Commands
 
-`pnpm --filter app test` (vitest) · `pnpm --filter app type-check` (app + `a11y/` project) · `pnpm turbo run check:a11y --filter=app` (Playwright + axe over the preview build, needs a running API, see `a11y/README.md`).
+`pnpm --filter app test` (vitest, both zones) · `pnpm --filter app type-check` (app + `a11y/` project) · `pnpm turbo run check:a11y --filter=app` (Playwright + axe over the preview build, needs a running API, see `a11y/README.md`).

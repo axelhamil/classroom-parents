@@ -102,15 +102,17 @@ for width in 390 768 1280 1440 1920; do A11Y_WIDTH=$width pnpm --filter app chec
 
 The home changes with the day: on a weekday morning the briefing covers today, from
 the evening and over the weekend it covers the next school day and pulls in the
-deadlines that fall before it, which a phone then leaves out of the week below. A
-spec that renders dated fixtures therefore pins the browser clock with
-`todayAt(...)` and dates its fixtures with `inDays(...)` (`events-fixtures.ts`), both
-read from one Paris day, `TODAY`, never from `new Date()`, and asserts what holds on
-every day of the week. `A11Y_TODAY` overrides that day, which is how a change is
-checked on every weekday and across a month or a year boundary:
+deadlines that fall before it. So the gate never runs on the day it happens to run:
+every page's clock is pinned (`csp.ts`) to `TODAY` at 9:00, a school Thursday
+(`SCHOOL_THURSDAY`, `events-fixtures.ts`), in the `Europe/Paris` zone. A spec that needs
+another hour pins it with `todayAt(...)` and dates its fixtures with `inDays(...)`, never
+from `new Date()`. The `weekend` project pins a Saturday and checks that the briefing,
+tonight, the late block and the icon badge agree on Monday (`weekend.spec.ts`).
+`A11Y_TODAY` moves the audit to another day, which is how a change is checked across a
+week, a month or a year boundary:
 
 ```sh
-for day in 2026-11-16 2026-11-17 2026-11-18 2026-11-19 2026-11-20 2026-11-21 2026-11-22 2026-11-30 2026-12-31; do
+for day in 2026-11-16 2026-11-17 2026-11-18 2026-11-19 2026-11-20 2026-11-30 2026-12-31; do
   A11Y_TODAY=$day pnpm --filter app check:a11y
 done
 ```

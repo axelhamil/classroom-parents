@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
+import type { GateOptions } from "./csp";
 
 export const BASE_URL = process.env.A11Y_BASE_URL ?? "http://localhost:4173";
 const PREVIEW = new URL(BASE_URL);
@@ -7,7 +8,7 @@ const APP_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 export const STORAGE_STATE = fileURLToPath(new URL(".auth/state.json", import.meta.url));
 
-export default defineConfig({
+export default defineConfig<GateOptions>({
   testDir: fileURLToPath(new URL(".", import.meta.url)),
   fullyParallel: true,
   // `workers` is a courtesy cap on machine load, NOT what keeps the API's global
@@ -28,13 +29,16 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",
+    // Parents are in Paris and CI runs in UTC: the browser takes the parents' zone so a page that
+    // writes a device time reads the same everywhere.
+    timezoneId: "Europe/Paris",
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts$/ },
     {
       name: "audit",
       testMatch: /\.spec\.ts$/,
-      testIgnore: /(journey|perf)\.spec\.ts$/,
+      testIgnore: /(journey|perf|weekend)\.spec\.ts$/,
       dependencies: ["setup"],
       // `A11Y_WIDTH=390` audits every page at another screen width; specs that pin their own
       // viewport keep it.
@@ -44,6 +48,14 @@ export default defineConfig({
           ? { viewport: { width: Number(process.env.A11Y_WIDTH), height: 900 } }
           : {}),
       },
+    },
+    {
+      // The audit pins a school Thursday; the weekend is when the home looks past tomorrow, so it
+      // gets its own pinned Saturday.
+      name: "weekend",
+      testMatch: /weekend\.spec\.ts$/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
   webServer: {
