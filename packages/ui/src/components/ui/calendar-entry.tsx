@@ -5,19 +5,23 @@ import type * as React from "react";
 import { CHILD_TONES, childHueContainer, childHueEdge } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 
+const PAPERS: ("paper" | "urgent" | "overdue")[] = ["paper", "urgent", "overdue"];
+
 const calendarEntryVariants = cva(
-  "relative flex w-full min-w-0 items-start gap-3 rounded-inner border-2 border-transparent p-block text-small text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
+  "relative flex w-full min-w-0 items-start gap-3 rounded-inner border p-block text-small text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
   {
     variants: {
       hue: childHueContainer,
       surface: {
         tint: "",
         paper: "bg-surface-container",
+        urgent: "bg-paper-urgent",
+        overdue: "bg-paper-overdue",
       },
       state: {
         open: "",
-        overdue: "border-destructive",
-        urgent: "border-warning-edge",
+        overdue: "",
+        urgent: "",
         done: "text-muted-foreground [&_[data-slot=calendar-entry-link]]:line-through",
       },
       density: {
@@ -27,9 +31,9 @@ const calendarEntryVariants = cva(
       },
     },
     compoundVariants: CHILD_TONES.map((hue) => ({
-      surface: "paper" as const,
+      surface: PAPERS,
       hue,
-      className: `bg-surface-container ${childHueEdge[hue]}`,
+      className: childHueEdge[hue],
     })),
     defaultVariants: { surface: "tint", state: "open", density: "comfortable" },
   },
@@ -38,8 +42,9 @@ const calendarEntryVariants = cva(
 /**
  * One deadline of the agenda. `surface="tint"` fills it with its child's hue, which tells two
  * children apart; `surface="paper"` is the neutral card of a family with one child, whose hue
- * only remains as an edge on the leading side. A border marks a state (urgent, overdue), never
- * decoration.
+ * only remains as an edge on the leading side, and `urgent` or `overdue` is that paper breathed
+ * with its badge's colour. The child's edge is the card's only coloured edge: its border is the
+ * neutral hairline, since a state drawn on the same edge reads as a bug.
  */
 interface CalendarEntryProps
   extends React.ComponentProps<"div">,

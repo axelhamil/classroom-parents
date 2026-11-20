@@ -72,7 +72,7 @@ export function CalendarEventRow({
   return (
     <CalendarEntry
       hue={hue}
-      surface={deadlineSurface(family)}
+      surface={deadlineSurface(family, state)}
       state={state}
       density={compact ? "compact" : "comfortable"}
     >
