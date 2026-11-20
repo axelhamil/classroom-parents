@@ -25,7 +25,9 @@ import {
   eventDeadlinesFor,
   eventIngestFor,
   manualSyncGateFor,
+  type ParentReading,
   parentTimeZoneFor,
+  readerOf,
   visibleChildrenFor,
 } from "../bindings";
 
@@ -289,10 +291,21 @@ describe("alerts IParentTimeZone bound to the assistant's preferences", () => {
   });
 });
 
+function readingWith(choice: Partial<ParentReading>) {
+  return {
+    preferences: async (): Promise<Result<ParentReading, AppError>> =>
+      Result.ok({
+        locale: null,
+        timeZone: null,
+        country: null,
+        extractionEnabled: true,
+        ...choice,
+      }),
+  };
+}
+
 describe("sync IAnnouncementExtractor bound to extraction", () => {
-  const readingOn = () => ({
-    extractionEnabled: async (): Promise<Result<boolean, AppError>> => Result.ok(true),
-  });
+  const readingOn = () => readingWith({});
   const extracted = {
     title: "Évaluation de fractions",
     description: "Réviser le chapitre 3",
@@ -344,6 +357,7 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
       text: "Évaluation jeudi 19 novembre",
       publishedAt: PUBLISHED_AT,
       childNames: ["Léa", "Léa Martin"],
+      reader: { locale: "fr", timeZone: "Europe/Paris", country: "FR" },
     });
     expect(result.getValue()).toEqual({
       deadlines: [
@@ -429,6 +443,33 @@ describe("sync IAnnouncementExtractor bound to extraction", () => {
   });
 });
 
+describe("the reader an announcement is extracted for", () => {
+  const nothingChosen: ParentReading = {
+    locale: null,
+    timeZone: null,
+    country: null,
+    extractionEnabled: true,
+  };
+
+  it("given a parent who chose a language and a region, then the extraction writes for them", () => {
+    expect(
+      readerOf({ ...nothingChosen, locale: "ar", timeZone: "Africa/Casablanca", country: "MA" }),
+    ).toEqual({ locale: "ar", timeZone: "Africa/Casablanca", country: "MA" });
+  });
+
+  it("given a parent who chose nothing, then the extraction reads as the app ships, in France", () => {
+    expect(readerOf(nothingChosen)).toEqual({
+      locale: "fr",
+      timeZone: "Europe/Paris",
+      country: "FR",
+    });
+  });
+
+  it("given a zone without a country, then no date order is assumed", () => {
+    expect(readerOf({ ...nothingChosen, timeZone: "America/New_York" }).country).toBeNull();
+  });
+});
+
 describe("the parent's opposition to the AI reading of announcements", () => {
   it("given a parent who opposed, then the announcement never reaches the extraction and is reported paused", async () => {
     let called = false;
@@ -439,9 +480,7 @@ describe("the parent's opposition to the AI reading of announcements", () => {
           return Result.ok({ events: [], amendments: [] });
         },
       },
-      () => ({
-        extractionEnabled: async (): Promise<Result<boolean, AppError>> => Result.ok(false),
-      }),
+      () => readingWith({ extractionEnabled: false }),
     );
 
     const result = await extractor.extract({
@@ -463,7 +502,7 @@ describe("the parent's opposition to the AI reading of announcements", () => {
           Result.fail({ code: "EXTRACTION_PROVIDER_FAILURE" as const, message: "unused" }),
       },
       () => ({
-        extractionEnabled: async () =>
+        preferences: async () =>
           Result.fail({ code: "ASSISTANT_PROVIDER_FAILURE" as const, message: "down" }),
       }),
     );

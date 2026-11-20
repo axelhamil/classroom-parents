@@ -21,7 +21,11 @@ function candidate(overrides: Partial<ExtractedCandidate>): ExtractedCandidate {
 }
 
 function reasons(overrides: Partial<ExtractedCandidate>) {
-  return reviewReasonsFor(candidate(overrides), { source: SOURCE, publishedOn: "2026-11-09" });
+  return reviewReasonsFor(candidate(overrides), {
+    source: SOURCE,
+    publishedOn: "2026-11-09",
+    dateOrder: "day-month",
+  });
 }
 
 describe("reviewReasonsFor", () => {
@@ -65,6 +69,7 @@ describe("reviewReasonsFor", () => {
       reviewReasonsFor(candidate({ evidenceQuote: source, ...overrides }), {
         source,
         publishedOn: "2026-11-09",
+        dateOrder: "day-month",
       });
 
     it("flags a deadline that is not the day the announcement writes", () => {
@@ -102,7 +107,7 @@ describe("reviewReasonsFor", () => {
           dateExpression: "le 6 novembre",
           evidenceQuote: source,
         }),
-        { source, publishedOn: "2026-11-09" },
+        { source, publishedOn: "2026-11-09", dateOrder: "day-month" },
       ),
     ).toEqual(["date_before_publication"]);
   });
@@ -114,6 +119,7 @@ describe("reviewReasonsFor", () => {
       reviewReasonsFor(candidate({ evidenceQuote: 'Le "contrôle" de jeudi 19 novembre' }), {
         source,
         publishedOn: "2026-11-09",
+        dateOrder: "day-month",
       }),
     ).toEqual([]);
   });

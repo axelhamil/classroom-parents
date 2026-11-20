@@ -5,26 +5,64 @@ import {
   EVIDENCE_QUOTE_MAX,
   type ReviewReason,
 } from "@packages/events/agenda-contract";
+import {
+  type DateOrder,
+  FULL_WEEKDAY_NAMES,
+  foldedCalendarText,
+  MONTH_NAMES,
+  WEEKDAY_NAMES,
+} from "./calendar-words";
 import type { ExtractedCandidate } from "./extraction-output.schema";
-import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
 
 export interface CheckContext {
   source: string;
   publishedOn: string;
+  dateOrder: DateOrder | null;
 }
 
 const MAX_DAYS_AHEAD = 400;
-const HOLIDAY_WORDS = /\b(?:vacances|rentree|conges|toussaint|noel|paques)\b/;
 const ROLLED_FROM_PAST_WINDOW_DAYS = 30;
-const WRITTEN_DAY = new RegExp(
-  `(?:\\b(${FRENCH_WEEKDAYS.join("|")})\\s+)?\\b(\\d{1,2})(?:er)?(?:\\s+(${FRENCH_MONTHS.join("|")})\\b|\\s*/\\s*(\\d{1,2})\\b)?`,
-  "g",
+const NOT_A_LETTER_BEFORE = "(?<![\\p{L}\\p{N}])";
+const NOT_A_LETTER_AFTER = "(?![\\p{L}\\p{N}])";
+
+const HOLIDAY_WORDS = new RegExp(
+  `${NOT_A_LETTER_BEFORE}(?:${[
+    ...["vacances", "rentree", "conges", "toussaint", "noel", "paques"],
+    ...["holiday", "vacation", "half-term", "half term", "christmas", "easter", "thanksgiving"],
+    ...["winter break", "spring break", "vacaciones", "navidad", "semana santa", "puente"],
+    ...["ferias", "natal", "pascoa", "carnaval", "recesso"],
+  ].join("|")})|${["عطلة", "العطلة", "الدخول المدرسي", "العيد"].join("|")}`,
+  "u",
 );
 
-interface WrittenDay {
-  weekday?: string;
+function alternation(names: Iterable<string>): string {
+  return [...names]
+    .sort((left, right) => right.length - left.length)
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+}
+
+const WEEKDAY = `${NOT_A_LETTER_BEFORE}(${alternation(WEEKDAY_NAMES.keys())})\\.?${NOT_A_LETTER_AFTER}`;
+const MONTH = `${NOT_A_LETTER_BEFORE}(${alternation(MONTH_NAMES.keys())})\\.?${NOT_A_LETTER_AFTER}`;
+const DAY = "(?<!\\d)(\\d{1,2})(?:er|st|nd|rd|th|º|ª|o)?(?![\\d:h])";
+const LINK = "(?:\\s+(?:de|of|del)\\s+|\\s+|\\s*/\\s*)";
+const BEFORE_DAY = "[\\s,]+(?:(?:le|el|o|the|dia|يوم)\\s+)?";
+
+const DAY_FIRST = new RegExp(
+  `(?:${WEEKDAY}${BEFORE_DAY})?${DAY}(?:${LINK}${MONTH}|\\s*/\\s*(\\d{1,2})(?!\\d))?`,
+  "gu",
+);
+const MONTH_FIRST = new RegExp(`(?:${WEEKDAY}[\\s,]+)?${MONTH}\\s+${DAY}`, "gu");
+
+interface DayAndMonth {
   day: number;
   month?: number;
+}
+
+interface WrittenDay extends DayAndMonth {
+  weekday?: number;
+  otherReading?: DayAndMonth;
+  undecided?: boolean;
 }
 
 interface IndexedText {
@@ -34,7 +72,7 @@ interface IndexedText {
 }
 
 function normalizedChar(char: string): string {
-  const folded = withoutMarks(char.normalize("NFKC").toLowerCase())
+  const folded = foldedCalendarText(char)
     .replace(/[‘’ʼ]/g, "'")
     .replace(/[«»“”„"]/g, " ");
 
@@ -76,35 +114,87 @@ function dayNumber(isoDate: string): number {
   return Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1) / DAY_MS;
 }
 
-export function frenchWeekdayOf(isoDate: string): string {
-  return FRENCH_WEEKDAYS[weekdayOf(isoDate)] ?? "";
-}
-
-function partsOf(isoDate: string): Required<WrittenDay> {
+function partsOf(isoDate: string): Required<DayAndMonth> & { weekday: number } {
   const [, month, day] = isoDate.split("-").map(Number);
 
-  return { weekday: frenchWeekdayOf(isoDate), day: day ?? 0, month: month ?? 0 };
+  return { weekday: weekdayOf(isoDate), day: day ?? 0, month: month ?? 0 };
 }
 
-function writtenDays(text: string): WrittenDay[] {
-  return Array.from(text.matchAll(WRITTEN_DAY)).flatMap(
-    ([, weekday, day, monthName, monthNumber]) => {
-      const month = monthName ? FRENCH_MONTHS.indexOf(monthName) + 1 : Number(monthNumber);
-      if (!weekday && !month) return [];
+const isDay = (value: number) => value >= 1 && value <= 31;
+const isMonth = (value: number) => value >= 1 && value <= 12;
 
-      return [{ weekday, day: Number(day), month: month || undefined }];
+function numericReading(first: number, second: number, order: DateOrder | null): WrittenDay[] {
+  const dayFirst = { day: first, month: second };
+  const monthFirst = { day: second, month: first };
+  const readings = [dayFirst, monthFirst].filter(({ day, month }) => isDay(day) && isMonth(month));
+  if (readings.length === 0) return [];
+
+  const [only] = readings;
+  if (readings.length === 1 || first === second) return only ? [only] : [];
+
+  const [preferred, other] =
+    order === "month-day" ? [monthFirst, dayFirst] : [dayFirst, monthFirst];
+
+  return [{ ...preferred, otherReading: other, undecided: order === null }];
+}
+
+function weekdayNumber(name: string | undefined): number | undefined {
+  return name === undefined ? undefined : WEEKDAY_NAMES.get(name);
+}
+
+function withWeekday(days: WrittenDay[], weekday: number | undefined): WrittenDay[] {
+  return weekday === undefined ? days : days.map((day) => ({ ...day, weekday }));
+}
+
+function dayFirstDays(text: string, order: DateOrder | null): WrittenDay[] {
+  return Array.from(text.matchAll(DAY_FIRST)).flatMap(
+    ([, weekdayName, day, monthName, monthNumber]) => {
+      const weekday = weekdayNumber(weekdayName);
+      const dayValue = Number(day);
+      if (monthNumber !== undefined)
+        return withWeekday(numericReading(dayValue, Number(monthNumber), order), weekday);
+
+      const month = monthName === undefined ? undefined : MONTH_NAMES.get(monthName);
+      if (!isDay(dayValue) || (weekday === undefined && month === undefined)) return [];
+
+      return [{ weekday, day: dayValue, month }];
     },
   );
 }
 
-function sameDayAndMonth(written: WrittenDay, deadline: Required<WrittenDay>): boolean {
+function monthFirstDays(text: string): WrittenDay[] {
+  return Array.from(text.matchAll(MONTH_FIRST)).flatMap(([, weekdayName, monthName, day]) => {
+    const month = MONTH_NAMES.get(monthName ?? "");
+    const dayValue = Number(day);
+    if (month === undefined || !isDay(dayValue)) return [];
+
+    return [{ weekday: weekdayNumber(weekdayName), day: dayValue, month }];
+  });
+}
+
+function writtenDays(text: string, order: DateOrder | null): WrittenDay[] {
+  return [...dayFirstDays(text, order), ...monthFirstDays(text)];
+}
+
+function sameDayAndMonth(written: DayAndMonth, deadline: Required<DayAndMonth>): boolean {
   return written.day === deadline.day && (!written.month || written.month === deadline.month);
 }
 
-function contradictsWrittenDays(expression: string, source: string, deadlineDate: string) {
+function settledReadings(written: WrittenDay): WrittenDay[] {
+  if (written.otherReading === undefined) return [written];
+
+  return [written, { ...written, ...written.otherReading }];
+}
+
+function contradictsWrittenDays(
+  expression: string,
+  source: string,
+  deadlineDate: string,
+  order: DateOrder | null,
+) {
   const deadline = partsOf(deadlineDate);
   const weekdays = citedWeekdays(expression);
-  const inExpression = writtenDays(expression);
+  const inExpression = writtenDays(expression, order).flatMap(settledReadings);
 
   const expressionWeekdayDiffers = weekdays.length > 0 && !weekdays.includes(deadline.weekday);
   const expressionDayDiffers =
@@ -112,14 +202,32 @@ function contradictsWrittenDays(expression: string, source: string, deadlineDate
     !inExpression.some(
       (written) =>
         sameDayAndMonth(written, deadline) &&
-        (!written.weekday || written.weekday === deadline.weekday),
+        (written.weekday === undefined || written.weekday === deadline.weekday),
     );
-  const sourceWeekdayDiffers = writtenDays(source).some(
+  const sourceWeekdayDiffers = writtenDays(source, order).some(
     (written) =>
-      written.weekday && sameDayAndMonth(written, deadline) && written.weekday !== deadline.weekday,
+      !written.undecided &&
+      written.weekday !== undefined &&
+      sameDayAndMonth(written, deadline) &&
+      written.weekday !== deadline.weekday,
   );
 
   return expressionWeekdayDiffers || expressionDayDiffers || sourceWeekdayDiffers;
+}
+
+/**
+ * A numeric date both orders can read (11/12) that the school's country does not settle, or
+ * that the model read against that country's order: the parent checks it.
+ */
+function readsAnAmbiguousDate(expression: string, deadlineDate: string, order: DateOrder | null) {
+  const deadline = partsOf(deadlineDate);
+
+  return writtenDays(expression, order).some(
+    (written) =>
+      written.otherReading !== undefined &&
+      (written.undecided ||
+        (sameDayAndMonth(written.otherReading, deadline) && !sameDayAndMonth(written, deadline))),
+  );
 }
 
 function rolledFromPast(deadlineDate: string, publishedOn: string): boolean {
@@ -130,10 +238,18 @@ function rolledFromPast(deadlineDate: string, publishedOn: string): boolean {
   return daysBefore > 0 && daysBefore <= ROLLED_FROM_PAST_WINDOW_DAYS;
 }
 
-function citedWeekdays(expression: string): string[] {
-  const words = new Set(expression.split(/[^a-z]+/));
+const ABBREVIATED_WEEKDAYS = [...WEEKDAY_NAMES.keys()].filter(
+  (name) => !FULL_WEEKDAY_NAMES.has(name),
+);
+const CITED_WEEKDAY = new RegExp(
+  `${NOT_A_LETTER_BEFORE}(?:(${alternation(FULL_WEEKDAY_NAMES.keys())})${NOT_A_LETTER_AFTER}|(${alternation(ABBREVIATED_WEEKDAYS)})(?=\\.|\\s*\\d))`,
+  "gu",
+);
 
-  return FRENCH_WEEKDAYS.filter((weekday) => words.has(weekday));
+function citedWeekdays(expression: string): number[] {
+  return Array.from(expression.matchAll(CITED_WEEKDAY)).flatMap(
+    ([, full, abbreviated]) => weekdayNumber(full ?? abbreviated) ?? [],
+  );
 }
 
 export interface Span {
@@ -205,7 +321,11 @@ export function reviewReasonsFor(
 
   const checks: [ReviewReason, boolean][] = [
     ["low_confidence", candidate.confidence === "low"],
-    ["weekday_mismatch", contradictsWrittenDays(expression, source, candidate.deadlineDate)],
+    [
+      "weekday_mismatch",
+      contradictsWrittenDays(expression, source, candidate.deadlineDate, context.dateOrder),
+    ],
+    ["date_ambiguous", readsAnAmbiguousDate(expression, candidate.deadlineDate, context.dateOrder)],
     [
       "date_before_publication",
       daysAhead < 0 || rolledFromPast(candidate.deadlineDate, context.publishedOn),

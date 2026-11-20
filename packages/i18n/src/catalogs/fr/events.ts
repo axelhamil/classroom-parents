@@ -212,6 +212,8 @@ export default {
     reasons: {
       low_confidence: "La date n'est pas écrite clairement dans l'annonce.",
       weekday_mismatch: "Le jour de la semaine écrit ne tombe pas à cette date.",
+      date_ambiguous:
+        "La date s'écrit en chiffres et peut se lire jour puis mois ou mois puis jour : vérifiez-la, ou indiquez le pays de l'école dans les réglages.",
       date_before_publication: "Cette date tombe avant la publication de l'annonce.",
       date_too_far: "Cette date tombe dans plus d'un an.",
       quote_not_in_text: "La phrase qui donne cette date n'a pas été retrouvée dans l'annonce.",

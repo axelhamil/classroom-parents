@@ -7,6 +7,7 @@ import {
   type ParentAction,
 } from "@packages/events/agenda-contract";
 import { withoutLinks } from "@packages/llm/contract/plain-text";
+import { withWesternDigits } from "./calendar-words";
 import { locateQuote, type Span } from "./extraction-checks";
 import type { ItemToBringCandidate, ParentActionCandidate } from "./extraction-output.schema";
 
@@ -16,7 +17,7 @@ export interface QuotedSource {
 }
 
 const NUMBER = String.raw`(\d{1,4}(?:[.,]\d{1,2})?)`;
-const CURRENCY = "(€|eur(?:os?)?|mad|dhs?|dirhams?|درهم)";
+const CURRENCY = "(€|eur(?:os?)?|mad|dhs?|dirhams?|درهم|دراهم|د\\.م\\.?)";
 const AMOUNT_AFTER = new RegExp(String.raw`${NUMBER}\s?${CURRENCY}(?![\p{L}])`, "iu");
 const AMOUNT_BEFORE = new RegExp(String.raw`(€)\s?${NUMBER}`, "u");
 
@@ -32,8 +33,9 @@ function currencyOf(symbol: string): ActionCurrency {
 }
 
 function amountIn(quote: string): WrittenAmount {
-  const after = AMOUNT_AFTER.exec(quote);
-  const before = AMOUNT_BEFORE.exec(quote);
+  const written = withWesternDigits(quote);
+  const after = AMOUNT_AFTER.exec(written);
+  const before = AMOUNT_BEFORE.exec(written);
   const [number, symbol] = after ? [after[1], after[2]] : [before?.[2], before?.[1]];
   if (number === undefined || symbol === undefined) return NO_AMOUNT;
 

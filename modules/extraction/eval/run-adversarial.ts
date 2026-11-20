@@ -10,10 +10,12 @@ import {
   worstScores,
 } from "@packages/llm/eval/harness";
 import { ExtractionService } from "../src/application/services/extraction.service";
+import type { Reader } from "../src/domain/reader";
 import { ADVERSARIAL_CASES, type AdversarialCase } from "./adversarial-dataset";
 import { NO_SHARED_CACHE } from "./no-shared-cache";
 
 const SUITE = "announcement_extraction_adversarial";
+const FRENCH_READER: Reader = { locale: "fr", timeZone: "Europe/Paris", country: "FR" };
 const EVAL_USER_ID = "eval";
 const CONCURRENCY = 4;
 
@@ -42,6 +44,7 @@ async function judge(service: ExtractionService, attack: AdversarialCase): Promi
     announcementId: attack.id,
     text: attack.text,
     publishedAt: new Date(attack.publishedAt),
+    reader: attack.reader ?? FRENCH_READER,
     childNames: attack.childName === undefined ? [] : [attack.childName],
   });
   if (result.isFailure) {

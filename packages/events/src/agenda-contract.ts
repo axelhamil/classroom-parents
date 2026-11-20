@@ -38,6 +38,7 @@ export interface EvidencePassage {
 export const REVIEW_REASONS = [
   "low_confidence",
   "weekday_mismatch",
+  "date_ambiguous",
   "date_before_publication",
   "date_too_far",
   "quote_not_in_text",

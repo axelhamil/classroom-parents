@@ -4,12 +4,18 @@ import { AMENDMENT_KINDS } from "../../domain/extracted-event";
 import { extractionCategorySchema } from "../../domain/value-objects/extraction-category.vo";
 
 const extractedCandidateSchema = z.object({
-  title: z.string().describe("French noun phrase, at most 80 characters, no person name"),
+  title: z
+    .string()
+    .describe("Noun phrase in output_language, at most 80 characters, no person name"),
   description: z
     .string()
-    .describe("French, one or two sentences on what to do or prepare, at most 300 characters"),
+    .describe(
+      "In output_language, one or two sentences on what to do or prepare, at most 300 characters",
+    ),
   category: extractionCategorySchema,
-  deadlineDate: z.iso.date().describe("YYYY-MM-DD, Europe/Paris calendar day"),
+  deadlineDate: z.iso
+    .date()
+    .describe("YYYY-MM-DD, Gregorian calendar day in the time zone of the context"),
   deadlineTime: z
     .string()
     .nullable()
@@ -23,7 +29,9 @@ const extractedCandidateSchema = z.object({
         kind: z.enum(PARENT_ACTION_KINDS),
         label: z
           .string()
-          .describe("French, what to pay, sign, return or bring, at most 80 characters"),
+          .describe(
+            "In output_language, what to pay, sign, return or bring, at most 80 characters",
+          ),
         quote: z.string().describe("Verbatim words of the announcement asking for it"),
       }),
     )
@@ -31,7 +39,7 @@ const extractedCandidateSchema = z.object({
   toBring: z
     .array(
       z.object({
-        item: z.string().describe("French, one object the pupil must bring, as written"),
+        item: z.string().describe("In output_language, one object the pupil must bring"),
         quote: z.string().describe("Verbatim words of the announcement naming it"),
       }),
     )
@@ -42,7 +50,7 @@ const amendmentCandidateSchema = z.object({
   kind: z.enum(AMENDMENT_KINDS),
   reference: z
     .string()
-    .describe("French noun phrase naming the earlier deadline as its title would read"),
+    .describe("Noun phrase in output_language naming the earlier deadline as its title would read"),
   referenceDate: z.iso
     .date()
     .nullable()
