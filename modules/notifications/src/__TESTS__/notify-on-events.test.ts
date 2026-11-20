@@ -191,12 +191,13 @@ describe("what the sync found", () => {
 });
 
 describe("a child's school allowing the app", () => {
-  it("given a reconnection that ends a school block, then the center says the school allowed the app", async () => {
+  it("given the scheduled sync finds the school allowed the app, then the center says so", async () => {
     await notifyOnSchoolAllowed(deps).handle(
       delivered(EventTypes.CHILD_CONNECTED, {
         userId: PARENT,
         childId: JADE,
         restoredFrom: "school_blocked",
+        actorUserId: null,
       }),
     );
 
@@ -205,14 +206,25 @@ describe("a child's school allowing the app", () => {
     ]);
   });
 
-  it("given a first connection or the end of an expired Google access, then nothing is posted", async () => {
+  it("given a first connection, an expired Google access or a parent who reconnected, then nothing is posted", async () => {
     const handler = notifyOnSchoolAllowed(deps);
-    await handler.handle(delivered(EventTypes.CHILD_CONNECTED, { userId: PARENT, childId: JADE }));
+    await handler.handle(
+      delivered(EventTypes.CHILD_CONNECTED, { userId: PARENT, childId: JADE, actorUserId: PARENT }),
+    );
     await handler.handle(
       delivered(EventTypes.CHILD_CONNECTED, {
         userId: PARENT,
         childId: JADE,
         restoredFrom: "invalid_grant",
+        actorUserId: null,
+      }),
+    );
+    await handler.handle(
+      delivered(EventTypes.CHILD_CONNECTED, {
+        userId: PARENT,
+        childId: JADE,
+        restoredFrom: "school_blocked",
+        actorUserId: PARENT,
       }),
     );
 

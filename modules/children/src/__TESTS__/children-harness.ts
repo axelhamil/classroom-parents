@@ -66,6 +66,7 @@ export function child(
     color?: ChildColorValue;
     avatarUrl?: string;
     showsPhoto?: boolean;
+    syncAttempts?: number;
   } = {},
 ): ChildAccount {
   return ChildAccount.reconstitute(
@@ -86,6 +87,7 @@ export function child(
       syncStartedAt: Option.fromNullable(overrides.syncStartedAt),
       lastSyncRequestedAt: Option.fromNullable(overrides.lastSyncRequestedAt),
       syncLease: 4,
+      syncAttempts: overrides.syncAttempts ?? 0,
     },
     new ChildAccountId(),
   );

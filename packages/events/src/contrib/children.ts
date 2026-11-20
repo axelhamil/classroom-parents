@@ -17,6 +17,7 @@ export const childrenEvents = defineEventContribution({
   payloads: {
     "child.account.connected": ChildRef.extend({
       restoredFrom: z.enum(["invalid_grant", "school_blocked"]).optional(),
+      actorUserId: z.string().nullable(),
     }),
     "child.account.renamed": ChildRef,
     "child.account.color_changed": ChildRef.extend({
@@ -57,7 +58,7 @@ export const childrenEvents = defineEventContribution({
   },
   descriptions: {
     "child.account.connected":
-      "A parent connected a child's Google Classroom account, or reconnected it after a break; restoredFrom names the break a reconnection ends (school_blocked: the school has just allowed the app).",
+      "A parent connected a child's Google Classroom account, or reconnected it after a break; restoredFrom names the break it ends (school_blocked: the school has just allowed the app); actorUserId is the parent who reconnected, null when the scheduled sync found the school had allowed the app.",
     "child.account.renamed": "A parent renamed a connected child.",
     "child.account.color_changed": "A parent picked another color for a child.",
     "child.account.photo_choice_changed":

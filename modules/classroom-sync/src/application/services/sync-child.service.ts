@@ -129,7 +129,7 @@ export class SyncChildService {
 
         const token = await this.tokens.accessTokenFor(input.childId);
         if (token.isFailure && token.getError() === "reconnect_needed")
-          return this.needsReconnect(input.childId, "invalid_grant");
+          return this.needsReconnect(input.childId, "invalid_grant", now);
         if (token.isFailure) return this.failed(lease, now, providerFailure("jeton Google"));
 
         const access: ClassroomAccess = { token: token.getValue(), scope: this.readScope(lease) };
@@ -156,11 +156,12 @@ export class SyncChildService {
     );
     const failures = reads.filter((read) => read.isFailure).map((read) => read.getError());
     if (failures.includes("lease_lost")) return Result.fail(leaseLost);
-    if (failures.includes("reconnect")) return this.needsReconnect(input.childId, "invalid_grant");
+    if (failures.includes("reconnect"))
+      return this.needsReconnect(input.childId, "invalid_grant", now);
     if (failures.includes("misconfigured")) this.alertOperator(input.childId);
     if (courses.length > 0 && failures.length === courses.length) {
       if (failures.every((failure) => failure === "school_block"))
-        return this.needsReconnect(input.childId, "school_blocked");
+        return this.needsReconnect(input.childId, "school_blocked", now);
       return this.failed(lease, now, providerFailure("annonces"));
     }
 
@@ -441,8 +442,9 @@ export class SyncChildService {
     now: Date,
   ): Promise<Result<SyncReport, SyncError>> {
     if (failure === "lease_lost") return Result.fail(leaseLost);
-    if (failure === "reconnect") return this.needsReconnect(lease.childId, "invalid_grant");
-    if (failure === "school_block") return this.needsReconnect(lease.childId, "school_blocked");
+    if (failure === "reconnect") return this.needsReconnect(lease.childId, "invalid_grant", now);
+    if (failure === "school_block")
+      return this.needsReconnect(lease.childId, "school_blocked", now);
     if (failure === "misconfigured") this.alertOperator(lease.childId);
 
     return this.failed(lease, now, providerFailure("liste des cours"));
@@ -473,8 +475,9 @@ export class SyncChildService {
   private async needsReconnect(
     childId: string,
     cause: ReconnectCause,
+    now: Date,
   ): Promise<Result<SyncReport, SyncError>> {
-    const marked = await this.syncState.markNeedsReconnect(childId, cause);
+    const marked = await this.syncState.markNeedsReconnect(childId, cause, now);
     if (marked.isFailure)
       this.instrumentation.capture(marked.getError(), { metadata: { childId } });
 

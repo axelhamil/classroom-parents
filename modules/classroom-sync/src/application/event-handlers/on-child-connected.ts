@@ -5,6 +5,7 @@ import { isNothingToSync, type ManualSyncService } from "../services/manual-sync
 interface ChildConnected {
   userId: string;
   childId: string;
+  actorUserId: string | null;
 }
 
 function parseChildConnected(payload: unknown): Result<ChildConnected, string> {
@@ -17,6 +18,8 @@ export const onChildConnected = onEvent(
   "classroom-sync-first-sync",
   (deps: { ManualSyncService: Pick<ManualSyncService, "requestChild"> }) =>
     async (_event, payload: ChildConnected) => {
+      if (payload.actorUserId === null) return Result.ok();
+
       const requested = await deps.ManualSyncService.requestChild(payload.userId, payload.childId);
       if (requested.isFailure && !isNothingToSync(requested.getError()))
         return Result.fail(requested.getError());

@@ -249,7 +249,7 @@ export function childSyncStateFor(
       (await children.markSynced(lease, at, nextSyncAt)).mapError(withLeaseConflict),
     markSyncFailed: async (lease, nextSyncAt) =>
       (await children.markSyncFailed(lease, nextSyncAt)).mapError(withLeaseConflict),
-    markNeedsReconnect: (childId, cause) => children.markNeedsReconnect(childId, cause),
+    markNeedsReconnect: (childId, cause, now) => children.markNeedsReconnect(childId, cause, now),
   };
 }
 

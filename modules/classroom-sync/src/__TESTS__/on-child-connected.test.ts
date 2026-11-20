@@ -41,7 +41,9 @@ describe("on child connected", () => {
     claims({ outcome: "started", lease: CHILD.lease, label: CHILD.label, retryAt: COOLDOWN_END });
     const handler = onChildConnected({ ManualSyncService: manual });
 
-    await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
+    await handler.handle(
+      connected({ userId: CHILD.userId, childId: CHILD.childId, actorUserId: CHILD.userId }),
+    );
     await deferredWork();
 
     expect(gate.claim).toHaveBeenCalledWith(CHILD.userId, CHILD.childId, NOW);
@@ -57,7 +59,9 @@ describe("on child connected", () => {
       claims({ outcome, retryAt: LATER });
       const handler = onChildConnected({ ManualSyncService: manual });
 
-      await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
+      await handler.handle(
+        connected({ userId: CHILD.userId, childId: CHILD.childId, actorUserId: CHILD.userId }),
+      );
       await deferredWork();
 
       expect(h.tokens.accessTokenFor).not.toHaveBeenCalled();
@@ -71,8 +75,26 @@ describe("on child connected", () => {
     );
     const handler = onChildConnected({ ManualSyncService: manual });
 
-    await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
+    await handler.handle(
+      connected({ userId: CHILD.userId, childId: CHILD.childId, actorUserId: CHILD.userId }),
+    );
 
+    expect(h.client.listCourses).not.toHaveBeenCalled();
+  });
+
+  it("starts no sync for a child the scheduled sync itself just read back from a school block", async () => {
+    const handler = onChildConnected({ ManualSyncService: manual });
+
+    await handler.handle(
+      connected({
+        userId: CHILD.userId,
+        childId: CHILD.childId,
+        restoredFrom: "school_blocked",
+        actorUserId: null,
+      }),
+    );
+
+    expect(gate.claim).not.toHaveBeenCalled();
     expect(h.client.listCourses).not.toHaveBeenCalled();
   });
 
@@ -83,7 +105,9 @@ describe("on child connected", () => {
     const handler = onChildConnected({ ManualSyncService: manual });
 
     await expect(
-      handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId })),
+      handler.handle(
+        connected({ userId: CHILD.userId, childId: CHILD.childId, actorUserId: CHILD.userId }),
+      ),
     ).rejects.toThrow("SYNC_PROVIDER_FAILURE");
   });
 });
