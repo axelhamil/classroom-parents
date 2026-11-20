@@ -48,9 +48,10 @@ function boxOf(region: HTMLElement, label: string): HTMLElement {
 
 const withPlainSpaces = (text: string) => text.replace(/\s/g, " ");
 
-function stepsIn(region: HTMLElement): string[] {
+function stepsIn(region: HTMLElement, only?: "suggested"): string[] {
   return within(region)
     .queryAllByRole("checkbox")
+    .filter((box) => !only || box.getAttribute("aria-description") === "suggestion")
     .map((box) => document.querySelector(`label[for="${box.id}"]`)?.textContent ?? "");
 }
 
@@ -103,8 +104,8 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
     await within(block).findByText("Atlas");
     expect(within(block).getByText("À préparer pour demain")).toBeDefined();
     expect(stepsIn(block)).toEqual(["Atlas", "Maillot de bain", "Bonnet de bain", "Serviette"]);
-    const ideas = within(block).getByRole("list", { name: "Suggestions" });
-    expect(stepsIn(ideas)).toEqual(["Maillot de bain", "Bonnet de bain", "Serviette"]);
+    expect(stepsIn(block, "suggested")).toEqual(["Maillot de bain", "Bonnet de bain", "Serviette"]);
+    expect(within(block).queryByText("Suggestions")).toBeNull();
   });
 
   it("groups the steps by child", async () => {
@@ -142,7 +143,9 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
 
     const block = await tonight();
     expect(
-      await within(block).findByText("Rien à préparer ce soir, 2 échéances demain"),
+      await within(block).findByText(
+        "2 échéances demain, déjà prêtes : rien à mettre dans le sac.",
+      ),
     ).toBeDefined();
     expect(stepsIn(block)).toEqual([]);
   });
@@ -199,10 +202,10 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
 
     const block = await tonight();
     await within(block).findByText("À préparer pour demain");
-    const ideas = within(block).getByRole("list", { name: "Suggestions" });
-    const asked = stepsIn(block).filter((step) => !stepsIn(ideas).includes(step));
+    const ideas = stepsIn(block, "suggested");
+    const asked = stepsIn(block).filter((step) => !ideas.includes(step));
     expect(asked.map(withPlainSpaces)).toEqual(["Payer la sortie : 12,50 €", "Gourde"]);
-    expect(stepsIn(ideas)).toEqual(["Pique-nique", "Tenue adaptée", "Autorisation signée"]);
+    expect(ideas).toEqual(["Pique-nique", "Tenue adaptée", "Autorisation signée"]);
   });
 
   it("given every step the announcement asks ticked, the template left open is only an idea", async () => {
@@ -291,10 +294,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
 
     const block = await tonight();
     await within(block).findByText("À préparer pour demain");
-    const ideas = within(block).getByRole("list", { name: "Suggestions" });
-    expect(stepsIn(block).filter((step) => !stepsIn(ideas).includes(step))).toEqual([
-      "قلم",
-      "كتاب",
-    ]);
+    const ideas = stepsIn(block, "suggested");
+    expect(stepsIn(block).filter((step) => !ideas.includes(step))).toEqual(["قلم", "كتاب"]);
   });
 });

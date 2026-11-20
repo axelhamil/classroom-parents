@@ -258,15 +258,18 @@ describe("Accueil briefs the next school moment", () => {
     ).toBeDefined();
   });
 
-  it("nothing due reads calm and opens the next deadline from its card", async () => {
+  it("nothing due reads calm and links to the next deadline", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar([CHILD], [deadline(1, "2026-11-20", "Sortie au musée")]);
+    const museum = deadline(1, "2026-11-20", "Sortie au musée");
+    givenCalendar([CHILD], [museum]);
     await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
-    expect(await within(tomorrow).findByText("Aucune échéance pour demain.")).toBeDefined();
-    const next = await within(tomorrow).findByRole("region", { name: "Prochaine échéance" });
-    expect(titlesIn(next)).toEqual([expect.stringContaining("Sortie au musée")]);
+    expect(await within(tomorrow).findByText("Aucune échéance pour demain")).toBeDefined();
+    const next = await within(tomorrow).findByRole("link", {
+      name: "Prochaine échéance : Sortie au musée, vendredi 20 novembre",
+    });
+    expect(next.getAttribute("href")).toBe(`/events/${museum.id}`);
   });
 
   it("counts what the day it covers holds, assessments named, and reads its bar as done out of all", async () => {

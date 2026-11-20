@@ -235,7 +235,7 @@ function recordGesture(page: Page): Promise<void> {
       window.__bodyMutations += records.length;
     });
     for (const body of document.querySelectorAll(
-      "[data-slot=scroll-region], [data-slot=dashboard-panel-body], [data-slot=dashboard-empty]",
+      "[data-slot=scroll-region], [data-slot=dashboard-panel-body]",
     ))
       bodies.observe(body, { childList: true, subtree: true, characterData: true });
     let last = performance.now();

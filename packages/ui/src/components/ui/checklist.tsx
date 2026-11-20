@@ -4,6 +4,9 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 /**
+ * An item may carry one icon between its checkbox and its label, drawn small and muted: the mark of
+ * a step the app suggested, which the checkbox names in its `aria-description`.
+ *
  * `compact` is the steps of a deadline inside its card: a quieter, smaller
  * list aligned on the title column, lifted above the card's stretched title
  * link so every step stays its own control, never nested in the link.
@@ -19,7 +22,7 @@ const checklistVariants = cva("flex flex-col", {
 });
 
 const checklistItemVariants = cva(
-  "flex min-w-0 items-center rounded-inner has-data-[state=checked]:text-muted-foreground [&>label]:min-w-0 [&>label]:flex-1 [&>label]:cursor-pointer [&>label]:font-normal [&>label]:wrap-anywhere has-data-[state=checked]:[&>label]:line-through",
+  "flex min-w-0 items-center rounded-inner has-data-[state=checked]:text-muted-foreground [&>svg]:size-icon-sm [&>svg]:shrink-0 [&>svg]:text-muted-foreground [&>label]:min-w-0 [&>label]:flex-1 [&>label]:cursor-pointer [&>label]:font-normal [&>label]:wrap-anywhere has-data-[state=checked]:[&>label]:line-through",
   {
     variants: {
       density: {

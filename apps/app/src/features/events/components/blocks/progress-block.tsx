@@ -1,9 +1,10 @@
-import { AllDoneIcon } from "@packages/ui/components/ui/icons";
+import { AllDoneIcon, NothingDueIcon } from "@packages/ui/components/ui/icons";
 import { Progress } from "@packages/ui/components/ui/progress";
 import { useTranslation } from "react-i18next";
 import { progressView } from "../../../../shared/agenda/views";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
+import { BlockEmpty } from "./block-empty";
 import { BlockPanel } from "./block-panel";
 
 function ProgressBlock({ childId, clock, title }: HomeBlockProps) {
@@ -17,11 +18,14 @@ function ProgressBlock({ childId, clock, title }: HomeBlockProps) {
       : t("blocks.progress.summary", counts);
 
   return (
-    <BlockPanel
-      title={title}
-      icon={AllDoneIcon}
-      note={query.isSuccess && (total === 0 ? t("blocks.progress.empty") : summary)}
-    >
+    <BlockPanel title={title} icon={AllDoneIcon} note={query.isSuccess && total > 0 && summary}>
+      {query.isSuccess && total === 0 && (
+        <BlockEmpty
+          icon={NothingDueIcon}
+          title={t("blocks.progress.empty")}
+          hint={t("blocks.progress.emptyHint")}
+        />
+      )}
       {total > 0 && (
         <Progress
           value={done}

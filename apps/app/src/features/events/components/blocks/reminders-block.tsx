@@ -1,4 +1,4 @@
-import { AlertsOnIcon } from "@packages/ui/components/ui/icons";
+import { AlertsOffIcon, AlertsOnIcon } from "@packages/ui/components/ui/icons";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@packages/ui/components/ui/item";
 import { useQueries } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import { instantLabel } from "../../../../shared/format/deadline-label";
 import { type EventReminders, eventRemindersQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
+import { BlockEmpty } from "./block-empty";
 import { BlockPanel } from "./block-panel";
 
 interface Ringing {
@@ -40,13 +41,14 @@ function RemindersBlock({ childId, clock, title }: HomeBlockProps) {
     .sort((left, right) => left.dueAt.localeCompare(right.dueAt));
 
   return (
-    <BlockPanel
-      title={title}
-      icon={AlertsOnIcon}
-      note={
-        settled && ringing.length === 0 && t("blocks.reminders.empty", { days: nextSevenDays.days })
-      }
-    >
+    <BlockPanel title={title} icon={AlertsOnIcon}>
+      {settled && ringing.length === 0 && (
+        <BlockEmpty
+          icon={AlertsOffIcon}
+          title={t("blocks.reminders.empty", { days: nextSevenDays.days })}
+          hint={t("blocks.reminders.emptyHint")}
+        />
+      )}
       {ringing.length > 0 && (
         <ul className="flex flex-col gap-2">
           {ringing.map(({ key, event, dueAt }) => (

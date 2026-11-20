@@ -1,5 +1,5 @@
 import { DeadlineCategory } from "@packages/ui/components/ui/deadline-sheet";
-import { AssessmentIcon, WorkloadIcon } from "@packages/ui/components/ui/icons";
+import { AssessmentIcon, NothingDueIcon, WorkloadIcon } from "@packages/ui/components/ui/icons";
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import { nextSevenDays } from "../../../../shared/agenda/windows";
 import { wallDateParts } from "../../../../shared/format/deadline-label";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
+import { BlockEmpty } from "./block-empty";
 import { BlockPanel } from "./block-panel";
 
 function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
@@ -23,15 +24,14 @@ function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
   const children = family.filter((child) => childId === null || child.id === childId);
 
   return (
-    <BlockPanel
-      title={title}
-      icon={WorkloadIcon}
-      note={
-        query.isSuccess &&
-        open.length === 0 &&
-        t("blocks.workload.empty", { days: nextSevenDays.days })
-      }
-    >
+    <BlockPanel title={title} icon={WorkloadIcon}>
+      {query.isSuccess && open.length === 0 && (
+        <BlockEmpty
+          icon={NothingDueIcon}
+          title={t("blocks.workload.empty", { days: nextSevenDays.days })}
+          hint={t("blocks.workload.emptyHint")}
+        />
+      )}
       {open.length > 0 && (
         <Table>
           <TableHeader>

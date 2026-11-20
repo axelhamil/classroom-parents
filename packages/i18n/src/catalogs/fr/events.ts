@@ -94,7 +94,8 @@ export default {
     open_other: "Encore {{count}} échéances à boucler",
     progress_one: "{{count}} échéance prête sur {{total}}",
     progress_other: "{{count}} échéances prêtes sur {{total}}",
-    empty: "Aucune échéance pour {{day}}.",
+    empty: "Aucune échéance pour {{day}}",
+    emptyHint: "Les échéances lues dans Classroom arriveront ici.",
     leftToday_one: "Encore {{count}} échéance d'aujourd'hui à cocher",
     leftToday_other: "Encore {{count}} échéances d'aujourd'hui à cocher",
     allSet: "Tout est prêt pour {{day}}.",
@@ -268,7 +269,7 @@ export default {
     empty: "Rien à préparer. Ajoutez ce qui vous passe par la tête.",
     amount: "{{label}} : {{amount}}",
     quotes: "Lu dans l'annonce",
-    suggestions: "Suggestions",
+    suggestion: "suggestion",
     items: {
       swimming: {
         swimsuit: "Maillot de bain",

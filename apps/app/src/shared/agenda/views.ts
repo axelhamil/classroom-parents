@@ -246,10 +246,17 @@ export function nextAfterFocus(
   clock: SchoolClock,
   childId: string | null,
 ): EventItem | null {
+  return nextOpenAfter(events, clock.focus, childId);
+}
+
+/** The first open deadline after a day: what an empty block can announce from the loaded list. */
+export function nextOpenAfter(
+  events: Events,
+  day: string,
+  childId: string | null,
+): EventItem | null {
   const after = events
-    .filter(
-      (event) => isOfChild(event, childId) && isOpen(event) && event.deadlineDate > clock.focus,
-    )
+    .filter((event) => isOfChild(event, childId) && isOpen(event) && event.deadlineDate > day)
     .sort(bySoonest);
 
   return after[0] ?? null;

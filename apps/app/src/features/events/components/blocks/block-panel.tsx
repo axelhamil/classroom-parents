@@ -1,6 +1,5 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import {
-  DashboardEmpty,
   DashboardPanel,
   DashboardPanelBody,
   DashboardPanelFooter,
@@ -63,7 +62,7 @@ export function BlockPanel({
           {frame.controls}
         </Header>,
       )}
-      <BlockBody frame={frame} titleId={titleId} icon={Icon} note={note} startAt={startAt}>
+      <BlockBody frame={frame} titleId={titleId} note={note} startAt={startAt}>
         {children}
       </BlockBody>
       {frame.footer && children ? (
@@ -80,22 +79,13 @@ function wrapped(frame: TileFrame, header: ReactElement): ReactNode {
 interface BlockBodyProps {
   frame: TileFrame;
   titleId: string;
-  icon: Icon;
   note: ReactNode;
   startAt: string | undefined;
   children: ReactNode;
 }
 
-function BlockBody({ frame, titleId, icon: Icon, note, startAt, children }: BlockBodyProps) {
+function BlockBody({ frame, titleId, note, startAt, children }: BlockBodyProps) {
   const openAt = useOpenAt(startAt, frame);
-
-  if (!children && note)
-    return (
-      <DashboardEmpty inert={frame.editing}>
-        <Icon aria-hidden />
-        <p>{note}</p>
-      </DashboardEmpty>
-    );
 
   if (!children) return null;
 

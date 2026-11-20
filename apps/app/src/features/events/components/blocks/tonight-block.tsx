@@ -8,12 +8,11 @@ import {
   BriefingList,
 } from "@packages/ui/components/ui/briefing";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
-import { PackBagIcon } from "@packages/ui/components/ui/icons";
+import { AllDoneIcon, NothingDueIcon, PackBagIcon } from "@packages/ui/components/ui/icons";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
-import type { TFunction } from "i18next";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { type DayPlan, tonightView } from "../../../../shared/agenda/views";
+import { type DayPlan, nextOpenAfter, tonightView } from "../../../../shared/agenda/views";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
@@ -23,16 +22,8 @@ import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useChecklist } from "../../hooks/use-checklist";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { StepLists } from "../prepare-checklist";
+import { BlockEmpty, NextDeadlineLink } from "./block-empty";
 import { BlockPanel } from "./block-panel";
-
-function tonightNote(plan: DayPlan, day: string, t: TFunction<"home">): string {
-  if (plan.toPrepare.length > 0) return t("blocks.tonight.day", { day });
-  if (plan.suggested.length > 0) return t("blocks.tonight.suggested", { day });
-  if (plan.deadlines.length > 0)
-    return t("blocks.tonight.ready", { count: plan.deadlines.length, day });
-
-  return t("blocks.tonight.empty", { day });
-}
 
 function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
@@ -40,14 +31,24 @@ function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
   const plan = tonightView(query.data ?? [], clock, childId);
   const day = inSentence(relativeDayLabel(plan.day, clock.today));
   const withSteps = [...plan.toPrepare, ...plan.suggested];
+  const note = plan.toPrepare.length > 0 ? "blocks.tonight.day" : "blocks.tonight.suggested";
 
   return (
     <BlockPanel
       title={title}
       icon={PackBagIcon}
-      note={query.isSuccess && tonightNote(plan, day, t)}
+      note={query.isSuccess && withSteps.length > 0 && t(note, { day })}
       hero
     >
+      {query.isSuccess && withSteps.length === 0 && (
+        <NothingToPack
+          events={query.data}
+          plan={plan}
+          day={day}
+          childId={childId}
+          today={clock.today}
+        />
+      )}
       {withSteps.length > 0 && (
         <BriefingGroups>
           {family.map((child) => {
@@ -59,6 +60,47 @@ function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
         </BriefingGroups>
       )}
     </BlockPanel>
+  );
+}
+
+interface NothingToPackProps {
+  events: readonly EventItem[];
+  plan: DayPlan;
+  day: string;
+  childId: string | null;
+  today: string;
+}
+
+function NothingToPack({ events, plan, day, childId, today }: NothingToPackProps) {
+  const { t } = useTranslation("home");
+  const count = plan.deadlines.length;
+  if (count > 0)
+    return (
+      <BlockEmpty
+        icon={AllDoneIcon}
+        title={t("blocks.tonight.ready")}
+        hint={t("blocks.tonight.readyHint", { count, day })}
+      />
+    );
+
+  const next = nextOpenAfter(events, plan.day, childId);
+
+  return (
+    <BlockEmpty
+      icon={NothingDueIcon}
+      title={t("blocks.tonight.empty", { day })}
+      hint={
+        next ? (
+          <NextDeadlineLink
+            event={next}
+            today={today}
+            sentence={(fields) => t("blocks.next", fields)}
+          />
+        ) : (
+          t("blocks.tonight.emptyHint")
+        )
+      }
+    />
   );
 }
 

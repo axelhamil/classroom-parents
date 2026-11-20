@@ -77,6 +77,7 @@ export {
   KeyRound as CredentialsIcon,
   Laptop as ComputerIcon,
   LayoutGrid as ArrangeIcon,
+  Lightbulb as SuggestionIcon,
   Link2 as LinkAccountIcon,
   ListChecks as PackBagIcon,
   ListFilter as FilterIcon,

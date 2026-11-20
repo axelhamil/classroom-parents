@@ -371,8 +371,10 @@ describe("event detail, what the announcement asks", () => {
     expect(within(section).getByText("Lu dans l'annonce")).toBeDefined();
     expect(within(section).getByText("Merci de régler 12,50 € avant vendredi.")).toBeDefined();
     expect(within(section).getByText("Chaque enfant apporte une gourde.")).toBeDefined();
-    const ideas = within(section).getByRole("list", { name: "Suggestions" });
-    expect(within(ideas).getAllByRole("checkbox")).toHaveLength(3);
+    const ideas = within(section)
+      .getAllByRole("checkbox")
+      .filter((box) => box.getAttribute("aria-description") === "suggestion");
+    expect(ideas).toHaveLength(3);
     expect(within(section).queryByRole("button", { name: "Retirer « Gourde »" })).toBeNull();
   });
 
