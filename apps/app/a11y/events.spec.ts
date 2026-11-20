@@ -75,11 +75,21 @@ function comingFriday(): string {
  * On Friday evening the planner already shows the week Monday opens, the very day "Pour ce soir"
  * prepares: both read the school day of the shared clock, so they never speak of two days.
  */
+/** The advised home does not read the hour yet, so the evening's block is placed by hand. */
+const TONIGHT_BESIDE_THE_AGENDA = [
+  { id: "tonight", size: "m" },
+  { id: "calendar", size: "xl" },
+];
+
 async function expectNextWeekOnFridayEvening(page: Page): Promise<void> {
   const friday = comingFriday();
   const monday = shiftDate(friday, 3);
   await page.clock.setFixedTime(parisTime(friday, "17:00"));
-  await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
+  await serveFamily(page, {
+    children: [LEA, MAXIMILIEN],
+    events: EVENTS,
+    homeLayout: TONIGHT_BESIDE_THE_AGENDA,
+  });
   await page.goto("/");
 
   const week = page.locator("[data-slot=calendar-week][data-arrangement=board]");

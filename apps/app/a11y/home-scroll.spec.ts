@@ -209,7 +209,7 @@ test.describe("a home tile scrolls inside itself", () => {
     expect(clipped).toBe(0);
   });
 
-  test("opens the week on today, by scrolling the Agenda and never the page", async ({ page }) => {
+  test("opens the week planner with today in view, never scrolling the page", async ({ page }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: LATE, homeLayout: ARRANGED });
     await page.goto(`/?view=week&date=${inDays(-3)}`);
@@ -217,7 +217,7 @@ test.describe("a home tile scrolls inside itself", () => {
     const agenda = page.locator("[data-block=calendar]").getByRole("group", { name: "Agenda" });
     const today = agenda.locator(`[data-jump="${inDays(0)}"]`);
     await expect(today).toBeAttached();
-    await expect.poll(() => agenda.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await expect(agenda.locator("[data-slot=calendar-week][data-arrangement=board]")).toBeVisible();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const [frame, day] = await Promise.all([agenda.boundingBox(), today.boundingBox()]);
     expect(frame && day && day.y >= frame.y && day.y < frame.y + frame.height).toBe(true);

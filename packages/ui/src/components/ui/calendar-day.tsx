@@ -113,7 +113,7 @@ const calendarDayVariants = cva(
         stack: "",
         rail: "grid scroll-mt-day-strip grid-cols-[var(--spacing-day-rail)_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-none py-3 data-[quiet=true]:py-2 [&>:not([data-slot=calendar-day-mark])]:col-start-2",
         column:
-          "gap-1.5 rounded-inner bg-card pb-2 [&>[data-slot=calendar-day-mark]]:px-1 [&>[data-slot=calendar-day-note]]:px-1 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
+          "gap-1.5 rounded-inner bg-card pb-2 [&_[data-slot=calendar-entry-link]]:scroll-mt-12 [&>[data-slot=calendar-day-mark]]:px-1 [&>[data-slot=calendar-day-note]]:px-1 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
         row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0",
       },
       tone: {
