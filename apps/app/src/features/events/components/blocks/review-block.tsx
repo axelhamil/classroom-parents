@@ -12,6 +12,7 @@ import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { lateBacklogQueryOptions, reviewEventsQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
+import { useReviewConfirmation } from "../../hooks/use-review-confirmation";
 import { mainReviewSentenceKey } from "../../review-labels";
 import { ReviewLine } from "../review-line";
 import { BlockPanel } from "./block-panel";
@@ -21,6 +22,7 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const coming = useQuery(reviewEventsQueryOptions({ category: null, childId }));
   const backlog = useQuery(lateBacklogQueryOptions(childId));
+  const confirm = useReviewConfirmation();
   const { upcoming, past } = reviewView([...(coming.data ?? []), ...(backlog.data ?? [])], clock);
   const [handOver, setHandOver] = useState(false);
   const takeFocus = useCallback((node: HTMLDivElement | null) => {
@@ -49,6 +51,7 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
             events={upcoming}
             family={family}
             today={clock.today}
+            confirm={confirm}
             onLastLeft={() => setHandOver(true)}
           />
           {pastNote}

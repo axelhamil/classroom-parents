@@ -1,6 +1,7 @@
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { EVENTS_KEY, type EventItem } from "../../../shared/api/queries/events";
@@ -16,9 +17,18 @@ export const REVIEW_UNDO_WINDOW_MS = 5000;
 export function useReviewConfirmation() {
   const { t } = useTranslation("home");
   const queryClient = useQueryClient();
+  const undoToasts = useRef(new Set<string>());
   const confirm = useMutation(confirmEventMutationOptions);
   const unconfirm = useMutation(unconfirmEventMutationOptions);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: EVENTS_KEY });
+
+  useEffect(() => {
+    const shown = undoToasts.current;
+
+    return () => {
+      for (const id of shown) toast.dismiss(id);
+    };
+  }, []);
 
   return async (event: EventItem) => {
     confirmByTouch();
@@ -49,8 +59,10 @@ export function useReviewConfirmation() {
       refresh();
     };
 
+    const toastId = `review:${event.id}`;
+    undoToasts.current.add(toastId);
     toast(t("blocks.review.confirmed", { title: event.title }), {
-      id: `review:${event.id}`,
+      id: toastId,
       duration: REVIEW_UNDO_WINDOW_MS,
       action: { label: t("blocks.review.undo"), onClick: () => void undo() },
     });

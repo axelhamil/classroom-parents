@@ -12,7 +12,6 @@ import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
 import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { reflow } from "../../../../shared/motion/reflow";
-import { useReviewConfirmation } from "../../hooks/use-review-confirmation";
 import { reviewSentenceKeys } from "../../review-labels";
 
 const INLINE_ROWS = 20;
@@ -21,13 +20,13 @@ export interface ReviewRowsProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
   today: string;
+  confirm: (event: EventItem) => Promise<void>;
   onLastLeft: () => void;
 }
 
-export function ReviewRows({ events, family, today, onLastLeft }: ReviewRowsProps) {
+export function ReviewRows({ events, family, today, confirm, onLastLeft }: ReviewRowsProps) {
   const { t } = useTranslation("home");
   const list = useRef<HTMLUListElement>(null);
-  const confirm = useReviewConfirmation();
 
   const confirmRow = (event: EventItem, trigger: HTMLElement) => {
     const next = neighbourConfirm(trigger);

@@ -168,6 +168,8 @@ Primitives, tokens and their authoring rules live in `packages/ui/CLAUDE.md`. As
 
 **A test never reads the day it runs on.** A vitest test that renders dated data pins an instant (`at("…Z")`, never `new Date(y, m, d, h)`, a device wall time), and every run executes in UTC and in `Europe/Paris` (two vitest projects); the accessibility gate pins every page to a school Thursday in Paris and has a `weekend` project. **Why**: the home changes with the hour, the weekday and the holidays, so a test reading the real clock passes on the day it was written and breaks `develop` a day later, and a device wall time passes in Paris and fails in CI.
 
+**A timer never outlives what started it.** A component or hook that leaves something timed behind (a toast with an undo, a delayed effect) clears it on unmount, and the vitest setup (`src/__tests__/setup.ts`) closes every toast and cancels every timer a test leaves. **Why**: a timer firing after jsdom has removed `window` makes React throw, an unhandled error that fails the whole run on a busy CI machine and never on a quiet one.
+
 ## Commands
 
 `pnpm --filter app test` (vitest, both zones) · `pnpm --filter app type-check` (app + `a11y/` project) · `pnpm turbo run check:a11y --filter=app` (Playwright + axe over the preview build, needs a running API, see `a11y/README.md`).

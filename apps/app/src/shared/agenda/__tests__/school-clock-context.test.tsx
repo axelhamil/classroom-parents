@@ -67,8 +67,8 @@ function givenParentIn(
   });
 }
 
-async function briefedTitles(name: string): Promise<string[]> {
-  const region = await screen.findByRole("region", { name });
+function briefedTitles(name: string): string[] {
+  const region = screen.getByRole("region", { name });
 
   return within(region)
     .queryAllByRole("link")
@@ -104,8 +104,8 @@ describe("the school clock of the shell", () => {
 
     await renderAppAt("/");
 
-    await waitFor(async () =>
-      expect(await briefedTitles("Pour demain")).toEqual(["Exercice en ligne", "Sac de piscine"]),
+    await waitFor(() =>
+      expect(briefedTitles("Pour demain")).toEqual(["Exercice en ligne", "Sac de piscine"]),
     );
   });
 
@@ -118,9 +118,7 @@ describe("the school clock of the shell", () => {
 
     await renderAppAt("/");
 
-    await waitFor(async () =>
-      expect(await briefedTitles("Pour aujourd'hui")).toEqual(["Sac de piscine"]),
-    );
+    await waitFor(() => expect(briefedTitles("Pour aujourd'hui")).toEqual(["Sac de piscine"]));
   });
 
   it("given a parent in Montreal when Paris is already Friday, then the deadline drawer names Friday tomorrow in its hero and its reminder, at Montreal's hour", async () => {
