@@ -11,7 +11,7 @@ import {
 } from "@packages/ui/components/ui/dashboard";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import type { LucideIcon } from "lucide-react";
-import { type ReactElement, type ReactNode, useCallback, useEffect, useId, useState } from "react";
+import { type ReactElement, type ReactNode, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type TileFrame, useTileFrame } from "../../../../shared/dashboard/tile-frame";
 
@@ -122,11 +122,17 @@ function useOpenAt(
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a tile drawn at another size shows another stretch of its list, so the jump is made again
   useEffect(() => {
-    if (!region || !startAt || kept !== undefined) return;
-    if (scrollToJump(region, startAt)) return;
+    if (!region) return;
+
+    const settle = () => {
+      if (kept !== undefined) return scrollBackTo(region, kept);
+
+      return !startAt || scrollToJump(region, startAt);
+    };
+    if (settle()) return;
 
     const observer = new MutationObserver(() => {
-      if (scrollToJump(region, startAt)) observer.disconnect();
+      if (settle()) observer.disconnect();
     });
     observer.observe(region, { childList: true, subtree: true });
 
@@ -142,14 +148,14 @@ function useOpenAt(
     return () => region.removeEventListener("scroll", keep);
   }, [region, scroll]);
 
-  return useCallback(
-    (node: HTMLDivElement | null) => {
-      if (node && kept !== undefined) node.scrollTop = kept;
+  return setRegion;
+}
 
-      setRegion(node);
-    },
-    [kept],
-  );
+/** Puts a body drawn again back where it was, once its list is long enough to get there. */
+function scrollBackTo(region: HTMLElement, top: number): boolean {
+  region.scrollTop = top;
+
+  return Math.abs(region.scrollTop - top) <= 1;
 }
 
 function scrollToJump(region: HTMLElement, jump: string): boolean {

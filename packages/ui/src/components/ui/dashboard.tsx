@@ -106,13 +106,16 @@ function DashboardPanel({ className, fit, ...props }: DashboardPanelProps) {
 const DASHBOARD_HEADER =
   "flex h-dashboard-header min-w-0 shrink-0 items-center gap-2 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
 
-/** The title row of a block, one fixed height so the titles of a row share their line. */
+/**
+ * The title row of a block, one fixed height so the titles of a row share their line. Its slot is
+ * set after the props: a trigger that wraps it `asChild` (a context menu) would otherwise rename it.
+ */
 function DashboardPanelHeader({ className, ...props }: React.ComponentProps<"header">) {
   return (
     <header
-      data-slot="dashboard-panel-header"
       className={cn(DASHBOARD_HEADER, className)}
       {...props}
+      data-slot="dashboard-panel-header"
     />
   );
 }

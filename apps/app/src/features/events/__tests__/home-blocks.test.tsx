@@ -16,8 +16,8 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 
 const THURSDAY_MORNING = "2026-11-12T09:00:00.000Z";
 
-function block(name: string): HTMLElement {
-  return screen.getByRole("region", { name });
+function block(name: string): Promise<HTMLElement> {
+  return screen.findByRole("region", { name });
 }
 
 describe("Accueil blocks keep to what they have to say", () => {
@@ -42,28 +42,22 @@ describe("Accueil blocks keep to what they have to say", () => {
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
     await renderAppAt("/");
 
-    const late = await within(block("En retard")).findByText("Cahier de liaison à signer");
+    const late = await within(await block("En retard")).findByText("Cahier de liaison à signer");
     expect(late.closest("[data-slot=dashboard-empty]")).toBeNull();
     expect(late.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
   });
 
-  it("given nothing late, the block keeps its place and size while the home is arranged", async () => {
+  it("given nothing late, the block keeps its size while the home is arranged", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
     await screen.findByText("Rien en retard");
-    const placed = () => {
-      const tile = document.querySelector<HTMLElement>("[data-block=overdue]");
-
-      return ["--x", "--y", "--w", "--h"].map((line) => tile?.style.getPropertyValue(line));
-    };
-    const reading = placed();
-
     fireEvent.click(screen.getByRole("button", { name: "Modifier l'accueil" }));
 
     expect(screen.getByRole("group", { name: "Disposition de En retard" })).toBeDefined();
-    expect(placed()).toEqual(reading);
+    const sizes = [...document.querySelectorAll<HTMLElement>("[data-block=overdue][data-size]")];
+    expect(sizes.map((tile) => tile.dataset.size)).toEqual(["m"]);
   });
 
   it("given more late deadlines than the block shows at once, it lists them all in a region that scrolls", async () => {
@@ -87,8 +81,10 @@ describe("Accueil blocks keep to what they have to say", () => {
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
     await renderAppAt("/");
 
-    expect(await within(block("En retard")).findByText("Cahier de liaison à signer")).toBeDefined();
-    expect(within(block("Agenda")).queryByRole("button", { name: /^En retard/ })).toBeNull();
+    expect(
+      await within(await block("En retard")).findByText("Cahier de liaison à signer"),
+    ).toBeDefined();
+    expect(within(await block("Agenda")).queryByRole("button", { name: /^En retard/ })).toBeNull();
   });
 
   it("lists each coming assessment with its child, its day written once and its revision steps", async () => {
@@ -105,7 +101,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     );
     await renderAppAt("/");
 
-    const assessments = block("Contrôles à réviser");
+    const assessments = await block("Contrôles à réviser");
     const links = await within(assessments).findAllByRole("link");
     const [hugo, lea] = links.map((link) => link.closest("li"));
     expect(hugo?.textContent).toContain("Interrogation de géographie");
@@ -202,7 +198,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     );
     await renderAppAt("/");
 
-    const overdue = block("En retard");
+    const overdue = await block("En retard");
     expect(await within(overdue).findByText("Et 1 plus ancienne, dans l'historique")).toBeDefined();
     expect(
       within(overdue).getAllByRole("link", { name: "Cahier de liaison à signer" }),

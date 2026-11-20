@@ -187,3 +187,152 @@ test("the home loads and answers within its budgets on a phone", async ({ page }
   expect(figures.lcpMs).toBeLessThan(LCP_BUDGET_MS);
   for (const latency of Object.values(figures.inpMs)) expect(latency).toBeLessThan(INP_BUDGET_MS);
 });
+
+const DRAG_FRAME_P95_MS = 20;
+const LONG_TASK_MS = 50;
+const DRAG_STEPS = 6;
+const DRAG_INPUT_BUDGET_MS = 100;
+const DRAG_MS = 2000;
+
+const TWELVE_TILES = [
+  { id: "today", size: "l" },
+  { id: "tonight", size: "m" },
+  { id: "review", size: "s" },
+  { id: "overdue", size: "s" },
+  { id: "calendar", size: "xl" },
+  { id: `child:${LEA.id}`, size: "m" },
+  { id: `child:${MAXIMILIEN.id}`, size: "m" },
+  { id: "assessments", size: "m" },
+  { id: "documents", size: "m" },
+  { id: "notes", size: "m" },
+  { id: "progress", size: "s" },
+  { id: "outings", size: "s" },
+];
+
+declare global {
+  interface Window {
+    __frames: number[];
+    __longTasks: number[];
+    __bodyMutations: number;
+    __recording: boolean;
+  }
+}
+
+/**
+ * Frame gaps, long tasks and every change inside a tile body, from now on. A body that renders
+ * again while a tile is carried shows up as a mutation: the gesture moves frames, never content.
+ */
+function recordGesture(page: Page): Promise<void> {
+  return page.evaluate(() => {
+    window.__frames = [];
+    window.__longTasks = [];
+    window.__bodyMutations = 0;
+    window.__recording = true;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) window.__longTasks.push(entry.duration);
+    }).observe({ type: "longtask" });
+    const bodies = new MutationObserver((records) => {
+      window.__bodyMutations += records.length;
+    });
+    for (const body of document.querySelectorAll(
+      "[data-slot=scroll-region], [data-slot=dashboard-panel-body], [data-slot=dashboard-empty]",
+    ))
+      bodies.observe(body, { childList: true, subtree: true, characterData: true });
+    let last = performance.now();
+    const tick = (now: number) => {
+      window.__frames.push(now - last);
+      last = now;
+      if (window.__recording) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+function percentile(values: number[], rank: number): number {
+  const sorted = [...values].sort((a, b) => a - b);
+
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * rank))] ?? 0;
+}
+
+test.describe("arranging the home", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test(`carries a tile ${DRAG_STEPS} cells at full frame rate on a 4x slower CPU`, async ({
+    page,
+  }) => {
+    await serveFamily(page, {
+      children: [LEA, MAXIMILIEN],
+      events: FIXTURES,
+      homeLayout: TWELVE_TILES,
+    });
+    await observeInteractions(page);
+    await page.goto("/");
+    await expect(page.locator("[data-block][data-size]")).toHaveCount(TWELVE_TILES.length);
+    await page.getByRole("button", { name: "Modifier l'accueil" }).click();
+    const grid = page.locator(".react-grid-layout");
+    await expect(grid).toBeVisible();
+    await page.waitForTimeout(500);
+
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU_SLOWDOWN });
+
+    const grip = page.locator(
+      "[data-block=review] [data-slot=dashboard-tile-toolbar] [data-slot=dashboard-panel-title]",
+    );
+    const gripBox = await grip.boundingBox();
+    const cellBox = await page.locator("[data-block=review]").boundingBox();
+    if (!gripBox || !cellBox) throw new Error("The tile has no box.");
+
+    const start = { x: gripBox.x + gripBox.width / 2, y: gripBox.y + gripBox.height / 2 };
+    const before = await page
+      .locator("[data-block][data-size]")
+      .evaluateAll((tiles) => tiles.map((tile) => (tile as HTMLElement).dataset.block));
+    await recordGesture(page);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    const moves = Math.round(DRAG_MS / 16);
+    for (let move = 1; move <= moves; move++) {
+      const progress = move / moves;
+      await page.mouse.move(
+        start.x - cellBox.width * DRAG_STEPS * progress * 0.5,
+        start.y + cellBox.height * 0.6 * Math.sin(progress * Math.PI),
+      );
+      await page.waitForTimeout(16);
+    }
+    const carried = await page.evaluate(() => window.__bodyMutations);
+    await page.mouse.up();
+    await page.waitForTimeout(600);
+    const inputMs = await page.evaluate(() =>
+      Math.max(0, ...window.__interactions.map((entry) => entry.duration)),
+    );
+    const figures = await page.evaluate(() => {
+      window.__recording = false;
+
+      return { frames: window.__frames.slice(2), longTasks: window.__longTasks };
+    });
+    const after = await page
+      .locator("[data-block][data-size]")
+      .evaluateAll((tiles) => tiles.map((tile) => (tile as HTMLElement).dataset.block));
+
+    const drag = {
+      frames: figures.frames.length,
+      p95FrameMs: Math.round(percentile(figures.frames, 0.95) * 10) / 10,
+      longestTaskMs: Math.round(Math.max(0, ...figures.longTasks)),
+      bodyMutations: carried,
+      inputMs: Math.round(inputMs),
+      moved: before.join() !== after.join(),
+    };
+    console.log(JSON.stringify({ drag }, null, 2));
+    if (process.env.PERF_OUT)
+      writeFileSync(
+        process.env.PERF_OUT.replace(/\.json$/, "-drag.json"),
+        JSON.stringify(drag, null, 2),
+      );
+
+    expect(drag.moved).toBe(true);
+    expect(drag.p95FrameMs).toBeLessThanOrEqual(DRAG_FRAME_P95_MS);
+    expect(drag.longestTaskMs).toBeLessThanOrEqual(LONG_TASK_MS);
+    expect(drag.bodyMutations).toBe(0);
+    expect(drag.inputMs).toBeLessThan(DRAG_INPUT_BUDGET_MS);
+  });
+});

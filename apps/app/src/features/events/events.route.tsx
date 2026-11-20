@@ -142,11 +142,14 @@ interface HomeBoardProps {
 function HomeBoard({ clock, home }: HomeBoardProps) {
   const { t } = useTranslation("events");
   const children = useQuery(childrenQueryOptions);
+  const skeleton = <EventBoardSkeleton label={t("calendar.loading")} />;
+
+  if (!home.sync.known && !children.isError) return skeleton;
 
   return (
     <QueryState
       query={children}
-      skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
+      skeleton={skeleton}
       empty={
         <BoardEmpty
           icon={UsersRoundIcon}

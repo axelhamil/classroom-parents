@@ -74,6 +74,7 @@ export interface HomeSync {
   actor: HomeSyncActor;
   order: Draft | null;
   revision: number;
+  known: boolean;
   editState: HomeEditState;
   syncState: HomeSyncState;
   send: HomeSyncActor["send"];
@@ -85,6 +86,8 @@ export interface HomeSync {
  * only, held back while offline and sent when the network returns. A layout
  * changed on another device is adopted silently when nothing local waits,
  * and opens the conflict otherwise; the echo of our own save is ignored.
+ * `known` turns true once a layout came from the device or the server, or the
+ * server cannot answer: drawing the home before would rearrange it under the eye.
  */
 export function useHomeSync(userId: string, registry: readonly string[]): HomeSync {
   const queryClient = useQueryClient();
@@ -107,10 +110,15 @@ export function useHomeSync(userId: string, registry: readonly string[]): HomeSy
   useSaveToasts(actor, lastError);
   useLocalCopy(actor, storageKey);
 
+  const revision = useSelector(actor, (snapshot) => snapshot.context.baseRevision);
+  const unanswered =
+    query.failureCount > 0 || query.fetchStatus === "paused" || unreadable(query.data);
+
   return {
     actor,
     order: useSelector(actor, orderOf),
-    revision: useSelector(actor, (snapshot) => snapshot.context.baseRevision),
+    revision,
+    known: revision !== UNKNOWN_REVISION || unanswered,
     editState: useSelector(actor, editStateOf),
     syncState: useSelector(actor, (snapshot) => snapshot.value.sync),
     send: actor.send,
@@ -229,6 +237,11 @@ function seedOf(
   const { blocks, revision } = remoteOf(known, registry);
 
   return { layout: blocks, revision, units };
+}
+
+/** A reply with no revision is never adopted, so waiting for it would hold the home forever. */
+function unreadable(reply: ServerLayout | undefined): boolean {
+  return reply !== undefined && !Number.isInteger(reply.revision);
 }
 
 function storedLayout(storageKey: string): StoredLayout {
