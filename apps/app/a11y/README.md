@@ -43,7 +43,7 @@ The gate audits the **preview build** on port 4173, against a live API:
 ```sh
 docker compose up postgres -d
 pnpm db:migrate && pnpm --filter api db:seed # seeds dev@example.com and its session cookie
-pnpm --filter api dev                        # API on :3000
+pnpm --filter api start:gate                 # API on :3000, the gate's rate limit (as in CI)
 pnpm --filter app check:a11y                 # builds nothing, run `pnpm --filter app build` first
 ```
 
@@ -78,7 +78,8 @@ Three things bite when running repeatedly:
   (`GLOBAL_POLICY` in
   `apps/api/src/shared/middleware/rate-limit.policies.ts`, now 600/min burst
   with the 1800/hour sustained ceiling unchanged). The gate's API runs with
-  `RATE_LIMIT_GLOBAL_PER_MINUTE=1200` (CI and locally), its own room for one
+  `RATE_LIMIT_GLOBAL_PER_MINUTE=1200`, set once by `pnpm --filter api start:gate` that CI
+  and a local sweep both run, its own room for one
   parent signed in on four browsers; production keeps 600 and refuses a higher
   value at startup. A full sweep measured 790 requests in the parent's bucket
   over 2.4 min, none refused at 600, 20 November 2026. The hour window still holds:

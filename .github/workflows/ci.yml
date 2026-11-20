@@ -244,12 +244,11 @@ jobs:
 
       - name: Start the API
         working-directory: apps/api
-        env:
-          # Every browser of the audit signs in as the one seeded parent: its minute burst gets
-          # room a real parent never needs. Production keeps 600 and refuses more at startup.
-          RATE_LIMIT_GLOBAL_PER_MINUTE: "1200"
+        # `start:gate` is the one place the gate's minute burst is raised (every browser of the
+        # audit signs in as the one seeded parent), so a local sweep behaves like this one.
+        # Production keeps 600 and refuses more at startup.
         run: |
-          bun src/index.ts > /tmp/api.log 2>&1 &
+          pnpm start:gate > /tmp/api.log 2>&1 &
           for _ in $(seq 1 30); do
             if curl -sf http://localhost:3000/readyz > /dev/null; then
               echo "api ready"; exit 0
