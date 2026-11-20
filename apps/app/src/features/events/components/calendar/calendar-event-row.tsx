@@ -33,6 +33,9 @@ export interface CalendarEventRowProps {
   withChild?: boolean;
   compact?: boolean;
   withCountdown?: boolean;
+  courseName?: string;
+  surface?: "tint" | "paper";
+  withCategoryWord?: boolean;
   children?: ReactNode;
 }
 
@@ -50,6 +53,9 @@ export function CalendarEventRow({
   withChild = true,
   compact = false,
   withCountdown = false,
+  courseName,
+  surface = "tint",
+  withCategoryWord = !compact,
   children,
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
@@ -66,7 +72,12 @@ export function CalendarEventRow({
   });
 
   return (
-    <CalendarEntry hue={hue} state={state} density={compact ? "compact" : "comfortable"}>
+    <CalendarEntry
+      hue={hue}
+      surface={surface}
+      state={state}
+      density={compact ? "compact" : "comfortable"}
+    >
       <Checkbox
         tone={hue}
         checked={event.done}
@@ -80,10 +91,11 @@ export function CalendarEventRow({
         <CalendarEntryMeta>
           <DeadlineCategory tone={CATEGORY_TONES[event.category]} size="xs">
             <CategoryIcon aria-hidden />
-            <span className={compact ? "sr-only" : undefined}>
+            <span className={withCategoryWord ? undefined : "sr-only"}>
               {t(CATEGORY_LABEL_KEYS[event.category])}
             </span>
           </DeadlineCategory>
+          {courseName && <span>{courseName}</span>}
           <WhenMeta when={when} clock={clock} />
           {childLabel && (
             <span className="flex min-w-0 items-center gap-1">

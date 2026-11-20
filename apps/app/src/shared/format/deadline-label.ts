@@ -26,6 +26,7 @@ export interface WallDateParts {
   day: string;
   month: string;
   weekday: string;
+  weekdayLong: string;
 }
 
 export function wallDateParts(date: string): WallDateParts {
@@ -36,7 +37,13 @@ export function wallDateParts(date: string): WallDateParts {
     day: part({ day: "numeric" }),
     month: part({ month: "short" }),
     weekday: part({ weekday: "short" }),
+    weekdayLong: part({ weekday: "long" }),
   };
+}
+
+/** "Vendredi 20 novembre": the whole date a day's heading is named by, whatever today is. */
+export function fullDateLabel(date: string): string {
+  return capitalize(wallDateLabel(date, date));
 }
 
 export function dayLabelFrom(date: string, today: string): string {

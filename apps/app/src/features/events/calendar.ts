@@ -24,8 +24,16 @@ function firstOfMonth(date: string): string {
   return `${date.slice(0, 7)}-01`;
 }
 
-function periodStart(view: CalendarView, anchor: string): string {
-  return view === "week" ? anchor : mondayOf(firstOfMonth(anchor));
+/**
+ * Where a week starts: the thread of a phone reads the seven days from its anchor on, the planner
+ * of a wider block reads the school week, Monday to Sunday, so its weekend is never cut in two.
+ */
+export type WeekStart = "anchor" | "monday";
+
+function periodStart(view: CalendarView, anchor: string, weekStart: WeekStart): string {
+  if (view === "month") return mondayOf(firstOfMonth(anchor));
+
+  return weekStart === "monday" ? mondayOf(anchor) : anchor;
 }
 
 const LENGTHS = {
@@ -33,8 +41,12 @@ const LENGTHS = {
   month: MONTH_GRID_DAYS,
 } as const satisfies Record<CalendarView, number>;
 
-export function calendarPeriod(view: CalendarView, anchor: string): CalendarPeriod {
-  const days = daysFrom(periodStart(view, anchor), LENGTHS[view]);
+export function calendarPeriod(
+  view: CalendarView,
+  anchor: string,
+  weekStart: WeekStart = "anchor",
+): CalendarPeriod {
+  const days = daysFrom(periodStart(view, anchor, weekStart), LENGTHS[view]);
 
   return { from: days[0] ?? anchor, to: days.at(-1) ?? anchor, days };
 }
@@ -45,11 +57,15 @@ export interface CalendarPlace {
   courseId?: string;
 }
 
-export function placePeriod(place: CalendarPlace, { today }: Pick<SchoolClock, "today">) {
+export function placePeriod(
+  place: CalendarPlace,
+  { today }: Pick<SchoolClock, "today">,
+  weekStart: WeekStart = "anchor",
+) {
   const view = place.view ?? "week";
   const anchor = place.date ?? today;
 
-  return { view, today, anchor, period: calendarPeriod(view, anchor) };
+  return { view, today, anchor, period: calendarPeriod(view, anchor, weekStart) };
 }
 
 function shiftMonth(anchor: string, step: 1 | -1): string {
@@ -65,8 +81,13 @@ export function shiftAnchor(view: CalendarView, anchor: string, step: 1 | -1): s
   return shiftDate(anchor, step * LENGTHS[view]);
 }
 
-export function periodHolds(view: CalendarView, anchor: string, date: string): boolean {
-  const { from, to } = calendarPeriod(view, anchor);
+export function periodHolds(
+  view: CalendarView,
+  anchor: string,
+  date: string,
+  weekStart: WeekStart = "anchor",
+): boolean {
+  const { from, to } = calendarPeriod(view, anchor, weekStart);
   const inRange = date >= from && date <= to;
 
   return view === "month" ? inRange && date.slice(0, 7) === anchor.slice(0, 7) : inRange;
@@ -80,7 +101,7 @@ export function daysOf(period: CalendarPeriod, events: readonly EventItem[]): Ca
 }
 
 export function jumpToDay(date: string): void {
-  const target = document.querySelector<HTMLElement>(`[data-jump="${date}"]`);
+  const target = document.querySelector<HTMLElement>(`[data-jump~="${date}"]`);
   target?.scrollIntoView?.({ block: "start" });
   target?.focus({ preventScroll: true });
 }

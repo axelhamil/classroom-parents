@@ -1205,6 +1205,15 @@
     scroll-padding-top: calc(var(--app-bar-height) + env(safe-area-inset-top));
   }
 
+  /* The phone agenda's strip of days sticks under the app bar: what Tab or a jump scrolls to lands below both. */
+  html:has([data-slot="calendar-day-strip"]) {
+    scroll-padding-top: calc(
+      var(--app-bar-height) +
+      var(--day-strip-height) +
+      env(safe-area-inset-top)
+    );
+  }
+
   @media (width < 48rem) {
     html {
       scroll-padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
