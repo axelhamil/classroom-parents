@@ -8,7 +8,8 @@ import { useTranslation } from "react-i18next";
 import { reviewView } from "../../../../shared/agenda/views";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
-import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
+import { useTileFrame } from "../../../../shared/dashboard/tile-frame";
+import { childHue, childLabelOf, deadlineSurface } from "../../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { lateBacklogQueryOptions, reviewEventsQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
@@ -33,13 +34,16 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
     setHandOver(false);
   }, []);
 
+  const { size } = useTileFrame();
+  const glance = size === "s";
+  const listed = size === "l" || size === "xl";
   const pastNote =
     past.length > 0
       ? t("blocks.review.past", { count: past.length })
       : t("blocks.review.emptyHint");
 
   return (
-    <BlockPanel title={title} icon={ConfirmDateIcon}>
+    <BlockPanel title={title} icon={ConfirmDateIcon} fits={!listed}>
       {coming.isSuccess && upcoming.length === 0 && (
         <BlockEmpty
           ref={handOver ? takeFocus : undefined}
@@ -51,15 +55,20 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
       {upcoming.length > 0 && (
         <>
           <ReviewFigure events={upcoming} family={family} />
-          <ReviewGlance events={upcoming} today={clock.today} />
-          <ReviewRows
-            events={upcoming}
-            family={family}
-            today={clock.today}
-            confirm={confirm}
-            onLastLeft={() => setHandOver(true)}
-          />
-          {past.length > 0 && (
+          <ReviewReason events={upcoming} />
+          {glance ? (
+            <ReviewNearest events={upcoming} today={clock.today} />
+          ) : (
+            <ReviewRows
+              events={upcoming}
+              family={family}
+              today={clock.today}
+              confirm={confirm}
+              onLastLeft={() => setHandOver(true)}
+              compact={!listed}
+            />
+          )}
+          {listed && past.length > 0 && (
             <TypographyMuted className="line-clamp-2">{pastNote}</TypographyMuted>
           )}
         </>
@@ -87,32 +96,40 @@ function ReviewFigure({ events, family }: ReviewFigureProps) {
         label={t("blocks.review.openAll", { count })}
         childLabel={(id) => childLabelOf(family, id)}
         childColor={(id) => childHue(family, id)}
+        surface={deadlineSurface(family)}
       />
     </DashboardPanelFigure>
   );
 }
 
-interface ReviewGlanceProps {
+interface ReviewReasonProps {
+  events: readonly EventItem[];
+}
+
+function ReviewReason({ events }: ReviewReasonProps) {
+  const { t } = useTranslation("events");
+
+  return (
+    <TypographyMuted className="line-clamp-1">{t(mainReviewSentenceKey(events))}</TypographyMuted>
+  );
+}
+
+interface ReviewNearestProps {
   events: readonly EventItem[];
   today: string;
 }
 
-function ReviewGlance({ events, today }: ReviewGlanceProps) {
-  const { t } = useTranslation(["home", "events"]);
+function ReviewNearest({ events, today }: ReviewNearestProps) {
+  const { t } = useTranslation("home");
   const [nearest] = events;
   if (!nearest) return null;
 
   const when = inSentence(deadlineLabel(nearest.deadlineDate, nearest.deadlineTime, today));
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden md:contain-size @2xs/panel:hidden">
-      <TypographyMuted className="line-clamp-2">
-        {t(mainReviewSentenceKey(events), { ns: "events" })}
-      </TypographyMuted>
-      <TypographyMuted className="line-clamp-1">
-        {t("blocks.review.nearest", { title: nearest.title, when })}
-      </TypographyMuted>
-    </div>
+    <TypographyMuted className="line-clamp-1">
+      {t("blocks.review.nearest", { title: nearest.title, when })}
+    </TypographyMuted>
   );
 }
 

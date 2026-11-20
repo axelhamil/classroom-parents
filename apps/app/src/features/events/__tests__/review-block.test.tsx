@@ -25,6 +25,10 @@ function pool() {
 
 const MUSEUM_ID = museum().id;
 
+function tile(width: 3 | 4 | 6) {
+  return [{ id: "review", w: width, h: 1, hidden: false }];
+}
+
 function reviewBlock(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: "À vérifier" });
 }
@@ -53,12 +57,12 @@ describe("the block À vérifier", () => {
     localStorage.clear();
   });
 
-  it("given dates to check, then each line names the child, the date read, why it is in doubt and the source passage", async () => {
+  it("given a large tile, then each line names the child, the date read, why it is in doubt and the source passage", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar([CHILD], [museum(), pool()]);
+    givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(6) });
     await renderAppAt("/");
 
-    const list = await within(await reviewBlock()).findByRole("region", {
+    const list = await within(await reviewBlock()).findByRole("list", {
       name: "Dates à vérifier",
     });
     const [line] = within(list).getAllByRole("listitem");
@@ -68,6 +72,36 @@ describe("the block À vérifier", () => {
     expect(line?.textContent).toContain("« Sortie au musée jeudi 18 novembre »");
     expect(line && within(line).getByRole("img", { name: CHILD.label })).toBeDefined();
     expect(within(await reviewBlock()).getByText("dates à vérifier")).toBeDefined();
+  });
+
+  it("given a medium tile, then it shows the count, the main reason and the two nearest lines with their actions, in no scroller of its own", async () => {
+    at(THURSDAY_MORNING);
+    const later = deadline(3, "2026-11-25", "Kermesse", { status: "needs_review" });
+    givenCalendar([CHILD], [museum(), pool(), later], { homeLayout: tile(4) });
+    await renderAppAt("/");
+
+    const block = await reviewBlock();
+    const list = await within(block).findByRole("list", { name: "Dates à vérifier" });
+    const lines = within(list).getAllByRole("listitem");
+
+    expect(lines.map((line) => line.textContent)).toEqual([
+      expect.stringContaining("Sortie au musée"),
+      expect.stringContaining("Piscine"),
+    ]);
+    expect(within(lines[0] ?? block).getByRole("button", { name: "C'est bon : Sortie au musée" }));
+    expect(within(block).getByText("3")).toBeDefined();
+    expect(block.querySelector("[data-slot=scroll-region]")).toBeNull();
+  });
+
+  it("given a small tile, then it shows the count and the nearest date, without lines", async () => {
+    at(THURSDAY_MORNING);
+    givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(3) });
+    await renderAppAt("/");
+
+    const block = await reviewBlock();
+
+    expect(await within(block).findByText(/La plus proche : Sortie au musée/)).toBeDefined();
+    expect(within(block).queryByRole("list", { name: "Dates à vérifier" })).toBeNull();
   });
 
   it("given a date confirmed on its line, then the line leaves at once and the confirmation is sent right away", async () => {

@@ -8,10 +8,10 @@ import { STORAGE_STATE } from "./playwright.config";
 const SATURDAY = shiftDate(SCHOOL_THURSDAY, 2);
 
 const HOME = [
-  { id: "today", w: 8, h: 2, hidden: false },
-  { id: "tonight", w: 4, h: 1, hidden: false },
-  { id: "overdue", w: 4, h: 1, hidden: false },
-  { id: "calendar", w: 12, h: 3, hidden: false },
+  { id: "today", size: "l" },
+  { id: "tonight", size: "m" },
+  { id: "overdue", size: "m" },
+  { id: "calendar", size: "xl" },
 ];
 
 function deadline(index: number, offset: number, title: string, extra: object = {}) {

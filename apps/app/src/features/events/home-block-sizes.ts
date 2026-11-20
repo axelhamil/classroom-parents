@@ -17,7 +17,7 @@ export const HOME_BLOCK_SIZES: Readonly<Record<string, BlockSizes>> = {
   calendar: { allowed: ["m", "l", "xl"], defaultSize: "xl" },
   today: { allowed: ["m", "l", "xl"], defaultSize: "l" },
   tonight: { allowed: ["s", "m", "l"], defaultSize: "m" },
-  review: GLANCE_OR_LIST,
+  review: { allowed: ["s", "m", "l", "xl"], defaultSize: "m" },
   progress: GLANCE_OR_LIST,
   documents: GLANCE_OR_LIST,
   outings: GLANCE_OR_LIST,

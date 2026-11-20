@@ -1,7 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { ListRow, ListRowAction, ListRowContent } from "@packages/ui/components/ui/list-row";
-import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { TypographyInline } from "@packages/ui/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
@@ -16,15 +15,25 @@ import { reviewSentenceKeys } from "../../review-labels";
 
 const INLINE_ROWS = 20;
 
+const GLANCE_ROWS = 2;
+
 export interface ReviewRowsProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
   today: string;
   confirm: (event: EventItem) => Promise<void>;
   onLastLeft: () => void;
+  compact?: boolean;
 }
 
-export function ReviewRows({ events, family, today, confirm, onLastLeft }: ReviewRowsProps) {
+export function ReviewRows({
+  events,
+  family,
+  today,
+  confirm,
+  onLastLeft,
+  compact = false,
+}: ReviewRowsProps) {
   const { t } = useTranslation("home");
   const list = useRef<HTMLUListElement>(null);
 
@@ -37,23 +46,26 @@ export function ReviewRows({ events, family, today, confirm, onLastLeft }: Revie
   };
 
   return (
-    <ScrollRegion
-      variant="list"
-      label={t("blocks.review.list")}
-      className="hidden min-h-0 flex-1 md:contain-size @2xs/panel:block"
+    <ul
+      ref={list}
+      aria-label={t("blocks.review.list")}
+      className={
+        compact
+          ? "flex min-h-0 flex-1 flex-col [container-type:size] [@container(max-height:6rem)]:[&>li:nth-child(n+2)]:hidden [@container(max-height:3.5rem)]:[&_[data-when]]:hidden"
+          : "flex flex-col"
+      }
     >
-      <ul ref={list} className="flex flex-col">
-        {events.slice(0, INLINE_ROWS).map((event) => (
-          <ReviewRow
-            key={event.id}
-            event={event}
-            family={family}
-            today={today}
-            onConfirm={(trigger) => confirmRow(event, trigger)}
-          />
-        ))}
-      </ul>
-    </ScrollRegion>
+      {events.slice(0, compact ? GLANCE_ROWS : INLINE_ROWS).map((event) => (
+        <ReviewRow
+          key={event.id}
+          event={event}
+          family={family}
+          today={today}
+          compact={compact}
+          onConfirm={(trigger) => confirmRow(event, trigger)}
+        />
+      ))}
+    </ul>
   );
 }
 
@@ -68,15 +80,33 @@ interface ReviewRowProps {
   event: EventItem;
   family: readonly ChildDto[];
   today: string;
+  compact: boolean;
   onConfirm: (trigger: HTMLElement) => void;
 }
 
-function ReviewRow({ event, family, today, onConfirm }: ReviewRowProps) {
+function ReviewRow({ event, family, today, compact, onConfirm }: ReviewRowProps) {
   const { t } = useTranslation(["home", "events"]);
   const child = family.find((candidate) => candidate.id === event.childId);
   const name = childLabelOf(family, event.childId);
   const [reason] = reviewSentenceKeys(event);
   const quote = event.evidence?.quote;
+  const when = inSentence(deadlineLabel(event.deadlineDate, event.deadlineTime, today));
+  const actions = <ReviewActions event={event} onConfirm={onConfirm} />;
+
+  if (compact)
+    return (
+      <ListRow variant="ruled" className="shrink-0 py-1">
+        <ListRowContent className="min-w-0 flex-1 gap-0">
+          <TypographyInline weight="semibold" className="line-clamp-1">
+            {event.title}
+          </TypographyInline>
+          <TypographyInline size="sm" tone="muted" className="line-clamp-1" data-when>
+            {t("blocks.review.proposed", { when })}
+          </TypographyInline>
+        </ListRowContent>
+        <ListRowAction>{actions}</ListRowAction>
+      </ListRow>
+    );
 
   return (
     <ListRow variant="stacked">
@@ -92,9 +122,7 @@ function ReviewRow({ event, family, today, onConfirm }: ReviewRowProps) {
           {event.title}
         </TypographyInline>
         <TypographyInline size="sm" tone="muted">
-          {t("blocks.review.proposed", {
-            when: inSentence(deadlineLabel(event.deadlineDate, event.deadlineTime, today)),
-          })}
+          {t("blocks.review.proposed", { when })}
         </TypographyInline>
         {reason && (
           <TypographyInline size="sm" className="line-clamp-2">
@@ -108,25 +136,40 @@ function ReviewRow({ event, family, today, onConfirm }: ReviewRowProps) {
         )}
       </ListRowContent>
       <ListRowAction className="ms-11 basis-full flex-wrap @md/panel:ms-0 @md/panel:basis-auto @md/panel:self-center">
-        <Button
-          type="button"
-          size="sm"
-          aria-label={t("blocks.review.confirmNamed", { title: event.title })}
-          data-review-confirm
-          onClick={(click) => onConfirm(click.currentTarget)}
-        >
-          {t("blocks.review.confirm")}
-        </Button>
-        <Button asChild size="sm" variant="outline">
-          <Link
-            to="/events/$eventId/edit"
-            params={{ eventId: event.id }}
-            aria-label={t("blocks.review.fixNamed", { title: event.title })}
-          >
-            {t("blocks.review.fix")}
-          </Link>
-        </Button>
+        {actions}
       </ListRowAction>
     </ListRow>
+  );
+}
+
+interface ReviewActionsProps {
+  event: EventItem;
+  onConfirm: (trigger: HTMLElement) => void;
+}
+
+function ReviewActions({ event, onConfirm }: ReviewActionsProps) {
+  const { t } = useTranslation("home");
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        aria-label={t("blocks.review.confirmNamed", { title: event.title })}
+        data-review-confirm
+        onClick={(click) => onConfirm(click.currentTarget)}
+      >
+        {t("blocks.review.confirm")}
+      </Button>
+      <Button asChild size="sm" variant="outline">
+        <Link
+          to="/events/$eventId/edit"
+          params={{ eventId: event.id }}
+          aria-label={t("blocks.review.fixNamed", { title: event.title })}
+        >
+          {t("blocks.review.fix")}
+        </Link>
+      </Button>
+    </>
   );
 }

@@ -25,7 +25,7 @@ import { classifySchoolError } from "../../../shared/children/school-error";
 import { SchoolProcedure } from "../../../shared/children/school-procedure";
 import { useStartChildLink } from "../../../shared/children/use-start-child-link";
 import { EventCard } from "../../../shared/events/event-card";
-import type { ChildHue } from "../../../shared/format/child-hue";
+import type { ChildHue, DeadlineSurface } from "../../../shared/format/child-hue";
 import { analysisState, type OnboardingMode } from "../onboarding-steps";
 import { StepFrame } from "./step-frame";
 import { StepList } from "./step-list";
@@ -34,6 +34,7 @@ export interface AnalysisStepProps {
   mode: OnboardingMode;
   child: ChildDto;
   hue: ChildHue;
+  surface: DeadlineSurface;
   onNext: () => void;
 }
 
@@ -57,7 +58,7 @@ function WayOut({ primary }: WayOutProps) {
   );
 }
 
-export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
+export function AnalysisStep({ mode, child, hue, surface, onNext }: AnalysisStepProps) {
   const { t } = useTranslation("onboarding");
   const syncRequested = useIsMutating({ mutationKey: syncChildMutationOptions.mutationKey }) > 0;
   const state = analysisState(child, syncRequested);
@@ -193,7 +194,7 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
         <RevealList>
           {events.map((event) => (
             <li key={event.id}>
-              <EventCard event={event} childLabel={child.label} hue={hue} />
+              <EventCard event={event} childLabel={child.label} hue={hue} surface={surface} />
             </li>
           ))}
         </RevealList>

@@ -16,6 +16,7 @@ import { type DayPlan, nextOpenAfter, tonightView } from "../../../../shared/age
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
+import { useTileFrame } from "../../../../shared/dashboard/tile-frame";
 import { childHue } from "../../../../shared/format/child-hue";
 import { inSentence } from "../../../../shared/format/deadline-label";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
@@ -23,6 +24,7 @@ import { useChecklist } from "../../hooks/use-checklist";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { StepLists } from "../prepare-checklist";
 import { BlockEmpty, NextDeadlineLink } from "./block-empty";
+import { BlockGlance } from "./block-glance";
 import { BlockPanel } from "./block-panel";
 
 function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
@@ -32,12 +34,13 @@ function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
   const day = inSentence(relativeDayLabel(plan.day, clock.today));
   const withSteps = [...plan.toPrepare, ...plan.suggested];
   const note = plan.toPrepare.length > 0 ? "blocks.tonight.day" : "blocks.tonight.suggested";
+  const glance = useTileFrame().size === "s";
 
   return (
     <BlockPanel
       title={title}
       icon={PackBagIcon}
-      note={query.isSuccess && withSteps.length > 0 && t(note, { day })}
+      note={query.isSuccess && withSteps.length > 0 && !glance && t(note, { day })}
       hero
     >
       {query.isSuccess && withSteps.length === 0 && (
@@ -49,7 +52,14 @@ function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
           today={clock.today}
         />
       )}
-      {withSteps.length > 0 && (
+      {withSteps.length > 0 && glance && (
+        <BlockGlance
+          events={withSteps}
+          label={(count) => t("blocks.tonight.count", { count })}
+          today={clock.today}
+        />
+      )}
+      {withSteps.length > 0 && !glance && (
         <BriefingGroups>
           {family.map((child) => {
             const own = withSteps.filter((event) => event.childId === child.id);

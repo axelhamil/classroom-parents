@@ -24,6 +24,7 @@ export interface BlockPanelProps {
   startAt?: string;
   jump?: string;
   hero?: boolean;
+  fits?: boolean;
   children?: ReactNode;
 }
 
@@ -37,6 +38,7 @@ export function BlockPanel({
   startAt,
   jump,
   hero,
+  fits = false,
   children,
 }: BlockPanelProps) {
   const { t } = useTranslation("home");
@@ -62,7 +64,7 @@ export function BlockPanel({
           {frame.controls}
         </Header>,
       )}
-      <BlockBody frame={frame} titleId={titleId} note={note} startAt={startAt}>
+      <BlockBody frame={frame} titleId={titleId} note={note} startAt={startAt} fits={fits}>
         {children}
       </BlockBody>
       {frame.footer && children ? (
@@ -81,10 +83,11 @@ interface BlockBodyProps {
   titleId: string;
   note: ReactNode;
   startAt: string | undefined;
+  fits: boolean;
   children: ReactNode;
 }
 
-function BlockBody({ frame, titleId, note, startAt, children }: BlockBodyProps) {
+function BlockBody({ frame, titleId, note, startAt, fits, children }: BlockBodyProps) {
   const openAt = useOpenAt(startAt, frame);
 
   if (!children) return null;
@@ -96,7 +99,7 @@ function BlockBody({ frame, titleId, note, startAt, children }: BlockBodyProps) 
     </>
   );
 
-  if (frame.size === "s" || frame.flows)
+  if (fits || frame.size === "s" || frame.flows)
     return <DashboardPanelBody inert={frame.editing}>{content}</DashboardPanelBody>;
 
   return (

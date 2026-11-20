@@ -59,7 +59,7 @@ function NotesBlock({ title }: HomeBlockProps) {
   const query = useQuery(homeNoteQueryOptions);
 
   return (
-    <BlockPanel title={title} icon={NotesIcon}>
+    <BlockPanel title={title} icon={NotesIcon} fits>
       {query.data && <NoteEditor saved={query.data.body} />}
     </BlockPanel>
   );

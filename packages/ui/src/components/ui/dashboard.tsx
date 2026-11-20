@@ -71,7 +71,7 @@ function DashboardTile({ className, x, y, w, h, ...props }: DashboardTileProps) 
 }
 
 const dashboardPanelVariants = cva(
-  "group/panel @container/panel relative flex min-h-0 min-w-0 flex-1 scroll-mt-24 flex-col gap-2 [--focus-surface:var(--color-card)] text-card-foreground outline-none focus-visible:ring focus-visible:ring-ring",
+  "group/panel @container/panel relative flex min-h-0 min-w-0 flex-1 scroll-mt-24 flex-col [--focus-surface:var(--color-card)] text-card-foreground outline-none focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       fit: {
@@ -95,7 +95,8 @@ interface DashboardPanelProps
 /**
  * A titled block on paper; label it with `aria-labelledby` pointing at its title. It lays out a header
  * of a fixed height, a body that takes what is left, then an optional footer, so every tile of one
- * size looks the same whatever it holds. `natural` is for a block made of cards of its own (the
+ * size looks the same whatever it holds. The body starts right under the header: half the header's
+ * height already sits below the title, as much as the room above it. `natural` is for a block made of cards of its own (the
  * week): a phone shows it on the page, without a card around the cards. The panel is a size
  * container (`@container/panel`): a block reads its own width, so the same block can be a glance
  * in a narrow tile and a list in a wide one. `hero` tints the block with the action: only the
@@ -189,7 +190,7 @@ function DashboardPanelFooter({ className, ...props }: React.ComponentProps<"foo
   return (
     <footer
       data-slot="dashboard-panel-footer"
-      className={cn("flex shrink-0 items-center justify-end", className)}
+      className={cn("flex shrink-0 items-center justify-end pt-2", className)}
       {...props}
     />
   );
@@ -228,7 +229,7 @@ function DashboardPanelEmpty({ className, ...props }: React.ComponentProps<"div"
     <div
       data-slot="dashboard-panel-empty"
       className={cn(
-        "flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden rounded-inner [container-type:size] text-center text-small text-balance text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring [&>p:first-of-type]:font-display [&>p:first-of-type]:text-heading [&>p:first-of-type]:text-foreground [&>p]:line-clamp-2 [@container(max-height:6rem)]:[&>[data-slot=icon-tile]]:hidden [@container(max-height:8rem)_and_(max-width:15rem)]:[&>[data-slot=icon-tile]]:hidden [@container(max-height:4.5rem)]:[&>p:last-of-type]:line-clamp-1 [&>[data-slot=icon-tile]]:bg-primary-container [&>[data-slot=icon-tile]]:text-primary group-data-[tone=hero]/panel:[&>[data-slot=icon-tile]]:bg-card in-data-[slot=briefing]:[&>[data-slot=icon-tile]]:bg-card motion-safe:[&>[data-slot=icon-tile]]:animate-pop-in",
+        "flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden rounded-inner [container-type:size] text-center text-small text-balance text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring [&>p:first-of-type]:font-display [&>p:first-of-type]:text-heading [&>p:first-of-type]:text-foreground [&>p]:line-clamp-2 [@container(max-height:6rem)]:[&>[data-slot=icon-tile]]:hidden [@container(max-height:8rem)_and_(max-width:15rem)]:[&>[data-slot=icon-tile]]:hidden [@container(max-height:7rem)_and_(max-width:24rem)]:[&>[data-slot=icon-tile]]:hidden [@container(max-height:4.5rem)]:[&>p:last-of-type]:line-clamp-1 [&>[data-slot=icon-tile]]:bg-primary-container [&>[data-slot=icon-tile]]:text-primary group-data-[tone=hero]/panel:[&>[data-slot=icon-tile]]:bg-card in-data-[slot=briefing]:[&>[data-slot=icon-tile]]:bg-card motion-safe:[&>[data-slot=icon-tile]]:animate-pop-in",
         className,
       )}
       {...props}

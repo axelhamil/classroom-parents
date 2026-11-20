@@ -21,7 +21,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../api/queries/children";
 import { type EventFilters, type EventScope, eventPagesQueryOptions } from "../api/queries/events";
-import { childHue, childLabelOf } from "../format/child-hue";
+import { childHue, childLabelOf, deadlineSurface } from "../format/child-hue";
 import { QueryState } from "../query/query-state";
 import { EventList } from "./event-list";
 
@@ -175,6 +175,7 @@ export function EventBoard({ scope, filters, family, onResetFilters }: EventBoar
             events={data.pages.flatMap((page) => page.items)}
             childLabel={(childId) => childLabelOf(family, childId)}
             childColor={(childId) => childHue(family, childId)}
+            surface={deadlineSurface(family)}
             muted={scope === "history"}
           />
           {events.hasNextPage && (

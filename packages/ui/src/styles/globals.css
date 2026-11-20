@@ -190,6 +190,9 @@
   --section-nav-height: 3.5rem;
   --scroll-region-height: 30rem;
   --scroll-fade-size: 1rem;
+  /* Above the first row of a tile: the room of a focus ring, no more, so the body starts right
+     under the title. Its top fade is nothing at rest and grows only once the body scrolls. */
+  --scroll-fade-ring: 0.25rem;
   /* Header of a home tile: the title row beside its menu button, fixed so the body takes what is left. */
   --dashboard-header-height: var(--touch-target);
   /* Inner gutter of a scroll region: holds the 3px focus ring and the 4px avatar ring (2px offset + 2px ring) its overflow would clip. */
@@ -2249,14 +2252,16 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
    support query, so where scroll-driven animations are missing the region
    sets both edges from its sentinels. The gesture chains to the page at
    the end of the course, and the thin bar only shows on hover, focus or
-   while scrolling: at rest a tile reads as a card, not as a list. */
+   while scrolling: at rest a tile reads as a card, not as a list. Its top
+   keeps only the room of a focus ring: the top fade is nothing until the
+   body scrolls, so the first row sits right under the title. */
 @utility scroll-fade-tile {
   overflow-y: auto;
   overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  padding-block: var(--scroll-fade-size);
+  padding-block: var(--scroll-fade-ring) var(--scroll-fade-size);
   scroll-padding-block: var(--scroll-fade-size);
   mask-image: linear-gradient(
     transparent,
