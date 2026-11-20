@@ -1,6 +1,6 @@
 import { daysFrom, mondayOf, shiftDate } from "@packages/ddd-kit/days";
+import type { SchoolClock } from "../../shared/agenda/school-clock";
 import type { EventItem } from "../../shared/api/queries/events";
-import { schoolToday } from "../../shared/format/school-today";
 
 export const CALENDAR_VIEWS = ["week", "month"] as const;
 
@@ -8,7 +8,6 @@ export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
 const WEEK_DAYS = 7;
 const MONTH_GRID_DAYS = 42;
-const CRUNCH_FROM = 3;
 
 export interface CalendarPeriod {
   from: string;
@@ -20,8 +19,6 @@ export interface CalendarDay {
   date: string;
   events: EventItem[];
 }
-
-type Deadline = Pick<EventItem, "done" | "deadlineDate">;
 
 function firstOfMonth(date: string): string {
   return `${date.slice(0, 7)}-01`;
@@ -47,9 +44,8 @@ export interface CalendarPlace {
   date?: string;
 }
 
-export function placePeriod(place: CalendarPlace, now: Date) {
+export function placePeriod(place: CalendarPlace, { today }: Pick<SchoolClock, "today">) {
   const view = place.view ?? "week";
-  const today = schoolToday(now);
   const anchor = place.date ?? today;
 
   return { view, today, anchor, period: calendarPeriod(view, anchor) };
@@ -80,20 +76,6 @@ export function daysOf(period: CalendarPeriod, events: readonly EventItem[]): Ca
     date,
     events: events.filter((event) => event.deadlineDate === date),
   }));
-}
-
-export function isCrunchDay(date: string, events: readonly Deadline[], today: string): boolean {
-  if (date < today) return false;
-
-  return events.filter((event) => !event.done).length >= CRUNCH_FROM;
-}
-
-export type DayTone = "today" | "past" | "default";
-
-export function dayTone(date: string, today: string): DayTone {
-  if (date === today) return "today";
-
-  return date < today ? "past" : "default";
 }
 
 export function jumpToDay(date: string): void {

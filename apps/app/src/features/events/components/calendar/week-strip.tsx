@@ -2,10 +2,11 @@ import { HueDot } from "@packages/ui/components/ui/hue-dot";
 import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-group";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isCrunchDay } from "../../../../shared/agenda/calendar-days";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { childHue } from "../../../../shared/format/child-hue";
 import { dayLabel, wallDateParts } from "../../../../shared/format/deadline-label";
-import { type CalendarDay, isCrunchDay, jumpToDay } from "../../calendar";
+import { type CalendarDay, jumpToDay } from "../../calendar";
 
 export interface WeekStripProps {
   days: readonly CalendarDay[];

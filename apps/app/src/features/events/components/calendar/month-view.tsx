@@ -10,11 +10,12 @@ import {
 } from "@packages/ui/components/ui/month-planner";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isCrunchDay } from "../../../../shared/agenda/calendar-days";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { childHue } from "../../../../shared/format/child-hue";
 import { isoDay, localDay } from "../../../../shared/format/local-day";
 import { useMediaQuery, WIDE_QUERY } from "../../../../shared/layout/use-media-query";
-import { type CalendarDay, isCrunchDay } from "../../calendar";
+import type { CalendarDay } from "../../calendar";
 import { CalendarDaySection } from "./calendar-day-section";
 
 const DOTS_MAX = 3;
