@@ -43,21 +43,22 @@ async function expectOnePageWithoutOverflow(page: Page): Promise<void> {
   expect(await views.evaluate((list) => list.scrollWidth <= list.clientWidth)).toBe(true);
 }
 
-async function expectWholeWeekRowsUnderBriefing(page: Page): Promise<void> {
+async function expectWeekRowsUnderBriefing(page: Page): Promise<void> {
   const columns = page.locator(
     "[data-slot=calendar-week][data-arrangement=board] [data-slot=calendar-day]",
   );
   await expect(columns).toHaveCount(7);
   const titles = page.locator("[data-slot=calendar-week] [data-slot=calendar-entry-link]");
   await expect(titles.first()).toBeVisible();
-  const clipped = await titles.evaluateAll(
+  const misdrawn = await titles.evaluateAll(
     (links) =>
-      links.filter(
-        (link) =>
-          link.scrollHeight > link.clientHeight + 1 || link.scrollWidth > link.clientWidth + 1,
-      ).length,
+      links.filter((link) => {
+        const lines = link.clientHeight / Number.parseFloat(getComputedStyle(link).lineHeight);
+
+        return link.scrollWidth > link.clientWidth + 1 || Math.round(lines) > 2;
+      }).length,
   );
-  expect(clipped).toBe(0);
+  expect(misdrawn).toBe(0);
   const widths = await titles.evaluateAll((links) =>
     links.map((link) => link.getBoundingClientRect().width),
   );
@@ -466,7 +467,7 @@ test.describe("the week on a tablet", () => {
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    await expectWholeWeekRowsUnderBriefing(page);
+    await expectWeekRowsUnderBriefing(page);
     await expect(page.getByRole("radiogroup", { name: "Jours de la semaine" })).toBeHidden();
     await expectOnePageWithoutOverflow(page);
   });
@@ -481,12 +482,14 @@ test.describe("the week on a tablet", () => {
 test.describe("the week on a desktop", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
-  test("shows the week as a planner of whole titles under the briefing", async ({ page }) => {
+  test("shows the week as a planner of titles on two lines at most, under the briefing", async ({
+    page,
+  }) => {
     await page.clock.setFixedTime(todayAt("09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
     await page.goto(`/?view=week&date=${inDays(3)}`);
 
-    await expectWholeWeekRowsUnderBriefing(page);
+    await expectWeekRowsUnderBriefing(page);
     await expectOnePageWithoutOverflow(page);
   });
 

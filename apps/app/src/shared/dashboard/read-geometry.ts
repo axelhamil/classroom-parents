@@ -1,4 +1,11 @@
-import { type BlockSize, type GridItem, pack, toGrid, unitsFor } from "./dashboard-pack";
+import {
+  type BlockSize,
+  type GridItem,
+  pack,
+  tallOnTablet,
+  toGrid,
+  unitsFor,
+} from "./dashboard-pack";
 import type { LayoutBlock } from "./layout-migration";
 
 export interface ReadGeometry {
@@ -19,12 +26,16 @@ export function readGeometry(
   order: readonly LayoutBlock[],
   cols: number,
   flowing: ReadonlySet<string>,
+  tallSizesOf: (id: string) => readonly BlockSize[] = () => [],
 ): ReadGeometry {
   const sizes = new Map(order.map(({ id, size }) => [id, size]));
   const sizeOf = (id: string): BlockSize => sizes.get(id) ?? "m";
   const units = unitsFor(cols);
   const ids = order.map(({ id }) => id);
-  const tiles = toGrid(pack(ids, sizeOf, units).items, cols);
+  const tiles = toGrid(
+    pack(ids, sizeOf, units, tallOnTablet(tallSizesOf, sizeOf, cols)).items,
+    cols,
+  );
   const flow = units === 2 ? tiles.find(({ i }) => flowing.has(i)) : undefined;
   if (!flow) return { tiles, tracks: undefined };
 

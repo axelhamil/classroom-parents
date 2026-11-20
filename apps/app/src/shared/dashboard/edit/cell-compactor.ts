@@ -1,7 +1,13 @@
 import type { RefObject } from "react";
 import type { Compactor, Layout, LayoutItem } from "react-grid-layout";
 import type { BlockSize, GridItem } from "../dashboard-pack";
-import { type EditSlot, editGeometry, editSlots, type GridMetrics } from "./edit-geometry";
+import {
+  type EditSlot,
+  editGeometry,
+  editSlots,
+  type GridMetrics,
+  type TallOf,
+} from "./edit-geometry";
 
 export interface CellCompactorRefs {
   order: RefObject<readonly string[]>;
@@ -9,6 +15,7 @@ export interface CellCompactorRefs {
   metrics: RefObject<GridMetrics>;
   agendaPx: RefObject<number | undefined>;
   sizeOf: RefObject<(id: string) => BlockSize>;
+  tallOf: RefObject<TallOf>;
   onIndexChange: RefObject<(id: string, index: number) => void>;
 }
 
@@ -47,12 +54,19 @@ export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
   let placed: Placed | null = null;
 
   const geometryOf = (order: readonly string[]) =>
-    editGeometry(order, refs.sizeOf.current, refs.metrics.current, refs.agendaPx.current);
+    editGeometry(
+      order,
+      refs.sizeOf.current,
+      refs.metrics.current,
+      refs.agendaPx.current,
+      refs.tallOf.current,
+    );
 
   const placedFor = (order: readonly string[]): Placed => {
     const sizeOf = refs.sizeOf.current;
     const metrics = refs.metrics.current;
     const agendaPx = refs.agendaPx.current;
+    const tallOf = refs.tallOf.current;
     const sizes = order.map(sizeOf).join();
     const same =
       placed?.order === order &&
@@ -66,8 +80,8 @@ export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
       sizes,
       metrics,
       agendaPx,
-      geometry: editGeometry(order, sizeOf, metrics, agendaPx),
-      slots: editSlots(order, sizeOf, metrics, agendaPx),
+      geometry: editGeometry(order, sizeOf, metrics, agendaPx, tallOf),
+      slots: editSlots(order, sizeOf, metrics, agendaPx, tallOf),
     };
 
     return placed;

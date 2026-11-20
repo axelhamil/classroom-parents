@@ -78,6 +78,7 @@
   --surface-padding: 1rem;
   --popover-padding: 0.25rem;
   --block-padding: 0.75rem;
+  --block-padding-compact: 0.5rem;
   /* Coarse pointer first: md is the 44px touch target, lg is always md + 8px so a tab list holds a concentric trigger. */
   --control-sm: 2rem;
   --control-md: 2.75rem;
@@ -1132,6 +1133,7 @@
   --spacing-surface: var(--surface-padding);
   --spacing-popover: var(--popover-padding);
   --spacing-block: var(--block-padding);
+  --spacing-block-compact: var(--block-padding-compact);
   --spacing-control-sm: var(--control-sm);
   --spacing-control: var(--control-md);
   --spacing-control-lg: var(--control-lg);

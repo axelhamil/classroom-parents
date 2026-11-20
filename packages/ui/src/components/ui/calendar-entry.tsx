@@ -8,7 +8,11 @@ import { cn } from "../../libs/utils";
 const PAPERS: ("paper" | "urgent" | "overdue")[] = ["paper", "urgent", "overdue"];
 
 const calendarEntryVariants = cva(
-  "relative flex w-full min-w-0 items-start gap-3 rounded-inner border p-block text-small text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
+  [
+    "relative flex w-full min-w-0 items-start gap-3 rounded-inner border p-block text-small text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring",
+    "[&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
+    "[&>[data-slot=checkbox]]:mt-[calc((1lh-var(--spacing)*5)/2)] [&>[data-slot=checkbox]]:before:absolute [&>[data-slot=checkbox]]:before:-inset-3 [&>[data-slot=checkbox]]:before:content-['']",
+  ],
   {
     variants: {
       hue: childHueContainer,
@@ -26,8 +30,10 @@ const calendarEntryVariants = cva(
       },
       density: {
         comfortable: "",
-        compact:
-          "flex-wrap gap-2 px-2 py-2 [&>[data-slot=calendar-entry-body]]:basis-full [&>[data-slot=checkbox]]:order-last",
+        compact: [
+          "gap-2 px-block-compact py-1.5 [&>[data-slot=calendar-entry-body]]:gap-0.5 [&_[data-slot=calendar-entry-link]]:line-clamp-2 [&_[data-slot=calendar-entry-link]]:leading-snug",
+          "@container/entry @max-3xs/entry:[&_[data-slot=deadline-category]>span]:sr-only",
+        ],
       },
     },
     compoundVariants: CHILD_TONES.map((hue) => ({
@@ -40,7 +46,13 @@ const calendarEntryVariants = cva(
 );
 
 /**
- * One deadline of the agenda. `surface="tint"` fills it with its child's hue, which tells two
+ * One deadline of the agenda, its checkbox on the left, centred on the first line of the title
+ * whatever the type scale, its 44 px target drawn around it rather than by the card's height.
+ * `density="compact"` is the card of the planner and the thread: two lines of title at most and
+ * one line of meta, so three deadlines of a day stand in a tile without a scroll. In a narrow
+ * card the category keeps its icon and its word is only read, so the meta stays on one line
+ * without cutting anything.
+ * `surface="tint"` fills it with its child's hue, which tells two
  * children apart; `surface="paper"` is the neutral card of a family with one child, whose hue
  * only remains as an edge on the leading side, and `urgent` or `overdue` is that paper breathed
  * with its badge's colour. The child's edge is the card's only coloured edge: its border is the
@@ -95,7 +107,7 @@ function CalendarEntryLink({ className, asChild = false, ...props }: CalendarEnt
     <Comp
       data-slot="calendar-entry-link"
       className={cn(
-        "font-semibold hyphens-auto wrap-anywhere outline-none after:absolute after:inset-0 after:rounded-inner after:content-['']",
+        "font-semibold text-pretty wrap-break-word outline-none after:absolute after:inset-0 after:rounded-inner after:content-['']",
         className,
       )}
       {...props}

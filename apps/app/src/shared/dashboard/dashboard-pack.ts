@@ -115,16 +115,41 @@ function growLastRight(placements: Placement[]): void {
  * a mix read top left to bottom right, and an XL takes a whole row of cells.
  * A cell left incomplete first pulls the next block that fits, then grows its
  * own blocks so no row keeps a hole. Positions depend only on the order, the
- * sizes and the width, never on what the blocks show.
+ * sizes and the width, never on what the blocks show. A block `tallOf` names takes one more
+ * row, with the row of cells it sits in: the size table asks it where a row is too short for
+ * what the block must show.
  */
 export function pack(
   order: readonly string[],
   sizeOf: (id: string) => BlockSize,
   units: GridUnits,
+  tallOf: (id: string) => boolean = () => false,
 ): PackedLayout {
   const entries = order.map((id) => ({ id, size: sizeOf(id) }));
+  const items = new CellPacker(units).run(entries);
 
-  return { items: new CellPacker(units).run(entries) };
+  for (const id of order.filter(tallOf)) stretchRow(items, id);
+
+  return { items };
+}
+
+/**
+ * Gives a tall block one more row: its row of cells grows by one, the blocks that end with it
+ * grow with it so the row keeps no hole, and every block below moves down by one.
+ */
+function stretchRow(items: PackedItem[], id: string): void {
+  const tall = items.find((item) => item.id === id);
+  if (!tall) return;
+
+  const bottom = tall.y + tall.h;
+
+  for (const item of items) {
+    if (item.y >= bottom) item.y += 1;
+    else if (item.y + item.h === bottom) {
+      item.h += 1;
+      item.grown ||= item !== tall;
+    }
+  }
 }
 
 class CellPacker {
@@ -274,6 +299,21 @@ class CellPacker {
       pulled,
     };
   }
+}
+
+/** The column count of a tablet's home, where a row is at its shortest beside a phone's. */
+export const TABLET_COLUMNS = 8;
+
+/**
+ * Which blocks take one more row at a column count: on a tablet, those whose size is among the
+ * sizes their table makes tall. Read and edit both ask it, so a tile keeps one rectangle.
+ */
+export function tallOnTablet(
+  tallSizesOf: (id: string) => readonly BlockSize[],
+  sizeOf: (id: string) => BlockSize,
+  cols: number,
+): (id: string) => boolean {
+  return (id) => cols === TABLET_COLUMNS && tallSizesOf(id).includes(sizeOf(id));
 }
 
 /** The grid width in units for a column count: 4 columns is the phone. */

@@ -11,7 +11,7 @@ import {
 import { type EventCallback, GridLayout, useContainerWidth } from "react-grid-layout";
 import { defaultConstraints } from "react-grid-layout/core";
 import { touchFeedback } from "../../motion/haptic";
-import type { BlockSize } from "../dashboard-pack";
+import { type BlockSize, tallOnTablet } from "../dashboard-pack";
 import type { Draft } from "../layout-commands";
 import type { LayoutBlock } from "../layout-migration";
 import { createCellCompactor } from "./cell-compactor";
@@ -36,6 +36,7 @@ export interface HomeEditGridProps extends EditGridEvents {
   agendaPx: number | undefined;
   resizable: boolean;
   allowedOf: (id: string) => readonly BlockSize[];
+  tallSizesOf: (id: string) => readonly BlockSize[];
   renderTile: (block: LayoutBlock) => ReactNode;
   /** Drawn until the grid knows its width and its row height: the read grid, in the same rectangles. */
   fallback: ReactNode;
@@ -85,6 +86,7 @@ function EditGrid({
   agendaPx,
   resizable,
   allowedOf,
+  tallSizesOf,
   renderTile,
   width,
   metrics,
@@ -93,13 +95,20 @@ function EditGrid({
 }: EditGridProps) {
   const ids = useMemo(() => order.map(({ id }) => id), [order]);
   const live = useRef<LiveResize | null>(null);
-  const refs = useCompactorRefs(ids, order, metrics, agendaPx, live, events.onIndex);
+  const refs = useCompactorRefs(ids, order, metrics, agendaPx, tallSizesOf, live, events.onIndex);
   const [compactor] = useState(() => createCellCompactor(refs));
   const edge = useEdgeScroll();
-  const layout = useMemo(
-    () => editGeometry(ids, (id) => sizeIn(order, id), metrics, agendaPx),
-    [ids, order, metrics, agendaPx],
-  );
+  const layout = useMemo(() => {
+    const sizeOf = (id: string) => sizeIn(order, id);
+
+    return editGeometry(
+      ids,
+      sizeOf,
+      metrics,
+      agendaPx,
+      tallOnTablet(tallSizesOf, sizeOf, metrics.cols),
+    );
+  }, [ids, order, metrics, agendaPx, tallSizesOf]);
   const constraints = useMemo(
     () => [...defaultConstraints, sizeConstraint(allowedOf, metrics)],
     [allowedOf, metrics],
@@ -220,6 +229,7 @@ function useCompactorRefs(
   order: Draft,
   metrics: GridMetrics,
   agendaPx: number | undefined,
+  tallSizesOf: (id: string) => readonly BlockSize[],
   live: RefObject<LiveResize | null>,
   onIndex: (index: number) => void,
 ) {
@@ -235,6 +245,7 @@ function useCompactorRefs(
     metrics: useRef(metrics),
     agendaPx: useRef(agendaPx),
     sizeOf: useRef(sizeOf),
+    tallOf: useRef(tallOnTablet(tallSizesOf, sizeOf, metrics.cols)),
     onIndexChange: useRef(reportIndex),
   };
 
@@ -242,6 +253,7 @@ function useCompactorRefs(
   refs.metrics.current = metrics;
   refs.agendaPx.current = agendaPx;
   refs.sizeOf.current = sizeOf;
+  refs.tallOf.current = tallOnTablet(tallSizesOf, sizeOf, metrics.cols);
   refs.onIndexChange.current = reportIndex;
 
   return refs;

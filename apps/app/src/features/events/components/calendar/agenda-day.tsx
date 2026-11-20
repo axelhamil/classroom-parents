@@ -85,7 +85,7 @@ export function AgendaDaySection({
                 event={event}
                 family={family}
                 courseName={event.course ? courseNames.get(event.course.id) : undefined}
-                compact={column}
+                compact
                 withCategoryWord
               />
             </li>

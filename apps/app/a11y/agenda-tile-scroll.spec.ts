@@ -173,15 +173,31 @@ test.describe("the Agenda tile", () => {
   });
 });
 
-/** What spills out of a planner's column: a descendant wider than its own box or than the column. */
+/**
+ * What spills out of a planner's column: a descendant wider than its own box or than the column.
+ * Left out: a checkbox, whose overflow is the invisible 44 px target drawn around it, and what is
+ * only read (a visually hidden word, one pixel wide), neither of which is drawn content.
+ */
 function spills(board: Locator): Promise<string[]> {
   return board.evaluate((element) =>
     [...element.children].flatMap((column) => {
       const edge = column.getBoundingClientRect();
       const label = column.getAttribute("data-jump") ?? column.getAttribute("data-slot") ?? "";
 
+      const readOnly = (inner: Element): boolean => {
+        for (let node: Element | null = inner; node && node !== column; node = node.parentElement)
+          if (node.getBoundingClientRect().width <= 1) return true;
+
+        return false;
+      };
+
       return [column, ...column.querySelectorAll<HTMLElement>("*")]
-        .filter((inner) => inner.clientWidth > 0 && !inner.closest(".sr-only"))
+        .filter(
+          (inner) =>
+            inner.clientWidth > 0 &&
+            !readOnly(inner) &&
+            inner.getAttribute("data-slot") !== "checkbox",
+        )
         .filter((inner) => {
           const box = inner.getBoundingClientRect();
 

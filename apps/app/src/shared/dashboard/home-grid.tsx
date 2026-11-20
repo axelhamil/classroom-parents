@@ -95,6 +95,7 @@ export function HomeGrid<Context>({
   const placed = order.filter(({ id }) => definitions.has(id));
   const hidden = blocks.filter((block) => !placed.some(({ id }) => id === block.id));
   const allowedOf = useAllowedSizes(definitions, units);
+  const tallSizesOf = useMemo(() => tallSizesIn(definitions), [definitions]);
   const focus = useHandleFocus();
   const scrollOf = useKeptScrolls();
   usePrefetchWhenIdle(OPENED_ON_DEMAND);
@@ -192,7 +193,15 @@ export function HomeGrid<Context>({
     );
   };
 
-  const readGrid = <ReadGrid placed={placed} cols={cols} definitions={definitions} tile={tile} />;
+  const readGrid = (
+    <ReadGrid
+      placed={placed}
+      cols={cols}
+      definitions={definitions}
+      tallSizesOf={tallSizesOf}
+      tile={tile}
+    />
+  );
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape and Ctrl+Z bubble here from the controls of the arranged home
@@ -214,6 +223,7 @@ export function HomeGrid<Context>({
             order={placed}
             cols={cols}
             allowedOf={allowedOf}
+            tallSizesOf={tallSizesOf}
             tile={(block) => tile(block)}
             fallback={readGrid}
           />
@@ -235,14 +245,21 @@ interface ReadGridProps<Context> {
   placed: Draft;
   cols: number;
   definitions: ReadonlyMap<string, DashboardBlock<Context>>;
+  tallSizesOf: (id: string) => readonly BlockSize[];
   tile: (block: LayoutBlock, place: GridItem, flows: boolean) => ReactNode;
 }
 
-function ReadGrid<Context>({ placed, cols, definitions, tile }: ReadGridProps<Context>) {
+function ReadGrid<Context>({
+  placed,
+  cols,
+  definitions,
+  tallSizesOf,
+  tile,
+}: ReadGridProps<Context>) {
   const flowing = new Set(
     [...definitions.values()].filter((block) => block.flowsOnPhone).map(({ id }) => id),
   );
-  const geometry = readGeometry(placed, cols, flowing);
+  const geometry = readGeometry(placed, cols, flowing, tallSizesOf);
 
   return (
     <Dashboard tracks={geometry.tracks}>
@@ -262,6 +279,7 @@ interface EditGridProps {
   order: Draft;
   cols: number;
   allowedOf: (id: string) => readonly BlockSize[];
+  tallSizesOf: (id: string) => readonly BlockSize[];
   tile: (block: LayoutBlock) => ReactNode;
   fallback: ReactNode;
 }
@@ -270,7 +288,7 @@ interface EditGridProps {
  * The arranged home once its chunk is there. During a pointer gesture the grid keeps the order it
  * started from, the library moving the tiles itself; the machine still hears each index change.
  */
-function EditGrid({ actor, order, cols, allowedOf, tile, fallback }: EditGridProps) {
+function EditGrid({ actor, order, cols, allowedOf, tallSizesOf, tile, fallback }: EditGridProps) {
   const start = useSelector(actor, gestureStartOf);
   const agendaPx = useAgendaHeight(cols);
   const resizable = useMediaQuery(FINE_POINTER) && cols > 4;
@@ -287,6 +305,7 @@ function EditGrid({ actor, order, cols, allowedOf, tile, fallback }: EditGridPro
       agendaPx={agendaPx}
       resizable={resizable}
       allowedOf={allowedOf}
+      tallSizesOf={tallSizesOf}
       renderTile={tile}
       fallback={fallback}
       onLift={(id) => send({ type: "LIFT", id })}
@@ -452,6 +471,12 @@ function FullViewFooter<Context>({ view: View, context, title }: FullViewFooterP
       )}
     </>
   );
+}
+
+function tallSizesIn<Context>(
+  definitions: ReadonlyMap<string, DashboardBlock<Context>>,
+): (id: string) => readonly BlockSize[] {
+  return (id) => definitions.get(id)?.sizes.tallOnTablet ?? [];
 }
 
 function useAllowedSizes<Context>(

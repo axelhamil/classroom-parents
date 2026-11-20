@@ -16,6 +16,9 @@ export interface GridMetrics {
   gap: number;
 }
 
+/** Whether a block takes one more row at this width, the same answer read and edit both ask. */
+export type TallOf = (id: string) => boolean;
+
 export interface EditGridConfig {
   cols: number;
   rowHeight: number;
@@ -61,8 +64,9 @@ export function editGeometry(
   sizeOf: (id: string) => BlockSize,
   metrics: GridMetrics,
   agendaPx?: number,
+  tallOf?: TallOf,
 ): Layout {
-  return editSlots(order, sizeOf, metrics, agendaPx).map(({ item }) => item);
+  return editSlots(order, sizeOf, metrics, agendaPx, tallOf).map(({ item }) => item);
 }
 
 export function editSlots(
@@ -70,8 +74,9 @@ export function editSlots(
   sizeOf: (id: string) => BlockSize,
   metrics: GridMetrics,
   agendaPx?: number,
+  tallOf?: TallOf,
 ): EditSlot[] {
-  const packed = pack(order, sizeOf, unitsFor(metrics.cols)).items;
+  const packed = pack(order, sizeOf, unitsFor(metrics.cols), tallOf).items;
   const items = toGrid(packed, metrics.cols);
   const placed = hasPixelRows(metrics) ? toPixelRows(packed, items, metrics, agendaPx) : items;
 

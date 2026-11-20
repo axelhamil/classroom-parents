@@ -19,6 +19,7 @@ function setup(order: readonly string[], metrics: GridMetrics, size: BlockSize =
     metrics: { current: metrics },
     agendaPx: { current: undefined },
     sizeOf: { current: (): BlockSize => size },
+    tallOf: { current: () => false },
     onIndexChange: { current: onIndexChange },
   };
 

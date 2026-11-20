@@ -3,6 +3,7 @@ import type { BlockSize } from "../../shared/dashboard/dashboard-pack";
 export interface BlockSizes {
   allowed: readonly BlockSize[];
   defaultSize: BlockSize;
+  tallOnTablet?: readonly BlockSize[];
 }
 
 export const CHILD_BLOCK_PREFIX = "child:";
@@ -14,7 +15,7 @@ const GLANCE_OR_LIST: BlockSizes = { allowed: ["s", "m"], defaultSize: "m" };
 const LIST_OR_RICH: BlockSizes = { allowed: ["m", "l"], defaultSize: "m" };
 
 export const HOME_BLOCK_SIZES: Readonly<Record<string, BlockSizes>> = {
-  calendar: { allowed: ["m", "l", "xl"], defaultSize: "xl" },
+  calendar: { allowed: ["m", "l", "xl"], defaultSize: "xl", tallOnTablet: ["l", "xl"] },
   today: { allowed: ["m", "l", "xl"], defaultSize: "l" },
   tonight: { allowed: ["s", "m", "l"], defaultSize: "m" },
   review: { allowed: ["s", "m", "l", "xl"], defaultSize: "m" },
