@@ -1967,9 +1967,9 @@ html:active-view-transition-type(list-reflow)::view-transition-new(root) {
   }
 }
 
-/* A list that changes (a child filtered in or out) slides its deadlines into their new places; the ones leaving fade. */
+/* A list that changes (a child filtered in or out, a date confirmed) slides its deadlines into their new places; the ones leaving fade. */
 html:active-view-transition-type(list-reflow)
-  :is([data-slot="calendar-entry"], [data-slot="planner-card"]) {
+  :is([data-slot="calendar-entry"], [data-slot="planner-card"], [data-slot="list-row"]) {
   view-transition-name: match-element;
   view-transition-class: deadline;
 }

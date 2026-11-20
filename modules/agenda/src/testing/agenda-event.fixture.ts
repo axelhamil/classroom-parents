@@ -20,6 +20,7 @@ export interface AgendaEventOverrides {
   deadlineTime?: string;
   source?: "announcement" | "coursework";
   withoutCourse?: boolean;
+  confirmedByParentAt?: Date;
 }
 
 export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
@@ -46,7 +47,7 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       evidence: Option.none(),
       preparation: Preparation.none(),
       amendReason: Option.none(),
-      confirmedByParentAt: Option.none(),
+      confirmedByParentAt: Option.fromNullable(overrides.confirmedByParentAt),
       done: false,
       checklist: EventChecklist.empty(),
       editedAt: Option.none(),

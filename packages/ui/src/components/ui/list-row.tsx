@@ -10,6 +10,7 @@ const listRowVariants = cva("flex items-center justify-between gap-3", {
       default: "rounded-md border p-3",
       plain: "py-2",
       ruled: "border-b py-1 last:border-b-0",
+      stacked: "flex-wrap items-start justify-start gap-y-2 border-b py-2.5 last:border-b-0",
     },
   },
   defaultVariants: { variant: "default" },

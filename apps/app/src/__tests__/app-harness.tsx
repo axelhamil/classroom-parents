@@ -26,6 +26,7 @@ export interface ApiCall {
   method: string;
   url: URL;
   body: unknown;
+  keepalive: boolean;
 }
 
 export type ApiHandler = (call: ApiCall) => Response | Promise<Response> | undefined;
@@ -56,6 +57,7 @@ export function stubApi(handler: ApiHandler): ApiCall[] {
         method: init?.method ?? "GET",
         url: new URL(input instanceof Request ? input.url : input),
         body: readBody(init?.body),
+        keepalive: init?.keepalive === true,
       };
       calls.push(call);
       if (call.url.pathname === "/stream") return new Promise<Response>(() => undefined);

@@ -34,3 +34,12 @@ export function reviewSentenceKeys(event: EventItem): ReviewSentenceKey[] {
 
   return keys.length > 0 ? keys : [UNKNOWN_REASON_KEY];
 }
+
+export function mainReviewSentenceKey(events: readonly EventItem[]): ReviewSentenceKey {
+  const tally = new Map<ReviewSentenceKey, number>();
+  for (const key of events.flatMap(reviewSentenceKeys)) tally.set(key, (tally.get(key) ?? 0) + 1);
+
+  const [main] = [...tally].sort(([, left], [, right]) => right - left);
+
+  return main?.[0] ?? UNKNOWN_REASON_KEY;
+}
