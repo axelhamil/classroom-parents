@@ -47,4 +47,16 @@ describe("default reminders card", () => {
     expect(await screen.findByText("Choisissez de 1 à 48 heures.")).toBeDefined();
     expect(calls.some((call) => call.method === "PUT")).toBe(false);
   });
+
+  it("given the saved defaults, then there is nothing to save until a reminder changes", async () => {
+    givenDefaults([{ kind: "days_before", days: 2, time: "18:00" }]);
+    await renderWithProviders(<DefaultRemindersCard userId="user-1" />);
+
+    const add = await screen.findByRole("button", { name: "Ajouter un rappel" });
+    expect(screen.queryByRole("button", { name: "Enregistrer" })).toBeNull();
+
+    fireEvent.click(add);
+
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeTruthy();
+  });
 });

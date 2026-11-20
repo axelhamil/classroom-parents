@@ -130,8 +130,8 @@ describe("DeleteAccountCard", () => {
           calls.find((call) => call.url.pathname === "/api/auth/sign-in/social")?.body,
         ).toMatchObject({
           provider: "google",
-          callbackURL: `${window.location.origin}/settings`,
-          errorCallbackURL: `${window.location.origin}/settings?reauth=failed`,
+          callbackURL: `${window.location.origin}/settings/privacy`,
+          errorCallbackURL: `${window.location.origin}/settings/privacy?reauth=failed`,
           loginHint: "parent@example.com",
         }),
       );
@@ -148,7 +148,7 @@ describe("DeleteAccountCard", () => {
     it("when they cancelled on Google, then the settings say the account is kept and offer to confirm again", async () => {
       stubApi(byRoute({ "GET /push/status": () => json({ live: 0 }) }));
 
-      await renderAppAt("/settings?reauth=failed&error=access_denied");
+      await renderAppAt("/settings/privacy?reauth=failed&error=access_denied");
 
       expect(
         await screen.findByText("Confirmation Google annulée : votre compte n'est pas supprimé."),
@@ -159,7 +159,7 @@ describe("DeleteAccountCard", () => {
     it("when Google failed, then the settings say so in French", async () => {
       stubApi(byRoute({ "GET /push/status": () => json({ live: 0 }) }));
 
-      await renderAppAt("/settings?reauth=failed&error=invalid_code");
+      await renderAppAt("/settings/privacy?reauth=failed&error=invalid_code");
 
       expect(
         await screen.findByText(

@@ -81,4 +81,21 @@ function RadioGroupItem({ className, ...props }: ComponentProps<typeof RadioGrou
   );
 }
 
-export { RadioGroup, RadioGroupItem };
+/**
+ * A radio drawn as a tile: the whole block is the radio, its content says the choice (an icon
+ * and a word, a palette sample and its name). The checked tile takes the 2px selection edge.
+ */
+function RadioTile({ className, ...props }: ComponentProps<typeof RadioGroupPrimitive.Item>) {
+  return (
+    <RadioGroupPrimitive.Item
+      data-slot="radio-tile"
+      className={cn(
+        "flex min-h-control-lg flex-col items-center justify-center gap-2 rounded-inner border-2 border-transparent bg-surface-container p-block text-small text-foreground outline-none transition-[color,border-color,box-shadow] hover:bg-surface-container-high focus-visible:ring focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:text-primary [&_svg]:size-icon-lg [&_svg]:shrink-0",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export { RadioGroup, RadioGroupItem, RadioTile };

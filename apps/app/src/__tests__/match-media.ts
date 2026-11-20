@@ -23,6 +23,12 @@ export function ensureScrollIntoView(): void {
   Element.prototype.scrollIntoView = () => undefined;
 }
 
+/** Pointer capture as jsdom lacks it, which Radix selects call when they open. */
+export function ensurePointerCapture(): void {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.releasePointerCapture = () => undefined;
+}
+
 export function ensureResizeObserver(): void {
   if (typeof window.ResizeObserver === "function") return;
 

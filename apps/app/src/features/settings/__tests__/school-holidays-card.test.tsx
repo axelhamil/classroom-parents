@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
+
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { json, renderWithProviders, resetApp, stubApi } from "../../../__tests__/app-harness";
+import {
+  ensurePointerCapture,
+  ensureResizeObserver,
+  ensureScrollIntoView,
+} from "../../../__tests__/match-media";
 import { at } from "../../../__tests__/week-fixtures";
+import { LanguageAndRegionCard } from "../components/language-and-region-card";
 import { SchoolHolidaysCard } from "../components/school-holidays-card";
 
 const COUNTRIES = [
@@ -29,18 +36,33 @@ type Choice = { country: string; region: string | null; schoolHolidays: string }
 interface Given {
   choice?: Choice;
   suggestedCountry?: string | null;
+  country?: string | null;
 }
 
 function isChoiceBody(body: unknown): body is { choice: Choice } {
   return typeof body === "object" && body !== null && "choice" in body;
 }
 
-function givenSchoolCalendar({ choice = null, suggestedCountry = null }: Given) {
+function isObject(body: unknown): body is object {
+  return typeof body === "object" && body !== null;
+}
+
+function givenSchoolCalendar({ choice = null, suggestedCountry = null, country = null }: Given) {
   let saved = choice;
+  let preferences = { locale: "fr", timeZone: "Europe/Paris", country, extractionEnabled: true };
 
   return stubApi(({ method, url, body }) => {
     const path = url.pathname;
-    const country = url.searchParams.get("country") ?? "";
+    const regionsOf = url.searchParams.get("country") ?? "";
+    if (path === "/assistant/preferences") return json(preferences);
+    if (
+      path === "/assistant/preferences/language-and-region" &&
+      method === "PUT" &&
+      isObject(body)
+    ) {
+      preferences = { ...preferences, ...body };
+      return json(preferences);
+    }
     if (path === "/school-calendar/settings")
       return json({
         choice: saved,
@@ -49,12 +71,12 @@ function givenSchoolCalendar({ choice = null, suggestedCountry = null }: Given) 
         countries: COUNTRIES,
         academies: ACADEMIES,
       });
-    if (path === "/school-calendar/regions") return json({ regions: REGIONS[country] ?? [] });
+    if (path === "/school-calendar/regions") return json({ regions: REGIONS[regionsOf] ?? [] });
     if (path === "/school-calendar/preview")
       return json({
         holidays: [{ name: "Vacances de Noël", startsOn: "2026-12-19", endsOn: "2027-01-03" }],
         bankHoliday: { date: "2026-12-25", name: "Noël" },
-        schoolHolidaysCovered: country !== "ES",
+        schoolHolidaysCovered: regionsOf !== "ES",
       });
     if (path === "/school-calendar/choice" && method === "PUT" && isChoiceBody(body)) {
       saved = body.choice;
@@ -72,34 +94,31 @@ async function choose(label: string, option: string) {
 }
 
 async function searchCountry(search: string, country: string) {
-  fireEvent.click(await screen.findByRole("combobox", { name: "Pays de l'école" }));
+  fireEvent.click(await screen.findByRole("combobox", { name: "Pays" }));
   fireEvent.change(await screen.findByRole("combobox", { name: "Rechercher un pays" }), {
     target: { value: search },
   });
   fireEvent.click(await screen.findByRole("option", { name: country }));
 }
 
-async function savedChoice(calls: ReturnType<typeof givenSchoolCalendar>) {
-  fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
-  await waitFor(() => expect(calls.some((call) => call.method === "PUT")).toBe(true));
+function savedChoices(calls: ReturnType<typeof givenSchoolCalendar>) {
+  return calls
+    .filter(({ method, url }) => method === "PUT" && url.pathname === "/school-calendar/choice")
+    .map(({ body }) => body);
+}
 
-  return calls.find((call) => call.method === "PUT")?.body;
+async function lastSavedChoice(calls: ReturnType<typeof givenSchoolCalendar>, count: number) {
+  await waitFor(() => expect(savedChoices(calls)).toHaveLength(count));
+
+  return savedChoices(calls).at(-1);
 }
 
 describe("school holidays card", () => {
   beforeEach(() => {
     at("2026-11-12T09:00:00.000Z");
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
-    Element.prototype.hasPointerCapture = () => false;
-    Element.prototype.releasePointerCapture = () => {};
-    Element.prototype.scrollIntoView = () => {};
+    ensureResizeObserver();
+    ensurePointerCapture();
+    ensureScrollIntoView();
   });
 
   afterEach(() => {
@@ -109,58 +128,64 @@ describe("school holidays card", () => {
     vi.useRealTimers();
   });
 
-  it("given a parent in Switzerland who has not chosen yet, then their country is proposed and the Geneva calendar is saved", async () => {
-    const calls = givenSchoolCalendar({ suggestedCountry: "CH" });
+  it("given a parent in Switzerland with no calendar yet, when they show it and pick Geneva, then the Geneva calendar is saved", async () => {
+    const calls = givenSchoolCalendar({ country: "CH" });
     await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
 
-    expect(
-      await screen.findByText("Proposé d'après votre pays dans Langue et région."),
-    ).toBeDefined();
-    expect(screen.getByRole("combobox", { name: "Pays de l'école" }).textContent).toContain(
-      "Suisse",
-    );
+    expect(await screen.findByText("Vacances et jours fériés : Suisse")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Afficher" }));
+
+    expect(await lastSavedChoice(calls, 1)).toEqual({
+      choice: { country: "CH", region: null, schoolHolidays: "official" },
+    });
     await choose("Région", "Genève");
 
-    expect(await savedChoice(calls)).toEqual({
+    expect(await lastSavedChoice(calls, 2)).toEqual({
       choice: { country: "CH", region: "CH-GE", schoolHolidays: "official" },
     });
-    expect(await screen.findByText("Calendrier scolaire enregistré")).toBeDefined();
+    expect(await screen.findByText("Enregistré")).toBeDefined();
   });
 
   it("given a French parent who picks their academy, then the academy's zone is proposed and saved", async () => {
-    const calls = givenSchoolCalendar({ suggestedCountry: "FR" });
-    await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
-
-    await choose("Académie", "Rennes");
-    expect(screen.getByRole("combobox", { name: "Zone" }).textContent).toBe("Zone B");
-
-    expect(await savedChoice(calls)).toEqual({
-      choice: { country: "FR", region: "zone-b", schoolHolidays: "official" },
-    });
-  });
-
-  it("given a parent in Morocco, where no school calendar is published, then the card says so and offers the school's own holidays at once", async () => {
-    givenSchoolCalendar({
+    const calls = givenSchoolCalendar({
+      country: "FR",
       choice: { country: "FR", region: "zone-c", schoolHolidays: "official" },
     });
     await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
 
-    await searchCountry("maro", "Maroc");
+    await choose("Académie", "Rennes");
 
-    expect(screen.getByText("Maroc : aucun calendrier scolaire publié")).toBeDefined();
+    expect(await lastSavedChoice(calls, 1)).toEqual({
+      choice: { country: "FR", region: "zone-b", schoolHolidays: "official" },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Zone" }).textContent).toBe("Zone B"),
+    );
+  });
+
+  it("given a parent in Morocco, where no school calendar is published, when they show the calendar, then the card says so and offers the school's own holidays at once", async () => {
+    const calls = givenSchoolCalendar({ country: "MA" });
+    await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Afficher" }));
+
+    expect(await lastSavedChoice(calls, 1)).toEqual({
+      choice: { country: "MA", region: null, schoolHolidays: "own" },
+    });
+    expect(await screen.findByText("Maroc : aucun calendrier scolaire publié")).toBeDefined();
     expect(screen.getByLabelText("Lien du calendrier (.ics)")).toBeDefined();
     expect(screen.getByLabelText("Fichier du calendrier (.ics)")).toBeDefined();
     expect(screen.getByText("Aucune période pour l'instant.")).toBeDefined();
   });
 
-  it("given a parent in Morocco who types a first holiday, then the calendar is saved before the period", async () => {
+  it("given a parent in Morocco who keeps the school's own holidays, when they type a first holiday, then the period is saved", async () => {
     const calls = givenSchoolCalendar({
-      choice: { country: "FR", region: "zone-c", schoolHolidays: "official" },
+      country: "MA",
+      choice: { country: "MA", region: null, schoolHolidays: "own" },
     });
     await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
 
-    await searchCountry("maro", "Maroc");
-    fireEvent.change(screen.getByLabelText("Nom"), { target: { value: "Aïd al-Fitr" } });
+    fireEvent.change(await screen.findByLabelText("Nom"), { target: { value: "Aïd al-Fitr" } });
     fireEvent.change(screen.getByLabelText("Premier jour"), { target: { value: "2027-03-09" } });
     fireEvent.change(screen.getByLabelText("Dernier jour"), { target: { value: "2027-03-11" } });
     fireEvent.click(screen.getByRole("button", { name: "Ajouter" }));
@@ -168,15 +193,15 @@ describe("school holidays card", () => {
     await waitFor(() =>
       expect(
         calls.filter(({ method }) => method !== "GET").map(({ method, body }) => [method, body]),
-      ).toEqual([
-        ["PUT", { choice: { country: "MA", region: null, schoolHolidays: "own" } }],
-        ["POST", { name: "Aïd al-Fitr", startsOn: "2027-03-09", endsOn: "2027-03-11" }],
-      ]),
+      ).toEqual([["POST", { name: "Aïd al-Fitr", startsOn: "2027-03-09", endsOn: "2027-03-11" }]]),
     );
   });
 
   it("given a country whose holidays of the year are not published yet, then the preview offers the school's own calendar", async () => {
-    givenSchoolCalendar({ suggestedCountry: "ES" });
+    givenSchoolCalendar({
+      country: "ES",
+      choice: { country: "ES", region: null, schoolHolidays: "official" },
+    });
     await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
 
     fireEvent.click(
@@ -186,14 +211,64 @@ describe("school holidays card", () => {
     expect(await screen.findByLabelText("Lien du calendrier (.ics)")).toBeDefined();
   });
 
-  it("given a parent who does not know the school's country, then no calendar is saved", async () => {
+  it("given a parent in Morocco who does not know the school's holidays, when they choose the school's own calendar, then it is saved", async () => {
     const calls = givenSchoolCalendar({
-      choice: { country: "FR", region: "zone-c", schoolHolidays: "official" },
+      country: "MA",
+      choice: { country: "MA", region: null, schoolHolidays: "unknown" },
     });
     await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
 
-    await searchCountry("sais", "Je ne sais pas");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Utiliser le calendrier de l'école" }),
+    );
 
-    expect(await savedChoice(calls)).toEqual({ choice: null });
+    expect(await lastSavedChoice(calls, 1)).toEqual({
+      choice: { country: "MA", region: null, schoolHolidays: "own" },
+    });
+  });
+
+  it("given a country with no school calendar at all, then the card says so and offers nothing to save", async () => {
+    const calls = givenSchoolCalendar({ country: "JP" });
+    await renderWithProviders(<SchoolHolidaysCard userId="user-1" />);
+
+    expect(await screen.findByText("Japon : aucun calendrier scolaire")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Afficher" })).toBeNull();
+    expect(savedChoices(calls)).toEqual([]);
+  });
+
+  describe("given a school calendar saved in France", () => {
+    const FRENCH_CALENDAR = { country: "FR", region: "zone-c", schoolHolidays: "official" };
+
+    it("when the parent moves to Switzerland in Langue et région, then the calendar follows to the whole of Switzerland", async () => {
+      const calls = givenSchoolCalendar({ country: "FR", choice: FRENCH_CALENDAR });
+      await renderWithProviders(
+        <>
+          <LanguageAndRegionCard userId="user-1" />
+          <SchoolHolidaysCard userId="user-1" />
+        </>,
+      );
+      await screen.findByRole("combobox", { name: "Académie" });
+
+      await searchCountry("suis", "Suisse");
+
+      expect(await lastSavedChoice(calls, 1)).toEqual({
+        choice: { country: "CH", region: null, schoolHolidays: "official" },
+      });
+    });
+
+    it("when the parent moves to a country with no school calendar, then the calendar choice is cleared", async () => {
+      const calls = givenSchoolCalendar({ country: "FR", choice: FRENCH_CALENDAR });
+      await renderWithProviders(
+        <>
+          <LanguageAndRegionCard userId="user-1" />
+          <SchoolHolidaysCard userId="user-1" />
+        </>,
+      );
+      await screen.findByRole("combobox", { name: "Académie" });
+
+      await searchCountry("japon", "Japon");
+
+      expect(await lastSavedChoice(calls, 1)).toEqual({ choice: null });
+    });
   });
 });

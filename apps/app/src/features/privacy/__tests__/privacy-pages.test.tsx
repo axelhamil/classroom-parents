@@ -42,18 +42,24 @@ describe("privacy pages", () => {
     queryClient.clear();
   });
 
-  it.each(["/settings/privacy", "/legal/privacy-policy"])(
-    "%s states the Google Limited Use commitment and names Anthropic as a sub-processor",
-    async (path) => {
-      const html = await renderPage(path);
+  it("/legal/privacy-policy states the Google Limited Use commitment and names Anthropic as a sub-processor", async () => {
+    const html = await renderPage("/legal/privacy-policy");
 
-      expect(html).toContain("Limited Use");
-      expect(html).toContain("Anthropic");
-      expect(html).toContain("contact@example.com");
-    },
-  );
+    expect(html).toContain("Limited Use");
+    expect(html).toContain("Anthropic");
+    expect(html).toContain("contact@example.com");
+  });
 
-  it.each(["/settings/privacy", "/legal/privacy-policy", "/legal/data-rights"])(
+  it("/settings/privacy names Anthropic as a sub-processor, links the policy and the data rights, and keeps the details one tap away", async () => {
+    const html = await renderPage("/settings/privacy");
+
+    expect(html).toContain("Anthropic");
+    expect(html).toContain('href="/legal/privacy-policy"');
+    expect(html).toContain('href="/legal/data-rights"');
+    expect(html).toContain("En savoir plus");
+  });
+
+  it.each(["/legal/privacy-policy", "/legal/data-rights"])(
     "%s offers no data export and is written in French",
     async (path) => {
       const html = await renderPage(path);
@@ -63,6 +69,14 @@ describe("privacy pages", () => {
       expect(html).not.toContain("version anglaise");
     },
   );
+
+  it("/settings/privacy offers the data export and is written in French", async () => {
+    const html = await renderPage("/settings/privacy");
+
+    expect(html).toContain("Exporter mes données");
+    expect(html).not.toContain("boilerplate");
+    expect(html).not.toContain("version anglaise");
+  });
 
   it("the privacy policy claims no per-account token key and caps the description only at extraction, as the code does", async () => {
     const html = await renderPage("/legal/privacy-policy");

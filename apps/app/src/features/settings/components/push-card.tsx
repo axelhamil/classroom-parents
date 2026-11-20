@@ -1,14 +1,13 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
-import { Badge } from "@packages/ui/components/ui/badge";
-import { Button } from "@packages/ui/components/ui/button";
-import { Hint } from "@packages/ui/components/ui/hint";
-import { AlertsOffIcon, AlertsOnIcon, EmailIcon } from "@packages/ui/components/ui/icons";
-import { SectionCard } from "@packages/ui/components/ui/section-card";
-import { SwitchField } from "@packages/ui/components/ui/switch-field";
-import { TypographyP } from "@packages/ui/components/ui/typography";
-import { toastError } from "@packages/web-kit/api/errors/toast";
-import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertsOffIcon, EmailIcon } from "@packages/ui/components/ui/icons";
+import {
+  SettingsGroup,
+  SettingsRow,
+  settingsRowDescriptionId,
+} from "@packages/ui/components/ui/settings";
+import { Switch } from "@packages/ui/components/ui/switch";
+import { useQuery } from "@tanstack/react-query";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { setLockScreenMutationOptions } from "../../../shared/api/mutations/set-lock-screen";
 import { lockScreenQueryOptions } from "../../../shared/api/queries/lock-screen";
@@ -21,6 +20,8 @@ import {
   type PushSubscriptionState,
   usePushSubscription,
 } from "../../../shared/pwa/use-push-subscription";
+import { useAutoSave } from "../hooks/use-auto-save";
+import { SETTINGS_ANCHORS } from "../settings-search-index";
 
 interface PushCardProps {
   userId: string;
@@ -35,108 +36,94 @@ export function PushCard({ userId }: PushCardProps) {
   const emailFallback = !push.subscribed && status.data?.live === 0;
 
   return (
-    <SectionCard
-      title={t("push.title")}
-      description={t("push.description")}
-      data-tour="settings-push"
-    >
-      {needsInstall ? <InstallGuide /> : null}
-      <InstallButton />
-      <PushControl push={push} needsInstall={needsInstall} />
-      {push.subscribed ? <LockScreenSwitch userId={userId} /> : null}
+    <SettingsGroup id={SETTINGS_ANCHORS.push} title={t("push.title")}>
+      <PushRow push={push} needsInstall={needsInstall} />
+      {push.subscribed ? <LockScreenRow userId={userId} /> : null}
       {emailFallback ? (
         <Alert>
           <EmailIcon />
           <AlertDescription>{t("push.emailFallback")}</AlertDescription>
         </Alert>
       ) : null}
-    </SectionCard>
+    </SettingsGroup>
   );
 }
 
-interface PushControlProps {
+interface PushRowProps {
   push: PushSubscriptionState;
   needsInstall: boolean;
 }
 
-function PushControl({ push, needsInstall }: PushControlProps) {
+function PushRow({ push, needsInstall }: PushRowProps) {
   const { t } = useTranslation("settings");
+  const id = useId();
+  const supported = push.permission !== "unsupported" && push.permission !== "denied";
 
-  if (needsInstall) {
-    return (
-      <Hint text={t("push.installFirst")} className="self-start">
-        <Button type="button" disabled>
-          <AlertsOnIcon />
-          {t("push.enable")}
-        </Button>
-      </Hint>
-    );
-  }
-
-  if (push.permission === "unsupported") {
-    return (
-      <Alert>
-        <AlertsOffIcon />
-        <AlertDescription>{t("push.unsupported")}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (push.permission === "denied") return <PushDeniedAlert />;
-
-  if (push.subscribed) {
-    return (
-      <>
-        <Badge>
-          <AlertsOnIcon />
-          {t("push.enabled")}
-        </Badge>
-        <TypographyP>{t("push.enabledBody")}</TypographyP>
-        <Button
-          type="button"
-          variant="outline"
-          className="self-start"
-          disabled={push.pending}
-          onClick={() => void push.disable()}
-        >
-          {push.pending ? t("push.disabling") : t("push.disable")}
-        </Button>
-      </>
-    );
-  }
+  const toggle = (on: boolean) => void (on ? push.enable() : push.disable());
 
   return (
-    <Button
-      type="button"
-      className="self-start"
-      disabled={push.pending}
-      onClick={() => void push.enable()}
+    <SettingsRow
+      label={t("push.receive")}
+      description={push.subscribed ? t("push.enabledBody") : t("push.description")}
+      controlId={id}
+      control={
+        <Switch
+          id={id}
+          checked={push.subscribed}
+          disabled={!supported || needsInstall || push.pending}
+          onCheckedChange={toggle}
+          aria-describedby={settingsRowDescriptionId(id)}
+        />
+      }
     >
-      <AlertsOnIcon />
-      {push.pending ? t("push.enabling") : t("push.enable")}
-    </Button>
+      {needsInstall ? <InstallGuide /> : <InstallButton />}
+      <PushBlocked permission={push.permission} />
+    </SettingsRow>
   );
 }
 
-function LockScreenSwitch({ userId }: PushCardProps) {
+function PushBlocked({ permission }: { permission: PushSubscriptionState["permission"] }) {
   const { t } = useTranslation("settings");
-  const queryClient = useQueryClient();
-  const details = useQuery(lockScreenQueryOptions(userId));
-  const save = useMutation({
-    ...setLockScreenMutationOptions,
-    onSuccess: (shown) => queryClient.setQueryData(lockScreenQueryOptions(userId).queryKey, shown),
-    onError: (error) => toastError(error, errorFallback("setLockScreen")),
+
+  if (permission === "denied") return <PushDeniedAlert />;
+  if (permission !== "unsupported") return null;
+
+  return (
+    <Alert>
+      <AlertsOffIcon />
+      <AlertDescription>{t("push.unsupported")}</AlertDescription>
+    </Alert>
+  );
+}
+
+function LockScreenRow({ userId }: PushCardProps) {
+  const { t } = useTranslation("settings");
+  const id = useId();
+  const query = lockScreenQueryOptions(userId);
+  const details = useQuery(query);
+  const { save } = useAutoSave({
+    mutation: setLockScreenMutationOptions,
+    queryKey: query.queryKey,
+    apply: (_shown, next) => next,
+    merge: (_stored, saved) => saved,
+    restoreValue: (shown) => shown,
+    failure: "setLockScreen",
   });
   if (!details.isSuccess) return null;
 
-  const shown = save.isPending ? save.variables : details.data;
   return (
-    <SwitchField
+    <SettingsRow
       label={t("push.lockScreen")}
-      description={shown ? t("push.lockScreenShown") : t("push.lockScreenHidden")}
-      checked={shown}
-      disabled={save.isPending}
-      onCheckedChange={(checked) => save.mutate(checked)}
+      description={details.data ? t("push.lockScreenShown") : t("push.lockScreenHidden")}
+      controlId={id}
+      control={
+        <Switch
+          id={id}
+          checked={details.data}
+          onCheckedChange={save}
+          aria-describedby={settingsRowDescriptionId(id)}
+        />
+      }
     />
   );
 }

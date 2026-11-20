@@ -1,35 +1,34 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@packages/ui/components/ui/button";
-import { Form } from "@packages/ui/components/ui/form";
-import { FormTextField } from "@packages/ui/components/ui/form-text-field";
-import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { FieldError } from "@packages/ui/components/ui/field";
+import { Input } from "@packages/ui/components/ui/input";
+import {
+  SettingsGroup,
+  SettingsRow,
+  settingsRowDescriptionId,
+} from "@packages/ui/components/ui/settings";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
-import { SwitchField } from "@packages/ui/components/ui/switch-field";
-import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
-import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { Switch } from "@packages/ui/components/ui/switch";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
-import { setQuietHoursMutationOptions } from "../../../shared/api/mutations/set-quiet-hours";
+import {
+  type QuietHours,
+  setQuietHoursMutationOptions,
+} from "../../../shared/api/mutations/set-quiet-hours";
 import { EVENTS_KEY } from "../../../shared/api/queries/events";
 import { quietHoursQueryOptions } from "../../../shared/api/queries/quiet-hours";
 import { QueryState } from "../../../shared/query/query-state";
+import { useAutoSave } from "../hooks/use-auto-save";
+import { SETTINGS_ANCHORS } from "../settings-search-index";
 
-const quietTimesSchema = z
-  .object({
-    start: z.iso.time({ precision: -1 }),
-    end: z.iso.time({ precision: -1 }),
-  })
-  .refine(({ start, end }) => start !== end, {
-    path: ["end"],
-    params: { i18nKey: "validation.quietHoursSame" },
-  });
+const TIME = z.iso.time({ precision: -1 });
 
-type QuietTimes = z.infer<typeof quietTimesSchema>;
+const TYPING_PAUSE_MS = 700;
 
 /** Mirrors DEFAULT_QUIET_HOURS in modules/alerts quiet-hours.vo.ts, which the api does not expose: change both together. */
-const SERVER_DEFAULT_QUIET_TIMES: QuietTimes = { start: "21:00", end: "07:00" };
+const SERVER_DEFAULT_QUIET_TIMES = { start: "21:00", end: "07:00" } as const;
+
+type QuietTimes = Pick<QuietHours, "start" | "end">;
 
 export interface QuietHoursCardProps {
   userId: string;
@@ -38,94 +37,142 @@ export interface QuietHoursCardProps {
 export function QuietHoursCard({ userId }: QuietHoursCardProps) {
   const { t } = useTranslation("settings");
   const queryClient = useQueryClient();
-  const query = useQuery(quietHoursQueryOptions(userId));
-  const save = useMutation({
-    ...setQuietHoursMutationOptions,
-    onSuccess: (quiet) => {
-      queryClient.setQueryData(quietHoursQueryOptions(userId).queryKey, quiet);
-      void queryClient.invalidateQueries({ queryKey: EVENTS_KEY });
-      toastSuccess(t("quietHours.saved"));
-    },
-    onError: (error) => toastError(error, errorFallback("setQuietHours")),
+  const query = quietHoursQueryOptions(userId);
+  const quietHours = useQuery(query);
+  const { save } = useAutoSave({
+    mutation: setQuietHoursMutationOptions,
+    queryKey: query.queryKey,
+    apply: (_stored, next) => next,
+    merge: (_stored, saved) => saved,
+    restoreValue: (stored) => stored,
+    failure: "setQuietHours",
+    onSaved: () => void queryClient.invalidateQueries({ queryKey: EVENTS_KEY }),
   });
 
   return (
-    <SectionCard title={t("quietHours.title")} description={t("quietHours.description")}>
+    <SettingsGroup id={SETTINGS_ANCHORS.quietHours} title={t("quietHours.title")}>
       <QueryState
-        query={query}
+        query={quietHours}
         skeleton={
           <SkeletonGroup label={t("quietHours.loading")}>
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-10 w-full" />
           </SkeletonGroup>
         }
       >
-        {(stored) => {
-          const quiet = save.isPending ? save.variables : stored;
-
-          return (
-            <>
-              <SwitchField
-                label={t("quietHours.enabled")}
-                description={quiet.enabled ? t("quietHours.on") : t("quietHours.off")}
-                checked={quiet.enabled}
-                disabled={save.isPending}
-                onCheckedChange={(enabled) =>
-                  save.mutate(
-                    enabled ? { enabled, ...SERVER_DEFAULT_QUIET_TIMES } : { ...stored, enabled },
-                  )
-                }
-              />
-              {stored.enabled ? (
-                <QuietTimesForm
-                  key={JSON.stringify(stored)}
-                  times={stored}
-                  pending={save.isPending}
-                  onSubmit={(times) => save.mutate({ enabled: true, ...times })}
-                />
-              ) : null}
-            </>
-          );
-        }}
+        {(stored) => (
+          <>
+            <QuietHoursSwitch
+              enabled={stored.enabled}
+              onChange={(enabled) =>
+                save(enabled ? { enabled, ...SERVER_DEFAULT_QUIET_TIMES } : { ...stored, enabled })
+              }
+            />
+            {stored.enabled ? (
+              <QuietTimes times={stored} onCommit={(times) => save({ enabled: true, ...times })} />
+            ) : null}
+          </>
+        )}
       </QueryState>
-    </SectionCard>
+    </SettingsGroup>
   );
 }
 
-interface QuietTimesFormProps {
-  times: QuietTimes;
-  pending: boolean;
-  onSubmit: (times: QuietTimes) => void;
+interface QuietHoursSwitchProps {
+  enabled: boolean;
+  onChange: (enabled: boolean) => void;
 }
 
-function QuietTimesForm({ times, pending, onSubmit }: QuietTimesFormProps) {
+function QuietHoursSwitch({ enabled, onChange }: QuietHoursSwitchProps) {
   const { t } = useTranslation("settings");
-  const { t: tCommon } = useTranslation("common");
-  const form = useForm<QuietTimes>({
-    resolver: zodResolver(quietTimesSchema),
-    defaultValues: { start: times.start, end: times.end },
-  });
+  const id = useId();
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-        <div className="grid grid-cols-2 gap-3">
-          <FormTextField
-            control={form.control}
-            name="start"
-            type="time"
-            label={t("quietHours.start")}
-          />
-          <FormTextField
-            control={form.control}
-            name="end"
-            type="time"
-            label={t("quietHours.end")}
-          />
-        </div>
-        <Button type="submit" size="sm" className="self-start" disabled={pending}>
-          {tCommon("actions.save")}
-        </Button>
-      </form>
-    </Form>
+    <SettingsRow
+      label={t("quietHours.enabled")}
+      description={enabled ? t("quietHours.on") : t("quietHours.off")}
+      controlId={id}
+      control={
+        <Switch
+          id={id}
+          checked={enabled}
+          onCheckedChange={onChange}
+          aria-describedby={settingsRowDescriptionId(id)}
+        />
+      }
+    />
+  );
+}
+
+interface QuietTimesProps {
+  times: QuietTimes;
+  onCommit: (times: QuietTimes) => void;
+}
+
+function QuietTimes({ times, onCommit }: QuietTimesProps) {
+  const { t } = useTranslation(["settings", "errors"]);
+  const [draft, setDraft] = useState<QuietTimes>(times);
+  const [stored, setStored] = useState<QuietTimes>(times);
+  if (stored.start !== times.start || stored.end !== times.end) {
+    setStored(times);
+    setDraft(times);
+  }
+
+  const complete = TIME.safeParse(draft.start).success && TIME.safeParse(draft.end).success;
+  const same = complete && draft.start === draft.end;
+  const changed = draft.start !== times.start || draft.end !== times.end;
+
+  useEffect(() => {
+    if (!complete || same || !changed) return;
+
+    const pause = window.setTimeout(() => onCommit(draft), TYPING_PAUSE_MS);
+    return () => window.clearTimeout(pause);
+  }, [complete, same, changed, draft, onCommit]);
+
+  return (
+    <>
+      <TimeRow
+        label={t("quietHours.start")}
+        value={draft.start}
+        onChange={(start) => setDraft({ ...draft, start })}
+      />
+      <TimeRow
+        label={t("quietHours.end")}
+        value={draft.end}
+        error={same ? t("errors:validation.quietHoursSame") : undefined}
+        onChange={(end) => setDraft({ ...draft, end })}
+      />
+    </>
+  );
+}
+
+interface TimeRowProps {
+  label: string;
+  value: string;
+  error?: string;
+  onChange: (value: string) => void;
+}
+
+function TimeRow({ label, value, error, onChange }: TimeRowProps) {
+  const id = useId();
+  const errorId = `${id}-error`;
+
+  return (
+    <SettingsRow
+      label={label}
+      controlId={id}
+      control={
+        <Input
+          id={id}
+          type="time"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          className="w-32"
+        />
+      }
+    >
+      {error ? <FieldError id={errorId}>{error}</FieldError> : null}
+    </SettingsRow>
   );
 }

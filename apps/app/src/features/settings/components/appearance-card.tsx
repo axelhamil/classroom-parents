@@ -1,26 +1,19 @@
 import { shiftDate } from "@packages/ddd-kit/days";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-  FieldTitle,
-} from "@packages/ui/components/ui/field";
+import { FieldLegend, FieldSet } from "@packages/ui/components/ui/field";
 import { HueDot } from "@packages/ui/components/ui/hue-dot";
 import { AddIcon } from "@packages/ui/components/ui/icons";
-import { PaletteSwatch } from "@packages/ui/components/ui/palette-swatch";
+import { PaletteChip, PaletteSwatch } from "@packages/ui/components/ui/palette-swatch";
 import {
   PlannerCard,
   PlannerCardBody,
   PlannerCardMeta,
   PlannerCardTitle,
 } from "@packages/ui/components/ui/planner-card";
-import { RadioGroup, RadioGroupItem } from "@packages/ui/components/ui/radio-group";
-import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { RadioGroup, RadioTile } from "@packages/ui/components/ui/radio-group";
+import { SettingsGroup } from "@packages/ui/components/ui/settings";
+import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import {
   isPalette,
   PALETTE_FAMILIES,
@@ -31,24 +24,14 @@ import { isThemePreference } from "@packages/web-kit/theme/theme-store";
 import { usePalette } from "@packages/web-kit/theme/use-palette";
 import { useTheme } from "@packages/web-kit/theme/use-theme";
 import type * as React from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { THEME_OPTIONS } from "../../../shared/components/theme-toggle";
 import { dayLabel } from "../../../shared/format/deadline-label";
+import { SETTINGS_ANCHORS } from "../settings-search-index";
 
-export function AppearanceCard() {
-  const { t } = useTranslation("settings");
-
-  return (
-    <SectionCard title={t("appearance.title")} description={t("appearance.description")}>
-      <ModeChoice />
-      <PaletteChoice />
-    </SectionCard>
-  );
-}
-
-function ModeChoice() {
+export function ThemeCard() {
   const { t } = useTranslation(["settings", "common"]);
   const { theme, changeTheme } = useTheme();
   const baseId = useId();
@@ -60,36 +43,32 @@ function ModeChoice() {
   };
 
   return (
-    <FieldSet>
-      <FieldLegend id={`${baseId}-legend`} variant="label">
-        {t("appearance.mode")}
-      </FieldLegend>
-      <RadioGroup aria-labelledby={`${baseId}-legend`} value={theme} onValueChange={choose}>
+    <SettingsGroup
+      id={SETTINGS_ANCHORS.theme}
+      title={t("appearance.mode")}
+      description={t("appearance.modeHint")}
+    >
+      <RadioGroup
+        aria-label={t("appearance.mode")}
+        value={theme}
+        onValueChange={choose}
+        className="grid-cols-3"
+      >
         {THEME_OPTIONS.map(({ value, icon: Icon }) => (
-          <FieldLabel key={value} htmlFor={`${baseId}-${value}`}>
-            <Field orientation="horizontal">
-              <Icon aria-hidden />
-              <FieldContent>
-                <FieldTitle id={`${baseId}-${value}-title`}>
-                  {t(`common:theme.${value}`)}
-                </FieldTitle>
-              </FieldContent>
-              <RadioGroupItem
-                value={value}
-                id={`${baseId}-${value}`}
-                aria-labelledby={`${baseId}-${value}-title`}
-              />
-            </Field>
-          </FieldLabel>
+          <RadioTile key={value} value={value} id={`${baseId}-${value}`}>
+            <Icon aria-hidden />
+            {t(`common:theme.${value}`)}
+          </RadioTile>
         ))}
       </RadioGroup>
-    </FieldSet>
+    </SettingsGroup>
   );
 }
 
-function PaletteChoice() {
+export function PaletteCard() {
   const { t } = useTranslation("settings");
-  const { palette, changePalette, previewPalette } = usePalette();
+  const { palette, changePalette } = usePalette();
+  const [previewed, setPreviewed] = useState<Palette | null>(null);
   const baseId = useId();
 
   const choose = (value: string) => {
@@ -101,105 +80,94 @@ function PaletteChoice() {
   const endPreview = (event: React.FocusEvent<HTMLElement>) => {
     if (event.currentTarget.contains(event.relatedTarget)) return;
 
-    previewPalette(null);
+    setPreviewed(null);
   };
 
   return (
-    <FieldSet>
-      <FieldLegend id={`${baseId}-legend`} variant="label">
-        {t("appearance.palette")}
-      </FieldLegend>
-      <FieldDescription>{t("appearance.paletteHint")}</FieldDescription>
-      <RadioGroup
-        aria-labelledby={`${baseId}-legend`}
-        value={palette}
-        onValueChange={choose}
-        onPointerLeave={() => previewPalette(null)}
-        onBlur={endPreview}
-        className="gap-6"
-      >
-        {PALETTE_FAMILIES.map((family) => (
-          <FieldSet key={family} className="gap-3">
-            <FieldLegend variant="label">{t(`appearance.groups.${family}`)}</FieldLegend>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))] gap-3">
-              {PALETTE_GROUPS[family].map((value) => (
-                <PaletteOption
-                  key={value}
-                  palette={value}
-                  id={`${baseId}-${value}`}
-                  onPreview={() => previewPalette(value)}
-                />
-              ))}
-            </div>
-          </FieldSet>
-        ))}
-      </RadioGroup>
-    </FieldSet>
-  );
-}
-
-interface PaletteOptionProps {
-  palette: Palette;
-  id: string;
-  onPreview: () => void;
-}
-
-function PaletteOption({ palette, id, onPreview }: PaletteOptionProps) {
-  const { t } = useTranslation("settings");
-
-  return (
-    <FieldLabel htmlFor={id} onPointerEnter={onPreview}>
-      <Field>
-        <PaletteSwatch palette={palette}>
-          <PaletteSample />
-        </PaletteSwatch>
-        <Field orientation="horizontal">
-          <FieldContent>
-            <FieldTitle id={`${id}-title`}>{t(`appearance.palettes.${palette}.name`)}</FieldTitle>
-            <FieldDescription id={`${id}-description`}>
-              {t(`appearance.palettes.${palette}.description`)}
-            </FieldDescription>
-          </FieldContent>
-          <RadioGroupItem
-            value={palette}
-            id={id}
-            onFocus={onPreview}
-            aria-labelledby={`${id}-title`}
-            aria-describedby={`${id}-description`}
-          />
-        </Field>
-      </Field>
-    </FieldLabel>
+    <SettingsGroup
+      id={SETTINGS_ANCHORS.palette}
+      title={t("appearance.palette")}
+      description={t("appearance.paletteHint")}
+      width="wide"
+    >
+      <div className="grid gap-6 @4xl:grid-cols-[minmax(0,1fr)_20rem] @4xl:items-start">
+        <PalettePreview palette={previewed ?? palette} />
+        <RadioGroup
+          aria-label={t("appearance.palette")}
+          value={palette}
+          onValueChange={choose}
+          onPointerLeave={() => setPreviewed(null)}
+          onBlur={endPreview}
+          className="gap-5 @4xl:order-first"
+        >
+          {PALETTE_FAMILIES.map((family) => (
+            <FieldSet key={family} className="gap-2">
+              <FieldLegend variant="label">{t(`appearance.groups.${family}`)}</FieldLegend>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+                {PALETTE_GROUPS[family].map((value) => (
+                  <RadioTile
+                    key={value}
+                    value={value}
+                    id={`${baseId}-${value}`}
+                    aria-label={t(`appearance.palettes.${value}.name`)}
+                    aria-description={t(`appearance.palettes.${value}.description`)}
+                    onPointerEnter={() => setPreviewed(value)}
+                    onFocus={() => setPreviewed(value)}
+                    className="items-stretch"
+                  >
+                    <PaletteChip palette={value} />
+                    {t(`appearance.palettes.${value}.name`)}
+                  </RadioTile>
+                ))}
+              </div>
+            </FieldSet>
+          ))}
+        </RadioGroup>
+      </div>
+    </SettingsGroup>
   );
 }
 
 const SAMPLE_CHILDREN = [2, 9, 14] as const;
 
-function PaletteSample() {
+function PalettePreview({ palette }: { palette: Palette }) {
   const { t } = useTranslation("settings");
   const { today } = useSchoolClock();
   const tomorrow = shiftDate(today, 1);
 
   return (
-    <>
-      <PlannerCard hue={1}>
-        <PlannerCardBody>
-          <PlannerCardTitle className="line-clamp-1">{t("appearance.sample")}</PlannerCardTitle>
-          <PlannerCardMeta>{dayLabel(tomorrow, today)}</PlannerCardMeta>
-        </PlannerCardBody>
-      </PlannerCard>
-      <div className="flex items-center justify-between gap-2">
+    <div className="flex flex-col gap-2 @4xl:sticky @4xl:top-app-bar">
+      <PaletteSwatch palette={palette} className="gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <ChildAvatar name={t("appearance.sampleChild")} tone={1} size="sm" />
+          <Badge>
+            <AddIcon aria-hidden />
+            {t("appearance.sampleAction")}
+          </Badge>
+        </div>
+        <PlannerCard hue={1}>
+          <PlannerCardBody>
+            <PlannerCardTitle className="line-clamp-1">{t("appearance.sample")}</PlannerCardTitle>
+            <PlannerCardMeta>{dayLabel(tomorrow, today)}</PlannerCardMeta>
+          </PlannerCardBody>
+        </PlannerCard>
+        <PlannerCard hue={9}>
+          <PlannerCardBody>
+            <PlannerCardTitle className="line-clamp-1">
+              {t("appearance.sampleSecond")}
+            </PlannerCardTitle>
+            <PlannerCardMeta>{dayLabel(shiftDate(today, 3), today)}</PlannerCardMeta>
+          </PlannerCardBody>
+        </PlannerCard>
         <div className="flex items-center gap-1">
-          <ChildAvatar name={t("appearance.sampleChild")} tone={1} size="xs" />
           {SAMPLE_CHILDREN.map((hue) => (
             <HueDot key={hue} hue={hue} />
           ))}
         </div>
-        <Badge>
-          <AddIcon aria-hidden />
-          {t("appearance.sampleAction")}
-        </Badge>
-      </div>
-    </>
+      </PaletteSwatch>
+      <TypographyMuted>
+        {t("appearance.previewOf", { name: t(`appearance.palettes.${palette}.name`) })}
+      </TypographyMuted>
+    </div>
   );
 }

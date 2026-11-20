@@ -72,7 +72,7 @@ describe("devices card", () => {
       session("s-2", "token-2", WINDOWS_CHROME, "2026-11-10T19:30:00.000Z"),
       session("s-1", "token-1", IPHONE, "2026-11-12T08:00:00.000Z"),
     ]);
-    await renderAppAt("/settings");
+    await renderAppAt("/settings/account");
 
     const card = await screen.findByRole("region", { name: "Appareils connectés" });
     const [current, other, ...rest] = await within(card).findAllByRole("listitem");
@@ -100,7 +100,7 @@ describe("devices card", () => {
       session("s-2", "token-2", WINDOWS_CHROME, "2026-11-10T19:30:00.000Z"),
       session("s-3", "token-3", MAC_FIREFOX, "2026-11-09T07:15:00.000Z"),
     ]);
-    await renderAppAt("/settings");
+    await renderAppAt("/settings/account");
     const user = userEvent.setup();
 
     await user.click(
@@ -126,7 +126,7 @@ describe("devices card", () => {
         session(`s-${index + 2}`, `token-${index + 2}`, WINDOWS_CHROME, "2026-11-10T19:30:00.000Z"),
       ),
     ]);
-    await renderAppAt("/settings");
+    await renderAppAt("/settings/account");
 
     const card = await screen.findByRole("region", { name: "Appareils connectés" });
     const others = await within(card).findByRole("list", { name: "Vos autres appareils" });

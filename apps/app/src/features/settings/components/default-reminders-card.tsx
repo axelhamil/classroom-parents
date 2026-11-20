@@ -1,4 +1,4 @@
-import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { SettingsGroup } from "@packages/ui/components/ui/settings";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
@@ -9,6 +9,7 @@ import { defaultRemindersQueryOptions } from "../../../shared/api/queries/defaul
 import { EVENTS_KEY } from "../../../shared/api/queries/events";
 import { QueryState } from "../../../shared/query/query-state";
 import { RemindersForm } from "../../../shared/reminders/reminders-form";
+import { SETTINGS_ANCHORS } from "../settings-search-index";
 
 export interface DefaultRemindersCardProps {
   userId: string;
@@ -29,10 +30,10 @@ export function DefaultRemindersCard({ userId }: DefaultRemindersCardProps) {
   });
 
   return (
-    <SectionCard
+    <SettingsGroup
+      id={SETTINGS_ANCHORS.reminders}
       title={t("reminders.title")}
       description={t("reminders.description")}
-      data-tour="settings-reminders"
     >
       <QueryState
         query={query}
@@ -47,11 +48,12 @@ export function DefaultRemindersCard({ userId }: DefaultRemindersCardProps) {
             key={JSON.stringify(reminders)}
             reminders={reminders}
             allowHours
+            saveWhenChanged
             pending={save.isPending}
             onSubmit={(next) => save.mutate(next)}
           />
         )}
       </QueryState>
-    </SectionCard>
+    </SettingsGroup>
   );
 }

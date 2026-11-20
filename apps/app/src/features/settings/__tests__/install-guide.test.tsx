@@ -37,7 +37,7 @@ describe("iOS install guide", () => {
     expect(screen.getByText(/Partager/)).toBeTruthy();
     expect(screen.getByText(/Sur l'écran d'accueil/)).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Activer les alertes" }).hasAttribute("disabled"),
+      screen.getByRole("switch", { name: "Recevoir les alertes" }).hasAttribute("disabled"),
     ).toBe(true);
   });
 
@@ -49,7 +49,7 @@ describe("iOS install guide", () => {
 
     expect(screen.queryByRole("heading", { name: GUIDE_TITLE })).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Activer les alertes" }).hasAttribute("disabled"),
+      screen.getByRole("switch", { name: "Recevoir les alertes" }).hasAttribute("disabled"),
     ).toBe(false);
   });
 

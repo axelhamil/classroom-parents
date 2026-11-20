@@ -1,6 +1,6 @@
 import type { LanguageAndRegionChoice } from "./api/settings.mutations";
 
-type ParentLocale = LanguageAndRegionChoice["locale"];
+export type ParentLocale = LanguageAndRegionChoice["locale"];
 
 export const PARENT_LOCALES = [
   "fr",
@@ -71,7 +71,7 @@ const regionNames = new Intl.DisplayNames(["fr"], { type: "region", fallback: "n
 
 const LETTERS = Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index));
 
-interface CountryOption {
+export interface CountryOption {
   code: string;
   name: string;
 }
@@ -89,6 +89,10 @@ export const COUNTRY_OPTIONS: readonly CountryOption[] = LETTERS.flatMap((first)
 
 const COUNTRY_CODES = new Set(COUNTRY_OPTIONS.map(({ code }) => code));
 
+export function countryName(code: string): string {
+  return regionNames.of(code) ?? code;
+}
+
 export function languageAutonym(locale: ParentLocale): string {
   const name = new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale;
 
@@ -105,7 +109,7 @@ export function timeZoneLabel(timeZone: string): string {
   return timeZone.replaceAll("_", " ");
 }
 
-function isParentLocale(value: string): value is ParentLocale {
+export function isParentLocale(value: string): value is ParentLocale {
   return PARENT_LOCALES.some((locale) => locale === value);
 }
 

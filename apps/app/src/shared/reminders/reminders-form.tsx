@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@packages/ui/components/ui/select";
+import { SettingsSaveBar } from "@packages/ui/components/ui/settings";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { type Control, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -49,6 +50,8 @@ export interface RemindersFormProps {
   onSubmit: (reminders: Reminder[], refuse: (refusal: ReminderRefusal) => void) => void;
   onCancel?: () => void;
   formId?: string;
+  /** Shows the save button only once something changed, pinned in reach (the settings). */
+  saveWhenChanged?: boolean;
 }
 
 export function RemindersForm({
@@ -58,6 +61,7 @@ export function RemindersForm({
   onSubmit,
   onCancel,
   formId,
+  saveWhenChanged = false,
 }: RemindersFormProps) {
   const { t } = useTranslation("common");
   const form = useForm<RemindersInput>({
@@ -114,7 +118,15 @@ export function RemindersForm({
             {t("reminders.add")}
           </Button>
         </Hint>
-        {formId ? null : (
+        {saveWhenChanged ? (
+          form.formState.isDirty ? (
+            <SettingsSaveBar>
+              <Button type="submit" size="sm" disabled={pending}>
+                {t("actions.save")}
+              </Button>
+            </SettingsSaveBar>
+          ) : null
+        ) : formId ? null : (
           <div className="flex flex-wrap gap-2">
             <Button type="submit" size="sm" disabled={pending}>
               {t("actions.save")}

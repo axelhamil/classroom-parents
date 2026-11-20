@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { json, renderWithProviders, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { QuietHoursCard } from "../components/quiet-hours-card";
@@ -13,8 +13,11 @@ function givenQuietHours(quiet: unknown) {
   });
 }
 
+const TYPING_PAUSE_MS = 700;
+
 describe("quiet hours card", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -29,14 +32,15 @@ describe("quiet hours card", () => {
     cleanup();
     resetApp();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
-  it("given the parent moves the start of the quiet hours, then the new hours are saved", async () => {
+  it("given the parent moves the start of the quiet hours, then the new hours are saved once they stop typing", async () => {
     const calls = givenQuietHours({ enabled: true, start: "21:00", end: "07:00" });
     await renderWithProviders(<QuietHoursCard userId="user-1" />);
 
     fireEvent.change(await screen.findByLabelText("Début"), { target: { value: "22:30" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await act(() => vi.advanceTimersByTimeAsync(TYPING_PAUSE_MS));
 
     await waitFor(() =>
       expect(calls.find((call) => call.method === "PUT")?.body).toEqual({
@@ -45,7 +49,7 @@ describe("quiet hours card", () => {
         end: "07:00",
       }),
     );
-    expect(await screen.findByText("Heures calmes enregistrées")).toBeDefined();
+    expect(await screen.findByText("Enregistré")).toBeDefined();
   });
 
   it("given quiet hours turned off, when the parent turns them on, then the server defaults, 21 h to 7 h, are saved at once", async () => {
@@ -69,7 +73,7 @@ describe("quiet hours card", () => {
     await renderWithProviders(<QuietHoursCard userId="user-1" />);
 
     fireEvent.change(await screen.findByLabelText("Fin"), { target: { value: "21:00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await act(() => vi.advanceTimersByTimeAsync(TYPING_PAUSE_MS));
 
     expect(await screen.findByText("Choisissez une fin différente du début.")).toBeDefined();
     expect(calls.some((call) => call.method === "PUT")).toBe(false);

@@ -10,7 +10,7 @@ import { STORAGE_STATE } from "./playwright.config";
 type ThemeProbe = Window & { __themeTransitioned?: boolean };
 
 async function openDeletionDialog(page: Page): Promise<{ trigger: Locator; dialog: Locator }> {
-  await page.goto("/settings");
+  await page.goto("/settings/privacy");
 
   const trigger = page.getByRole("button", { name: "Supprimer mon compte" });
   await page.getByText(/^Votre compte, les comptes Google de vos enfants/).click();
@@ -169,7 +169,7 @@ test.describe("signed in", () => {
       const onHome = await boxes();
       for (const [name, path] of [
         ["Enfants", /\/children$/],
-        ["Réglages", /\/settings$/],
+        ["Réglages", /\/settings(\/notifications)?$/],
       ] as const) {
         await nav.getByRole("link", { name }).click();
         await expect(page).toHaveURL(path);
@@ -228,10 +228,10 @@ test.describe("signed in", () => {
   test("switches the theme from the appearance radio group with the arrow keys", async ({
     page,
   }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/appearance");
 
     const light = page.getByRole("radio", { name: "Clair" });
-    await page.getByText(/^Le thème et les couleurs de l'application sur cet appareil/).click();
+    await page.getByText(/^Sur cet appareil\. Automatique suit/).click();
     await page.keyboard.press("Tab");
     await expect(light).toBeFocused();
     await page.keyboard.press("ArrowRight", { delay: 50 });
@@ -312,7 +312,7 @@ test.describe("signed in", () => {
   test("switches the palette from the appearance radio group with the arrow keys", async ({
     page,
   }) => {
-    await page.goto("/settings");
+    await page.goto("/settings/appearance");
 
     const paper = page.getByRole("radio", { name: "Papier" });
     await page.getByRole("radio", { name: "Clair" }).focus();

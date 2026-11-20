@@ -69,21 +69,17 @@ export default {
     },
   },
   settings: {
-    push: {
-      title: "Les alertes sur ce téléphone",
-      body: "Activez les notifications pour être prévenu avant chaque échéance.",
+    notifications: {
+      title: "Vos alertes",
+      body: "Activez les notifications sur ce téléphone et choisissez vos rappels par défaut.",
     },
-    reminders: {
-      title: "Vos rappels par défaut",
-      body: "Ils s'appliquent à chaque nouvelle échéance. Vous pouvez les changer au cas par cas.",
-    },
-    devices: {
+    account: {
       title: "Vos appareils",
       body: "Voyez où vous êtes connecté et déconnectez un appareil oublié.",
     },
-    tour: {
+    help: {
       title: "Revoir la visite",
-      body: "Relancez cette visite quand vous voulez, depuis ici.",
+      body: "Relancez cette visite quand vous voulez, depuis l'aide.",
     },
   },
 } as const;

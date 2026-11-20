@@ -2,7 +2,7 @@ import type { Mutation, Query } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import { apiErrorFields } from "../api/errors/api-error";
-import { rateLimitedMessage } from "../api/errors/messages";
+import { messageFromCode, rateLimitedMessage } from "../api/errors/messages";
 import { getErrorsT } from "../i18n/get-errors-t";
 import type { CaptureError } from "./capture-error";
 import { isUnexpectedError, isUnexpectedMutationError } from "./error-classifier";
@@ -26,12 +26,13 @@ function retryAfterMessage(seconds: number, t: TFunction<"errors">): string {
 }
 
 function notifyIfRateLimited(error: unknown): boolean {
-  const { status, metadata } = apiErrorFields(error);
+  const { status, code, metadata } = apiErrorFields(error);
   if (status !== 429) return false;
 
   const retryAfter = metadata?.retryAfter;
   const t = getErrorsT();
-  toast.error(rateLimitedMessage(t), {
+  const message = (code ? messageFromCode(code, t) : undefined) ?? rateLimitedMessage(t);
+  toast.error(message, {
     id: "rate-limit",
     description: typeof retryAfter === "number" ? retryAfterMessage(retryAfter, t) : undefined,
   });

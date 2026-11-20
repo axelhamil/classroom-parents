@@ -34,17 +34,9 @@ export function changePalette(palette: Palette, origin: RevealOrigin | null): Pr
   return transitionTheme(origin, () => store.setPalette(palette));
 }
 
-/** Shows `palette` on the page without keeping it, for a preview under the pointer or the focus; `null` puts the chosen one back. */
-export function previewPalette(palette: Palette | null) {
-  const shown = palette ?? getPaletteStore().getPalette();
-  if (document.documentElement.dataset.palette === shown) return;
-
-  browserHost.apply(shown);
-}
-
 export function usePalette() {
   const store = getPaletteStore();
   const palette = useSyncExternalStore(store.subscribe, store.getPalette);
 
-  return { palette, changePalette, previewPalette };
+  return { palette, changePalette };
 }

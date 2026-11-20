@@ -4,7 +4,7 @@ import { cn } from "../../libs/utils";
 
 /**
  * Cards of the same kind and similar height in rows read left to right: 1 column on a phone,
- * 2 on a tablet, 3 on a computer, 4 from about 1800px, the same steps as `CardColumns`. Renders
+ * 2 on a tablet, 3 on a computer, 4 from about 1800px. Renders
  * a list by default (`ul`), each card in an `li`. Needs a container query parent (`Screen`'s
  * `main`).
  */

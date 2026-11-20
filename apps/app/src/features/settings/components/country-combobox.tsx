@@ -7,69 +7,61 @@ import {
   CommandItem,
   CommandList,
 } from "@packages/ui/components/ui/command";
-import { FormControl } from "@packages/ui/components/ui/form";
 import { PickFromListIcon } from "@packages/ui/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@packages/ui/components/ui/popover";
 import { useState } from "react";
-
-export interface CountryOption {
-  code: string;
-  name: string;
-}
+import type { CountryOption } from "../language-and-region";
 
 export interface CountryComboboxProps {
-  value: string | null;
+  id: string;
+  "aria-describedby"?: string;
+  value: string;
   options: readonly CountryOption[];
-  onChange: (code: string | null) => void;
-  placeholder: string;
+  onChange: (code: string) => void;
   searchLabel: string;
   emptyLabel: string;
-  unknownLabel: string;
 }
 
-/** A searchable country list; "I don't know" is a choice of its own, at the top. */
+/** A searchable country list: about 250 names do not fit a plain select. */
 export function CountryCombobox({
+  id,
+  "aria-describedby": describedBy,
   value,
   options,
   onChange,
-  placeholder,
   searchLabel,
   emptyLabel,
-  unknownLabel,
 }: CountryComboboxProps) {
   const [open, setOpen] = useState(false);
   const selected = options.find(({ code }) => code === value);
 
-  const choose = (code: string | null) => {
-    onChange(code);
+  const choose = (code: string) => {
     setOpen(false);
+    if (code !== value) onChange(code);
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <FormControl>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            {selected?.name ?? (value === null ? unknownLabel : placeholder)}
-            <PickFromListIcon aria-hidden />
-          </Button>
-        </FormControl>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-describedby={describedBy}
+          className="w-56 justify-between"
+        >
+          {selected?.name ?? value}
+          <PickFromListIcon aria-hidden />
+        </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
+      <PopoverContent align="end" className="w-72 p-0">
         <Command label={searchLabel}>
-          <CommandInput placeholder={searchLabel} />
+          <CommandInput placeholder={searchLabel} aria-label={searchLabel} />
           <CommandList>
             <CommandEmpty>{emptyLabel}</CommandEmpty>
             <CommandGroup>
-              <CommandItem value={unknownLabel} onSelect={() => choose(null)}>
-                {unknownLabel}
-              </CommandItem>
               {options.map(({ code, name }) => (
                 <CommandItem key={code} value={`${name} ${code}`} onSelect={() => choose(code)}>
                   {name}
