@@ -1,4 +1,14 @@
 import { Button } from "@packages/ui/components/ui/button";
+import {
+  AnalysisFailedIcon,
+  AnalyzingIcon,
+  CelebrateIcon,
+  CredentialsIcon,
+  RetryIcon,
+  StepDoneIcon,
+  StepPendingIcon,
+  WarningIcon,
+} from "@packages/ui/components/ui/icons";
 import { Progress } from "@packages/ui/components/ui/progress";
 import { Spinner } from "@packages/ui/components/ui/spinner";
 import { RevealList } from "@packages/ui/components/ui/stepper";
@@ -6,16 +16,6 @@ import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  CircleCheck,
-  CircleDashed,
-  KeyRound,
-  RotateCcw,
-  ScanSearch,
-  SearchX,
-  Sparkles,
-  TriangleAlert,
-} from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
@@ -88,7 +88,7 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
   if (state === "blocked") {
     return (
       <StepFrame
-        media={<TriangleAlert />}
+        media={<WarningIcon />}
         mediaTone="warning"
         title={t("analysis.title")}
         description={t("analysis.blocked", { label: child.label })}
@@ -104,7 +104,7 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
 
     return (
       <StepFrame
-        media={<KeyRound />}
+        media={<CredentialsIcon />}
         mediaTone="warning"
         title={t("analysis.reconnectTitle")}
         description={t("analysis.reconnectDescription", { label: child.label })}
@@ -129,7 +129,7 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
   if (state === "failed") {
     return (
       <StepFrame
-        media={<SearchX />}
+        media={<AnalysisFailedIcon />}
         mediaTone="warning"
         title={t("analysis.failedTitle")}
         description={t("analysis.failedDescription", { label: child.label })}
@@ -137,7 +137,7 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
           <WayOut
             primary={
               <Button size="lg" disabled={sync.isPending} onClick={() => sync.mutate(child.id)}>
-                <RotateCcw aria-hidden />
+                <RetryIcon aria-hidden />
                 {t("analysis.retry")}
               </Button>
             }
@@ -150,7 +150,7 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
   if (state === "reading") {
     return (
       <StepFrame
-        media={<ScanSearch />}
+        media={<AnalyzingIcon />}
         title={t("analysis.title")}
         description={t("analysis.running", { label: child.label })}
         actions={actions}
@@ -158,9 +158,14 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
         <Progress indeterminate aria-label={t("analysis.phases.courses")} />
         <StepList
           entries={[
-            { id: "linked", icon: CircleCheck, title: t("analysis.phases.linked") },
-            { id: "courses", icon: CircleDashed, busy: true, title: t("analysis.phases.courses") },
-            { id: "deadlines", icon: CircleDashed, title: t("analysis.phases.deadlines") },
+            { id: "linked", icon: StepDoneIcon, title: t("analysis.phases.linked") },
+            {
+              id: "courses",
+              icon: StepPendingIcon,
+              busy: true,
+              title: t("analysis.phases.courses"),
+            },
+            { id: "deadlines", icon: StepPendingIcon, title: t("analysis.phases.deadlines") },
           ]}
         />
       </StepFrame>
@@ -171,7 +176,7 @@ export function AnalysisStep({ mode, child, hue, onNext }: AnalysisStepProps) {
 
   return (
     <StepFrame
-      media={<Sparkles />}
+      media={<CelebrateIcon />}
       mediaTone="success"
       title={t("analysis.title")}
       description={

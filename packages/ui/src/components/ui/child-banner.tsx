@@ -41,10 +41,7 @@ function ChildBannerTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
     <h2
       data-slot="child-banner-title"
-      className={cn(
-        "font-display text-2xl leading-tight font-bold tracking-tight wrap-anywhere @md/child-banner:text-3xl",
-        className,
-      )}
+      className={cn("font-display text-display wrap-anywhere", className)}
       {...props}
     />
   );
@@ -54,7 +51,7 @@ function ChildBannerMeta({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="child-banner-meta"
-      className={cn("truncate text-sm text-child-foreground", className)}
+      className={cn("truncate text-small text-child-foreground", className)}
       {...props}
     />
   );

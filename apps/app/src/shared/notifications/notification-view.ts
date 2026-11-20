@@ -1,15 +1,15 @@
 import { deadlineLine, type frCatalog } from "@packages/i18n";
 import {
-  AlarmClockIcon,
-  CalendarClockIcon,
-  CalendarPlusIcon,
-  CalendarRangeIcon,
-  CalendarSearchIcon,
-  CalendarXIcon,
-  type LucideIcon,
+  ConfirmDateIcon,
+  DeadlineCancelledIcon,
+  DeadlineMovedIcon,
+  type Icon,
+  NewDeadlinesIcon,
+  ReminderIcon,
   SchoolIcon,
   UnlinkIcon,
-} from "lucide-react";
+  WeeklyDigestIcon,
+} from "@packages/ui/components/ui/icons";
 import type { NotificationContent, NotificationItem } from "./notifications.queries";
 
 type PluralBase<Key> = Key extends `${infer Base}_${"one" | "other"}` ? Base : Key;
@@ -29,7 +29,7 @@ export type NotificationTarget =
 export interface NotificationView {
   copy: NotificationCopy;
   target: NotificationTarget;
-  icon: LucideIcon;
+  icon: Icon;
 }
 
 type Kind = NotificationContent["kind"];
@@ -81,7 +81,7 @@ function amended(content: ContentOf<"deadline_amended">, deadline: NamedDeadline
       ? titled(deadline, "deadlineCancelled", "deadlineCancelledUntitled")
       : titled(deadline, "deadlineMoved", "deadlineMovedUntitled"),
     target: eventTarget(content.eventId),
-    icon: cancelled ? CalendarXIcon : CalendarClockIcon,
+    icon: cancelled ? DeadlineCancelledIcon : DeadlineMovedIcon,
   };
 }
 
@@ -92,7 +92,7 @@ function datesToCheck(content: ContentOf<"dates_to_check">, child: string | null
   return {
     copy: named(child, "datesToCheck", "datesToCheckUnnamed", { count }),
     target: only !== undefined && others.length === 0 ? eventTarget(only) : HOME,
-    icon: CalendarSearchIcon,
+    icon: ConfirmDateIcon,
   };
 }
 
@@ -107,19 +107,19 @@ export function notificationView(
       return {
         copy: titled(deadline, "deadlineReminder", "deadlineReminderUntitled"),
         target: eventTarget(content.eventId),
-        icon: AlarmClockIcon,
+        icon: ReminderIcon,
       };
     case "deadline_reminders":
       return {
         copy: { key: "items.deadlineReminders", values: { count: content.count } },
         target: HOME,
-        icon: AlarmClockIcon,
+        icon: ReminderIcon,
       };
     case "weekly_digest":
       return {
         copy: { key: "items.weeklyDigest", values: { count: content.deadlines } },
         target: HOME,
-        icon: CalendarRangeIcon,
+        icon: WeeklyDigestIcon,
       };
     case "access_lost":
       return {
@@ -137,7 +137,7 @@ export function notificationView(
       return {
         copy: named(child, "newDeadlines", "newDeadlinesUnnamed", { count: content.count }),
         target: HOME,
-        icon: CalendarPlusIcon,
+        icon: NewDeadlinesIcon,
       };
     case "deadline_amended":
       return amended(content, deadline);

@@ -1,12 +1,12 @@
 import { relativeDayLabel } from "@packages/i18n";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
+import { AllDoneIcon, CelebrateIcon } from "@packages/ui/components/ui/icons";
 import {
   readStoredValue,
   userStorageKey,
   writeStoredValue,
 } from "@packages/web-kit/storage/use-stored-value";
 import { useIsMutating } from "@tanstack/react-query";
-import { CheckCheckIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -89,9 +89,7 @@ export function useCelebrateProgress(clock: SchoolClock): void {
     toast.success(message, {
       id: weekDone ? `celebration:week:${week}` : `celebration:day:${day ?? today}`,
       icon: (
-        <CelebrationStamp burst>
-          {weekDone ? <SparklesIcon /> : <CheckCheckIcon />}
-        </CelebrationStamp>
+        <CelebrationStamp burst>{weekDone ? <CelebrateIcon /> : <AllDoneIcon />}</CelebrationStamp>
       ),
     });
   }, [progress?.scope, progress?.days.join(" "), progress?.weekDone]);

@@ -1,5 +1,5 @@
 import { Button } from "@packages/ui/components/ui/button";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ShowLessIcon, ShowMoreIcon } from "@packages/ui/components/ui/icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -46,7 +46,7 @@ export function ShowMoreButton({ more, controls }: ShowMoreButtonProps) {
       aria-controls={controls}
       onClick={more.toggle}
     >
-      {more.open ? <ChevronUpIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
+      {more.open ? <ShowLessIcon aria-hidden /> : <ShowMoreIcon aria-hidden />}
       {more.open ? t("blocks.less") : t("blocks.more", { count: more.rest })}
     </Button>
   );

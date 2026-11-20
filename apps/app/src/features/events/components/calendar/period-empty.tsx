@@ -1,7 +1,7 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { AddIcon, NothingDueIcon } from "@packages/ui/components/ui/icons";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarCheckIcon, PlusIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { BoardEmpty } from "../../../../shared/events/event-board";
@@ -37,7 +37,7 @@ export function PeriodEmpty({ family, childId, today, onAdd, onGoTo }: PeriodEmp
 
   return (
     <BoardEmpty
-      icon={CalendarCheckIcon}
+      icon={NothingDueIcon}
       title={t("calendar.periodEmpty")}
       description={lastRead}
       action={
@@ -51,7 +51,7 @@ export function PeriodEmpty({ family, childId, today, onAdd, onGoTo }: PeriodEmp
             </Button>
           )}
           <Button onClick={onAdd}>
-            <PlusIcon aria-hidden />
+            <AddIcon aria-hidden />
             {t("calendar.addEvent")}
           </Button>
         </>

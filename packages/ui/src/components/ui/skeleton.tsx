@@ -6,7 +6,7 @@ import { cn } from "../../libs/utils";
 const skeletonVariants = cva("bg-accent", {
   variants: {
     shape: {
-      card: "rounded-xl",
+      card: "rounded-inner",
       line: "h-4 rounded-full",
       circle: "shrink-0 rounded-full",
     },

@@ -3,10 +3,9 @@ import type * as React from "react";
 
 import { cn } from "../../libs/utils";
 
-const sheetTitleClass =
-  "font-display text-3xl leading-tight font-bold tracking-tight text-balance md:text-4xl print:text-3xl";
+const sheetTitleClass = "font-display text-display text-balance";
 
-const hueBandVariants = cva("border-t-4", {
+const hueBandVariants = cva("border-t-(length:--stripe-width)", {
   variants: {
     hue: {
       1: "border-child-1",
@@ -36,7 +35,7 @@ function PrintSheet({ className, ...props }: React.ComponentProps<"article">) {
     <article
       data-slot="print-sheet"
       className={cn(
-        "flex flex-col gap-6 rounded-2xl border bg-card p-5 text-card-foreground shadow-sm md:gap-8 md:p-8 print:gap-4 print:rounded-none print:border-0 print:p-0 print:shadow-none",
+        "flex flex-col gap-6 rounded-surface border bg-card p-surface text-card-foreground shadow-rest md:gap-8 print:gap-4 print:rounded-none print:border-0 print:p-0 print:shadow-none",
         className,
       )}
       {...props}
@@ -62,7 +61,7 @@ function PrintSheetSubtitle({ className, ...props }: React.ComponentProps<"p">) 
   return (
     <p
       data-slot="print-sheet-subtitle"
-      className={cn("text-sm font-normal text-muted-foreground", className)}
+      className={cn("text-small font-normal text-muted-foreground", className)}
       {...props}
     />
   );
@@ -73,7 +72,7 @@ function PrintSheetNote({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="print-sheet-note"
       role="status"
-      className={cn("text-xs text-muted-foreground", className)}
+      className={cn("text-meta text-muted-foreground", className)}
       {...props}
     />
   );
@@ -84,7 +83,7 @@ function PrintSheetFooter({ className, ...props }: React.ComponentProps<"footer"
     <footer
       data-slot="print-sheet-footer"
       className={cn(
-        "flex flex-wrap justify-between gap-x-4 gap-y-1 border-t pt-3 text-xs text-muted-foreground",
+        "flex flex-wrap justify-between gap-x-4 gap-y-1 border-t pt-3 text-meta text-muted-foreground",
         className,
       )}
       {...props}
@@ -132,8 +131,7 @@ function PrintPlannerColumn({
   );
 }
 
-const columnTitleClass =
-  "flex min-w-0 items-center gap-2 font-display text-lg leading-tight font-semibold wrap-anywhere";
+const columnTitleClass = "flex min-w-0 items-center gap-2 font-display text-title wrap-anywhere";
 
 function PrintPlannerColumnTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
@@ -179,7 +177,7 @@ function PrintPlannerItem({
   );
 }
 
-const printPlannerBoxVariants = cva("mt-0.5 size-4 shrink-0 rounded-xs border-2", {
+const printPlannerBoxVariants = cva("mt-0.5 size-4 shrink-0 rounded-mark border-2", {
   variants: {
     past: {
       true: "border-muted-foreground",
@@ -208,7 +206,7 @@ function PrintPlannerItemTitle({ className, ...props }: React.ComponentProps<"sp
   return (
     <span
       data-slot="print-planner-item-title"
-      className={cn("text-sm leading-snug font-medium wrap-anywhere", className)}
+      className={cn("text-small font-medium wrap-anywhere", className)}
       {...props}
     />
   );
@@ -219,7 +217,7 @@ function PrintPlannerItemMeta({ className, ...props }: React.ComponentProps<"spa
     <span
       data-slot="print-planner-item-meta"
       className={cn(
-        "flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
+        "flex flex-wrap items-center gap-x-2 gap-y-0.5 text-meta text-muted-foreground [&_svg]:size-icon-sm [&_svg]:shrink-0",
         className,
       )}
       {...props}
@@ -231,7 +229,7 @@ function PrintPlannerEmpty({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="print-planner-empty"
-      className={cn("py-2 text-sm text-muted-foreground", className)}
+      className={cn("py-2 text-small text-muted-foreground", className)}
       {...props}
     />
   );

@@ -1,7 +1,7 @@
 import { IconButton } from "@packages/ui/components/ui/icon-button";
+import { NotificationsIcon } from "@packages/ui/components/ui/icons";
 import { UnreadCount } from "@packages/ui/components/ui/unread-mark";
 import { useQuery } from "@tanstack/react-query";
-import { BellIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TABLET_QUERY, useMediaQuery } from "../layout/use-media-query";
@@ -48,7 +48,7 @@ export function NotificationBell() {
       className="relative"
       onClick={docked ? undefined : () => setOpen(true)}
     >
-      <BellIcon aria-hidden />
+      <NotificationsIcon aria-hidden />
       {count > 0 && <UnreadCount>{shownCount}</UnreadCount>}
     </IconButton>
   );

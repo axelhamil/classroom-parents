@@ -13,10 +13,10 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { AllDoneIcon } from "@packages/ui/components/ui/icons";
 import { Progress, ProgressLegend, ProgressRow } from "@packages/ui/components/ui/progress";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCheckIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isOpen } from "../../../shared/agenda/deadline-facts";
@@ -167,7 +167,7 @@ function BriefingBody({ events: loaded, family, childId, clock, rows, day }: Bri
       {allSet ? (
         <BriefingSummary tone="ready">
           <CelebrationStamp>
-            <CheckCheckIcon />
+            <AllDoneIcon />
           </CelebrationStamp>
           {t("briefing.allSet", { day })}
         </BriefingSummary>

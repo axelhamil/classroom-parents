@@ -63,7 +63,7 @@ function LandingLead({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="landing-lead"
-      className={cn("max-w-xl text-lg text-pretty sm:text-xl short:text-base", className)}
+      className={cn("max-w-xl text-body text-pretty", className)}
       {...props}
     />
   );
@@ -84,7 +84,7 @@ function LandingReassurance({ className, ...props }: React.ComponentProps<"p">) 
     <p
       data-slot="landing-reassurance"
       className={cn(
-        "flex items-center justify-center gap-2 text-left text-sm font-medium text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-primary",
+        "flex items-center justify-center gap-2 text-left text-small font-medium text-muted-foreground [&_svg]:size-icon [&_svg]:shrink-0 [&_svg]:text-primary",
         className,
       )}
       {...props}
@@ -100,7 +100,7 @@ function LandingVisual({ className, ...props }: React.ComponentProps<"figure">) 
       ref={reveal}
       data-slot="landing-visual"
       className={cn(
-        "mx-auto flex w-full max-w-md flex-col items-end text-left lg:max-w-none [&>figcaption]:mt-4 [&>figcaption]:self-center [&>figcaption]:text-sm [&>figcaption]:text-muted-foreground",
+        "mx-auto flex w-full max-w-md flex-col items-end text-left lg:max-w-none [&>figcaption]:mt-4 [&>figcaption]:self-center [&>figcaption]:text-small [&>figcaption]:text-muted-foreground",
         className,
       )}
       {...props}
@@ -113,7 +113,7 @@ function NotificationPreview({ className, ...props }: React.ComponentProps<"div"
     <div
       data-slot="notification-preview"
       className={cn(
-        "z-10 -mb-5 flex w-80 max-w-full items-start gap-3 rounded-2xl border bg-popover p-3 text-popover-foreground shadow-xl lg:translate-x-4",
+        "z-10 -mb-5 flex w-80 max-w-full items-start gap-3 rounded-surface border bg-popover p-surface text-popover-foreground shadow-float lg:translate-x-4",
         className,
       )}
       {...props}
@@ -126,7 +126,7 @@ function NotificationPreviewContent({ className, ...props }: React.ComponentProp
     <div
       data-slot="notification-preview-content"
       className={cn(
-        "flex min-w-0 flex-1 flex-col text-sm leading-snug [&>:first-child]:flex [&>:first-child]:justify-between [&>:first-child]:gap-2 [&>:first-child]:text-xs [&>:first-child]:text-muted-foreground [&>:last-child]:text-muted-foreground [&>:nth-child(2)]:font-semibold",
+        "flex min-w-0 flex-1 flex-col text-small [&>:first-child]:flex [&>:first-child]:justify-between [&>:first-child]:gap-2 [&>:first-child]:text-meta [&>:first-child]:text-muted-foreground [&>:last-child]:text-muted-foreground [&>:nth-child(2)]:font-semibold",
         className,
       )}
       {...props}
@@ -139,7 +139,7 @@ function SampleFrame({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sample-frame"
       className={cn(
-        "relative flex w-full flex-col gap-3 rounded-3xl border bg-surface-container p-3 pt-6 shadow-lg before:absolute before:-top-3 before:left-8 before:h-6 before:w-24 before:-rotate-3 before:rounded-sm before:bg-warning/80 before:shadow-xs lg:rotate-1",
+        "relative flex w-full flex-col gap-3 rounded-surface border bg-surface-container p-surface pt-6 shadow-float before:absolute before:-top-3 before:left-8 before:h-6 before:w-24 before:-rotate-3 before:rounded-mark before:bg-warning/80 before:shadow-rest lg:rotate-1",
         className,
       )}
       {...props}
@@ -152,7 +152,7 @@ function SampleFrameHeader({ className, ...props }: React.ComponentProps<"div">)
     <div
       data-slot="sample-frame-header"
       className={cn(
-        "flex items-center justify-between gap-3 px-2 font-display text-xl font-bold",
+        "flex items-center justify-between gap-3 px-2 font-display text-title",
         className,
       )}
       {...props}
@@ -171,7 +171,7 @@ function SignInPanel({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sign-in-panel"
       className={cn(
-        "relative flex flex-col items-center gap-6 rounded-4xl border bg-card px-5 py-10 text-center shadow-lg before:absolute before:-top-3 before:left-1/2 before:h-6 before:w-24 before:-translate-x-1/2 before:-rotate-3 before:rounded-sm before:bg-warning/80 before:shadow-xs sm:px-8",
+        "relative flex flex-col items-center gap-6 rounded-surface border bg-card px-5 py-10 text-center shadow-float before:absolute before:-top-3 before:left-1/2 before:h-6 before:w-24 before:-translate-x-1/2 before:-rotate-3 before:rounded-mark before:bg-warning/80 before:shadow-rest sm:px-8",
         className,
       )}
       {...props}
@@ -184,7 +184,7 @@ function LandingSheet({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="landing-sheet"
       className={cn(
-        "grid gap-12 rounded-4xl border bg-card p-5 shadow-sm sm:p-10 lg:grid-cols-2",
+        "grid gap-12 rounded-surface border bg-card p-5 shadow-raised sm:p-10 lg:grid-cols-2",
         className,
       )}
       {...props}
@@ -220,7 +220,7 @@ function LandingSectionTitle({ className, ...props }: React.ComponentProps<"h2">
   return (
     <h2
       data-slot="landing-section-title"
-      className={cn("font-display text-2xl font-bold tracking-tight", className)}
+      className={cn("font-display text-display", className)}
       {...props}
     />
   );
@@ -231,7 +231,7 @@ function LandingList({ className, ...props }: React.ComponentProps<"ul">) {
     <ul
       data-slot="landing-list"
       className={cn(
-        "flex flex-col gap-5 text-lg leading-snug [&_svg]:size-11 [&_svg]:shrink-0 [&_svg]:rounded-full [&_svg]:bg-secondary [&_svg]:p-3 [&_svg]:text-secondary-foreground [&>li]:flex [&>li]:items-center [&>li]:gap-4",
+        "flex flex-col gap-5 text-body [&>li]:flex [&>li]:items-center [&>li]:gap-4",
         className,
       )}
       {...props}
@@ -257,7 +257,7 @@ function LandingFaqQuestion({ className, ...props }: React.ComponentProps<"dt">)
   return (
     <dt
       data-slot="landing-faq-question"
-      className={cn("font-display text-lg leading-snug font-semibold text-balance", className)}
+      className={cn("font-display text-title text-balance", className)}
       {...props}
     />
   );

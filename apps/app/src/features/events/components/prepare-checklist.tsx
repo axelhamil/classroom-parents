@@ -7,10 +7,10 @@ import {
 } from "@packages/ui/components/ui/checklist";
 import { DeadlineQuote } from "@packages/ui/components/ui/deadline-sheet";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
+import { AllDoneIcon, CloseIcon } from "@packages/ui/components/ui/icons";
 import { Label } from "@packages/ui/components/ui/label";
 import { Separator } from "@packages/ui/components/ui/separator";
 import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
-import { CheckCheckIcon, XIcon } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
@@ -60,7 +60,7 @@ function ChecklistRows({
                 label={t("prepare.remove", { item: item.label })}
                 onClick={() => checklist.remove(item.id)}
               >
-                <XIcon aria-hidden />
+                <CloseIcon aria-hidden />
               </IconButton>
             )}
           </ChecklistItem>
@@ -169,7 +169,7 @@ export function PrepareChecklist({ event }: PrepareChecklistProps) {
         </TypographyH2>
         {total > 0 && (
           <Badge key={String(allSet)} variant={allSet ? "secondary" : "soon"}>
-            {allSet && <CheckCheckIcon aria-hidden />}
+            {allSet && <AllDoneIcon aria-hidden />}
             {allSet
               ? t("prepare.allSet")
               : t("prepare.progress", { done: checklist.doneCount, total })}

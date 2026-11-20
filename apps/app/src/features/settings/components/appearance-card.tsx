@@ -11,6 +11,7 @@ import {
   FieldTitle,
 } from "@packages/ui/components/ui/field";
 import { HueDot } from "@packages/ui/components/ui/hue-dot";
+import { AddIcon } from "@packages/ui/components/ui/icons";
 import { PaletteSwatch } from "@packages/ui/components/ui/palette-swatch";
 import {
   PlannerCard,
@@ -29,7 +30,6 @@ import {
 import { isThemePreference } from "@packages/web-kit/theme/theme-store";
 import { usePalette } from "@packages/web-kit/theme/use-palette";
 import { useTheme } from "@packages/web-kit/theme/use-theme";
-import { PlusIcon } from "lucide-react";
 import type * as React from "react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
@@ -196,7 +196,7 @@ function PaletteSample() {
           ))}
         </div>
         <Badge>
-          <PlusIcon aria-hidden />
+          <AddIcon aria-hidden />
           {t("appearance.sampleAction")}
         </Badge>
       </div>

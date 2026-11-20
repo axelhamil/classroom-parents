@@ -28,7 +28,7 @@ function UnreadDot({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="unread-dot"
       aria-hidden
-      className={cn("inline-block size-2 shrink-0 rounded-full bg-primary", className)}
+      className={cn("inline-block size-icon-mark shrink-0 rounded-full bg-primary", className)}
       {...props}
     />
   );

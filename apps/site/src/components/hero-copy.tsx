@@ -1,4 +1,5 @@
 import type { frCatalog } from "@packages/i18n";
+import { ReadOnlyIcon } from "@packages/ui/components/ui/icons";
 import {
   LandingAction,
   LandingHeadline,
@@ -6,7 +7,6 @@ import {
   LandingLead,
   LandingReassurance,
 } from "@packages/ui/components/ui/landing";
-import { PencilOffIcon } from "lucide-react";
 import { GoogleCta } from "./google-cta";
 
 export interface HeroCopyProps {
@@ -22,7 +22,7 @@ export function HeroCopy({ copy, signInUrl }: HeroCopyProps) {
       <LandingAction>
         <GoogleCta href={signInUrl} label={copy.cta} />
         <LandingReassurance>
-          <PencilOffIcon aria-hidden />
+          <ReadOnlyIcon aria-hidden />
           {copy.readOnly}
         </LandingReassurance>
       </LandingAction>

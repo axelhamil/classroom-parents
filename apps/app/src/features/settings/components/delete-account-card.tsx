@@ -1,10 +1,10 @@
 import { Alert, AlertDescription, AlertTitle } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
+import { DeleteIcon, SecurityCheckIcon } from "@packages/ui/components/ui/icons";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldAlert, Trash2 } from "lucide-react";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../../../shared/api/queries/session";
@@ -68,7 +68,7 @@ function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
       {reauthRequired ? (
         <>
           <Alert>
-            <ShieldAlert />
+            <SecurityCheckIcon />
             <AlertTitle>{t("deletion.reauthTitle")}</AlertTitle>
             <AlertDescription>{t(reauthMessageKey(reauthError))}</AlertDescription>
           </Alert>
@@ -91,7 +91,7 @@ function RequestDeletion({ userId, reauthError }: DeleteAccountCardProps) {
             disabled={deletion.isPending}
             onClick={deletion.start}
           >
-            <Trash2 />
+            <DeleteIcon />
             {deletion.isPending ? t("deletion.submitting") : t("deletion.action")}
           </Button>
           <DestructiveActionDialog

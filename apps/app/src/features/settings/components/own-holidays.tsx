@@ -1,4 +1,5 @@
 import { IconButton } from "@packages/ui/components/ui/icon-button";
+import { DeleteIcon } from "@packages/ui/components/ui/icons";
 import { Input } from "@packages/ui/components/ui/input";
 import { Label } from "@packages/ui/components/ui/label";
 import { ListRow, ListRowAction, ListRowContent } from "@packages/ui/components/ui/list-row";
@@ -6,7 +7,6 @@ import { TypographyH4, TypographyMuted } from "@packages/ui/components/ui/typogr
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2Icon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { SCHOOL_CALENDAR_KEY } from "../../../shared/api/queries/school-calendar";
@@ -100,7 +100,7 @@ export function OwnHolidays({ periods, beforeEdit }: OwnHolidaysProps) {
                   disabled={remover.isPending}
                   onClick={() => remover.mutate(period.id)}
                 >
-                  <Trash2Icon aria-hidden />
+                  <DeleteIcon aria-hidden />
                 </IconButton>
               </ListRowAction>
             </ListRow>

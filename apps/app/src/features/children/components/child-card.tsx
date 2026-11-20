@@ -25,13 +25,19 @@ import {
   DropdownMenuTrigger,
 } from "@packages/ui/components/ui/dropdown-menu";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
+import {
+  CalendarIcon,
+  ColorIcon,
+  MoreIcon,
+  RetryIcon,
+  UnlinkIcon,
+} from "@packages/ui/components/ui/icons";
 import { Spinner } from "@packages/ui/components/ui/spinner";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, EllipsisVertical, Palette, RefreshCw, Unlink } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
@@ -123,13 +129,13 @@ export function ChildCard({ child, hue }: ChildCardProps) {
               data-tour="children-menu"
               label={t("card.actions", { label: child.label })}
             >
-              <EllipsisVertical aria-hidden />
+              <MoreIcon aria-hidden />
             </IconButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {!leaving && (
               <DropdownMenuItem onSelect={() => setDialog("customize")}>
-                <Palette aria-hidden />
+                <ColorIcon aria-hidden />
                 {t("card.customize")}
               </DropdownMenuItem>
             )}
@@ -138,13 +144,13 @@ export function ChildCard({ child, hue }: ChildCardProps) {
                 disabled={child.syncing || sync.isPending}
                 onSelect={() => sync.mutate(child.id)}
               >
-                <RefreshCw aria-hidden />
+                <RetryIcon aria-hidden />
                 {t("card.sync")}
               </DropdownMenuItem>
             )}
             {!leaving && <DropdownMenuSeparator />}
             <DropdownMenuItem variant="destructive" onSelect={() => setDialog("disconnect")}>
-              <Unlink aria-hidden />
+              <UnlinkIcon aria-hidden />
               {t("card.disconnect")}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -187,7 +193,7 @@ export function ChildCard({ child, hue }: ChildCardProps) {
         <CardFooter className="pt-4">
           <Button asChild variant="secondary" size="sm">
             <Link to="/" search={{ childId: child.id }}>
-              <CalendarDays aria-hidden />
+              <CalendarIcon aria-hidden />
               {t("card.toEvents")}
             </Link>
           </Button>

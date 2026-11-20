@@ -1,4 +1,5 @@
 import { DeadlineCategory } from "@packages/ui/components/ui/deadline-sheet";
+import { AssessmentIcon, WorkloadIcon } from "@packages/ui/components/ui/icons";
 import {
   Table,
   TableBody,
@@ -7,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "@packages/ui/components/ui/table";
-import { ChartColumnIcon, ClipboardCheckIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { weekLoadView } from "../../../../shared/agenda/views";
 import { nextSevenDays } from "../../../../shared/agenda/windows";
@@ -25,7 +25,7 @@ function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
   return (
     <BlockPanel
       title={title}
-      icon={ChartColumnIcon}
+      icon={WorkloadIcon}
       note={
         query.isSuccess &&
         open.length === 0 &&
@@ -56,7 +56,7 @@ function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
                       {load.count}
                       {load.assessments > 0 && (
                         <DeadlineCategory tone="assessment" size="xs">
-                          <ClipboardCheckIcon aria-hidden />
+                          <AssessmentIcon aria-hidden />
                           <span className="sr-only">
                             {t("blocks.workload.assessment", { count: load.assessments })}
                           </span>
@@ -79,7 +79,7 @@ export const workloadBlock: HomeBlockDefinition = {
   titleKey: "blocks.workload.title",
   descriptionKey: "blocks.workload.description",
   windowDays: nextSevenDays.days,
-  icon: ChartColumnIcon,
+  icon: WorkloadIcon,
   sizes: { w: [6, 8, 12], h: [1, 2] },
   defaultSize: { w: 6, h: 1 },
   Component: WorkloadBlock,

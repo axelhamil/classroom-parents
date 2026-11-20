@@ -5,11 +5,17 @@ import {
   DeadlineFooter,
   DeadlineQuote,
 } from "@packages/ui/components/ui/deadline-sheet";
+import {
+  AddToCalendarIcon,
+  ConfirmDateIcon,
+  DoneIcon,
+  EditIcon,
+  ExternalLinkIcon,
+} from "@packages/ui/components/ui/icons";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyH2 } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CalendarPlusIcon, CheckCheckIcon, CheckIcon, ExternalLink, Pencil } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Route as ProtectedRoute } from "../../../router/_protected";
@@ -69,7 +75,7 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
       <DeadlineFooter>
         <Button asChild variant="ghost" size="sm">
           <Link to="/events/$eventId/edit" params={{ eventId: event.id }} viewTransition>
-            <Pencil aria-hidden />
+            <EditIcon aria-hidden />
             {t("detail.edit")}
           </Link>
         </Button>
@@ -113,7 +119,7 @@ function EventActions({ event, child }: EventActionsProps) {
         className="w-full"
         onClick={() => toggle.mutate({ eventId: event.id, done: !event.done })}
       >
-        <CheckIcon aria-hidden />
+        <DoneIcon aria-hidden />
         {t("detail.done")}
       </Button>
       <DeadlineActions>
@@ -125,7 +131,7 @@ function EventActions({ event, child }: EventActionsProps) {
           data-tour="event-detail-agenda"
           onClick={addToAgenda}
         >
-          <CalendarPlusIcon aria-hidden />
+          <AddToCalendarIcon aria-hidden />
           {t("agenda.addShort")}
         </Button>
         <ShareButton label={t("share.action")} payload={sharePayload} />
@@ -137,7 +143,7 @@ function EventActions({ event, child }: EventActionsProps) {
               rel="noopener noreferrer"
               aria-label={t("detail.openInClassroom")}
             >
-              <ExternalLink aria-hidden />
+              <ExternalLinkIcon aria-hidden />
               {t("detail.openInClassroomShort")}
             </a>
           </Button>
@@ -187,7 +193,7 @@ function EventReview({ event }: EventReviewProps) {
         disabled={confirm.isPending}
         onClick={() => confirm.mutate(event.id)}
       >
-        <CheckCheckIcon aria-hidden />
+        <ConfirmDateIcon aria-hidden />
         {t("review.confirm")}
       </Button>
     </section>

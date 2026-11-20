@@ -7,7 +7,7 @@ import {
   CalendarDayTitle,
 } from "@packages/ui/components/ui/calendar-day";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
-import { FlameIcon, PlusIcon } from "lucide-react";
+import { AddIcon, BusyDayIcon } from "@packages/ui/components/ui/icons";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { dayTone, isCrunchDay } from "../../../../shared/agenda/calendar-days";
@@ -43,7 +43,7 @@ export function CalendarDaySection({ day, family, today, onAdd, layout }: Calend
       <CalendarDayHeader>
         <CalendarDayTitle id={titleId}>{title}</CalendarDayTitle>
         <CalendarDayCrunch>
-          <FlameIcon aria-hidden />
+          <BusyDayIcon aria-hidden />
           {t("calendar.crunch")}
         </CalendarDayCrunch>
         {quiet && <CalendarDayEmpty>{t("calendar.dayEmpty")}</CalendarDayEmpty>}
@@ -53,7 +53,7 @@ export function CalendarDaySection({ day, family, today, onAdd, layout }: Calend
           label={t("calendar.addOn", { day: inSentence(title) })}
           onClick={() => onAdd(day.date)}
         >
-          <PlusIcon aria-hidden />
+          <AddIcon aria-hidden />
         </IconButton>
       </CalendarDayHeader>
       {!quiet && (

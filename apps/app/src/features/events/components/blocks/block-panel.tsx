@@ -5,14 +5,14 @@ import {
   DashboardPanelNote,
   DashboardPanelTitle,
 } from "@packages/ui/components/ui/dashboard";
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@packages/ui/components/ui/icons";
 import { type ReactNode, useId } from "react";
 
 export interface BlockPanelProps {
   title: string;
   label?: string;
   count?: number;
-  icon: LucideIcon;
+  icon: Icon;
   note?: ReactNode;
   fit?: "card" | "natural";
   line?: boolean;

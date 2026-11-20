@@ -1,5 +1,6 @@
 import { wallDateLabel } from "@packages/i18n";
 import { Button } from "@packages/ui/components/ui/button";
+import { PrintIcon } from "@packages/ui/components/ui/icons";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import {
   PrintSheet,
@@ -13,7 +14,6 @@ import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-
 import { cn } from "@packages/ui/libs/utils.js";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { PrinterIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSchoolClock } from "../../shared/agenda/school-clock-context";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
@@ -97,7 +97,6 @@ function PrintWeekPage() {
         <ToggleGroup
           type="single"
           variant="chip"
-          size="touch"
           spacing={2}
           aria-label={t("print.weeks.label")}
           value={week}
@@ -110,7 +109,7 @@ function PrintWeekPage() {
           ))}
         </ToggleGroup>
         <Button type="button" onClick={() => window.print()}>
-          <PrinterIcon aria-hidden />
+          <PrintIcon aria-hidden />
           {t("print.print")}
         </Button>
       </div>

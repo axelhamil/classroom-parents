@@ -10,12 +10,14 @@
     "check": "biome check .",
     "fix": "biome check --write .",
     "ui:add": "pnpm dlx shadcn@latest add",
-    "ui:fix-imports": "sed -i 's|from \"cn\"|from \"../../libs/utils\"|g; s|from \"/src/libs/utils\"|from \"../../libs/utils\"|g; s|from \"/src/hooks/\\([^\"]*\\)\"|from \"../../hooks/\\1\"|g; s|from \"/src/components/ui/\\([^\"]*\\)\"|from \"./\\1\"|g; s|from \"/src/components/lib/utils\"|from \"../../libs/utils\"|g' src/components/ui/*.tsx"
+    "ui:fix-imports": "sed -i 's|from \"cn\"|from \"../../libs/utils\"|g; s|from \"/src/libs/utils\"|from \"../../libs/utils\"|g; s|from \"/src/hooks/\\([^\"]*\\)\"|from \"../../hooks/\\1\"|g; s|from \"/src/components/ui/\\([^\"]*\\)\"|from \"./\\1\"|g; s|from \"/src/components/lib/utils\"|from \"../../libs/utils\"|g' src/components/ui/*.tsx",
+    "test": "vitest run"
   },
   "exports": {
     "./globals.css": "./src/styles/globals.css",
     "./styles/globals.css": "./src/styles/globals.css",
     "./libs/*.js": "./src/libs/*.ts",
+    "./components/ui/icons": "./src/components/ui/icons.ts",
     "./components/ui/*": "./src/components/ui/*.tsx",
     "./assets/*": "./src/assets/*"
   },
@@ -54,6 +56,9 @@
     "@packages/typescript-config": "workspace:*",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@packages/test": "workspace:*",
+    "@types/node": "^26.6.5",
+    "vitest": "^5.0.5"
   }
 }

@@ -1,6 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { InstallIcon } from "@packages/ui/components/ui/icons";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
-import { Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { captureError } from "../observability/sentry";
 import { promptInstall, useInstallState } from "./use-install-state";
@@ -21,7 +21,7 @@ export function InstallButton() {
           void promptInstall().catch((error: unknown) => captureError(error, { area: "push" }))
         }
       >
-        <Download aria-hidden />
+        <InstallIcon aria-hidden />
         {t("push.install")}
       </Button>
     </>

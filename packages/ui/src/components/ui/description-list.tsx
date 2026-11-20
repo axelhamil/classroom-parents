@@ -52,7 +52,7 @@ function DescriptionTerm({ className, ...props }: React.ComponentProps<"dt">) {
     <dt
       data-slot="description-term"
       className={cn(
-        "group-data-[layout=stacked]/description-list:text-sm group-data-[layout=stacked]/description-list:font-medium",
+        "group-data-[layout=stacked]/description-list:text-small group-data-[layout=stacked]/description-list:font-medium",
         className,
       )}
       {...props}
@@ -65,7 +65,7 @@ function DescriptionDetails({ className, ...props }: React.ComponentProps<"dd">)
     <dd
       data-slot="description-details"
       className={cn(
-        "group-data-[layout=stacked]/description-list:text-sm group-data-[layout=inline]/description-list:flex group-data-[layout=inline]/description-list:items-center group-data-[layout=inline]/description-list:gap-2",
+        "group-data-[layout=stacked]/description-list:text-small group-data-[layout=inline]/description-list:flex group-data-[layout=inline]/description-list:items-center group-data-[layout=inline]/description-list:gap-2",
         className,
       )}
       {...props}

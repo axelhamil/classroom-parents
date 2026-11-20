@@ -1,5 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
+import { AddIcon, RetryIcon } from "@packages/ui/components/ui/icons";
 import {
   Item,
   ItemActions,
@@ -9,7 +10,6 @@ import {
   ItemTitle,
 } from "@packages/ui/components/ui/item";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
-import { PlusIcon, RotateCcwIcon } from "lucide-react";
 import { type RefObject, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveOverlay } from "../layout/responsive-overlay";
@@ -40,13 +40,13 @@ export function DashboardEditBar({ addButton, hidden, onShow, onReset }: Dashboa
         aria-haspopup="dialog"
         onClick={() => setAdding(true)}
       >
-        <PlusIcon aria-hidden />
+        <AddIcon aria-hidden />
         {t("edit.add")}
       </Button>
       <DestructiveActionDialog
         trigger={
           <Button type="button" variant="ghost">
-            <RotateCcwIcon aria-hidden />
+            <RetryIcon aria-hidden />
             {t("edit.reset")}
           </Button>
         }
@@ -86,7 +86,7 @@ export function DashboardEditBar({ addButton, hidden, onShow, onReset }: Dashboa
                         aria-label={t("drawer.add", { block: title })}
                         onClick={() => add(id)}
                       >
-                        <PlusIcon aria-hidden />
+                        <AddIcon aria-hidden />
                         {t("drawer.addShort")}
                       </Button>
                     </ItemActions>

@@ -1,8 +1,8 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { Field, FieldLabel } from "@packages/ui/components/ui/field";
+import { CopyIcon, EmailIcon } from "@packages/ui/components/ui/icons";
 import { Textarea } from "@packages/ui/components/ui/textarea";
 import { toastSuccess } from "@packages/web-kit/api/errors/toast";
-import { Copy, Mail } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -42,12 +42,12 @@ export function SchoolRequestMessage({ subject, initialBody }: SchoolRequestMess
       <div className="flex flex-wrap gap-3">
         <Button asChild>
           <a href={mailtoHref(subject, body)}>
-            <Mail aria-hidden />
+            <EmailIcon aria-hidden />
             {t("school.message.open")}
           </a>
         </Button>
         <Button type="button" variant="outline" onClick={copy}>
-          <Copy aria-hidden />
+          <CopyIcon aria-hidden />
           {t("school.message.copy")}
         </Button>
       </div>

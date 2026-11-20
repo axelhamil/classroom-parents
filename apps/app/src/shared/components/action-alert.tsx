@@ -1,13 +1,13 @@
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@packages/ui/components/ui/alert";
-import { InfoIcon, OctagonAlertIcon, TriangleAlertIcon } from "lucide-react";
+import { ErrorIcon, InfoIcon, WarningIcon } from "@packages/ui/components/ui/icons";
 import type { ReactNode } from "react";
 
 export type ActionAlertTone = "info" | "warning" | "destructive";
 
 const TONE_ICONS = {
   info: InfoIcon,
-  warning: TriangleAlertIcon,
-  destructive: OctagonAlertIcon,
+  warning: WarningIcon,
+  destructive: ErrorIcon,
 } as const satisfies Record<ActionAlertTone, unknown>;
 
 export interface ActionAlertProps {

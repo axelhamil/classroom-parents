@@ -4,7 +4,7 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const checkboxVariants = cva(
-  "peer size-5 shrink-0 rounded-xs border border-input shadow-rest outline-none focus-visible:border-ring focus-visible:ring focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:ring-destructive/40",
+  "peer size-5 shrink-0 rounded-mark border border-input shadow-rest outline-none focus-visible:border-ring focus-visible:ring focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:ring-destructive/40",
   {
     variants: {
       tone: {
@@ -56,7 +56,7 @@ function Checkbox({ className, tone, ...props }: CheckboxProps) {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className="size-3.5"
+          className="size-icon-sm"
         >
           <path d="M5 12.5 9.5 17 19 7.5" pathLength={1} />
         </svg>

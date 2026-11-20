@@ -18,9 +18,9 @@ import { WhenMeta } from "../../../../shared/agenda/when-meta";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import {
-  CATEGORY_ICONS,
   CATEGORY_LABEL_KEYS,
   CATEGORY_TONES,
+  categoryIcon,
 } from "../../../../shared/events/event-labels";
 import { EventLink } from "../../../../shared/events/event-link";
 import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
@@ -61,7 +61,7 @@ export function CalendarEventRow({
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
   const clock = useSchoolClock();
-  const CategoryIcon = CATEGORY_ICONS[event.category];
+  const CategoryIcon = categoryIcon(event.category);
   const hue = childHue(family, event.childId);
   const childLabel = withChild && family.length > 1 ? childLabelOf(family, event.childId) : "";
   const status = stateOf(event, clock);

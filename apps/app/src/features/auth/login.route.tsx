@@ -1,12 +1,12 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { BrandMark } from "@packages/ui/components/ui/brand-link";
+import { ReadOnlyIcon } from "@packages/ui/components/ui/icons";
 import { LandingAction, LandingReassurance, SignInPanel } from "@packages/ui/components/ui/landing";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { TypographyH1, TypographyMuted } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
 import { createFileRoute } from "@tanstack/react-router";
-import { PencilOffIcon } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { LegalFooter } from "../../shared/components/legal-footer";
@@ -63,7 +63,7 @@ function LoginPage() {
               <GoogleSignInButton signIn={signIn} />
             )}
             <LandingReassurance>
-              <PencilOffIcon aria-hidden />
+              <ReadOnlyIcon aria-hidden />
               {t("login.readOnly")}
             </LandingReassurance>
           </LandingAction>

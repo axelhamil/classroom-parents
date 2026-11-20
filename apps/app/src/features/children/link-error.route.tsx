@@ -1,6 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { RetryIcon } from "@packages/ui/components/ui/icons";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ADD_CHILD } from "../../shared/children/child-link.mutations";
 import { LinkRefusal } from "../../shared/children/link-refusal";
@@ -26,7 +26,7 @@ function LinkErrorPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button disabled={start.isPending} onClick={retry}>
-          <RotateCcw aria-hidden />
+          <RetryIcon aria-hidden />
           {start.isPending ? t("reconnect.pending") : t("linkError.retry")}
         </Button>
         <Button asChild variant="outline">

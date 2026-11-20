@@ -186,6 +186,34 @@
       }
     },
     {
+      "includes": ["apps/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react-markdown": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+                  "marked": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+                  "markdown-it": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+                  "remark": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+                  "rehype-raw": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML.",
+                  "html-react-parser": "Text that comes from a model or a third party renders as plain text nodes, never as Markdown or HTML."
+                },
+                "patterns": [
+                  {
+                    "group": ["lucide-react", "lucide-react/**"],
+                    "message": "Import the concept from @packages/ui/components/ui/icons."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/drizzle/src/seeds/**"],
       "linter": {
         "rules": {

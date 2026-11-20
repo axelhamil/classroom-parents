@@ -12,9 +12,9 @@ import {
   DeadlineHeroMeta,
   DeadlineOrigin,
 } from "@packages/ui/components/ui/deadline-sheet";
+import { DoneIcon } from "@packages/ui/components/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
-import { CheckIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isOverdue, needsReview } from "../../../shared/agenda/deadline-facts";
 import type { SchoolClock } from "../../../shared/agenda/school-clock";
@@ -25,9 +25,9 @@ import { childrenQueryOptions } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import {
-  CATEGORY_ICONS,
   CATEGORY_LABEL_KEYS,
   CATEGORY_TONES,
+  categoryIcon,
   ORIGIN_LABEL_KEYS,
 } from "../../../shared/events/event-labels";
 import { type ChildHue, childHue } from "../../../shared/format/child-hue";
@@ -69,7 +69,7 @@ export function EventWhen({ event, hue }: EventWhenProps) {
         <DeadlineHeroMeta>
           {event.done && (
             <Badge variant="secondary">
-              <CheckIcon aria-hidden />
+              <DoneIcon aria-hidden />
               {t("detail.isDone")}
             </Badge>
           )}
@@ -89,7 +89,7 @@ export interface EventEyebrowProps {
 
 export function EventEyebrow({ event }: EventEyebrowProps) {
   const { t } = useTranslation("events");
-  const CategoryIcon = CATEGORY_ICONS[event.category];
+  const CategoryIcon = categoryIcon(event.category);
 
   return (
     <DeadlineEyebrow>

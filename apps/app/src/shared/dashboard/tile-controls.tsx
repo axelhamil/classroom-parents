@@ -1,16 +1,16 @@
 import { Hint } from "@packages/ui/components/ui/hint";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronsDownUpIcon,
-  ChevronsLeftRightIcon,
-  ChevronsRightLeftIcon,
-  ChevronsUpDownIcon,
-  EyeOffIcon,
-  GripVerticalIcon,
-  type LucideIcon,
-} from "lucide-react";
+  DragHandleIcon,
+  HideIcon,
+  type Icon,
+  MoveDownIcon,
+  MoveUpIcon,
+  NarrowIcon,
+  ShorterIcon,
+  TallerIcon,
+  WidenIcon,
+} from "@packages/ui/components/ui/icons";
 import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
 import type { BlockAxis, BlockStep } from "./dashboard-layout";
@@ -26,7 +26,7 @@ export interface TileControlsProps {
 }
 
 interface ControlProps {
-  icon: LucideIcon;
+  icon: Icon;
   label: string;
   blocked: string | undefined;
   onClick: () => void;
@@ -72,17 +72,17 @@ export function TileControls({
         label={t("edit.move", block)}
         className="cursor-grab touch-none"
       >
-        <GripVerticalIcon aria-hidden />
+        <DragHandleIcon aria-hidden />
       </IconButton>
       <div className="flex gap-1 md:hidden">
         <Control
-          icon={ArrowUpIcon}
+          icon={MoveUpIcon}
           label={t("edit.moveUp", block)}
           blocked={unless(canMove[-1], t("edit.first"))}
           onClick={() => onMove(-1)}
         />
         <Control
-          icon={ArrowDownIcon}
+          icon={MoveDownIcon}
           label={t("edit.moveDown", block)}
           blocked={unless(canMove[1], t("edit.last"))}
           onClick={() => onMove(1)}
@@ -90,25 +90,25 @@ export function TileControls({
       </div>
       <div className="hidden gap-1 md:flex">
         <Control
-          icon={ChevronsLeftRightIcon}
+          icon={WidenIcon}
           label={t("edit.widen", block)}
           blocked={unless(canResize.w[1], t("edit.widest"))}
           onClick={() => onResize("w", 1)}
         />
         <Control
-          icon={ChevronsRightLeftIcon}
+          icon={NarrowIcon}
           label={t("edit.narrow", block)}
           blocked={unless(canResize.w[-1], t("edit.narrowest"))}
           onClick={() => onResize("w", -1)}
         />
         <Control
-          icon={ChevronsUpDownIcon}
+          icon={TallerIcon}
           label={t("edit.taller", block)}
           blocked={unless(canResize.h[1], t("edit.tallest"))}
           onClick={() => onResize("h", 1)}
         />
         <Control
-          icon={ChevronsDownUpIcon}
+          icon={ShorterIcon}
           label={t("edit.shorter", block)}
           blocked={unless(canResize.h[-1], t("edit.shortest"))}
           onClick={() => onResize("h", -1)}
@@ -122,7 +122,7 @@ export function TileControls({
         className="ms-auto"
         onClick={onHide}
       >
-        <EyeOffIcon aria-hidden />
+        <HideIcon aria-hidden />
       </IconButton>
     </>
   );

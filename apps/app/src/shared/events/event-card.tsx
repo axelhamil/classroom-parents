@@ -17,7 +17,7 @@ import { WhenMeta } from "../agenda/when-meta";
 import type { EventItem } from "../api/queries/events";
 import type { ChildHue } from "../format/child-hue";
 import { wallDateParts } from "../format/deadline-label";
-import { CATEGORY_ICONS, CATEGORY_LABEL_KEYS, CATEGORY_TONES } from "./event-labels";
+import { CATEGORY_LABEL_KEYS, CATEGORY_TONES, categoryIcon } from "./event-labels";
 import { EventLink } from "./event-link";
 
 export interface EventCardProps {
@@ -39,7 +39,7 @@ export function EventCard({
   const clock = useSchoolClock();
   const date = wallDateParts(event.deadlineDate);
   const when = whenOf(event, clock, { dated: true, withBadge: !muted });
-  const CategoryIcon = CATEGORY_ICONS[event.category];
+  const CategoryIcon = categoryIcon(event.category);
 
   return (
     <PlannerCard asChild muted={muted} hue={muted ? undefined : hue}>

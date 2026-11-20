@@ -11,6 +11,7 @@ import {
 import { FormTextField } from "@packages/ui/components/ui/form-text-field";
 import { Hint } from "@packages/ui/components/ui/hint";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
+import { AddIcon, DeleteIcon } from "@packages/ui/components/ui/icons";
 import { ListRow } from "@packages/ui/components/ui/list-row";
 import {
   Select,
@@ -20,7 +21,6 @@ import {
   SelectValue,
 } from "@packages/ui/components/ui/select";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
-import { Plus, Trash2 } from "lucide-react";
 import { type Control, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
@@ -85,9 +85,9 @@ export function RemindersForm({
         {rows.fields.length === 0 ? (
           <TypographyMuted>{t("reminders.empty")}</TypographyMuted>
         ) : (
-          <ol className="flex flex-col gap-2">
+          <ol className="flex flex-col">
             {rows.fields.map((row, index) => (
-              <ListRow key={row.id} className="items-end">
+              <ListRow key={row.id} variant="ruled" className="items-end">
                 <ReminderFields control={form.control} index={index} allowHours={allowHours} />
                 <IconButton
                   type="button"
@@ -95,7 +95,7 @@ export function RemindersForm({
                   label={t("reminders.remove", { number: index + 1 })}
                   onClick={() => rows.remove(index)}
                 >
-                  <Trash2 />
+                  <DeleteIcon />
                 </IconButton>
               </ListRow>
             ))}
@@ -110,7 +110,7 @@ export function RemindersForm({
             disabled={full}
             onClick={() => rows.append(NEW_REMINDER_ROW)}
           >
-            <Plus />
+            <AddIcon />
             {t("reminders.add")}
           </Button>
         </Hint>

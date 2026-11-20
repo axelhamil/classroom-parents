@@ -6,7 +6,7 @@ import { CHILD_TONES, childHueContainer, childHueEdge } from "../../libs/child-h
 import { cn } from "../../libs/utils";
 
 const calendarEntryVariants = cva(
-  "relative flex w-full min-w-0 items-start gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
+  "relative flex w-full min-w-0 items-start gap-3 rounded-inner border-2 border-transparent p-block text-small text-foreground has-[[data-slot=calendar-entry-link]:focus-visible]:ring has-[[data-slot=calendar-entry-link]:focus-visible]:ring-ring [&>[data-slot=checkbox]]:relative [&>[data-slot=checkbox]]:z-10 [&>[data-slot=checkbox]]:mt-0.5 [&>[data-slot=checkbox][data-state=unchecked]]:bg-card",
   {
     variants: {
       hue: childHueContainer,
@@ -16,14 +16,14 @@ const calendarEntryVariants = cva(
       },
       state: {
         open: "",
-        overdue: "border-destructive/60",
-        urgent: "border-warning",
+        overdue: "border-destructive",
+        urgent: "border-warning-edge",
         done: "text-muted-foreground [&_[data-slot=calendar-entry-link]]:line-through",
       },
       density: {
         comfortable: "",
         compact:
-          "flex-wrap gap-2 px-2 py-1.5 [&>[data-slot=calendar-entry-body]]:basis-full [&>[data-slot=checkbox]]:order-last",
+          "flex-wrap gap-2 px-2 py-2 [&>[data-slot=calendar-entry-body]]:basis-full [&>[data-slot=checkbox]]:order-last",
       },
     },
     compoundVariants: CHILD_TONES.map((hue) => ({
@@ -90,7 +90,7 @@ function CalendarEntryLink({ className, asChild = false, ...props }: CalendarEnt
     <Comp
       data-slot="calendar-entry-link"
       className={cn(
-        "font-semibold leading-snug hyphens-auto wrap-anywhere outline-none after:absolute after:inset-0 after:rounded-xl after:content-['']",
+        "font-semibold hyphens-auto wrap-anywhere outline-none after:absolute after:inset-0 after:rounded-inner after:content-['']",
         className,
       )}
       {...props}
@@ -103,7 +103,7 @@ function CalendarEntryMeta({ className, ...props }: React.ComponentProps<"span">
     <span
       data-slot="calendar-entry-meta"
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted-foreground [&_svg]:size-icon-sm [&_svg]:shrink-0",
         className,
       )}
       {...props}

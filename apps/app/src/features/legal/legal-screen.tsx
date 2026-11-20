@@ -1,8 +1,8 @@
 import { AppBar } from "@packages/ui/components/ui/app-bar";
 import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
 import { Button } from "@packages/ui/components/ui/button";
+import { BackIcon } from "@packages/ui/components/ui/icons";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, CalendarHeart } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LegalFooter } from "../../shared/components/legal-footer";
@@ -22,15 +22,13 @@ export function LegalScreen({ title, description, children }: LegalScreenProps) 
       <AppBar className="justify-between">
         <BrandLink asChild>
           <Link to="/">
-            <BrandMark>
-              <CalendarHeart />
-            </BrandMark>
+            <BrandMark />
             {t("brand")}
           </Link>
         </BrandLink>
         <Button asChild variant="ghost">
           <Link to="/">
-            <ArrowLeft />
+            <BackIcon />
             <span className="sr-only sm:not-sr-only">{t("legal.backToApp")}</span>
           </Link>
         </Button>

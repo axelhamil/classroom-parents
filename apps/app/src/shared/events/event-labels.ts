@@ -1,13 +1,5 @@
 import type { EVENT_CATEGORIES } from "@packages/events/agenda-contract";
-import {
-  BookOpenIcon,
-  BusIcon,
-  ClipboardCheckIcon,
-  type LucideIcon,
-  NotebookPenIcon,
-  PenLineIcon,
-  WavesIcon,
-} from "lucide-react";
+import { CATEGORY_ICONS, type CategoryTone } from "@packages/ui/components/ui/icons";
 import type { EventItem } from "../api/queries/events";
 
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
@@ -21,15 +13,6 @@ export const CATEGORY_LABEL_KEYS = {
   other: "categories.other",
 } as const satisfies Record<EventCategory, string>;
 
-export const CATEGORY_ICONS = {
-  assessment: ClipboardCheckIcon,
-  homework: BookOpenIcon,
-  school_trip: BusIcon,
-  swimming: WavesIcon,
-  document_due: PenLineIcon,
-  other: NotebookPenIcon,
-} as const satisfies Record<EventCategory, LucideIcon>;
-
 export const CATEGORY_TONES = {
   assessment: "assessment",
   homework: "homework",
@@ -37,7 +20,11 @@ export const CATEGORY_TONES = {
   swimming: "swimming",
   document_due: "documentDue",
   other: "other",
-} as const satisfies Record<EventCategory, string>;
+} as const satisfies Record<EventCategory, CategoryTone>;
+
+export function categoryIcon(category: EventCategory) {
+  return CATEGORY_ICONS[CATEGORY_TONES[category]];
+}
 
 export const ORIGIN_LABEL_KEYS = {
   announcement: "origins.announcement",

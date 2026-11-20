@@ -6,12 +6,12 @@ import { childHueContainer } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 
 const plannerStickerVariants = cva(
-  "flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-transparent p-2.5 text-sm text-foreground outline-none hover:shadow-raised focus-visible:ring focus-visible:ring-ring",
+  "flex w-full min-w-0 flex-col gap-1.5 rounded-inner border-2 border-transparent p-block text-small text-foreground outline-none hover:shadow-raised focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       hue: childHueContainer,
       urgent: {
-        true: "border-warning",
+        true: "border-warning-edge",
         false: "",
       },
     },
@@ -47,7 +47,7 @@ function PlannerStickerTitle({ className, ...props }: React.ComponentProps<"span
   return (
     <span
       data-slot="planner-sticker-title"
-      className={cn("line-clamp-3 font-semibold leading-snug wrap-anywhere", className)}
+      className={cn("line-clamp-3 font-semibold wrap-anywhere", className)}
       {...props}
     />
   );
@@ -58,7 +58,7 @@ function PlannerStickerMeta({ className, ...props }: React.ComponentProps<"span"
     <span
       data-slot="planner-sticker-meta"
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
+        "flex min-w-0 flex-wrap items-center gap-1 text-meta text-muted-foreground [&_svg]:size-icon-sm [&_svg]:shrink-0",
         className,
       )}
       {...props}

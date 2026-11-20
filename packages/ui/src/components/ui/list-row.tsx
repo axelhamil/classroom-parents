@@ -7,9 +7,9 @@ import { cn } from "../../libs/utils";
 const listRowVariants = cva("flex items-center justify-between gap-3", {
   variants: {
     variant: {
-      default: "rounded-md border p-3",
+      default: "rounded-inner bg-surface-container p-block",
       plain: "py-2",
-      ruled: "border-b py-1 last:border-b-0",
+      ruled: "border-b py-2 last:border-b-0",
       stacked: "flex-wrap items-start justify-start gap-y-2 border-b py-2.5 last:border-b-0",
     },
   },
@@ -29,7 +29,7 @@ function ListRowMedia({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="list-row-media"
       className={cn(
-        "flex items-center gap-3 [&>svg:first-child]:size-5 [&>svg:first-child]:text-muted-foreground",
+        "flex items-center gap-3 [&>svg:first-child]:size-icon-lg [&>svg:first-child]:text-muted-foreground",
         className,
       )}
       {...props}
@@ -61,7 +61,7 @@ function ListRowButton({ className, type, asChild = false, ...props }: ListRowBu
       data-slot="list-row-button"
       type={asChild ? type : (type ?? "button")}
       className={cn(
-        "flex flex-col items-start gap-1 rounded-sm px-2 py-2 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring focus-visible:ring-ring active:bg-accent disabled:cursor-default",
+        "flex flex-col items-start gap-1 rounded-inner px-2 py-2 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:ring focus-visible:ring-ring active:bg-accent disabled:cursor-default",
         className,
       )}
       {...props}

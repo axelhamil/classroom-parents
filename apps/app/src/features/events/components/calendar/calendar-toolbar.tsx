@@ -8,19 +8,19 @@ import {
   DropdownMenuTrigger,
 } from "@packages/ui/components/ui/dropdown-menu";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
-import { TabsList, TabsTrigger } from "@packages/ui/components/ui/tabs";
-import { TypographyH2 } from "@packages/ui/components/ui/typography";
-import { Link } from "@tanstack/react-router";
 import {
-  CalendarSyncIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  EllipsisIcon,
-  HistoryIcon,
-  PlusIcon,
-  PrinterIcon,
-  Share2Icon,
-} from "lucide-react";
+  AddIcon,
+  MoreIcon,
+  NextIcon,
+  PastIcon,
+  PreviousIcon,
+  PrintIcon,
+  ShareIcon,
+  SubscribeCalendarIcon,
+} from "@packages/ui/components/ui/icons";
+import { TabsList, TabsTrigger } from "@packages/ui/components/ui/tabs";
+import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import type { AgendaCourse, AgendaSummary } from "../../../../shared/agenda/calendar-days";
 import { useIntlLocale } from "../../../../shared/i18n/use-intl-locale";
@@ -84,19 +84,23 @@ export function CalendarToolbar({
   const summaryLabel = useSummaryLabel()(summary);
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 [grid-template-areas:'title_actions''views_nav'] @2xl:grid-cols-[auto_minmax(0,1fr)_auto_auto] @2xl:gap-x-4 @2xl:[grid-template-areas:'nav_title_views_actions']">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-3 [grid-template-areas:'title_actions''views_nav'] @xl:grid-cols-[auto_minmax(0,1fr)_auto_auto] @xl:gap-x-4 @xl:[grid-template-areas:'nav_title_views_actions']">
       <div className="flex min-w-0 flex-col items-start [grid-area:title]">
         <TypographyH2 variant="section">{label}</TypographyH2>
-        <p className="text-sm text-muted-foreground">{summaryLabel}</p>
+        <TypographyMuted>{summaryLabel}</TypographyMuted>
         {!todayInView && (
-          <Button variant="link" className="h-auto min-h-touch px-0 @5xl:hidden" onClick={onToday}>
+          <Button
+            variant="link"
+            className="h-auto min-h-control px-0 @5xl:hidden"
+            onClick={onToday}
+          >
             {t("calendar.backToToday")}
           </Button>
         )}
       </div>
-      <div className="flex items-center gap-1 justify-self-end [grid-area:nav] @2xl:justify-self-start">
+      <div className="flex items-center gap-1 justify-self-end [grid-area:nav] @xl:justify-self-start">
         <IconButton variant="outline" label={t("calendar.previous")} onClick={() => onStep(-1)}>
-          <ChevronLeftIcon aria-hidden />
+          <PreviousIcon aria-hidden />
         </IconButton>
         {!todayInView && (
           <Button variant="outline" className="@max-5xl:hidden" onClick={onToday}>
@@ -104,11 +108,10 @@ export function CalendarToolbar({
           </Button>
         )}
         <IconButton variant="outline" label={t("calendar.next")} onClick={() => onStep(1)}>
-          <ChevronRightIcon aria-hidden />
+          <NextIcon aria-hidden />
         </IconButton>
       </div>
       <TabsList
-        size="touch"
         aria-label={t("calendar.views.label")}
         data-tour="home-tabs"
         className="justify-self-start [grid-area:views]"
@@ -122,34 +125,34 @@ export function CalendarToolbar({
       <div data-tour="home-share" className="flex items-center gap-1 [grid-area:actions]">
         <CourseFilter courses={courses} courseId={courseId} onCourseChange={onCourseChange} />
         <Button onClick={onAdd}>
-          <PlusIcon aria-hidden />
+          <AddIcon aria-hidden />
           <span className="@max-5xl:sr-only">{t("calendar.add")}</span>
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <IconButton variant="outline" label={t("calendar.more")}>
-              <EllipsisIcon aria-hidden />
+              <MoreIcon aria-hidden />
             </IconButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={onShare}>
-              <Share2Icon aria-hidden />
+              <ShareIcon aria-hidden />
               {t("week.share")}
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/week/print">
-                <PrinterIcon aria-hidden />
+                <PrintIcon aria-hidden />
                 {t("print.action")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onSubscribe}>
-              <CalendarSyncIcon aria-hidden />
+              <SubscribeCalendarIcon aria-hidden />
               {t("calendar.feed.action")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/" search={{ tab: "history" }}>
-                <HistoryIcon aria-hidden />
+                <PastIcon aria-hidden />
                 {t("calendar.history")}
               </Link>
             </DropdownMenuItem>

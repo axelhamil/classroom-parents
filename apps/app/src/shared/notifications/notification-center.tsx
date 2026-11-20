@@ -1,4 +1,5 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { NotificationsIcon } from "@packages/ui/components/ui/icons";
 import {
   Popover,
   PopoverBody,
@@ -8,7 +9,6 @@ import {
 } from "@packages/ui/components/ui/popover";
 import { TypographyH2 } from "@packages/ui/components/ui/typography";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellIcon } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { childrenQueryOptions } from "../api/queries/children";
@@ -70,7 +70,7 @@ export function NotificationFeed({ onClose }: NotificationFeedProps) {
         skeleton={<NotificationListSkeleton label={t("loading")} />}
         empty={
           <BoardEmpty
-            icon={BellIcon}
+            icon={NotificationsIcon}
             title={t("empty.title")}
             description={t("empty.description")}
           />

@@ -23,6 +23,11 @@ interaction checks a rule engine cannot see. Runs on every PR
   `<main>`, one `<h1>` and no blocking violation (`shell.spec.ts`).
 - **Page width**: a page in `FULL_WIDTH_PAGES` leaves at most 25 % of a
   1440 px screen empty (`page-width.spec.ts`).
+- **Visual system**: on home, the event drawer, Enfants, Réglages and onboarding, at 390 px (touch) and 1440 px, every
+  rendered icon is 14, 16 or 20 px (8 for a mark's dot), every one-line control is one of the three `--control-*`
+  heights the pointer resolves to, and a rounded block within 32 px of a painted rounded parent sits concentric to it
+  (`visual-system.spec.ts`, measured in `visual-system.ts`). Marks, multi-line tiles, accordion rows, links, the
+  bottom navigation and toasts are excluded there, each with its reason.
 - **Reduced motion**: `prefers-reduced-motion: reduce` skips the theme view
   transition entirely (asserted through a `MutationObserver`, since the
   transition leaves no trace once it ends).

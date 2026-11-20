@@ -1,7 +1,12 @@
 import { Button } from "@packages/ui/components/ui/button";
+import {
+  PickAccountIcon,
+  PrivacyIcon,
+  RetryIcon,
+  UseAnotherAccountIcon,
+} from "@packages/ui/components/ui/icons";
 import { Spinner } from "@packages/ui/components/ui/spinner";
 import { Link } from "@tanstack/react-router";
-import { MousePointerClick, RotateCcw, ShieldCheck, UserRoundSearch } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ADD_CHILD,
@@ -36,7 +41,7 @@ export function ConnectStep({ mode, search, navigate }: ConnectStepProps) {
   if (linkWasRefused(search)) {
     return (
       <StepFrame
-        media={<ShieldCheck />}
+        media={<PrivacyIcon />}
         mediaTone="warning"
         title={
           refusalIsSchoolBlock(search.error, search.error_description)
@@ -46,7 +51,7 @@ export function ConnectStep({ mode, search, navigate }: ConnectStepProps) {
         actions={
           <>
             <Button size="lg" disabled={start.isPending} onClick={() => start.mutate(roundTrip)}>
-              <RotateCcw aria-hidden />
+              <RetryIcon aria-hidden />
               {t("connect.tryAgain")}
             </Button>
             <Button asChild size="lg" variant="outline">
@@ -62,7 +67,7 @@ export function ConnectStep({ mode, search, navigate }: ConnectStepProps) {
 
   if (search.linked === 1) {
     return (
-      <StepFrame media={<UserRoundSearch />} title={t("connect.title")}>
+      <StepFrame media={<PickAccountIcon />} title={t("connect.title")}>
         <LinkedAccount
           onRetry={() => start.mutate(roundTrip)}
           retrying={start.isPending}
@@ -74,7 +79,7 @@ export function ConnectStep({ mode, search, navigate }: ConnectStepProps) {
 
   return (
     <StepFrame
-      media={<UserRoundSearch />}
+      media={<PickAccountIcon />}
       title={t("connect.title")}
       description={t("connect.description")}
       actions={
@@ -86,8 +91,8 @@ export function ConnectStep({ mode, search, navigate }: ConnectStepProps) {
     >
       <StepList
         entries={[
-          { id: "other", icon: MousePointerClick, title: t("connect.tips.other") },
-          { id: "consent", icon: ShieldCheck, title: t("connect.tips.consent") },
+          { id: "other", icon: UseAnotherAccountIcon, title: t("connect.tips.other") },
+          { id: "consent", icon: PrivacyIcon, title: t("connect.tips.consent") },
         ]}
       />
     </StepFrame>

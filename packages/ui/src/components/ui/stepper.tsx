@@ -3,6 +3,7 @@ import { Slot } from "radix-ui";
 import type * as React from "react";
 
 import { cn } from "../../libs/utils";
+import { iconTileVariants } from "./icon-tile";
 
 interface StepperProps extends React.ComponentProps<"div"> {
   asChild?: boolean;
@@ -27,7 +28,7 @@ function StepperHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="stepper-header"
-      className={cn("flex min-h-11 items-center gap-3", className)}
+      className={cn("flex min-h-control items-center gap-3", className)}
       {...props}
     />
   );
@@ -37,7 +38,7 @@ function StepperPosition({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="stepper-position"
-      className={cn("text-sm font-medium text-muted-foreground tabular-nums", className)}
+      className={cn("text-small font-medium text-muted-foreground tabular-nums", className)}
       {...props}
     />
   );
@@ -77,20 +78,17 @@ function StepperIntro({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-const stepperMediaVariants = cva(
-  "flex size-14 shrink-0 items-center justify-center rounded-2xl animate-pop-in [&_svg:not([class*='size-'])]:size-7",
-  {
-    variants: {
-      tone: {
-        default: "bg-secondary text-secondary-foreground",
-        success: "bg-success text-success-foreground",
-        warning: "bg-warning text-warning-foreground",
-        bare: "size-auto rounded-full",
-      },
+const stepperMediaVariants = cva([iconTileVariants({ size: "lg" }), "animate-pop-in"], {
+  variants: {
+    tone: {
+      default: "",
+      success: "bg-success text-success-foreground",
+      warning: "bg-warning text-warning-foreground",
+      bare: "size-auto bg-transparent",
     },
-    defaultVariants: { tone: "default" },
   },
-);
+  defaultVariants: { tone: "default" },
+});
 
 interface StepperMediaProps
   extends React.ComponentProps<"div">,
