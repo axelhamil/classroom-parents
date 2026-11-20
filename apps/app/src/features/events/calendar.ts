@@ -1,7 +1,6 @@
 import { daysFrom, mondayOf, shiftDate } from "@packages/ddd-kit/days";
 import type { EventItem } from "../../shared/api/queries/events";
 import { schoolToday } from "../../shared/format/school-today";
-import type { CalendarRange } from "./api/events.queries";
 
 export const CALENDAR_VIEWS = ["week", "month"] as const;
 
@@ -10,7 +9,6 @@ export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 const WEEK_DAYS = 7;
 const MONTH_GRID_DAYS = 42;
 const CRUNCH_FROM = 3;
-export const OVERDUE_WINDOW_DAYS = 14;
 
 export interface CalendarPeriod {
   from: string;
@@ -88,14 +86,6 @@ export function isCrunchDay(date: string, events: readonly Deadline[], today: st
   if (date < today) return false;
 
   return events.filter((event) => !event.done).length >= CRUNCH_FROM;
-}
-
-export function overdueWindow(today: string): CalendarRange {
-  return { from: shiftDate(today, -OVERDUE_WINDOW_DAYS), to: shiftDate(today, -1) };
-}
-
-export function isOverdue(event: Deadline, today: string): boolean {
-  return !event.done && event.deadlineDate < today;
 }
 
 export type DayTone = "today" | "past" | "default";

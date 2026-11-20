@@ -77,7 +77,9 @@ export default {
     open_other: "Encore {{count}} échéances à boucler",
     progress_one: "{{count}} échéance prête sur {{total}}",
     progress_other: "{{count}} échéances prêtes sur {{total}}",
-    empty: "Rien à préparer pour {{day}}.",
+    empty: "Aucune échéance pour {{day}}.",
+    leftToday_one: "Encore {{count}} échéance d'aujourd'hui à cocher",
+    leftToday_other: "Encore {{count}} échéances d'aujourd'hui à cocher",
     allSet: "Tout est prêt pour {{day}}.",
     next: "Prochaine échéance",
     day_one: "{{count}} échéance pour {{day}}",
@@ -305,6 +307,10 @@ export default {
       "Un de vos rappels par défaut ne peut pas sonner avant cette échéance : il n'est pas repris.",
     dropped_other:
       "{{count}} de vos rappels par défaut ne peuvent pas sonner avant cette échéance : ils ne sont pas repris.",
+    unplannedReason: {
+      passed: "Son heure était déjà passée quand l'échéance est arrivée.",
+      waiting: "En attente de programmation.",
+    },
     awaitingReview:
       "Vos rappels par défaut seront programmés quand vous aurez confirmé cette échéance. Ceux que vous choisissez pour elle sont programmés tout de suite.",
     statuses: {

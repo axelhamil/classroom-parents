@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { PrinterIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNow } from "../../shared/agenda/use-now";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
 import type { EventItem } from "../../shared/api/queries/events";
 import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
@@ -23,7 +24,6 @@ import { schoolToday } from "../../shared/format/school-today";
 import { QueryState } from "../../shared/query/query-state";
 import { FridgePlanner } from "./components/fridge-planner";
 import { printWeekSearchSchema } from "./events.schema";
-import { useNow } from "./hooks/use-now";
 import { useWeekEvents, type WeekRange } from "./hooks/use-week-events";
 import { defaultPrintWeek, PRINT_WEEKS, type PrintWeek, printWeekDates } from "./week";
 

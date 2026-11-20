@@ -19,6 +19,7 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 }));
 
 const THURSDAY_AFTERNOON = new Date(2026, 10, 19, 15, 12);
+const THURSDAY_SCHOOL_AFTERNOON = new Date("2026-11-19T14:12:00.000Z");
 
 function nextSchoolMoment(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: /^Pour (aujourd'hui|demain)$/ });
@@ -105,7 +106,7 @@ describe("shell without network", () => {
       clearAppBadge: vi.fn(async () => undefined),
     });
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(THURSDAY_AFTERNOON);
+    vi.setSystemTime(THURSDAY_SCHOOL_AFTERNOON);
     givenCalendar(
       [CHILD],
       [

@@ -1,4 +1,3 @@
-import { daysFrom } from "@packages/ddd-kit/days";
 import { DeadlineCategory } from "@packages/ui/components/ui/deadline-sheet";
 import {
   Table,
@@ -8,45 +7,30 @@ import {
   TableHeader,
   TableRow,
 } from "@packages/ui/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
 import { ChartColumnIcon, ClipboardCheckIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { EventItem } from "../../../../shared/api/queries/events";
+import { weekLoadView } from "../../../../shared/agenda/views";
+import { nextSevenDays } from "../../../../shared/agenda/windows";
 import { wallDateParts } from "../../../../shared/format/deadline-label";
-import { schoolToday } from "../../../../shared/format/school-today";
-import { calendarEventsQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
-import { WEEK_LENGTH, weekAhead } from "../../week";
+import { useHomeEvents } from "../../hooks/use-home-events";
 import { BlockPanel } from "./block-panel";
-import { forChild } from "./event-rows";
 
-interface DayLoad {
-  count: number;
-  assessments: number;
-}
-
-function loadOf(events: readonly EventItem[], childId: string, date: string): DayLoad {
-  const due = events.filter((event) => event.childId === childId && event.deadlineDate === date);
-
-  return {
-    count: due.length,
-    assessments: due.filter((event) => event.category === "assessment").length,
-  };
-}
-
-function WorkloadBlock({ family, childId, now, title }: HomeBlockProps) {
+function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
-  const today = schoolToday(now);
-  const days = daysFrom(today, WEEK_LENGTH);
-  const query = useQuery(calendarEventsQueryOptions(weekAhead(today)));
-  const open = forChild(query.data ?? [], childId).filter((event) => !event.done);
+  const query = useHomeEvents(clock);
+  const { days, open, loadOf } = weekLoadView(query.data ?? [], clock, childId);
   const children = family.filter((child) => childId === null || child.id === childId);
 
   return (
     <BlockPanel
       title={title}
       icon={ChartColumnIcon}
-      note={query.isSuccess && open.length === 0 && t("blocks.workload.empty")}
+      note={
+        query.isSuccess &&
+        open.length === 0 &&
+        t("blocks.workload.empty", { days: nextSevenDays.days })
+      }
     >
       {open.length > 0 && (
         <Table>
@@ -65,7 +49,7 @@ function WorkloadBlock({ family, childId, now, title }: HomeBlockProps) {
               <TableRow key={child.id}>
                 <TableHead scope="row">{child.label}</TableHead>
                 {days.map((date) => {
-                  const load = loadOf(open, child.id, date);
+                  const load = loadOf(child.id, date);
 
                   return (
                     <TableCell key={date}>
@@ -73,7 +57,9 @@ function WorkloadBlock({ family, childId, now, title }: HomeBlockProps) {
                       {load.assessments > 0 && (
                         <DeadlineCategory tone="assessment" size="xs">
                           <ClipboardCheckIcon aria-hidden />
-                          <span className="sr-only">{t("blocks.workload.assessment")}</span>
+                          <span className="sr-only">
+                            {t("blocks.workload.assessment", { count: load.assessments })}
+                          </span>
                         </DeadlineCategory>
                       )}
                     </TableCell>
@@ -92,6 +78,7 @@ export const workloadBlock: HomeBlockDefinition = {
   id: "workload",
   titleKey: "blocks.workload.title",
   descriptionKey: "blocks.workload.description",
+  windowDays: nextSevenDays.days,
   icon: ChartColumnIcon,
   sizes: { w: [6, 8, 12], h: [1, 2] },
   defaultSize: { w: 6, h: 1 },

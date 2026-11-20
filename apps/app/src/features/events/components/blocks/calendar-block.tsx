@@ -7,14 +7,7 @@ import { BlockPanel } from "./block-panel";
 
 const HOME_ROUTE = "/_protected/_shell/";
 
-function CalendarBlock({
-  family,
-  childId,
-  now,
-  briefingShown,
-  overdueShown,
-  title,
-}: HomeBlockProps) {
+function CalendarBlock({ family, childId, briefingShown, overdueShown, title }: HomeBlockProps) {
   const search = useSearch({ from: HOME_ROUTE });
   const navigate = useNavigate({ from: "/" });
 
@@ -28,7 +21,6 @@ function CalendarBlock({
         childId={childId}
         place={{ view: search.view, date: search.date }}
         onPlaceChange={changePlace}
-        now={now}
         briefingShown={briefingShown}
         overdueShown={overdueShown}
       />

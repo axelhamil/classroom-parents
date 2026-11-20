@@ -1,39 +1,34 @@
-import { useQuery } from "@tanstack/react-query";
 import { UserRoundIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { childAgendaView } from "../../../../shared/agenda/views";
+import { nextSevenDays } from "../../../../shared/agenda/windows";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { DashboardBlock } from "../../../../shared/dashboard/dashboard-block";
-import { schoolToday } from "../../../../shared/format/school-today";
-import { calendarEventsQueryOptions } from "../../api/events.queries";
 import type { HomeBlockContext, HomeBlockProps } from "../../home-block";
-import { weekAhead } from "../../week";
+import { useHomeEvents } from "../../hooks/use-home-events";
 import { BlockPanel } from "./block-panel";
-import { EventRows, forChild } from "./event-rows";
+import { EventRows } from "./event-rows";
 
 const CHILD_PREFIX = "child:";
 
-function ChildBlock({ family, now, blockId, title, rows }: HomeBlockProps) {
+function ChildBlock({ family, clock, blockId, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
-  const childId = blockId.slice(CHILD_PREFIX.length);
-  const today = schoolToday(now);
-  const query = useQuery(calendarEventsQueryOptions(weekAhead(today)));
-  const due = forChild(query.data ?? [], childId).filter((event) => !event.done);
+  const query = useHomeEvents(clock);
+  const agenda = childAgendaView(query.data ?? [], clock, blockId.slice(CHILD_PREFIX.length));
+  const days = nextSevenDays.days;
+  const note =
+    agenda.total > 0
+      ? t("blocks.child.allDone", { days })
+      : t("blocks.child.empty", { child: title, days });
 
   return (
     <BlockPanel
       title={title}
       icon={UserRoundIcon}
-      note={query.isSuccess && due.length === 0 && t("blocks.child.empty", { child: title })}
+      note={query.isSuccess && agenda.due.length === 0 && note}
     >
-      {due.length > 0 && (
-        <EventRows
-          events={due}
-          family={family}
-          now={now}
-          today={today}
-          rows={rows}
-          withChild={false}
-        />
+      {agenda.due.length > 0 && (
+        <EventRows events={agenda.due} family={family} rows={rows} withChild={false} />
       )}
     </BlockPanel>
   );

@@ -67,13 +67,7 @@ export function CalendarDaySection({
         <CalendarDayList>
           {day.events.map((event) => (
             <li key={event.id}>
-              <CalendarEventRow
-                event={event}
-                family={family}
-                now={now}
-                today={today}
-                withCountdown
-              />
+              <CalendarEventRow event={event} family={family} withCountdown />
             </li>
           ))}
         </CalendarDayList>

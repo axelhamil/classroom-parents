@@ -7,14 +7,12 @@ import { ShowMoreButton, useShowMore } from "./show-more";
 export interface EventRowsProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
-  now: Date;
-  today: string;
   rows: number;
   withChild?: boolean;
   steps?: (event: EventItem) => ReactNode;
 }
 
-export function EventRows({ events, family, now, today, rows, withChild, steps }: EventRowsProps) {
+export function EventRows({ events, family, rows, withChild, steps }: EventRowsProps) {
   const listId = useId();
   const { shown, more } = useShowMore(events, rows);
 
@@ -26,8 +24,6 @@ export function EventRows({ events, family, now, today, rows, withChild, steps }
             <CalendarEventRow
               event={event}
               family={family}
-              now={now}
-              today={today}
               dated
               withChild={withChild}
               withCountdown
@@ -40,8 +36,4 @@ export function EventRows({ events, family, now, today, rows, withChild, steps }
       <ShowMoreButton more={more} controls={listId} />
     </>
   );
-}
-
-export function forChild(events: readonly EventItem[], childId: string | null): EventItem[] {
-  return events.filter((event) => childId === null || event.childId === childId);
 }

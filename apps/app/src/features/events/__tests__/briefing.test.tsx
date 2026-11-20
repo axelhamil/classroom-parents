@@ -192,7 +192,7 @@ describe("Accueil briefs the next school moment", () => {
     at(THURSDAY_EVENING);
     givenCalendar(
       [CHILD],
-      [deadline(1, "2026-11-13", "Fiche à signer"), deadline(2, "2026-11-16", "Exposé")],
+      [deadline(1, "2026-11-13", "Fiche à signer"), deadline(2, "2026-11-14", "Exposé")],
     );
     await renderAppAt("/");
 
@@ -271,7 +271,7 @@ describe("Accueil briefs the next school moment", () => {
     await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
-    expect(await within(tomorrow).findByText("Rien à préparer pour demain.")).toBeDefined();
+    expect(await within(tomorrow).findByText("Aucune échéance pour demain.")).toBeDefined();
     const next = await within(tomorrow).findByRole("region", { name: "Prochaine échéance" });
     expect(titlesIn(next)).toEqual([expect.stringContaining("Sortie au musée")]);
   });
@@ -323,7 +323,7 @@ describe("Accueil briefs the next school moment", () => {
       [CHILD],
       [
         deadline(1, "2026-11-13", "Fiche à signer", { done: true }),
-        deadline(2, "2026-11-16", "Exposé"),
+        deadline(2, "2026-11-14", "Exposé"),
       ],
     );
     await renderAppAt("/");

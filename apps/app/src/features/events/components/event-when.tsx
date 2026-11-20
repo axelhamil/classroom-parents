@@ -16,10 +16,13 @@ import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import { CheckIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { isOverdue, needsReview } from "../../../shared/agenda/deadline-facts";
+import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
+import { whenOf } from "../../../shared/agenda/when";
+import { WhenBadgeView } from "../../../shared/agenda/when-meta";
 import { childrenQueryOptions } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
-import { CountdownBadge, withoutImminent } from "../../../shared/events/event-card";
 import {
   CATEGORY_ICONS,
   CATEGORY_LABEL_KEYS,
@@ -29,10 +32,8 @@ import {
 import { type ChildHue, childHue } from "../../../shared/format/child-hue";
 import {
   capitalize,
-  countdownOf,
-  dayLabel,
+  dayLabelFrom,
   daysUntil,
-  deadlineLabel,
   wallDateParts,
 } from "../../../shared/format/deadline-label";
 import { schoolToday } from "../../../shared/format/school-today";
@@ -40,13 +41,12 @@ import { schoolToday } from "../../../shared/format/school-today";
 export interface EventWhenProps {
   event: EventItem;
   hue: ChildHue;
-  now: Date;
 }
 
-export function EventWhen({ event, hue, now }: EventWhenProps) {
+export function EventWhen({ event, hue }: EventWhenProps) {
   const { t } = useTranslation("events");
-  const overdue = !event.done && event.deadlineDate < schoolToday(now);
-  const countdown = event.done ? null : countdownOf(event.deadlineDate, event.deadlineTime, now);
+  const clock = useSchoolClock();
+  const when = whenOf(event, clock, { dated: false });
   const date = wallDateParts(event.deadlineDate);
 
   return (
@@ -62,7 +62,7 @@ export function EventWhen({ event, hue, now }: EventWhenProps) {
         aria-hidden
       />
       <DeadlineHeroBody>
-        <DeadlineHeroDay>{dayLabel(event.deadlineDate, now)}</DeadlineHeroDay>
+        <DeadlineHeroDay>{dayLabelFrom(event.deadlineDate, clock.today)}</DeadlineHeroDay>
         {event.deadlineTime && (
           <DeadlineHeroDate>{wallTimeLabel(event.deadlineTime)}</DeadlineHeroDate>
         )}
@@ -73,12 +73,10 @@ export function EventWhen({ event, hue, now }: EventWhenProps) {
               {t("detail.isDone")}
             </Badge>
           )}
-          {overdue && <Badge variant="destructive">{t("calendar.overdue")}</Badge>}
-          <CountdownBadge
-            countdown={withoutImminent(countdown)}
-            label={deadlineLabel(event.deadlineDate, event.deadlineTime, now)}
-            deadlineTime={event.deadlineTime}
-          />
+          {isOverdue(event, clock.today) && (
+            <Badge variant="destructive">{t("calendar.overdue")}</Badge>
+          )}
+          <WhenBadgeView badge={when.badge} />
         </DeadlineHeroMeta>
       </DeadlineHeroBody>
     </DeadlineHero>
@@ -99,7 +97,7 @@ export function EventEyebrow({ event }: EventEyebrowProps) {
         <CategoryIcon aria-hidden />
         {t(CATEGORY_LABEL_KEYS[event.category])}
       </DeadlineCategory>
-      {event.status === "needs_review" && <Badge variant="review">{t("review.title")}</Badge>}
+      {needsReview(event) && <Badge variant="review">{t("review.title")}</Badge>}
     </DeadlineEyebrow>
   );
 }

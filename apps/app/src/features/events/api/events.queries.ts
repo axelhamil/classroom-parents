@@ -61,6 +61,30 @@ export function nextEventQueryOptions(childId: string | null) {
   });
 }
 
+const LATE_BACKLOG_LIMIT = 100;
+
+/** Unticked deadlines already past, latest first, whatever their age: what the late window does not hold. */
+export function lateBacklogQueryOptions(childId: string | null) {
+  return queryOptions({
+    queryKey: ["events", "late-backlog", childId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await $list(
+        {
+          query: {
+            scope: "history",
+            done: "false",
+            limit: String(LATE_BACKLOG_LIMIT),
+            ...eventFilterQuery({ category: null, childId }),
+          },
+        },
+        { init: { signal } },
+      );
+      if (!res.ok) await throwApiError(res, "loadEvents");
+      return (await res.json()).items;
+    },
+  });
+}
+
 export interface CalendarRange {
   from: string;
   to: string;

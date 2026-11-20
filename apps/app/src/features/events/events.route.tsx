@@ -6,6 +6,8 @@ import { ArrowLeftIcon, CheckIcon, LayoutGridIcon, UsersRoundIcon } from "lucide
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
+import type { SchoolClock } from "../../shared/agenda/school-clock";
+import { useSchoolClock } from "../../shared/agenda/school-clock-context";
 import { type ChildDto, childrenQueryOptions } from "../../shared/api/queries/children";
 import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
 import { DashboardGrid } from "../../shared/dashboard/dashboard-grid";
@@ -24,8 +26,7 @@ import { type HomeSearch, homeSearchSchema } from "./events.schema";
 import { useHomeRegistry } from "./home-blocks";
 import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
 import { useHomeLayout } from "./hooks/use-home-layout";
-import { useNow } from "./hooks/use-now";
-import { firstNameOf, greetingKind } from "./week";
+import { firstNameOf } from "./week";
 
 export const Route = createFileRoute("/_protected/_shell/")({
   validateSearch: homeSearchSchema,
@@ -40,11 +41,11 @@ function HomePage() {
   const { user } = Route.useRouteContext();
   const search = Route.useSearch();
   const router = useRouter();
-  const now = useNow();
+  const clock = useSchoolClock();
   const [editing, setEditing] = useState(false);
   const name = firstNameOf(user.name);
   const greeting =
-    greetingKind(now) === "evening"
+    clock.greeting === "evening"
       ? t("home.greeting.evening", { name })
       : t("home.greeting.morning", { name });
 
@@ -58,7 +59,7 @@ function HomePage() {
         )
       }
     >
-      <HomeBoard now={now} editing={editing} />
+      <HomeBoard clock={clock} editing={editing} />
       {search.event && (
         <EventOverlay eventId={search.event} onClose={() => router.history.back()} />
       )}
@@ -89,11 +90,11 @@ function EditHomeButton({ editing, onToggle }: EditHomeButtonProps) {
 }
 
 interface HomeBoardProps {
-  now: Date;
+  clock: SchoolClock;
   editing: boolean;
 }
 
-function HomeBoard({ now, editing }: HomeBoardProps) {
+function HomeBoard({ clock, editing }: HomeBoardProps) {
   const { t } = useTranslation("events");
   const children = useQuery(childrenQueryOptions);
 
@@ -115,18 +116,18 @@ function HomeBoard({ now, editing }: HomeBoardProps) {
       }
       isEmpty={(family) => family.length === 0}
     >
-      {(family) => <FamilyHome family={family} now={now} editing={editing} />}
+      {(family) => <FamilyHome family={family} clock={clock} editing={editing} />}
     </QueryState>
   );
 }
 
 interface FamilyHomeProps {
   family: readonly ChildDto[];
-  now: Date;
+  clock: SchoolClock;
   editing: boolean;
 }
 
-function FamilyHome({ family, now, editing }: FamilyHomeProps) {
+function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
   const { t } = useTranslation("events");
   const { user } = Route.useRouteContext();
   const search = Route.useSearch();
@@ -138,13 +139,13 @@ function FamilyHome({ family, now, editing }: FamilyHomeProps) {
   );
   const requested = search.childId ?? stored;
   const childId = family.some((child) => child.id === requested) ? requested : null;
-  const { period } = placePeriod(search, now);
+  const { period } = placePeriod(search, clock.now);
   const loaded = useQuery(calendarEventsQueryOptions(period)).data ?? [];
   const registry = useHomeRegistry(family);
   const home = useHomeLayout(registry.blocks, registry.defaults);
   const shown = (blockId: string) =>
     home.layout.some(({ id, hidden }) => id === blockId && !hidden);
-  useCelebrateProgress(now);
+  useCelebrateProgress(clock);
 
   const setSearch = (next: Partial<HomeSearch>) =>
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
@@ -188,7 +189,7 @@ function FamilyHome({ family, now, editing }: FamilyHomeProps) {
         context={{
           family,
           childId,
-          now,
+          clock,
           briefingShown: shown("today"),
           overdueShown: shown("overdue"),
         }}

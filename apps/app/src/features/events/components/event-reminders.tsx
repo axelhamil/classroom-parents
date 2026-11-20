@@ -88,6 +88,7 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
   const label = useReminderLabel();
   const queryKey = eventRemindersQueryOptions(eventId).queryKey;
   const now = new Date();
+  const waitsForReview = needsReview && !data.customized;
   const customize = useMutation({
     ...customizeEventRemindersMutationOptions,
     onSuccess: (saved) => {
@@ -156,6 +157,11 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
                     {t("reminders.due", { when: instantLabel(item.dueAt, now) })}
                   </TypographyInline>
                 ) : null}
+                {item.status === "unplanned" && !waitsForReview ? (
+                  <TypographyInline size="xs" tone="muted">
+                    {t(UNPLANNED_REASON_KEYS[unplannedReason(item, now)])}
+                  </TypographyInline>
+                ) : null}
               </ListRowContent>
               <Badge variant="secondary">{t(REMINDER_STATUS_LABEL_KEYS[item.status])}</Badge>
             </ListRow>
@@ -165,9 +171,7 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
       <TypographyMuted>
         {data.customized ? t("reminders.customized") : t("reminders.fromDefaults")}
       </TypographyMuted>
-      {needsReview && !data.customized ? (
-        <TypographyMuted>{t("reminders.awaitingReview")}</TypographyMuted>
-      ) : null}
+      {waitsForReview ? <TypographyMuted>{t("reminders.awaitingReview")}</TypographyMuted> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(true)}>
           <BellIcon aria-hidden />
@@ -187,6 +191,19 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
       </div>
     </>
   );
+}
+
+type ReminderItem = EventRemindersData["reminders"][number];
+
+type UnplannedReason = "passed" | "waiting";
+
+const UNPLANNED_REASON_KEYS = {
+  passed: "reminders.unplannedReason.passed",
+  waiting: "reminders.unplannedReason.waiting",
+} as const satisfies Record<UnplannedReason, string>;
+
+function unplannedReason(item: ReminderItem, now: Date): UnplannedReason {
+  return item.dueAt !== null && new Date(item.dueAt) <= now ? "passed" : "waiting";
 }
 
 function nextAmongSeveral(data: EventRemindersData, now: Date): string | null {

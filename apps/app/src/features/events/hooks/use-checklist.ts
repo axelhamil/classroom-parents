@@ -12,11 +12,11 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Route as ProtectedRoute } from "../../../router/_protected";
+import { CHECKLIST_DEFAULTS } from "../../../shared/agenda/checklist-template";
 import { EVENTS_KEY, type EventItem } from "../../../shared/api/queries/events";
 import type { EventCategory } from "../../../shared/events/event-labels";
 import { type ChecklistChange, changeChecklistMutationOptions } from "../api/events.mutations";
 import { patchCachedEvent } from "../api/events.queries";
-import { CHECKLIST_DEFAULTS } from "../checklist-defaults";
 
 const localChecklistSchema = z
   .object({
