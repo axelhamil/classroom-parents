@@ -175,6 +175,15 @@ export interface ExportedAiCall {
   outcome: string;
 }
 
+export interface ExportedNotification {
+  kind: string;
+  childId: string | null;
+  params: Record<string, unknown>;
+  members: string[];
+  createdAt: string;
+  readAt: string | null;
+}
+
 export interface UserDataSnapshot {
   children: ExportedChild[];
   events: CollectedEvent[];
@@ -192,6 +201,7 @@ export interface UserDataSnapshot {
   aiCalls: ExportedAiCall[];
   homeLayout: ExportedHomeLayout | null;
   homeNote: ExportedHomeNote | null;
+  notifications: ExportedNotification[];
   sync: ExportedSyncState[];
 }
 

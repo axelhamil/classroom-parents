@@ -62,6 +62,7 @@ export {
   getRateLimitDbClient,
   type RateLimitDbClient,
 } from "./rate-limit-client";
+export { type RepositoryTracer, repositoryTracer } from "./repository-tracer";
 
 import * as authSchema from "./schema/auth";
 

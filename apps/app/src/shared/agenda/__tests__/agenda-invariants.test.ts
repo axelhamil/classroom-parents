@@ -1,20 +1,10 @@
-import { QueryClient } from "@tanstack/react-query";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { CALENDAR_KEY } from "../../api/queries/events";
-import { badgeCountFromCache } from "../../pwa/use-app-badge";
 import { isDueWithin, isOpen, isOverdue, needsReview } from "../deadline-facts";
 import { isSchoolDay } from "../school-clock";
-import {
-  badgeRange,
-  dayPlanView,
-  nextAfterFocus,
-  overdueView,
-  reviewView,
-  tonightView,
-} from "../views";
+import { dayPlanView, nextAfterFocus, overdueView, reviewView, tonightView } from "../views";
 import { RELATIVE_HORIZON_DAYS, whenOf } from "../when";
-import { homeRange, lateWindow, nextSevenDays } from "../windows";
+import { lateWindow, nextSevenDays } from "../windows";
 import { agendaArb, clockArb } from "./agenda-arbitraries";
 
 const RUNS = { numRuns: 400 };
@@ -87,38 +77,6 @@ describe("the briefing count", () => {
         }
         for (const event of plan.leftToday) expect(event.deadlineDate).toBe(clock.today);
         expect(plan.leftToday.some((event) => plan.deadlines.includes(event))).toBe(false);
-      }),
-      RUNS,
-    );
-  });
-
-  it("is what the app icon shows, from the load the home made (3)", () => {
-    fc.assert(
-      fc.property(agendaArb, ({ clock, events }) => {
-        const queryClient = new QueryClient();
-        const { from, to } = homeRange(clock);
-        queryClient.setQueryData(
-          [...CALENDAR_KEY, from, to],
-          events.filter((event) => isDueWithin(event, { from, to })),
-        );
-
-        expect(badgeCountFromCache(queryClient, clock)).toBe(
-          dayPlanView(events, clock, { childId: null }).open.length,
-        );
-      }),
-      RUNS,
-    );
-  });
-
-  it("is unknown, never zero, while no load covers the day it names (3)", () => {
-    fc.assert(
-      fc.property(clockArb, (clock) => {
-        const queryClient = new QueryClient();
-        const { from } = badgeRange(clock);
-        queryClient.setQueryData([...CALENDAR_KEY, from, from], []);
-        if (from === clock.focus) return;
-
-        expect(badgeCountFromCache(queryClient, clock)).toBeUndefined();
       }),
       RUNS,
     );

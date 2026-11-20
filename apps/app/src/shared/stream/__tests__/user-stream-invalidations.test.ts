@@ -22,6 +22,13 @@ describe("user stream invalidations", () => {
     ]);
   });
 
+  it.each([
+    '{"type":"notification.created","notificationId":"n1"}',
+    '{"type":"notifications.read"}',
+  ])("given %s, then the notification feed and its count are invalidated", (data) => {
+    expect(invalidated(data)).toEqual([["notifications"]]);
+  });
+
   it("given sync.finished without its child, then nothing is invalidated", () => {
     expect(invalidated('{"type":"sync.finished"}')).toEqual([]);
   });

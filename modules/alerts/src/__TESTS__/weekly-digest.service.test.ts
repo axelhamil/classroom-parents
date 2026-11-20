@@ -192,6 +192,7 @@ describe("sending a planned digest", () => {
       body: "5 échéances cette semaine : 2 pour Léa, 3 pour Hugo. Prochaine : Piscine lundi.",
       url: "https://app.example.com/",
       tag: `week-${WEEK}`,
+      notificationRef: `digest:${DIGEST_ID}`,
     });
     expect(push.send.mock.calls[0]?.[2]).toMatchObject({ urgency: "normal" });
     expect(settlement()).toEqual({ status: "sent", channel: "push", at: SUNDAY_EVENING });

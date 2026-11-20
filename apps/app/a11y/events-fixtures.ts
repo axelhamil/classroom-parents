@@ -131,6 +131,7 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     if (path === "/home/layout")
       return route.fulfill({ json: { blocks: fixtures.homeLayout ?? null } });
     if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
+    if (path === "/notifications/unread-count") return route.fulfill({ json: { count: 0 } });
     if (path === "/events") {
       eventRequests.push(request);
       const status = new URL(request.url()).searchParams.get("status");

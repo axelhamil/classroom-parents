@@ -176,6 +176,13 @@
       "when": 1795110764362,
       "tag": "0024_far_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795167364344,
+      "tag": "0025_notifications",
+      "breakpoints": true
     }
   ]
 }

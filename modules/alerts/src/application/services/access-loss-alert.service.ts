@@ -6,6 +6,7 @@ import {
   Result,
 } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
+import { notificationRef } from "@packages/events/notification-ref";
 import { emitEvent, emitEvents } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { AlertTime } from "../../domain/value-objects/alert-time.vo";
@@ -173,7 +174,12 @@ export class AccessLossAlertService {
     const fanout = await pushToParent(
       ports,
       loss.userId,
-      { ...text, url: this.childrenUrl(), tag: `access-${loss.childId}` },
+      {
+        ...text,
+        url: this.childrenUrl(),
+        tag: `access-${loss.childId}`,
+        notificationRef: notificationRef.accessLoss(loss.lease.accessAlertId),
+      },
       {
         ttlSeconds: ACCESS_LOSS_PUSH_TTL_SECONDS,
         topic: loss.lease.accessAlertId.replaceAll("-", ""),

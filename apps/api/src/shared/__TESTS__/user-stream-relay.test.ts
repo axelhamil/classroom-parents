@@ -124,6 +124,40 @@ describe("user stream relay", () => {
     ]);
   });
 
+  it("names the new notification so the bell refreshes and announces it", async () => {
+    const { relay, published } = relayWithSink();
+
+    await relay.handle(
+      delivered("notification.notification.created", {
+        userId: "parent",
+        notificationId: "n1",
+        kind: "new_deadlines",
+        grouped: false,
+        actorUserId: null,
+      }),
+    );
+
+    expect(published).toEqual([
+      { userId: "parent", message: { type: "notification.created", notificationId: "n1" } },
+    ]);
+  });
+
+  it("tells every open screen of the parent that notifications were read", async () => {
+    const { relay, published } = relayWithSink();
+
+    await relay.handle(
+      delivered("notification.notification.read", { userId: "parent", notificationId: "n1" }),
+    );
+    await relay.handle(
+      delivered("notification.notifications.read_all", { userId: "parent", count: 3 }),
+    );
+
+    expect(published).toEqual([
+      { userId: "parent", message: { type: "notifications.read" } },
+      { userId: "parent", message: { type: "notifications.read" } },
+    ]);
+  });
+
   it("stays silent on events the screens do not show", async () => {
     const { relay, published } = relayWithSink();
 

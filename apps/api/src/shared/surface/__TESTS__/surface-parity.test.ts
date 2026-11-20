@@ -76,6 +76,8 @@ describe("surface parity", () => {
     "/assistant/*",
     "/home",
     "/home/*",
+    "/notifications",
+    "/notifications/*",
   ]);
 
   it("has no ALL-method route besides the documented BetterAuth mount and known middleware", () => {

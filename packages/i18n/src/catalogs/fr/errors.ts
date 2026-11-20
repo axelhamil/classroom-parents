@@ -13,6 +13,7 @@ export default {
     CHILD_ACCOUNT_SIGN_IN_FORBIDDEN:
       "Le compte Google d'un enfant sert uniquement à lire Classroom. Connectez-vous avec votre propre compte Google.",
     EVENT_NOT_FOUND: "Cette échéance n'existe plus.",
+    NOTIFICATION_NOT_FOUND: "Cette notification n'existe plus.",
     EVENT_TITLE_INVALID: "Le titre doit contenir entre 1 et 120 caractères.",
     EVENT_DESCRIPTION_INVALID: "La description doit contenir au plus 2 000 caractères.",
     EVENT_CATEGORY_INVALID: "Choisissez un type dans la liste.",

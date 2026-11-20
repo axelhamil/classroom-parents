@@ -44,6 +44,7 @@ const snapshot: UserDataSnapshot = {
   schoolZone: null,
   assistantPreferences: null,
   aiUsage: [],
+  notifications: [],
   aiCalls: [],
   homeLayout: null,
   homeNote: null,

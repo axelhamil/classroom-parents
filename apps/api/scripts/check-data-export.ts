@@ -35,6 +35,7 @@ import { seedParentWithChild } from "@modules/children/schemas/testing/seed-chil
 import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
 import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
+import { notification } from "@modules/notifications/schemas/notification.schema";
 import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
 import {
   and,
@@ -218,6 +219,15 @@ async function family(name: string): Promise<{ userId: string; childId: string }
   });
   await db.insert(homeLayout).values({ userId, blocks: HOME_BLOCKS, updatedAt: NOW });
   await db.insert(homeNote).values({ userId, body: `Piscine de ${name}`, updatedAt: NOW });
+  await db.insert(notification).values({
+    userId,
+    ref: `access-loss:${name}`,
+    kind: "access_lost",
+    childId,
+    params: {},
+    createdAt: NOW,
+    readAt: name === "a" ? null : NOW,
+  });
   await db.insert(pushLockScreen).values({ userId, details: true, updatedAt: NOW });
   await db
     .insert(alertQuietHours)
@@ -393,6 +403,14 @@ run(async () => {
     "the home note of the requester comes along, never another parent's",
     document.homeNote?.body === "Piscine de a" && document.homeNote.writtenAt === NOW.toISOString(),
     document.homeNote,
+  );
+  await step(
+    "the notification center comes along, its own notifications only, with their reading state",
+    document.notifications.length === 1 &&
+      document.notifications[0]?.kind === "access_lost" &&
+      document.notifications[0]?.readAt === null &&
+      document.notifications[0]?.childId === document.children[0]?.id,
+    document.notifications,
   );
   await step(
     "the lock screen choice comes along",
