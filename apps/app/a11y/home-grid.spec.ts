@@ -157,7 +157,7 @@ function domOrder(page: Page): Promise<string[]> {
 }
 
 function announcement(page: Page): Locator {
-  return page.locator("p[role=status].sr-only");
+  return page.locator("main p[role=status].sr-only");
 }
 
 function handle(page: Page, block: string): Locator {
