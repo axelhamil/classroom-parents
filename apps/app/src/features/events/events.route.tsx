@@ -139,7 +139,7 @@ function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
   );
   const requested = search.childId ?? stored;
   const childId = family.some((child) => child.id === requested) ? requested : null;
-  const { period } = placePeriod(search, clock.now);
+  const { period } = placePeriod(search, clock);
   const loaded = useQuery(calendarEventsQueryOptions(period)).data ?? [];
   const registry = useHomeRegistry(family);
   const home = useHomeLayout(registry.blocks, registry.defaults);

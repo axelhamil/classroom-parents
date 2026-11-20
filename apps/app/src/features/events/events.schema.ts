@@ -9,6 +9,8 @@ import { eventFiltersSearchSchema } from "../../shared/events/event-filters.sche
 import { CALENDAR_VIEWS } from "./calendar";
 import { PRINT_WEEKS } from "./week";
 
+const COURSE_ID_MAX = 128;
+
 export const eventEditSchema = z.object({
   childId: z.string().min(1),
   title: z.string().trim().min(1).max(EVENT_TITLE_MAX),
@@ -23,6 +25,7 @@ export type EventEditInput = z.infer<typeof eventEditSchema>;
 export const homeSearchSchema = eventFiltersSearchSchema.extend({
   view: z.enum(CALENDAR_VIEWS).optional().catch(undefined),
   date: z.iso.date().optional().catch(undefined),
+  courseId: z.string().trim().min(1).max(COURSE_ID_MAX).optional().catch(undefined),
   tab: z.literal("history").optional().catch(undefined),
   event: z.uuid().optional().catch(undefined),
 });
