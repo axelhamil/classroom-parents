@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
 
@@ -51,7 +51,12 @@ function eventListRequests(calls: ApiCall[]): URLSearchParams[] {
 }
 
 describe("Accueil around the calendar", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-16T09:00:00.000Z") });
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
     resetApp();
   });

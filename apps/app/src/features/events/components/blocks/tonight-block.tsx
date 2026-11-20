@@ -23,7 +23,6 @@ import { useChecklist } from "../../hooks/use-checklist";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { ChecklistRows } from "../prepare-checklist";
 import { BlockPanel } from "./block-panel";
-import { ShowMoreButton, useShowMore } from "./show-more";
 
 function tonightNote(plan: DayPlan, day: string, t: TFunction<"home">): string {
   if (plan.toPrepare.length > 0) return t("blocks.tonight.day", { day });
@@ -33,7 +32,7 @@ function tonightNote(plan: DayPlan, day: string, t: TFunction<"home">): string {
   return t("blocks.tonight.empty", { day });
 }
 
-function TonightBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
+function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
   const plan = tonightView(query.data ?? [], clock, childId);
@@ -51,9 +50,7 @@ function TonightBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
             const own = plan.toPrepare.filter((event) => event.childId === child.id);
             if (own.length === 0) return null;
 
-            return (
-              <ChildActions key={child.id} child={child} events={own} family={family} rows={rows} />
-            );
+            return <ChildActions key={child.id} child={child} events={own} family={family} />;
           })}
         </BriefingGroups>
       )}
@@ -65,13 +62,10 @@ interface ChildActionsProps {
   child: ChildDto;
   events: readonly EventItem[];
   family: readonly ChildDto[];
-  rows: number;
 }
 
-function ChildActions({ child, events, family, rows }: ChildActionsProps) {
+function ChildActions({ child, events, family }: ChildActionsProps) {
   const titleId = useId();
-  const listId = useId();
-  const { shown, more } = useShowMore(events, rows);
 
   return (
     <BriefingGroup aria-labelledby={titleId}>
@@ -84,14 +78,13 @@ function ChildActions({ child, events, family, rows }: ChildActionsProps) {
         />
         <BriefingGroupTitle id={titleId}>{child.label}</BriefingGroupTitle>
       </BriefingGroupHeader>
-      <BriefingList id={listId}>
-        {shown.map((event) => (
+      <BriefingList>
+        {events.map((event) => (
           <BriefingItem key={event.id}>
             <EventActions event={event} />
           </BriefingItem>
         ))}
       </BriefingList>
-      <ShowMoreButton more={more} controls={listId} />
     </BriefingGroup>
   );
 }
@@ -116,7 +109,5 @@ export const tonightBlock: HomeBlockDefinition = {
   titleKey: "blocks.tonight.title",
   descriptionKey: "blocks.tonight.description",
   icon: BackpackIcon,
-  sizes: { w: [3, 4, 6, 8], h: [1, 2, 3] },
-  defaultSize: { w: 4, h: 1 },
   Component: TonightBlock,
 };

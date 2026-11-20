@@ -1,5 +1,6 @@
 import { shiftDate, weekdayOf } from "@packages/ddd-kit/days";
-import { wallTimeNow } from "../../shared/format/deadline-label";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
+import { wallOf } from "../../shared/agenda/school-clock";
 import { schoolToday } from "../../shared/format/school-today";
 
 export const SCHOOL_AFTERNOON_FROM = "14:00";
@@ -69,7 +70,7 @@ export function childrenCountOf(count: number): ChildrenCount {
 
 function momentOf(now: Date): AdviceMoment {
   const today = schoolToday(now);
-  const time = wallTimeNow(now);
+  const time = wallOf(now, PARIS_TIME_ZONE).time;
   const weekday = weekdayOf(today);
 
   if (weekday === SATURDAY) return "week";
@@ -97,5 +98,5 @@ function holidayPhaseOf(now: Date, holidays: readonly HolidayRange[]): HolidayPh
 
   const eveDay = today >= shiftDate(current.endsOn, 1 - EVE_DAYS);
 
-  return eveDay && wallTimeNow(now) >= OFF_DAY_EVENING_FROM ? "eve" : "during";
+  return eveDay && wallOf(now, PARIS_TIME_ZONE).time >= OFF_DAY_EVENING_FROM ? "eve" : "during";
 }

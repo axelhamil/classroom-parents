@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 import { nextSevenDays } from "../../shared/agenda/windows";
 import type { ChildDto } from "../../shared/api/queries/children";
 import type { DashboardBlock } from "../../shared/dashboard/dashboard-block";
-import type { HomeBlock } from "../../shared/dashboard/dashboard-layout";
 import { assessmentsBlock } from "./components/blocks/assessments-block";
 import { calendarBlock } from "./components/blocks/calendar-block";
 import { childBlock } from "./components/blocks/child-block";
@@ -17,6 +16,11 @@ import { todayBlock } from "./components/blocks/today-block";
 import { tonightBlock } from "./components/blocks/tonight-block";
 import { workloadBlock } from "./components/blocks/workload-block";
 import type { HomeBlockContext, HomeBlockDefinition } from "./home-block";
+import { blockSizesOf } from "./home-block-sizes";
+
+export type RegisteredBlock = DashboardBlock<HomeBlockContext>;
+
+export type UnsizedBlock = Omit<RegisteredBlock, "sizes">;
 
 /** Every block the home offers, in the order the drawer lists them. A new block is one line here. */
 const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
@@ -34,29 +38,13 @@ const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
   remindersBlock,
 ];
 
-/**
- * Phone first, for a parent of two: what is due, what to pack tonight, what to
- * check, the week. On a wide screen the day takes two thirds and two steps, so
- * tonight and the dates to check stack beside it, and the week gets the whole
- * width under them: rows sized by their content then meet without holes.
- */
-const DEFAULT_LAYOUT: readonly HomeBlock[] = [
-  { id: "today", w: 8, h: 2, hidden: false },
-  { id: "tonight", w: 4, h: 1, hidden: false },
-  { id: "review", w: 4, h: 1, hidden: false },
-  { id: "calendar", w: 12, h: 3, hidden: false },
-  { id: "overdue", w: 4, h: 1, hidden: false },
-  { id: "assessments", w: 4, h: 1, hidden: false },
-  { id: "documents", w: 4, h: 1, hidden: false },
-  { id: "notes", w: 4, h: 1, hidden: false },
-];
+function sized(block: UnsizedBlock): RegisteredBlock[] {
+  const sizes = blockSizesOf(block.id);
 
-export interface HomeRegistry {
-  blocks: DashboardBlock<HomeBlockContext>[];
-  defaults: readonly HomeBlock[];
+  return sizes ? [{ ...block, sizes }] : [];
 }
 
-export function useHomeRegistry(family: readonly ChildDto[]): HomeRegistry {
+export function useHomeRegistry(family: readonly ChildDto[]): RegisteredBlock[] {
   const { t } = useTranslation("home");
   const shared = HOME_BLOCKS.map(({ titleKey, descriptionKey, windowDays, ...block }) => ({
     ...block,
@@ -70,5 +58,5 @@ export function useHomeRegistry(family: readonly ChildDto[]): HomeRegistry {
     ),
   );
 
-  return { blocks: [...shared, ...perChild], defaults: DEFAULT_LAYOUT };
+  return [...shared, ...perChild].flatMap(sized);
 }

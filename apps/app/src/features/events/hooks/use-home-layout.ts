@@ -2,49 +2,87 @@ import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { userStorageKey, useStoredValue } from "@packages/web-kit/storage/use-stored-value";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 import { z } from "zod";
 import { Route as ProtectedRoute } from "../../../router/_protected";
-import {
-  type BlockShape,
-  type BlockWidth,
-  type HomeBlock,
-  homeBlockSchema,
-  normalizeLayout,
-} from "../../../shared/dashboard/dashboard-layout";
-import type { BlockSize } from "../../../shared/dashboard/dashboard-pack";
-import { readStoredLayout } from "../../../shared/dashboard/layout-migration";
-import { type HomeLayoutBody, saveHomeLayoutMutationOptions } from "../api/home.mutations";
+import type { BlockSizeChoice } from "../../../shared/dashboard/dashboard-block";
+import { BLOCK_SIZES, unitsFor } from "../../../shared/dashboard/dashboard-pack";
+import { type LayoutBlock, snapSize } from "../../../shared/dashboard/layout-migration";
+import { useGridColumns } from "../../../shared/dashboard/use-grid-columns";
+import type { AdviceContext } from "../advise-context";
+import { adviseLayout } from "../advise-layout";
+import { saveHomeLayoutMutationOptions } from "../api/home.mutations";
 import { HOME_LAYOUT_KEY, type HomeLayoutReply, homeLayoutQueryOptions } from "../api/home.queries";
-import { useDebounced } from "./use-debounced";
 
-const SAVE_PAUSE_MS = 500;
+const STORED_LAYOUT_NAME = "home:layout:v2";
 
-const STORED_LAYOUT_SCHEMA = z.array(homeBlockSchema).nullable();
+const storedLayoutSchema = z
+  .object({
+    v: z.literal(2),
+    blocks: z.array(z.object({ id: z.string(), size: z.enum(BLOCK_SIZES) })).nullable(),
+    revision: z.number().int().nonnegative(),
+  })
+  .nullable();
 
-const WIDTH_OF_SIZE = { s: 3, m: 4, l: 8, xl: 12 } as const satisfies Record<BlockSize, BlockWidth>;
+const STEADY_CONTEXT: AdviceContext = {
+  moment: "morning",
+  children: "2-3",
+  childIds: [],
+  data: "normal",
+  holiday: "none",
+};
 
-type LayoutBlocks = HomeLayoutBody["blocks"];
+const NO_EMPTY_BLOCKS: ReadonlySet<string> = new Set();
 
-interface Draft {
-  layout: HomeBlock[] | null;
-  blocks: LayoutBlocks;
-}
-
-function shownBlocksOf(blocks: LayoutBlocks): HomeBlock[] | null {
-  return (
-    blocks?.map(({ id, size }) => ({ id, w: WIDTH_OF_SIZE[size], h: 1, hidden: false })) ?? null
-  );
+export interface SizedBlock {
+  id: string;
+  sizes: BlockSizeChoice;
 }
 
 export interface HomeLayout {
-  layout: HomeBlock[];
-  change: (next: readonly HomeBlock[]) => void;
+  order: LayoutBlock[];
+  advised: boolean;
+  change: (next: LayoutBlock[]) => void;
   reset: () => void;
-  flush: () => void;
 }
 
-function useSaveLayout(onSettled: (body: HomeLayoutBody) => void) {
+/**
+ * The parent's home: the layout they arranged, or the advised one while they arranged nothing.
+ * It is drawn at once from the copy kept on this device, then from the server; a change shows at
+ * once and is saved against the revision it was made on, an error putting the server copy back.
+ */
+export function useHomeLayout(registry: readonly SizedBlock[]): HomeLayout {
+  const units = unitsFor(useGridColumns());
+  const query = useQuery(homeLayoutQueryOptions);
+  const stored = useStoredCopy(query.data);
+  const save = useSaveLayout();
+  const chosen = query.data ? query.data.blocks : stored?.blocks;
+  const blocks = chosen ?? adviseLayout(STEADY_CONTEXT, units, NO_EMPTY_BLOCKS).blocks;
+
+  return {
+    order: fitToRegistry(blocks, registry),
+    advised: !chosen,
+    change: save,
+    reset: () => save(null),
+  };
+}
+
+function useStoredCopy(reply: HomeLayoutReply | undefined) {
+  const { user } = ProtectedRoute.useRouteContext();
+  const [stored, setStored] = useStoredValue(
+    userStorageKey(user.id, STORED_LAYOUT_NAME),
+    storedLayoutSchema,
+    null,
+  );
+
+  useEffect(() => {
+    if (reply) setStored({ v: 2, blocks: reply.blocks, revision: reply.revision });
+  }, [reply, setStored]);
+
+  return stored;
+}
+
+function useSaveLayout(): (blocks: LayoutBlock[] | null) => void {
   const queryClient = useQueryClient();
   const { mutate } = useMutation({
     ...saveHomeLayoutMutationOptions,
@@ -62,62 +100,30 @@ function useSaveLayout(onSettled: (body: HomeLayoutBody) => void) {
     onError: (error, _body, context) => {
       queryClient.setQueryData(HOME_LAYOUT_KEY, context?.previous);
       toastError(error, errorFallback("saveHomeLayout"));
+      void queryClient.invalidateQueries({ queryKey: HOME_LAYOUT_KEY });
     },
-    onSettled: (_saved, _error, body) => onSettled(body),
   });
 
-  return useCallback(
-    (blocks: LayoutBlocks) =>
-      mutate({
-        blocks,
-        baseRevision: queryClient.getQueryData<HomeLayoutReply>(HOME_LAYOUT_KEY)?.revision ?? 0,
-      }),
-    [mutate, queryClient],
-  );
+  return (blocks) =>
+    mutate({
+      blocks,
+      baseRevision: queryClient.getQueryData<HomeLayoutReply>(HOME_LAYOUT_KEY)?.revision ?? 0,
+    });
 }
 
-/**
- * The parent's home, drawn at once from the copy kept on this device, then
- * from the server. A gesture shows at once as a draft and one save leaves
- * after a short pause, so a burst of clicks costs one request; the save
- * writes the cache optimistically and an error puts the previous layout back.
- */
-export function useHomeLayout(
-  registry: readonly BlockShape[],
-  defaults: readonly HomeBlock[],
-): HomeLayout {
-  const { user } = ProtectedRoute.useRouteContext();
-  const [stored, setStored] = useStoredValue(
-    userStorageKey(user.id, "home:layout"),
-    STORED_LAYOUT_SCHEMA,
-    null,
-  );
-  const query = useQuery(homeLayoutQueryOptions);
-  const [draft, setDraft] = useState<Draft | undefined>(undefined);
-  const save = useSaveLayout((body) =>
-    setDraft((current) => (current?.blocks === body.blocks ? undefined : current)),
-  );
-  const { schedule, flush } = useDebounced(save, SAVE_PAUSE_MS);
-  const fetched = query.data ? shownBlocksOf(query.data.blocks) : undefined;
-  const shown = draft ? draft.layout : fetched;
+function fitToRegistry(
+  blocks: readonly LayoutBlock[],
+  registry: readonly SizedBlock[],
+): LayoutBlock[] {
+  const known = new Map(registry.map(({ id, sizes }) => [id, sizes.allowed]));
+  const kept: LayoutBlock[] = [];
 
-  useEffect(() => {
-    if (query.data) setStored(shownBlocksOf(query.data.blocks));
-  }, [query.data, setStored]);
+  for (const { id, size } of blocks) {
+    const allowed = known.get(id);
+    if (!allowed || kept.some((block) => block.id === id)) continue;
 
-  const change = (next: readonly HomeBlock[] | null) => {
-    const blocks = next ? readStoredLayout(next) : null;
-    setDraft({ layout: next ? [...next] : null, blocks });
-    schedule(blocks);
-  };
+    kept.push({ id, size: snapSize(size, allowed) });
+  }
 
-  return {
-    layout: normalizeLayout(shown === undefined ? stored : shown, registry, defaults),
-    change,
-    reset: () => {
-      change(null);
-      flush();
-    },
-    flush,
-  };
+  return kept;
 }

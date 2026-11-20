@@ -56,7 +56,7 @@ async function expectWholeWeekRowsUnderBriefing(page: Page): Promise<void> {
     links.map((link) => link.getBoundingClientRect().width),
   );
   expect(Math.min(...widths)).toBeGreaterThanOrEqual(180);
-  const briefing = await page.locator("[data-slot=briefing]").boundingBox();
+  const briefing = await page.locator("[data-block=today]").boundingBox();
   const week = await page.locator("[data-slot=calendar-week]").boundingBox();
   expect(briefing && week && briefing.y + briefing.height <= week.y).toBe(true);
 }
@@ -74,7 +74,7 @@ async function expectSevenRowsOnFridayEvening(page: Page): Promise<void> {
   const rows = page.locator("[data-slot=calendar-week] > [data-slot=calendar-day]");
   await expect(rows).toHaveCount(7);
   await expect(rows.and(page.locator(`[data-jump="${shiftDate(friday, 3)}"]`))).toHaveCount(1);
-  await expect(page.locator("[data-slot=briefing]")).toBeVisible();
+  await expect(page.locator("[data-block=today]")).toBeVisible();
 }
 
 async function expectOverdueOverlay(
@@ -235,7 +235,7 @@ test.describe("the calendar on a phone", () => {
     });
   }
 
-  test("the briefing stays on the page, its first items then a button for the rest, all in the tab order", async ({
+  test("the briefing lists its whole day inside its block, a region the keyboard reaches", async ({
     page,
   }) => {
     await page.clock.setFixedTime(todayAt("19:00"));
@@ -251,26 +251,17 @@ test.describe("the calendar on a phone", () => {
     await serveFamily(page, { children: [LEA], events: due });
     await page.goto("/");
 
-    const briefing = page.locator("[data-slot=briefing]");
+    const briefing = page.locator("[data-block=today]");
     await expect(briefing.getByRole("link", { name: "Piscine 1" })).toBeVisible();
-    await expect(page.locator("[data-slot=dashboard] [data-slot=scroll-region]")).toHaveCount(0);
-    await expect(briefing.getByRole("link", { name: /^Piscine / })).toHaveCount(4);
-
-    await briefing.getByRole("link", { name: "Piscine 4" }).focus();
-    const more = briefing.getByRole("button", { name: "Voir les 2 autres" });
-    await tabTo(page, more);
-    await page.keyboard.press("Enter");
-    await expect(
-      briefing.getByRole("button", { name: "Voir moins", expanded: true }),
-    ).toBeFocused();
     await expect(briefing.getByRole("link", { name: /^Piscine / })).toHaveCount(6);
-    await page.keyboard.press("Shift+Tab");
-    await expect(briefing.getByRole("checkbox").last()).toBeFocused();
+    await expect(briefing.getByRole("button", { name: /^Voir / })).toHaveCount(0);
+
+    const region = briefing.getByRole("group", { name: "Pour demain" });
+    await tabTo(page, region);
+    await expect(region).toBeFocused();
   });
 
-  test("the home clips neither an avatar ring nor a focus ring, no block scrolling on its own", async ({
-    page,
-  }) => {
+  test("the home clips neither an avatar ring nor a focus ring", async ({ page }) => {
     await page.clock.setFixedTime(todayAt("19:00"));
     const due = Array.from({ length: 6 }, (_, index) => ({
       ...REVIEW_EVENT,
@@ -285,10 +276,8 @@ test.describe("the calendar on a phone", () => {
     await page.goto("/");
 
     await expect(
-      page.locator("[data-slot=briefing]").getByRole("link", { name: "Piscine 1" }),
+      page.locator("[data-block=today]").getByRole("link", { name: "Piscine 1" }),
     ).toBeVisible();
-    await expect(page.locator("[data-slot=dashboard] [data-slot=scroll-region]")).toHaveCount(0);
-
     expect(await clippedInScrollRegions(page)).toEqual([]);
   });
 
@@ -633,10 +622,10 @@ test.describe("the bar of the day", () => {
       await serveFamily(page, { children: [LEA], events: due });
       await page.goto("/");
 
-      const bar = page.locator("[data-slot=briefing]").getByRole("progressbar");
+      const bar = page.locator("[data-block=today]").getByRole("progressbar");
       await expect(bar).toHaveAttribute("aria-valuetext", "1 sur 2");
       expect(
-        await lowestGraphicContrast(page, "[data-slot=briefing] [data-slot=progress-indicator]"),
+        await lowestGraphicContrast(page, "[data-block=today] [data-slot=progress-indicator]"),
       ).toBeGreaterThanOrEqual(3);
     });
 });

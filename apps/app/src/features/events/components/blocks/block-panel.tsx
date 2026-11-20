@@ -1,12 +1,19 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import {
+  DashboardEmpty,
   DashboardPanel,
+  DashboardPanelBody,
+  DashboardPanelFooter,
   DashboardPanelHeader,
   DashboardPanelNote,
   DashboardPanelTitle,
+  DashboardTileToolbar,
 } from "@packages/ui/components/ui/dashboard";
+import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import type { LucideIcon } from "lucide-react";
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { type TileFrame, useTileFrame } from "../../../../shared/dashboard/tile-frame";
 
 export interface BlockPanelProps {
   title: string;
@@ -15,7 +22,8 @@ export interface BlockPanelProps {
   icon: LucideIcon;
   note?: ReactNode;
   fit?: "card" | "natural";
-  line?: boolean;
+  startAt?: string;
+  jump?: string;
   children?: ReactNode;
 }
 
@@ -26,27 +34,103 @@ export function BlockPanel({
   icon: Icon,
   note,
   fit,
-  line,
+  startAt,
+  jump,
   children,
 }: BlockPanelProps) {
+  const { t } = useTranslation("home");
   const titleId = useId();
-  const settled = Boolean(note) || Boolean(children);
-  const shape = settled && (line || !children) ? "line" : "box";
+  const frame = useTileFrame();
+  const Header = frame.editing ? DashboardTileToolbar : DashboardPanelHeader;
 
   return (
     <DashboardPanel
       aria-label={label}
       aria-labelledby={label ? undefined : titleId}
-      shape={shape}
       fit={fit}
+      data-jump={jump}
+      tabIndex={jump ? -1 : undefined}
     >
-      <DashboardPanelHeader>
+      <Header aria-label={frame.editing ? t("edit.controls", { block: title }) : undefined}>
         <Icon aria-hidden />
         <DashboardPanelTitle id={titleId}>{title}</DashboardPanelTitle>
         {count !== undefined && count > 0 && <Badge variant="destructive">{count}</Badge>}
-      </DashboardPanelHeader>
-      {note && <DashboardPanelNote>{note}</DashboardPanelNote>}
-      {children}
+        {frame.controls}
+      </Header>
+      <BlockBody frame={frame} titleId={titleId} icon={Icon} note={note} startAt={startAt}>
+        {children}
+      </BlockBody>
+      {frame.footer && children ? (
+        <DashboardPanelFooter inert={frame.editing}>{frame.footer}</DashboardPanelFooter>
+      ) : null}
     </DashboardPanel>
   );
+}
+
+interface BlockBodyProps {
+  frame: TileFrame;
+  titleId: string;
+  icon: LucideIcon;
+  note: ReactNode;
+  startAt: string | undefined;
+  children: ReactNode;
+}
+
+function BlockBody({ frame, titleId, icon: Icon, note, startAt, children }: BlockBodyProps) {
+  const openAt = useOpenAt(startAt);
+
+  if (!children && note)
+    return (
+      <DashboardEmpty inert={frame.editing}>
+        <Icon aria-hidden />
+        <p>{note}</p>
+      </DashboardEmpty>
+    );
+
+  if (!children) return null;
+
+  const content = (
+    <>
+      {note && <DashboardPanelNote>{note}</DashboardPanelNote>}
+      {children}
+    </>
+  );
+
+  if (frame.size === "s" || frame.flows)
+    return <DashboardPanelBody inert={frame.editing}>{content}</DashboardPanelBody>;
+
+  return (
+    <ScrollRegion variant="tile" aria-labelledby={titleId} inert={frame.editing} ref={openAt}>
+      {content}
+    </ScrollRegion>
+  );
+}
+
+function useOpenAt(startAt: string | undefined): (region: HTMLDivElement | null) => void {
+  const [region, setRegion] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!region || !startAt) return;
+    if (scrollToJump(region, startAt)) return;
+
+    const observer = new MutationObserver(() => {
+      if (scrollToJump(region, startAt)) observer.disconnect();
+    });
+    observer.observe(region, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, [region, startAt]);
+
+  return setRegion;
+}
+
+function scrollToJump(region: HTMLElement, jump: string): boolean {
+  const target = region.querySelector(`[data-jump="${jump}"]`);
+  if (!target) return false;
+
+  const padding = Number.parseFloat(getComputedStyle(region).scrollPaddingTop) || 0;
+  const offset = target.getBoundingClientRect().top - region.getBoundingClientRect().top;
+  region.scrollTop += offset - padding;
+
+  return true;
 }

@@ -1,5 +1,4 @@
 import {
-  Briefing,
   BriefingGroup,
   BriefingGroupHeader,
   BriefingGroups,
@@ -8,14 +7,13 @@ import {
   BriefingList,
   BriefingStat,
   BriefingSummary,
-  BriefingTitle,
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { Progress, ProgressLegend, ProgressRow } from "@packages/ui/components/ui/progress";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCheckIcon } from "lucide-react";
+import { CheckCheckIcon, SunIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isOpen } from "../../../shared/agenda/deadline-facts";
@@ -31,7 +29,7 @@ import { dayLabelFrom, inSentence } from "../../../shared/format/deadline-label"
 import { QueryState } from "../../../shared/query/query-state";
 import { nextEventQueryOptions } from "../api/events.queries";
 import { useHomeEvents } from "../hooks/use-home-events";
-import { ShowMoreButton, useShowMore } from "./blocks/show-more";
+import { BlockPanel } from "./blocks/block-panel";
 import { CalendarEventRow } from "./calendar/calendar-event-row";
 import { EventSteps } from "./prepare-checklist";
 
@@ -39,19 +37,16 @@ export interface NextSchoolBriefingProps {
   family: readonly ChildDto[];
   childId: string | null;
   clock: SchoolClock;
-  rows: number;
 }
 
-export function NextSchoolBriefing({ family, childId, clock, rows }: NextSchoolBriefingProps) {
+export function NextSchoolBriefing({ family, childId, clock }: NextSchoolBriefingProps) {
   const { t } = useTranslation("events");
-  const titleId = useId();
   const day = inSentence(dayLabelFrom(clock.focus, clock.today));
   const query = useHomeEvents(clock);
   const watched = childId ? family.filter((child) => child.id === childId) : family;
 
   return (
-    <Briefing aria-labelledby={titleId} data-jump={clock.focus} tabIndex={-1} className="flex-1">
-      <BriefingTitle id={titleId}>{t("briefing.title", { day })}</BriefingTitle>
+    <BlockPanel title={t("briefing.title", { day })} icon={SunIcon} jump={clock.focus}>
       <QueryState
         query={query}
         skeleton={
@@ -68,12 +63,11 @@ export function NextSchoolBriefing({ family, childId, clock, rows }: NextSchoolB
             family={watched}
             childId={childId}
             clock={clock}
-            rows={rows}
             day={day}
           />
         )}
       </QueryState>
-    </Briefing>
+    </BlockPanel>
   );
 }
 
@@ -130,11 +124,10 @@ interface BriefingBodyProps {
   family: readonly ChildDto[];
   childId: string | null;
   clock: SchoolClock;
-  rows: number;
   day: string;
 }
 
-function BriefingBody({ events: loaded, family, childId, clock, rows, day }: BriefingBodyProps) {
+function BriefingBody({ events: loaded, family, childId, clock, day }: BriefingBodyProps) {
   const { t } = useTranslation("events");
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
   const plan = dayPlanView(loaded, clock, { childId, kept: shown });
@@ -145,7 +138,7 @@ function BriefingBody({ events: loaded, family, childId, clock, rows, day }: Bri
   const open = plan.open.length;
   const allSet = events.length > 0 && open === 0;
   const leftToday = plan.leftToday.filter(isOpen).length;
-  const groups = <DayGroups events={listed} family={family} rows={rows} clock={clock} />;
+  const groups = <DayGroups events={listed} family={family} clock={clock} />;
 
   if (events.length === 0)
     return isFirstSyncRunning(family) ? (
@@ -185,11 +178,10 @@ function BriefingBody({ events: loaded, family, childId, clock, rows, day }: Bri
 interface DayGroupsProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
-  rows: number;
   clock: SchoolClock;
 }
 
-function DayGroups({ events, family, rows, clock }: DayGroupsProps) {
+function DayGroups({ events, family, clock }: DayGroupsProps) {
   return (
     <BriefingGroups>
       {family.map((child) => {
@@ -197,14 +189,7 @@ function DayGroups({ events, family, rows, clock }: DayGroupsProps) {
         if (due.length === 0) return null;
 
         return (
-          <ChildBriefing
-            key={child.id}
-            child={child}
-            events={due}
-            family={family}
-            rows={rows}
-            clock={clock}
-          />
+          <ChildBriefing key={child.id} child={child} events={due} family={family} clock={clock} />
         );
       })}
     </BriefingGroups>
@@ -215,14 +200,11 @@ interface ChildBriefingProps {
   child: ChildDto;
   events: readonly EventItem[];
   family: readonly ChildDto[];
-  rows: number;
   clock: SchoolClock;
 }
 
-function ChildBriefing({ child, events, family, rows, clock }: ChildBriefingProps) {
+function ChildBriefing({ child, events, family, clock }: ChildBriefingProps) {
   const titleId = useId();
-  const listId = useId();
-  const { shown, more } = useShowMore(events, rows);
 
   return (
     <BriefingGroup aria-labelledby={titleId}>
@@ -235,8 +217,8 @@ function ChildBriefing({ child, events, family, rows, clock }: ChildBriefingProp
         />
         <BriefingGroupTitle id={titleId}>{child.label}</BriefingGroupTitle>
       </BriefingGroupHeader>
-      <BriefingList id={listId}>
-        {shown.map((event) => (
+      <BriefingList>
+        {events.map((event) => (
           <BriefingItem key={event.id}>
             <CalendarEventRow
               event={event}
@@ -249,7 +231,6 @@ function ChildBriefing({ child, events, family, rows, clock }: ChildBriefingProp
           </BriefingItem>
         ))}
       </BriefingList>
-      <ShowMoreButton more={more} controls={listId} />
     </BriefingGroup>
   );
 }

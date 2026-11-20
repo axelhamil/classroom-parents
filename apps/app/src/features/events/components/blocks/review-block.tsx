@@ -19,7 +19,6 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
     <BlockPanel
       title={title}
       icon={SearchCheckIcon}
-      line
       note={
         coming.isSuccess &&
         (empty
@@ -44,7 +43,5 @@ export const reviewBlock: HomeBlockDefinition = {
   titleKey: "blocks.review.title",
   descriptionKey: "blocks.review.description",
   icon: SearchCheckIcon,
-  sizes: { w: [3, 4, 6, 8, 12], h: [1] },
-  defaultSize: { w: 4, h: 1 },
   Component: ReviewBlock,
 };

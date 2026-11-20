@@ -10,7 +10,7 @@ import type { SchoolClock } from "../../shared/agenda/school-clock";
 import { useSchoolClock } from "../../shared/agenda/school-clock-context";
 import { type ChildDto, childrenQueryOptions } from "../../shared/api/queries/children";
 import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
-import { DashboardGrid } from "../../shared/dashboard/dashboard-grid";
+import { HomeGrid } from "../../shared/dashboard/home-grid";
 import { CategoryFilter } from "../../shared/events/category-filter";
 import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
 import { Screen } from "../../shared/layout/screen";
@@ -142,9 +142,8 @@ function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
   const { period } = placePeriod(search, clock.now);
   const loaded = useQuery(calendarEventsQueryOptions(period)).data ?? [];
   const registry = useHomeRegistry(family);
-  const home = useHomeLayout(registry.blocks, registry.defaults);
-  const shown = (blockId: string) =>
-    home.layout.some(({ id, hidden }) => id === blockId && !hidden);
+  const home = useHomeLayout(registry);
+  const shown = (blockId: string) => home.order.some(({ id }) => id === blockId);
   useCelebrateProgress(clock);
 
   const setSearch = (next: Partial<HomeSearch>) =>
@@ -183,9 +182,9 @@ function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
-      <DashboardGrid
-        layout={home.layout}
-        blocks={registry.blocks}
+      <HomeGrid
+        order={home.order}
+        blocks={registry}
         context={{
           family,
           childId,

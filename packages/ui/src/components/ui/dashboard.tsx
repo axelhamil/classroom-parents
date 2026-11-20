@@ -3,112 +3,83 @@ import type * as React from "react";
 
 import { cn } from "../../libs/utils";
 
+interface DashboardProps extends Omit<React.ComponentProps<"div">, "style"> {
+  /**
+   * Row tracks written out, for the one grid whose rows are not all one step high (the week flowing
+   * with the page on a phone). Left out, every row is one `--dashboard-row-height` step.
+   */
+  tracks?: string;
+}
+
+type TracksStyle = React.CSSProperties & Record<"--dashboard-tracks", string>;
+
+type GridLinesStyle = React.CSSProperties & Record<"--x" | "--y" | "--w" | "--h", number>;
+
+function tracksStyle(tracks: string): TracksStyle {
+  return { "--dashboard-tracks": tracks };
+}
+
 /**
- * A home made of blocks: one column on a phone (order only), six from `md`
- * and twelve from `lg`. Rows take the height of their content and the page
- * scrolls, never a block. Tiles stretch to their row, so a column never shows
- * a hole between two blocks; placement stays sparse so the screen reads in
- * the order Tab walks it.
+ * The home grid: 4 columns on a phone, 8 from `md` and 12 from `lg`, every row one step of
+ * `--dashboard-row-height`, so a block is as high as its size and never as its content. Tiles are
+ * placed explicitly by `DashboardTile`; the page scrolls, a block scrolls inside itself.
  */
-function Dashboard({ className, ...props }: React.ComponentProps<"div">) {
+function Dashboard({ className, tracks, ...props }: DashboardProps) {
   return (
     <div
       data-slot="dashboard"
       className={cn(
-        "grid grid-cols-1 gap-4 md:grid-cols-6 md:gap-(--dashboard-gap) lg:grid-cols-12",
+        "grid auto-rows-(--dashboard-row-height) grid-cols-4 grid-rows-(--dashboard-tracks) gap-4 md:grid-cols-8 md:gap-(--dashboard-gap) lg:grid-cols-12",
         className,
       )}
+      style={tracks ? tracksStyle(tracks) : undefined}
       {...props}
     />
   );
+}
+
+interface DashboardTileProps extends Omit<React.ComponentProps<"div">, "style"> {
+  /** First column, 0 based, in grid columns. */
+  x: number;
+  /** First row track, 0 based. */
+  y: number;
+  /** Columns spanned. */
+  w: number;
+  /** Row tracks spanned. */
+  h: number;
 }
 
 /**
- * Placement is a static table of classes: Tailwind only ships a class it can
- * read whole in the source. A tablet keeps six columns, so 3 and 4 share a
- * half and 6, 8 and 12 take the full width. The height is a floor of steps,
- * never a cap. A block with nothing to show keeps it, so reading and arranging
- * the home draw every block at the same place and size.
+ * One block placed on the grid. Its place is geometry computed at run time from the order and the
+ * sizes, so it is the one thing passed through `style`, as the `--x`, `--y`, `--w` and `--h`
+ * grid lines; everything the tile looks like stays in the theme.
  */
-const dashboardTileVariants = cva("flex min-w-0 flex-col gap-2", {
-  variants: {
-    w: {
-      3: "md:col-span-3 lg:col-span-3",
-      4: "md:col-span-3 lg:col-span-4",
-      6: "md:col-span-6 lg:col-span-6",
-      8: "md:col-span-6 lg:col-span-8",
-      12: "md:col-span-6 lg:col-span-12",
-    },
-    h: {
-      1: "md:min-h-(--dashboard-row-height)",
-      2: "md:row-span-2 md:min-h-(--dashboard-height-2)",
-      3: "md:row-span-3 md:min-h-(--dashboard-height-3)",
-    },
-    editing: {
-      true: "rounded-2xl outline-2 outline-offset-4 outline-border outline-dashed data-dragging:z-10 data-dragging:shadow-float",
-      false: "",
-    },
-  },
-  defaultVariants: { editing: false },
-});
+function DashboardTile({ className, x, y, w, h, ...props }: DashboardTileProps) {
+  const place: GridLinesStyle = { "--x": x + 1, "--y": y + 1, "--w": w, "--h": h };
 
-interface DashboardTileProps
-  extends React.ComponentProps<"div">,
-    VariantProps<typeof dashboardTileVariants> {
-  dragging?: boolean;
-}
-
-function DashboardTile({ className, w, h, editing, dragging, ...props }: DashboardTileProps) {
   return (
     <div
       data-slot="dashboard-tile"
-      data-w={w}
-      data-h={h}
-      data-dragging={dragging ? "" : undefined}
-      className={cn(dashboardTileVariants({ w, h, editing }), className)}
-      {...props}
-    />
-  );
-}
-
-/** The controls of a block while the home is being arranged. */
-function DashboardTileToolbar({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dashboard-tile-toolbar"
-      role="group"
-      className={cn("flex min-w-0 flex-wrap items-center gap-1", className)}
-      {...props}
-    />
-  );
-}
-
-/** What the block shows; `inert` while arranging, so Tab walks the controls only. */
-function DashboardTileContent({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dashboard-tile-content"
-      className={cn("flex min-w-0 flex-1 flex-col", className)}
+      className={cn(
+        "flex min-h-0 min-w-0 flex-col [grid-column:var(--x)/span_var(--w)] [grid-row:var(--y)/span_var(--h)]",
+        className,
+      )}
+      style={place}
       {...props}
     />
   );
 }
 
 const dashboardPanelVariants = cva(
-  "group/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card p-4 text-card-foreground shadow-rest",
+  "group/panel relative flex min-h-0 min-w-0 flex-1 scroll-mt-24 flex-col gap-2 text-card-foreground outline-none focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
-      shape: {
-        box: "flex-col gap-3",
-        line: "flex-row flex-wrap content-center items-center gap-x-3 gap-y-1 py-3",
-      },
       fit: {
-        card: "",
-        natural:
-          "max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none",
+        card: "rounded-2xl border bg-card px-4 pb-4 pt-1 shadow-rest",
+        natural: "md:rounded-2xl md:border md:bg-card md:px-4 md:pb-4 md:pt-1 md:shadow-rest",
       },
     },
-    defaultVariants: { shape: "box", fit: "card" },
+    defaultVariants: { fit: "card" },
   },
 );
 
@@ -117,31 +88,42 @@ interface DashboardPanelProps
     VariantProps<typeof dashboardPanelVariants> {}
 
 /**
- * A titled block on paper; label it with `aria-labelledby` pointing at its
- * title. `line` draws it as one row (title, a short sentence, an action),
- * centred in the size its tile keeps: an empty block reads calm at its size. `natural` is for a block made of cards of its own (the
- * week): a phone shows it at full width on the page, without a card around
- * the cards.
+ * A titled block on paper; label it with `aria-labelledby` pointing at its title. It lays out a header
+ * of a fixed height, a body that takes what is left, then an optional footer, so every tile of one
+ * size looks the same whatever it holds. `natural` is for a block made of cards of its own (the
+ * week): a phone shows it on the page, without a card around the cards.
  */
-function DashboardPanel({ className, shape, fit, ...props }: DashboardPanelProps) {
+function DashboardPanel({ className, fit, ...props }: DashboardPanelProps) {
   return (
     <section
       data-slot="dashboard-panel"
-      data-shape={shape ?? "box"}
-      className={cn(dashboardPanelVariants({ shape, fit }), className)}
+      className={cn(dashboardPanelVariants({ fit }), className)}
       {...props}
     />
   );
 }
 
+const DASHBOARD_HEADER =
+  "flex h-dashboard-header min-w-0 shrink-0 items-center gap-2 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
+
+/** The title row of a block, one fixed height so the titles of a row share their line. */
 function DashboardPanelHeader({ className, ...props }: React.ComponentProps<"header">) {
   return (
     <header
       data-slot="dashboard-panel-header"
-      className={cn(
-        "flex min-w-0 items-center gap-2 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground",
-        className,
-      )}
+      className={cn(DASHBOARD_HEADER, className)}
+      {...props}
+    />
+  );
+}
+
+/** The controls of a block while the home is arranged, in the slot of its header and at its height. */
+function DashboardTileToolbar({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dashboard-tile-toolbar"
+      role="group"
+      className={cn(DASHBOARD_HEADER, className)}
       {...props}
     />
   );
@@ -152,7 +134,7 @@ function DashboardPanelTitle({ className, ...props }: React.ComponentProps<"h2">
     <h2
       data-slot="dashboard-panel-title"
       className={cn(
-        "min-w-0 flex-1 font-display text-lg leading-tight font-semibold tracking-tight wrap-anywhere group-data-[shape=line]/panel:text-base",
+        "min-w-0 flex-1 truncate font-display text-lg leading-tight font-semibold tracking-tight",
         className,
       )}
       {...props}
@@ -160,7 +142,21 @@ function DashboardPanelTitle({ className, ...props }: React.ComponentProps<"h2">
   );
 }
 
-/** One plain sentence under the title: the empty state or the figure that sums the block up. */
+/**
+ * The body of a block that never scrolls: a glance sized to fit, or a block that flows with the
+ * page. A body that may overflow is a `ScrollRegion variant="tile"` instead.
+ */
+function DashboardPanelBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dashboard-panel-body"
+      className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden", className)}
+      {...props}
+    />
+  );
+}
+
+/** One plain sentence under the title: the figure that sums the block up. */
 function DashboardPanelNote({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
@@ -171,13 +167,43 @@ function DashboardPanelNote({ className, ...props }: React.ComponentProps<"p">) 
   );
 }
 
+/**
+ * A block with nothing to show, at its size: its icon and one sentence, centred in the body, like
+ * a widget saying there is no event. Pass the icon as the first child and the sentence after it.
+ */
+function DashboardEmpty({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dashboard-empty"
+      className={cn(
+        "flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden text-center text-sm text-pretty text-muted-foreground [&>svg]:size-6 [&>svg]:shrink-0",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** What stays under the body: the way to the full view of the block. */
+function DashboardPanelFooter({ className, ...props }: React.ComponentProps<"footer">) {
+  return (
+    <footer
+      data-slot="dashboard-panel-footer"
+      className={cn("flex shrink-0 items-center justify-end", className)}
+      {...props}
+    />
+  );
+}
+
 export {
   Dashboard,
+  DashboardEmpty,
   DashboardPanel,
+  DashboardPanelBody,
+  DashboardPanelFooter,
   DashboardPanelHeader,
   DashboardPanelNote,
   DashboardPanelTitle,
   DashboardTile,
-  DashboardTileContent,
   DashboardTileToolbar,
 };

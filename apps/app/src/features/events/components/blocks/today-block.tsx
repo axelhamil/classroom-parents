@@ -8,7 +8,5 @@ export const todayBlock: HomeBlockDefinition = {
   descriptionKey: "blocks.today.description",
   icon: SunIcon,
   tour: "home-today",
-  sizes: { w: [3, 4, 6, 8], h: [2, 3] },
-  defaultSize: { w: 4, h: 2 },
   Component: NextSchoolBriefing,
 };

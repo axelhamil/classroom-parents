@@ -7,7 +7,14 @@ import { BlockPanel } from "./block-panel";
 
 const HOME_ROUTE = "/_protected/_shell/";
 
-function CalendarBlock({ family, childId, briefingShown, overdueShown, title }: HomeBlockProps) {
+function CalendarBlock({
+  family,
+  childId,
+  clock,
+  briefingShown,
+  overdueShown,
+  title,
+}: HomeBlockProps) {
   const search = useSearch({ from: HOME_ROUTE });
   const navigate = useNavigate({ from: "/" });
 
@@ -15,7 +22,7 @@ function CalendarBlock({ family, childId, briefingShown, overdueShown, title }: 
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
 
   return (
-    <BlockPanel title={title} icon={CalendarDaysIcon} fit="natural">
+    <BlockPanel title={title} icon={CalendarDaysIcon} fit="natural" startAt={clock.today}>
       <CalendarBoard
         family={family}
         childId={childId}
@@ -34,7 +41,6 @@ export const calendarBlock: HomeBlockDefinition = {
   descriptionKey: "blocks.calendar.description",
   icon: CalendarDaysIcon,
   tour: "home-week",
-  sizes: { w: [6, 8, 12], h: [2, 3] },
-  defaultSize: { w: 8, h: 3 },
+  flowsOnPhone: true,
   Component: CalendarBlock,
 };

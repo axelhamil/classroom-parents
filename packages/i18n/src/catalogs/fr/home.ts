@@ -57,6 +57,11 @@ export default {
   },
   sync: {
     savedOffline: "Enregistré hors ligne, envoi au retour du réseau.",
+    conflict: {
+      title: "L'accueil a changé sur un autre appareil",
+      takeTheirs: "Prendre cette version",
+      keepMine: "Garder la mienne",
+    },
   },
   drawer: {
     title: "Ajouter un bloc",
@@ -153,8 +158,6 @@ export default {
       saving: "Enregistrement…",
       failed: "Non enregistré. Réessayez dans un instant.",
     },
-    more_one: "Voir {{count}} autre",
-    more_other: "Voir les {{count}} autres",
-    less: "Voir moins",
+    seeAll: "Tout voir",
   },
 } as const;

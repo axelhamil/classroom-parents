@@ -230,14 +230,24 @@
   --print-root-size-compact: 8.5pt;
   --print-item-space: 0.5rem;
   --print-item-space-compact: 0.2rem;
-  /* Home grid: the least height of one step of a block (a title and two cards); a block grows past it with its content, the page scrolls. */
   /* A progress read at a glance: a faint track, the done part in ink (at least 3:1 against the card in both themes). */
   --progress-track: color-mix(in oklch, var(--foreground) 10%, transparent);
   --progress-ink: var(--foreground);
-  --dashboard-row-height: 12.5rem;
+  /* Home grid: one row step, the height of a small block whatever it holds (S 1 step, M 1, L and XL 2); a phone, a tablet (md) and a desktop (lg) each get theirs. */
+  --dashboard-row-height: 10.5rem;
   --dashboard-gap: 1.25rem;
-  --dashboard-height-2: calc(var(--dashboard-row-height) * 2 + var(--dashboard-gap));
-  --dashboard-height-3: calc(var(--dashboard-row-height) * 3 + var(--dashboard-gap) * 2);
+}
+
+@media (width >= 48rem) {
+  :root {
+    --dashboard-row-height: 11rem;
+  }
+}
+
+@media (width >= 64rem) {
+  :root {
+    --dashboard-row-height: 13rem;
+  }
 }
 
 .dark {

@@ -70,7 +70,5 @@ export const notesBlock: HomeBlockDefinition = {
   titleKey: "blocks.notes.title",
   descriptionKey: "blocks.notes.description",
   icon: StickyNoteIcon,
-  sizes: { w: [3, 4, 6], h: [1, 2] },
-  defaultSize: { w: 4, h: 1 },
   Component: NotesBlock,
 };

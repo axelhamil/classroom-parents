@@ -17,7 +17,7 @@ const ARRANGED = [
   { id: "today", size: "m" },
 ];
 
-const WIDENED = [{ id: "today", size: "l" }];
+const NOTE_HIDDEN = [{ id: "today", size: "m" }];
 
 function givenHome(blocks: unknown) {
   return stubApi(
@@ -27,7 +27,7 @@ function givenHome(blocks: unknown) {
       "GET /events": () => json({ items: [] }),
       "GET /events/calendar": () => json({ items: [] }),
       "GET /home/layout": () => json({ blocks, revision: 0 }),
-      "PUT /home/layout": () => json({ blocks: WIDENED, revision: 1 }),
+      "PUT /home/layout": () => json({ blocks: NOTE_HIDDEN, revision: 1 }),
       "GET /home/note": () => json({ body: "", updatedAt: null }),
     }),
   );
@@ -51,23 +51,31 @@ describe("Accueil is arranged by the parent and follows them", () => {
     await renderAppAt("/");
 
     await waitFor(() => expect(shownBlocks()).toEqual(["notes", "today"]));
-    expect(document.querySelector("[data-block=today]")?.getAttribute("data-w")).toBe("4");
+    expect(document.querySelector("[data-block=today]")?.getAttribute("data-size")).toBe("m");
   });
 
-  it("when one block is widened and another hidden, one save leaves with the whole layout", async () => {
+  it("given nothing arranged yet, then the home follows the advised layout", async () => {
+    givenHome(null);
+    await renderAppAt("/");
+
+    await waitFor(() => expect(shownBlocks()[0]).toBe("today"));
+    expect(shownBlocks()).toContain("calendar");
+    expect(document.querySelector("[data-block=today]")?.getAttribute("data-size")).toBe("l");
+  });
+
+  it("when a block is hidden, the layout left is saved against the revision it was made on", async () => {
     const calls = givenHome(ARRANGED);
     await renderAppAt("/");
     await waitFor(() => expect(shownBlocks()).toEqual(["notes", "today"]));
 
     fireEvent.click(screen.getByRole("button", { name: "Modifier l'accueil" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Élargir Pour aujourd'hui" }));
     fireEvent.click(screen.getByRole("button", { name: "Masquer Pense-bête" }));
 
-    expect(shownBlocks()).toEqual(["today"]);
+    await waitFor(() => expect(shownBlocks()).toEqual(["today"]));
     expect(screen.getByRole("button", { name: "Ajouter un bloc" })).toBe(document.activeElement);
     const saves = () =>
       calls.filter((call) => call.method === "PUT" && call.url.pathname === "/home/layout");
     await waitFor(() => expect(saves()).toHaveLength(1));
-    expect(saves()[0]?.body).toEqual({ blocks: WIDENED, baseRevision: 0 });
+    expect(saves()[0]?.body).toEqual({ blocks: NOTE_HIDDEN, baseRevision: 0 });
   });
 });

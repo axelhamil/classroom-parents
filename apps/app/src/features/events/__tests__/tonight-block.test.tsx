@@ -17,6 +17,14 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 const THURSDAY_MORNING = "2026-11-12T09:00:00.000Z";
 const THURSDAY_EVENING = "2026-11-12T17:00:00.000Z";
 
+const WITH_TONIGHT = {
+  homeLayout: [
+    { id: "today", w: 8, h: 2, hidden: false },
+    { id: "tonight", w: 4, h: 1, hidden: false },
+    { id: "calendar", w: 12, h: 3, hidden: false },
+  ],
+};
+
 async function tonight(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: "Pour ce soir" });
 }
@@ -43,6 +51,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
         deadline(1, "2026-11-13", "Exercices de grammaire"),
         deadline(2, "2026-11-13", "Évaluation de calcul", { category: "assessment" }),
       ],
+      WITH_TONIGHT,
     );
     await renderAppAt("/");
 
@@ -67,6 +76,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
           },
         }),
       ],
+      WITH_TONIGHT,
     );
     await renderAppAt("/");
 
@@ -83,6 +93,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
         deadline(1, "2026-11-13", "Exercices", { childId: CHILD.id }),
         deadline(2, "2026-11-13", "Dictée", { childId: HUGO.id, category: "assessment" }),
       ],
+      WITH_TONIGHT,
     );
     await renderAppAt("/");
 
@@ -103,6 +114,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
           checklist: { done: ["prepare.items.homework.check"], removed: [], extra: [] },
         }),
       ],
+      WITH_TONIGHT,
     );
     await renderAppAt("/");
 
@@ -115,7 +127,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
 
   it("given nothing due tomorrow, it says nothing is planned", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar([CHILD], [deadline(1, "2026-11-17", "Exposé")]);
+    givenCalendar([CHILD], [deadline(1, "2026-11-17", "Exposé")], WITH_TONIGHT);
     await renderAppAt("/");
 
     expect(await within(await tonight()).findByText("Rien de prévu demain")).toBeDefined();
@@ -129,6 +141,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
         deadline(1, "2026-11-12", "Mot à signer", { category: "document_due" }),
         deadline(2, "2026-11-13", "Évaluation de calcul", { category: "assessment" }),
       ],
+      WITH_TONIGHT,
     );
     await renderAppAt("/");
 

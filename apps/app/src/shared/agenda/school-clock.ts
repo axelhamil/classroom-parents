@@ -34,7 +34,8 @@ interface Wall {
   time: string;
 }
 
-function wallOf(now: Date, timeZone: string): Wall {
+/** The wall date and time of an instant in a time zone, falling back to UTC. */
+export function wallOf(now: Date, timeZone: string): Wall {
   const wall = utcToZonedWall(now, timeZone);
   if (wall.isSuccess) return wall.getValue();
 
