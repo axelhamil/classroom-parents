@@ -90,7 +90,7 @@ describe("Accueil, the family calendar", () => {
     expect(within(day("Demain")).getByText("Sac de piscine")).toBeDefined();
     expect(screen.getByRole("region", { name: "Pour aujourd'hui" })).toBeDefined();
     expect(within(day("Samedi 14 novembre")).getByText("Rien de prévu")).toBeDefined();
-    expect(screen.getByRole("button", { name: "Aujourd'hui" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.queryByRole("button", { name: "Aujourd'hui" })).toBeNull();
   });
 
   it("on a phone whose parent hid Pour aujourd'hui, the week keeps today instead of losing it", async () => {

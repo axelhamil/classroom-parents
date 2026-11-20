@@ -42,6 +42,7 @@ export function calendarPeriod(view: CalendarView, anchor: string): CalendarPeri
 export interface CalendarPlace {
   view?: CalendarView;
   date?: string;
+  courseId?: string;
 }
 
 export function placePeriod(place: CalendarPlace, { today }: Pick<SchoolClock, "today">) {

@@ -19,7 +19,7 @@ function CalendarBlock({ family, childId, briefingShown, overdueShown, title }: 
       <CalendarBoard
         family={family}
         childId={childId}
-        place={{ view: search.view, date: search.date }}
+        place={{ view: search.view, date: search.date, courseId: search.courseId }}
         onPlaceChange={changePlace}
         briefingShown={briefingShown}
         overdueShown={overdueShown}

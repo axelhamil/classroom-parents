@@ -1,5 +1,6 @@
 import { daysFrom, isWeekday, mondayOf, shiftDate } from "@packages/ddd-kit/days";
 import type { EventItem } from "../api/queries/events";
+import { courseShortener } from "../format/course-name";
 import { daysBetween } from "../format/deadline-label";
 import { isDueOn, isOfChild, isOfKind, isOpen } from "./deadline-facts";
 import type { SchoolClock } from "./school-clock";
@@ -158,4 +159,49 @@ export function upcomingWeeks(clock: Pick<SchoolClock, "today">, count: number):
 
     return { from, to: days.at(-1) ?? from };
   });
+}
+
+/** One course the agenda can narrow to, under the name its line shows. */
+export interface AgendaCourse {
+  id: string;
+  name: string;
+}
+
+type Course = NonNullable<EventItem["course"]>;
+
+function coursesOf(events: Events, childId: string): Course[] {
+  return events.flatMap((event) =>
+    event.childId === childId && event.course ? [event.course] : [],
+  );
+}
+
+function shortNames(events: Events): Map<string, string> {
+  const names = new Map<string, string>();
+
+  for (const childId of new Set(events.map((event) => event.childId))) {
+    const courses = coursesOf(events, childId);
+    const shorten = courseShortener(courses.map((course) => course.name));
+    for (const course of courses) names.set(course.id, shorten(course.name));
+  }
+
+  return names;
+}
+
+/**
+ * The courses of the loaded deadlines, each under its short name; two courses that would read the
+ * same keep their full names, so the filter never offers two identical choices.
+ */
+export function agendaCoursesView(events: Events): AgendaCourse[] {
+  const short = shortNames(events);
+  const full = new Map(
+    events
+      .flatMap((event) => (event.course ? [event.course] : []))
+      .map((course) => [course.id, course.name]),
+  );
+  const shortList = [...short.values()];
+  const isShared = (name: string) => shortList.filter((other) => other === name).length > 1;
+
+  return [...short]
+    .map(([id, name]) => ({ id, name: isShared(name) ? (full.get(id) ?? name) : name }))
+    .sort((left, right) => left.name.localeCompare(right.name, "fr"));
 }
