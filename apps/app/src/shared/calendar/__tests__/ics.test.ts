@@ -1,3 +1,5 @@
+import { deadlineLine } from "@packages/i18n";
+import { CALENDAR_PRODUCT_ID, eventIdentity } from "@packages/icalendar";
 import { describe, expect, it } from "vitest";
 import { deadlineIcs } from "../ics";
 
@@ -13,7 +15,7 @@ describe("deadline .ics export", () => {
     const ics = deadlineIcs(
       {
         id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
-        summary: "Piscine, Léa; groupe 2",
+        title: "Piscine, Léa; groupe 2",
         description,
         deadlineDate: "2026-11-19",
         deadlineTime: undefined,
@@ -41,7 +43,7 @@ describe("deadline .ics export", () => {
     const ics = deadlineIcs(
       {
         id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
-        summary: "Contrôle",
+        title: "Contrôle",
         description: "",
         deadlineDate: "2026-11-19",
         deadlineTime: "08:30",
@@ -53,14 +55,16 @@ describe("deadline .ics export", () => {
 
     expect(ics).toContain("DTSTART:20261119T073000Z\r\n");
     expect(ics).toContain("DTSTAMP:20261112T090000Z\r\n");
-    expect(ics).toContain("UID:0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90@");
+    expect(ics).toContain(`UID:${eventIdentity("0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90")}\r\n`);
+    expect(ics).toContain(`${CALENDAR_PRODUCT_ID}\r\n`);
   });
 
-  it("rings at each planned reminder, the alarm naming the deadline like the subscribed feed", () => {
+  it("names the deadline with the shared deadline line, in its summary and at each planned reminder", () => {
     const ics = deadlineIcs(
       {
         id: "0f6b6a2c-3c1d-4f0e-9a43-5d2b1c7e8f90",
-        summary: "Jade : Contrôle d'anglais",
+        childLabel: "Jade",
+        title: "Contrôle d'anglais",
         description: "",
         deadlineDate: "2026-11-19",
         deadlineTime: undefined,
@@ -70,7 +74,9 @@ describe("deadline .ics export", () => {
       STAMP,
     );
 
-    expect(ics).toContain("SUMMARY:Jade : Contrôle d'anglais\r\n");
+    expect(ics).toContain(
+      `SUMMARY:${deadlineLine({ child: "Jade", title: "Contrôle d'anglais" })}\r\n`,
+    );
     expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(2);
     expect(ics).toContain(
       "BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Jade : Contrôle d'anglais\r\nTRIGGER;VALUE=DATE-TIME:20261117T170000Z\r\nEND:VALARM",

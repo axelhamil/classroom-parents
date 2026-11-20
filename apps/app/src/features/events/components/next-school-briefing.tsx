@@ -1,3 +1,4 @@
+import { relativeDayLabel } from "@packages/i18n";
 import {
   Briefing,
   BriefingGroup,
@@ -27,7 +28,7 @@ import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import { isFirstSyncRunning } from "../../../shared/events/event-board";
 import { EventCard } from "../../../shared/events/event-card";
 import { childHue, childLabelOf } from "../../../shared/format/child-hue";
-import { dayLabelFrom, inSentence } from "../../../shared/format/deadline-label";
+import { inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { nextEventQueryOptions } from "../api/events.queries";
 import { useHomeEvents } from "../hooks/use-home-events";
@@ -45,7 +46,7 @@ export interface NextSchoolBriefingProps {
 export function NextSchoolBriefing({ family, childId, clock, rows }: NextSchoolBriefingProps) {
   const { t } = useTranslation("events");
   const titleId = useId();
-  const day = inSentence(dayLabelFrom(clock.focus, clock.today));
+  const day = inSentence(relativeDayLabel(clock.focus, clock.today));
   const query = useHomeEvents(clock);
   const watched = childId ? family.filter((child) => child.id === childId) : family;
 

@@ -1,4 +1,9 @@
-import type { EvidencePassage, ReviewReason } from "@packages/events/agenda-contract";
+import type {
+  EvidencePassage,
+  ItemToBring,
+  ParentAction,
+  ReviewReason,
+} from "@packages/events/agenda-contract";
 import { z } from "zod";
 import type { AgendaEvent, EditableField } from "../../domain/event.aggregate";
 import type { AmendmentKind } from "../../domain/value-objects/event-amendment.vo";
@@ -14,6 +19,11 @@ export interface EventCourseDto {
 
 export type EventEvidenceDto = Pick<EvidencePassage, "quote" | "before" | "after">;
 
+export interface EventPreparationDto {
+  parentActions: ParentAction[];
+  toBring: ItemToBring[];
+}
+
 export interface EventDto {
   id: string;
   childId: string;
@@ -28,6 +38,7 @@ export interface EventDto {
   reviewReasons: ReviewReason[];
   amendReason?: AmendmentKind;
   evidence?: EventEvidenceDto;
+  preparation?: EventPreparationDto;
   source: EventSourceValue;
   done: boolean;
   announcementUrl?: string;
@@ -102,6 +113,13 @@ export const checklistChangeBodySchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+function preparationOf(event: AgendaEvent): EventPreparationDto | undefined {
+  const { parentActions, toBring } = event.get("preparation").value;
+  if (parentActions.length === 0 && toBring.length === 0) return undefined;
+
+  return { parentActions: [...parentActions], toBring: [...toBring] };
+}
+
 export function toEventDto(event: AgendaEvent, course: EventCourseDto | null): EventDto {
   const deadline = event.get("deadline").value;
 
@@ -125,6 +143,7 @@ export function toEventDto(event: AgendaEvent, course: EventCourseDto | null): E
       .get("evidence")
       .map(({ value: { quote, before, after } }) => ({ quote, before, after }))
       .toUndefined(),
+    preparation: preparationOf(event),
     source: event.get("source").value,
     done: event.get("done"),
     announcementUrl: event.get("announcementUrl").toUndefined(),

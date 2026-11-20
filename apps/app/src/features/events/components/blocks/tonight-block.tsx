@@ -1,3 +1,4 @@
+import { relativeDayLabel } from "@packages/i18n";
 import {
   BriefingGroup,
   BriefingGroupHeader,
@@ -17,16 +18,17 @@ import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
 import { childHue } from "../../../../shared/format/child-hue";
-import { dayLabelFrom, inSentence } from "../../../../shared/format/deadline-label";
+import { inSentence } from "../../../../shared/format/deadline-label";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useChecklist } from "../../hooks/use-checklist";
 import { useHomeEvents } from "../../hooks/use-home-events";
-import { ChecklistRows } from "../prepare-checklist";
+import { StepLists } from "../prepare-checklist";
 import { BlockPanel } from "./block-panel";
 import { ShowMoreButton, useShowMore } from "./show-more";
 
 function tonightNote(plan: DayPlan, day: string, t: TFunction<"home">): string {
   if (plan.toPrepare.length > 0) return t("blocks.tonight.day", { day });
+  if (plan.suggested.length > 0) return t("blocks.tonight.suggested", { day });
   if (plan.deadlines.length > 0)
     return t("blocks.tonight.ready", { count: plan.deadlines.length, day });
 
@@ -37,7 +39,8 @@ function TonightBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
   const plan = tonightView(query.data ?? [], clock, childId);
-  const day = inSentence(dayLabelFrom(plan.day, clock.today));
+  const day = inSentence(relativeDayLabel(plan.day, clock.today));
+  const withSteps = [...plan.toPrepare, ...plan.suggested];
 
   return (
     <BlockPanel
@@ -46,10 +49,10 @@ function TonightBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
       note={query.isSuccess && tonightNote(plan, day, t)}
       hero
     >
-      {plan.toPrepare.length > 0 && (
+      {withSteps.length > 0 && (
         <BriefingGroups>
           {family.map((child) => {
-            const own = plan.toPrepare.filter((event) => event.childId === child.id);
+            const own = withSteps.filter((event) => event.childId === child.id);
             if (own.length === 0) return null;
 
             return (
@@ -107,7 +110,7 @@ function EventActions({ event }: EventActionsProps) {
   return (
     <>
       <TypographyMuted>{event.title}</TypographyMuted>
-      <ChecklistRows checklist={checklist} density="compact" />
+      <StepLists checklist={checklist} />
     </>
   );
 }

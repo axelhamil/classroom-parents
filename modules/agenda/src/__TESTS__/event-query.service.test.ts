@@ -232,6 +232,38 @@ describe("get", () => {
     expect(result.getValue().isSome()).toBe(true);
   });
 
+  it("given an announcement asking to pay and to bring, then the event carries what it asks with each quote", async () => {
+    const preparation = {
+      parentActions: [
+        {
+          kind: "pay" as const,
+          label: "Payer la sortie",
+          amountCents: 1250,
+          currency: "EUR" as const,
+          quote: "Merci de régler 12,50 € avant vendredi.",
+        },
+      ],
+      toBring: [{ item: "Pique-nique", quote: "Prévoir un pique-nique." }],
+    };
+    repo.findOwned.mockResolvedValue(
+      Result.ok<Option<AgendaEvent>, AgendaError>(Option.some(agendaEvent({ preparation }))),
+    );
+
+    const result = await service.get(PARENT, "0196a000-0000-7000-8000-00000000abcd");
+
+    expect(result.getValue().unwrap().preparation).toEqual(preparation);
+  });
+
+  it("given an announcement asking nothing, then the event carries no preparation", async () => {
+    repo.findOwned.mockResolvedValue(
+      Result.ok<Option<AgendaEvent>, AgendaError>(Option.some(agendaEvent())),
+    );
+
+    const result = await service.get(PARENT, "0196a000-0000-7000-8000-00000000abcd");
+
+    expect(result.getValue().unwrap().preparation).toBeUndefined();
+  });
+
   it("given an event the parent does not own, then nothing is found", async () => {
     repo.findOwned.mockResolvedValue(Result.ok(Option.none()));
 

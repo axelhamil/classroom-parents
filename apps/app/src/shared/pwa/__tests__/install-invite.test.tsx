@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, resetApp } from "../../../__tests__/app-harness";
+import { schoolClock } from "../../agenda/school-clock";
 import { InstallInvite } from "../install-invite";
 import { captureInstallPrompt } from "../use-install-state";
 
@@ -19,7 +20,7 @@ function installPromptEvent() {
 async function openAppOn(day: Date) {
   cleanup();
   vi.setSystemTime(day);
-  await renderWithProviders(<InstallInvite />);
+  await renderWithProviders(<InstallInvite today={schoolClock(day).today} />);
 }
 
 describe("install invite", () => {

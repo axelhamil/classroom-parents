@@ -9,7 +9,7 @@ import { type RenderResult, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
 import { toast } from "sonner";
-import { vi } from "vitest";
+import { afterAll, vi } from "vitest";
 import { router } from "../router";
 import { sessionQueryOptions } from "../shared/api/queries/session";
 import { queryClient } from "../shared/api/query-client";
@@ -117,6 +117,16 @@ export async function renderAppAt(
 
   return appRouter;
 }
+
+// sonner removes a closing toast 200 ms after it starts leaving, from a timer of its own: a toast
+// closed by the last test of a file would otherwise update React once jsdom has torn `window` down,
+// an unhandled error that fails the whole run.
+const TOAST_EXIT_MS = 250;
+
+afterAll(async () => {
+  vi.useRealTimers();
+  await new Promise((resolve) => setTimeout(resolve, TOAST_EXIT_MS));
+});
 
 export function resetApp(): void {
   queryClient.clear();

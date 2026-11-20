@@ -22,12 +22,12 @@ import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { assistantPreferencesQueryOptions } from "../../../shared/api/queries/assistant-preferences";
 import { QueryState } from "../../../shared/query/query-state";
 import {
   type LanguageAndRegionChoice,
   setLanguageAndRegionMutationOptions,
 } from "../api/settings.mutations";
-import { assistantPreferencesQueryOptions } from "../api/settings.queries";
 import {
   COUNTRY_OPTIONS,
   languageAndRegionOrDevice,

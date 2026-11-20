@@ -87,7 +87,7 @@ beforeEach(() => {
     mockUnitOfWork().unitOfWork,
     outbox,
     mockInstrumentation(),
-    { feedOrigin: "https://api.example.fr", appHost: "app.example.fr" },
+    { feedOrigin: "https://api.example.fr" },
     () => NOW,
   );
 });
@@ -248,7 +248,7 @@ describe("render", () => {
 
     const result = await service.render(SECRET);
 
-    expect(result.getValue().unwrap()).toContain("SUMMARY:Léa · Contrôle de maths");
+    expect(result.getValue().unwrap()).toContain("SUMMARY:Léa : Contrôle de maths");
     expect(entries.list).toHaveBeenCalledWith({
       userId: PARENT,
       childIds: Option.some([CHILD]),

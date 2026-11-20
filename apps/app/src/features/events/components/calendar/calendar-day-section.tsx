@@ -19,23 +19,15 @@ import { CalendarEventRow } from "./calendar-event-row";
 export interface CalendarDaySectionProps {
   day: Day;
   family: readonly ChildDto[];
-  now: Date;
   today: string;
   onAdd: (date: string) => void;
   layout?: "stack" | "row";
 }
 
-export function CalendarDaySection({
-  day,
-  family,
-  now,
-  today,
-  onAdd,
-  layout,
-}: CalendarDaySectionProps) {
+export function CalendarDaySection({ day, family, today, onAdd, layout }: CalendarDaySectionProps) {
   const { t } = useTranslation("events");
   const titleId = useId();
-  const title = dayLabel(day.date, now);
+  const title = dayLabel(day.date, today);
   const quiet = day.events.length === 0;
 
   return (

@@ -1,4 +1,4 @@
-import { wallDateLabel, wallTimeLabel } from "@packages/i18n";
+import { relativeDayLabel, wallDateLabel, wallTimeLabel } from "@packages/i18n";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { DateTab } from "@packages/ui/components/ui/date-tab";
@@ -17,6 +17,7 @@ import type { TFunction } from "i18next";
 import { CheckIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isOverdue, needsReview } from "../../../shared/agenda/deadline-facts";
+import type { SchoolClock } from "../../../shared/agenda/school-clock";
 import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { whenOf } from "../../../shared/agenda/when";
 import { WhenBadgeView } from "../../../shared/agenda/when-meta";
@@ -32,11 +33,10 @@ import {
 import { type ChildHue, childHue } from "../../../shared/format/child-hue";
 import {
   capitalize,
-  dayLabelFrom,
-  daysUntil,
+  daysBetween,
   wallDateParts,
+  zonedDay,
 } from "../../../shared/format/deadline-label";
-import { schoolToday } from "../../../shared/format/school-today";
 
 export interface EventWhenProps {
   event: EventItem;
@@ -62,7 +62,7 @@ export function EventWhen({ event, hue }: EventWhenProps) {
         aria-hidden
       />
       <DeadlineHeroBody>
-        <DeadlineHeroDay>{dayLabelFrom(event.deadlineDate, clock.today)}</DeadlineHeroDay>
+        <DeadlineHeroDay>{relativeDayLabel(event.deadlineDate, clock.today)}</DeadlineHeroDay>
         {event.deadlineTime && (
           <DeadlineHeroDate>{wallTimeLabel(event.deadlineTime)}</DeadlineHeroDate>
         )}
@@ -102,13 +102,13 @@ export function EventEyebrow({ event }: EventEyebrowProps) {
   );
 }
 
-function receivedWhen(receivedAt: string, now: Date, t: TFunction<"events">): string {
-  const day = schoolToday(new Date(receivedAt));
-  const daysAgo = -daysUntil(day, now);
+function receivedWhen(receivedAt: string, clock: SchoolClock, t: TFunction<"events">): string {
+  const day = zonedDay(receivedAt, clock.timeZone);
+  const daysAgo = daysBetween(day, clock.today);
   if (daysAgo === 0) return t("detail.receivedToday");
   if (daysAgo === 1) return t("detail.receivedYesterday");
 
-  return t("detail.receivedOn", { date: wallDateLabel(day, schoolToday(now)) });
+  return t("detail.receivedOn", { date: wallDateLabel(day, clock.today) });
 }
 
 export interface EventOriginProps {
@@ -117,10 +117,11 @@ export interface EventOriginProps {
 
 export function EventOrigin({ event }: EventOriginProps) {
   const { t } = useTranslation("events");
+  const clock = useSchoolClock();
   const family = useQuery(childrenQueryOptions).data ?? [];
   const child = family.find((candidate) => candidate.id === event.childId);
   const received = t(ORIGIN_LABEL_KEYS[event.source], {
-    when: receivedWhen(event.receivedAt, new Date(), t),
+    when: receivedWhen(event.receivedAt, clock, t),
   });
   const origin = event.course
     ? t("detail.originOf", { who: event.course.name, origin: received })

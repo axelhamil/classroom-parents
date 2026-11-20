@@ -1,5 +1,4 @@
-import { DAY_MS } from "@packages/ddd-kit/days";
-import { utcDay } from "@packages/i18n";
+import { shiftDate } from "@packages/ddd-kit/days";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import { DateTab } from "@packages/ui/components/ui/date-tab";
@@ -14,9 +13,9 @@ import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import type { Control } from "react-hook-form";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useSchoolClock } from "../agenda/school-clock-context";
 import type { ChildDto } from "../api/queries/children";
 import { deadlineLabel, wallDateParts } from "../format/deadline-label";
-import { schoolToday } from "../format/school-today";
 import { childAvatarSrc } from "./child-avatar-src";
 import type { ChildProfileInput } from "./child-profile.schema";
 
@@ -25,16 +24,12 @@ export interface ChildProfilePreviewProps {
   child: ChildDto;
 }
 
-function tomorrowOf(now: Date): string {
-  return new Date(utcDay(schoolToday(now)) + DAY_MS).toISOString().slice(0, 10);
-}
-
 export function ChildProfilePreview({ control, child }: ChildProfilePreviewProps) {
   const { t } = useTranslation("children");
   const [typed, hue, showsPhoto] = useWatch({ control, name: ["label", "color", "showsPhoto"] });
   const label = typed.trim() || child.label;
-  const now = new Date();
-  const deadline = tomorrowOf(now);
+  const { today } = useSchoolClock();
+  const deadline = shiftDate(today, 1);
   const date = wallDateParts(deadline);
 
   return (
@@ -50,7 +45,7 @@ export function ChildProfilePreview({ control, child }: ChildProfilePreviewProps
         />
         <PlannerCardBody>
           <PlannerCardTitle>{t("customize.previewTitle")}</PlannerCardTitle>
-          <PlannerCardMeta>{deadlineLabel(deadline, undefined, now)}</PlannerCardMeta>
+          <PlannerCardMeta>{deadlineLabel(deadline, undefined, today)}</PlannerCardMeta>
           <PlannerCardStickers>
             <Badge hue={hue} className="max-w-full">
               <ChildAvatar

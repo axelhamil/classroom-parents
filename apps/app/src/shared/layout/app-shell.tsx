@@ -69,7 +69,7 @@ export function AppShell({ user, sessionId, children }: AppShellProps) {
       </AppBar>
       <OfflineBanner />
       <DeletionPendingBanner />
-      <InstallInvite />
+      <InstallInvite today={clock.today} />
       <SchoolClockProvider clock={clock}>{children}</SchoolClockProvider>
     </div>
   );

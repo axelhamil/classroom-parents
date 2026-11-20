@@ -6,6 +6,25 @@ const LINE_OCTETS = 75;
 
 const encoder = new TextEncoder();
 
+const IDENTITY_DOMAIN = "keepupkids";
+
+/**
+ * The PRODID line every calendar file of the product writes, the subscribed
+ * feed and a downloaded deadline alike, so a calendar app sees one producer.
+ */
+export const CALENDAR_PRODUCT_ID = "PRODID:-//KeepUpKids//Calendar//FR";
+
+/**
+ * The UID value of a deadline in every calendar file of the product. A calendar app
+ * merges two files on this value, so a deadline downloaded and also received
+ * through the feed shows once. Contract: it depends on the deadline id only,
+ * never on the host the API runs on, and it never changes: a changed UID
+ * duplicates every event already in a subscriber's calendar.
+ */
+export function eventIdentity(eventId: string): string {
+  return `${eventId}@${IDENTITY_DOMAIN}`;
+}
+
 function isAllowedCharacter(char: string): boolean {
   const code = char.codePointAt(0) ?? 0;
 

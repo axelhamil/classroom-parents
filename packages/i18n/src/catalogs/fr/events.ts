@@ -266,6 +266,9 @@ export default {
     newItem: "Autre chose à prévoir",
     remove: "Retirer « {{item}} »",
     empty: "Rien à préparer. Ajoutez ce qui vous passe par la tête.",
+    amount: "{{label}} : {{amount}}",
+    quotes: "Lu dans l'annonce",
+    suggestions: "Suggestions",
     items: {
       swimming: {
         swimsuit: "Maillot de bain",
@@ -298,7 +301,6 @@ export default {
     action: "Partager",
     copied: "Copié, prêt à coller dans un message",
     failed: "Le partage n'a pas abouti. Réessayez ou copiez le texte à la main.",
-    deadline: "{{child}} : {{title}}",
     when: "Pour {{when}}",
   },
   agenda: {

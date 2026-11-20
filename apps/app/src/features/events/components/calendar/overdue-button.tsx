@@ -59,7 +59,7 @@ export function OverdueButton({ family, childId, before }: OverdueButtonProps) {
           returnFocus={() => (trigger.current ? [trigger.current] : [])}
           onClose={() => setOpened(null)}
         >
-          <OverdueList events={shown} family={family} now={clock.now} />
+          <OverdueList events={shown} family={family} today={clock.today} />
           <OlderLateLink count={older} />
         </ResponsiveOverlay>
       )}
