@@ -170,7 +170,7 @@ export default {
       blocked_by_school:
         "Ses échéances ne sont plus mises à jour tant que l'établissement n'autorise pas l'application.",
     },
-    action: "Voir les enfants",
+    schoolAction: "Que faire ?",
   },
   countdown: {
     tonight: "Ce soir",

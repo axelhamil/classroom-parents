@@ -24,6 +24,7 @@ import { Route as featuresEventsEventsDotrouteRouteImport } from './features/eve
 import { Route as featuresChildrenChildrenDotrouteRouteImport } from './features/children/children.route'
 import { Route as featuresHistoryHistoryDotrouteRouteImport } from './features/history/history.route'
 import { Route as featuresSettingsSettingsDotrouteRouteImport } from './features/settings/settings.route'
+import { Route as featuresHelpSchoolHelpDotrouteRouteImport } from './features/help/school-help.route'
 import { Route as featuresChildrenLinkErrorDotrouteRouteImport } from './features/children/link-error.route'
 import { Route as featuresOnboardingNewChildDotrouteRouteImport } from './features/onboarding/new-child.route'
 import { Route as featuresEventsEventDetailDotrouteRouteImport } from './features/events/event-detail.route'
@@ -116,6 +117,12 @@ const featuresSettingsSettingsDotrouteRoute =
     path: '/settings',
     getParentRoute: () => routerShellRoute,
   } as any)
+const featuresHelpSchoolHelpDotrouteRoute =
+  featuresHelpSchoolHelpDotrouteRouteImport.update({
+    id: '/aide/ecole',
+    path: '/aide/ecole',
+    getParentRoute: () => routerShellRoute,
+  } as any)
 const featuresChildrenLinkErrorDotrouteRoute =
   featuresChildrenLinkErrorDotrouteRouteImport.update({
     id: '/children/link-error',
@@ -172,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/children': typeof featuresChildrenChildrenDotrouteRoute
   '/history': typeof featuresHistoryHistoryDotrouteRoute
   '/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/aide/ecole': typeof featuresHelpSchoolHelpDotrouteRoute
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
@@ -193,6 +201,7 @@ export interface FileRoutesByTo {
   '/children': typeof featuresChildrenChildrenDotrouteRoute
   '/history': typeof featuresHistoryHistoryDotrouteRoute
   '/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/aide/ecole': typeof featuresHelpSchoolHelpDotrouteRoute
   '/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
@@ -218,6 +227,7 @@ export interface FileRoutesById {
   '/_protected/_shell/children': typeof featuresChildrenChildrenDotrouteRoute
   '/_protected/_shell/history': typeof featuresHistoryHistoryDotrouteRoute
   '/_protected/_shell/settings': typeof featuresSettingsSettingsDotrouteRoute
+  '/_protected/_shell/aide/ecole': typeof featuresHelpSchoolHelpDotrouteRoute
   '/_protected/_shell/children/link-error': typeof featuresChildrenLinkErrorDotrouteRoute
   '/_protected/_shell/children/new': typeof featuresOnboardingNewChildDotrouteRoute
   '/_protected/_shell/events/$eventId': typeof featuresEventsEventDetailDotrouteRoute
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/children'
     | '/history'
     | '/settings'
+    | '/aide/ecole'
     | '/children/link-error'
     | '/children/new'
     | '/events/$eventId'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/children'
     | '/history'
     | '/settings'
+    | '/aide/ecole'
     | '/children/link-error'
     | '/children/new'
     | '/events/$eventId'
@@ -286,6 +298,7 @@ export interface FileRouteTypes {
     | '/_protected/_shell/children'
     | '/_protected/_shell/history'
     | '/_protected/_shell/settings'
+    | '/_protected/_shell/aide/ecole'
     | '/_protected/_shell/children/link-error'
     | '/_protected/_shell/children/new'
     | '/_protected/_shell/events/$eventId'
@@ -413,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof featuresSettingsSettingsDotrouteRouteImport
       parentRoute: typeof routerShellRoute
     }
+    '/_protected/_shell/aide/ecole': {
+      id: '/_protected/_shell/aide/ecole'
+      path: '/aide/ecole'
+      fullPath: '/aide/ecole'
+      preLoaderRoute: typeof featuresHelpSchoolHelpDotrouteRouteImport
+      parentRoute: typeof routerShellRoute
+    }
     '/_protected/_shell/children/link-error': {
       id: '/_protected/_shell/children/link-error'
       path: '/children/link-error'
@@ -482,6 +502,7 @@ interface routerShellRouteChildren {
   featuresChildrenChildrenDotrouteRoute: typeof featuresChildrenChildrenDotrouteRoute
   featuresHistoryHistoryDotrouteRoute: typeof featuresHistoryHistoryDotrouteRoute
   featuresSettingsSettingsDotrouteRoute: typeof featuresSettingsSettingsDotrouteRoute
+  featuresHelpSchoolHelpDotrouteRoute: typeof featuresHelpSchoolHelpDotrouteRoute
   featuresChildrenLinkErrorDotrouteRoute: typeof featuresChildrenLinkErrorDotrouteRoute
   featuresOnboardingNewChildDotrouteRoute: typeof featuresOnboardingNewChildDotrouteRoute
   featuresEventsEventDetailDotrouteRoute: typeof featuresEventsEventDetailDotrouteRoute
@@ -496,6 +517,7 @@ const routerShellRouteChildren: routerShellRouteChildren = {
   featuresChildrenChildrenDotrouteRoute: featuresChildrenChildrenDotrouteRoute,
   featuresHistoryHistoryDotrouteRoute: featuresHistoryHistoryDotrouteRoute,
   featuresSettingsSettingsDotrouteRoute: featuresSettingsSettingsDotrouteRoute,
+  featuresHelpSchoolHelpDotrouteRoute: featuresHelpSchoolHelpDotrouteRoute,
   featuresChildrenLinkErrorDotrouteRoute:
     featuresChildrenLinkErrorDotrouteRoute,
   featuresOnboardingNewChildDotrouteRoute:

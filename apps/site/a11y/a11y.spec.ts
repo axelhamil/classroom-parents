@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 
 const PAGES: readonly AuditedPage[] = [
   { name: "landing", path: "/" },
+  { name: "school administrator guide", path: "/ecoles" },
   { name: "not found", path: "/no-such-page" },
 ];
 
@@ -53,6 +54,12 @@ test("switches the theme from the keyboard through the shared menu and keeps the
 
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
+
+  test("prints the client id school administrators search for", async ({ page }) => {
+    await page.goto("/ecoles");
+
+    await expect(page.getByText(/\.apps\.googleusercontent\.com$/)).toBeVisible();
+  });
 
   test("shows the product sample in its final state", async ({ page }) => {
     await page.goto("/");

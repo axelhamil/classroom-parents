@@ -11,6 +11,7 @@ export default defineConfig({
   site: env.PUBLIC_SITE_URL,
   output: "static",
   trailingSlash: "ignore",
+  build: { format: "file" },
   integrations: [react(), sitemap()],
   security: { csp: true },
   markdown: { syntaxHighlight: false },

@@ -90,41 +90,16 @@ export default {
     toChildren: "Voir mes enfants",
   },
   school: {
-    title: "Ce que l'école doit faire",
-    intro: "Transmettez ces étapes à l'administrateur informatique de l'école.",
-    stepTitles: {
-      console: "Ouvrir la console d'administration",
-      path: "Aller aux contrôles des API",
-      pending: "Retrouver l'application",
-      configure: "Autoriser l'accès en lecture",
-    },
     kinds: {
       admin_blocked:
-        "L'administrateur de l'école a bloqué cette application. Contactez l'établissement avec ce guide.",
-      not_configured: "L'école n'a pas encore configuré l'application. Transmettez-lui ce guide.",
+        "L'administrateur de l'école a bloqué cette application. Seul l'établissement peut l'autoriser : nous vous préparons la demande.",
+      not_configured:
+        "L'école n'a pas encore autorisé l'application. Seul l'établissement peut le faire : nous vous préparons la demande.",
       access_denied:
-        "L'établissement de votre enfant doit autoriser l'application. Appuyez sur « Demander l'accès » sur la page Google, puis envoyez ce guide à l'école. Si vous avez simplement refusé l'accès, réessayez.",
+        "L'établissement de votre enfant doit autoriser l'application. Appuyez sur « Demander l'accès » sur la page Google, puis envoyez la demande à l'école. Si vous avez simplement refusé l'accès, réessayez.",
       unknown:
-        "Google n'a pas relié le compte. Réessayez ; si le blocage continue, transmettez ce guide à l'école.",
+        "Google n'a pas relié le compte. Réessayez ; si le blocage continue, demandez à l'école d'autoriser l'application.",
     },
-    steps: {
-      console:
-        "Ouvrir la console d'administration Google (admin.google.com) avec un compte administrateur.",
-      path: "Aller dans Sécurité, puis Contrôle des accès et des données, puis Contrôles des API.",
-      pending:
-        "Ouvrir « Applications en attente de revue » et rechercher l'application par son ID client.",
-      configure:
-        "Choisir « Configurer l'accès », puis autoriser l'accès aux données Google limité aux autorisations ci-dessous.",
-    },
-    clientId: "ID client",
-    scopes: "Autorisations en lecture seule",
-    share: "Partager avec l'école",
-    shareTitle: "Autoriser l'application pour les parents",
-    shareStep: "{{index}}. {{step}}",
-    shareClientId: "ID client : {{clientId}}",
-    shareScopes: "Autorisations en lecture seule :",
-    shareScope: "- {{scope}}",
-    copied: "Procédure copiée, collez-la dans votre message à l'école.",
-    copyFailed: "Impossible de copier la procédure. Sélectionnez le texte pour le copier.",
+    guide: "Préparer la demande à l'école",
   },
 } as const;

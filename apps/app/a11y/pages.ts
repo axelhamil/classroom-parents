@@ -24,6 +24,7 @@ export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
   { name: "calendar, week", path: "/?view=week", prepare: stubChildrenApi },
   { name: "calendar, month", path: "/?view=month", prepare: stubChildrenApi },
   { name: "privacy settings", path: "/settings/privacy" },
+  { name: "school help", path: "/aide/ecole", prepare: stubChildrenApi },
   { name: "children, every state", path: "/children", prepare: stubChildrenApi },
   { name: "onboarding", path: "/onboarding" },
   { name: "add a child", path: "/children/new" },

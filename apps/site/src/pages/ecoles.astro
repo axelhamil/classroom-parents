@@ -1,0 +1,42 @@
+---
+import { frCatalog } from "@packages/i18n";
+import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
+import { cn } from "@packages/ui/libs/utils.js";
+import { ClientIdCopy } from "../components/client-id-copy";
+import { SCHOOL_GUIDE_PATH, SchoolAdminGuide } from "../components/school-admin-guide";
+import { schoolGuideStructuredData } from "../components/structured-data";
+import { env } from "../env";
+import SiteLayout from "../layouts/site-layout.astro";
+
+const { schools } = frCatalog.site;
+const privacyUrl = new URL("/legal/privacy-policy", env.PUBLIC_APP_URL).href;
+const subProcessorsUrl = new URL("/legal/sub-processors", env.PUBLIC_APP_URL).href;
+const jsonLd = JSON.stringify(
+  schoolGuideStructuredData(env.PUBLIC_SITE_URL, SCHOOL_GUIDE_PATH),
+).replaceAll("<", "\\u003c");
+---
+
+<SiteLayout
+  title={schools.meta.title}
+  description={schools.meta.description}
+  ogTitle={schools.title}
+  ogDescription={schools.meta.description}
+  indexed
+>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} />
+  <main class={cn(pageContainerVariants({ width: "reading" }), "@container flex flex-col gap-6 pt-4 pb-12")}>
+    <SchoolAdminGuide
+      copy={schools}
+      privacyUrl={privacyUrl}
+      subProcessorsUrl={subProcessorsUrl}
+      contactEmail={env.PUBLIC_CONTACT_EMAIL}
+    >
+      <ClientIdCopy
+        client:visible
+        clientId={env.PUBLIC_GOOGLE_CLIENT_ID}
+        copyLabel={schools.clientId.copy}
+        copiedLabel={schools.clientId.copied}
+      />
+    </SchoolAdminGuide>
+  </main>
+</SiteLayout>

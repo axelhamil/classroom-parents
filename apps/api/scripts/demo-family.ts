@@ -1,6 +1,6 @@
 import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
-import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { DATASET_CHILDREN } from "@modules/extraction/eval/classroom-dataset";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { authSchema, db } from "@packages/drizzle";
 import { di } from "../src/container";
 import { demoRefreshToken } from "../src/dev/demo-dataset";

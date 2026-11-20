@@ -261,6 +261,9 @@ importers:
       '@noble/hashes':
         specifier: ^2.4.0
         version: 2.4.0
+      '@packages/classroom-scopes':
+        specifier: workspace:*
+        version: link:../../packages/classroom-scopes
       '@packages/ddd-kit':
         specifier: workspace:*
         version: link:../../packages/ddd-kit
@@ -527,6 +530,9 @@ importers:
       '@astrojs/sitemap':
         specifier: ^3.7.4
         version: 3.7.4
+      '@packages/classroom-scopes':
+        specifier: workspace:*
+        version: link:../../packages/classroom-scopes
       '@packages/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -787,6 +793,9 @@ importers:
 
   modules/children:
     dependencies:
+      '@packages/classroom-scopes':
+        specifier: workspace:*
+        version: link:../../packages/classroom-scopes
       '@packages/ddd-kit':
         specifier: workspace:*
         version: link:../../packages/ddd-kit
@@ -990,6 +999,15 @@ importers:
       '@types/bun':
         specifier: ^1.4.4
         version: 1.4.4
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/classroom-scopes:
+    devDependencies:
+      '@packages/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

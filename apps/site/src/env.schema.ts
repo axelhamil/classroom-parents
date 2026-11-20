@@ -5,6 +5,8 @@ const origin = z.url().refine((url) => URL.canParse(url) && new URL(url).origin 
 const envSchema = z.object({
   PUBLIC_SITE_URL: origin,
   PUBLIC_APP_URL: origin,
+  PUBLIC_GOOGLE_CLIENT_ID: z.string().trim().min(1),
+  PUBLIC_CONTACT_EMAIL: z.email(),
 });
 
 export type SiteEnv = z.infer<typeof envSchema>;

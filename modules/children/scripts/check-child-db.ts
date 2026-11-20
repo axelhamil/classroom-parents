@@ -15,6 +15,7 @@ import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/tes
 
 exitUnlessLocalDatabase("check-child-db", process.env.DATABASE_URL);
 
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Option, Result, UnitOfWorkContext } from "@packages/ddd-kit";
 import {
   and,
@@ -32,7 +33,6 @@ import {
 import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.repository";
 import { childAccount } from "../schemas/child.schema";
 import { CHILD_PROVIDER_ID } from "../src/application/config/child-provider";
-import { CLASSROOM_SCOPES } from "../src/application/config/classroom-scopes";
 import type { ChildrenError } from "../src/application/ports/child-repository.port";
 import type { TokenSealing } from "../src/application/ports/google-credential-store.port";
 import type {

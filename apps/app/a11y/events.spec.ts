@@ -164,7 +164,7 @@ test.describe("the calendar on a phone", () => {
 
       const review = page.getByRole("button", { name: "1 date à vérifier" });
       await expect(review).toHaveAttribute("aria-haspopup", "dialog");
-      await expect(page.getByRole("link", { name: "Voir les enfants" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Que faire ?" })).toBeVisible();
       await expect(
         page
           .getByRole("region", { name: "Agenda" })

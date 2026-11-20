@@ -1,5 +1,5 @@
 import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
-import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { type EventType, EventTypes } from "@packages/events";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError, getOAuthState } from "better-auth/api";

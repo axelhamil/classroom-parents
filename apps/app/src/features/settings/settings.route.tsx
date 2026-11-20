@@ -14,6 +14,7 @@ import { LanguageAndRegionCard } from "./components/language-and-region-card";
 import { PrivacyLinksCard } from "./components/privacy-links-card";
 import { PushCard } from "./components/push-card";
 import { QuietHoursCard } from "./components/quiet-hours-card";
+import { SchoolHelpCard } from "./components/school-help-card";
 import { SchoolHolidaysCard } from "./components/school-holidays-card";
 import { SettingsSection, SettingsSectionNav } from "./components/settings-section";
 import { TourCard } from "./components/tour-card";
@@ -51,6 +52,7 @@ function SettingsPage() {
         <SettingsSection id="appearance">
           <AppearanceCard />
           <TourCard userId={user.id} />
+          <SchoolHelpCard />
         </SettingsSection>
         <SettingsSection id="privacy">
           <PrivacyLinksCard />

@@ -35,7 +35,7 @@ export function BlockedChildrenNotice({ childrenList }: BlockedChildrenNoticePro
             <ReconnectAction childId={child.id} />
           ) : (
             <Button asChild size="sm" variant="outline">
-              <Link to="/children">{t("blocked.action")}</Link>
+              <Link to="/aide/ecole">{t("blocked.schoolAction")}</Link>
             </Button>
           )
         }

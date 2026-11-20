@@ -27,7 +27,7 @@ One guide per app and per package that carries rules of its own. Read the one yo
 | `packages/llm` | `packages/llm/CLAUDE.md` | model port, provider adapter, cost journal, budget and circuit decorators, untrusted-data fence, eval harness |
 | `packages/ui` | `packages/ui/CLAUDE.md` | shadcn primitives, theme tokens, composition components |
 | `packages/web-kit` | `packages/web-kit/CLAUDE.md` | what every React app shares: api client, query client, i18n boot, theme, auth broadcast |
-| Other packages | skills below | `emails`, `email` are driven by the matching skill; `icalendar` (the iCalendar writing every calendar export shares), `sentry-scrub` (see `docs/OBSERVABILITY.md`), `test`, `typescript-config` carry no rules |
+| Other packages | skills below | `emails`, `email` are driven by the matching skill; `icalendar` (the iCalendar writing every calendar export shares), `classroom-scopes` (the read-only Classroom scopes, shared by the api that requests them and the site that tells school administrators to allow them), `sentry-scrub` (see `docs/OBSERVABILITY.md`), `test`, `typescript-config` carry no rules |
 
 `.claude/skills/` holds the subsystem playbooks (`auth-server`, `events-outbox`, `compliance-consent`, `email-delivery`) and `feature-slice` for implementing a story end to end.
 
