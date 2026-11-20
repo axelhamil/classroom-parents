@@ -20,9 +20,11 @@ import type {
   CourseRead,
   IClassroomReader,
   PendingAnnouncement,
+  ReadClock,
 } from "../ports/classroom-reader.port";
 import type { CourseworkDeadline } from "../ports/event-ingest.port";
 import type { ISeenAnnouncementRepository } from "../ports/seen-announcement-repository.port";
+import type { IWrittenDates } from "../ports/written-dates.port";
 
 const RATE_LIMIT_RETRIES = 3;
 const RATE_LIMIT_BACKOFF_MS = 2_000;
@@ -66,6 +68,7 @@ export class ClassroomReader implements IClassroomReader {
   constructor(
     private readonly classroom: IClassroomClient,
     private readonly ledger: ISeenAnnouncementRepository,
+    private readonly writtenDates: IWrittenDates,
     private readonly instrumentation: IInstrumentation,
     private readonly sleep: (ms: number) => Promise<void> = wait,
   ) {}
@@ -84,8 +87,9 @@ export class ClassroomReader implements IClassroomReader {
     childId: string,
     { token, scope }: ClassroomAccess,
     course: Course,
-    now: Date,
+    clock: ReadClock,
   ): Promise<Result<CourseRead, CourseFailure>> {
+    const { now } = clock;
     return this.span("readCourse", async () => {
       if (!(await scope.mayContinue())) return Result.fail("lease_lost");
 
@@ -100,13 +104,13 @@ export class ClassroomReader implements IClassroomReader {
       const refused = [listed, coursework, turnedIn].find((read) => read.isFailure);
       if (refused?.isFailure) return Result.fail(courseFailure(refused.getError().code));
 
-      const pending = await this.pendingAnnouncements(childId, listed.getValue(), now);
+      const pending = await this.pendingAnnouncements(childId, listed.getValue(), clock);
       if (pending.isFailure) return Result.fail(pending.getError());
 
       return Result.ok({
         courseId: course.id,
         pending: pending.getValue(),
-        coursework: this.courseworkDeadlines(coursework.getValue(), turnedIn.getValue(), now),
+        coursework: this.courseworkDeadlines(coursework.getValue(), turnedIn.getValue(), clock),
         courseworkComplete: !cut.has("coursework"),
         presentIds: coursework
           .getValue()
@@ -147,9 +151,9 @@ export class ClassroomReader implements IClassroomReader {
   private async pendingAnnouncements(
     childId: string,
     listed: Announcement[],
-    now: Date,
+    clock: ReadClock,
   ): Promise<Result<PendingAnnouncement[], CourseFailure>> {
-    const recent = withinWindow(listed, now);
+    const recent = withinWindow(listed, clock.now);
     if (recent.length === 0) return Result.ok([]);
 
     const seen = await this.ledger.findForCourse(
@@ -165,20 +169,20 @@ export class ClassroomReader implements IClassroomReader {
           announcement,
           state: Option.fromNullable<LedgerState>(byId.get(announcement.id)),
         }))
-        .filter(({ announcement, state }) => needsReading(announcement, state, now)),
+        .filter(({ announcement, state }) => this.needsReading(announcement, state, clock)),
     );
   }
 
   private courseworkDeadlines(
     coursework: Coursework[],
     turnedIn: string[],
-    now: Date,
+    { now, timeZone }: ReadClock,
   ): CourseworkDeadline[] {
     const done = new Set(turnedIn);
     return coursework.flatMap(({ id, title, url, due }) => {
       if (due.isNone()) return [];
 
-      const deadline = schoolDeadline(due.unwrap().utcDate, due.unwrap().utcTime);
+      const deadline = schoolDeadline(due.unwrap().utcDate, due.unwrap().utcTime, timeZone);
       if (deadline.isFailure) {
         this.instrumentation.capture(deadline.getError(), { metadata: { courseworkId: id } });
         return [];
@@ -202,6 +206,17 @@ export class ClassroomReader implements IClassroomReader {
     });
   }
 
+  private needsReading(
+    announcement: Announcement,
+    state: Option<LedgerState>,
+    { now, timeZone }: ReadClock,
+  ): boolean {
+    if (!isPaused(state)) return needsExtraction(state);
+
+    const written = this.writtenDates.in(announcement.text);
+    return mayHoldDateAhead(written, announcement.publishedAt, now, timeZone);
+  }
+
   private async withRetry<T>(
     call: () => Promise<Result<T, ClassroomError>>,
   ): Promise<Result<T, ClassroomError>> {
@@ -223,10 +238,4 @@ export class ClassroomReader implements IClassroomReader {
 
 function withinWindow(listed: Announcement[], now: Date): Announcement[] {
   return listed.filter(({ publishedAt }) => isWithinWindow(publishedAt, now));
-}
-
-function needsReading(announcement: Announcement, state: Option<LedgerState>, now: Date): boolean {
-  if (isPaused(state)) return mayHoldDateAhead(announcement.text, announcement.publishedAt, now);
-
-  return needsExtraction(state);
 }

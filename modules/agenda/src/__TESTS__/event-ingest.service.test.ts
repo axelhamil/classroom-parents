@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -10,6 +11,7 @@ import { z } from "zod";
 import type { IAlertPlanner } from "../application/ports/alert-planner.port";
 import type { IChildOwnership } from "../application/ports/child-ownership.port";
 import type { IEventRepository } from "../application/ports/event-repository.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import { AnnouncementReconciler } from "../application/services/announcement-reconciler";
 import {
   EventIngestService,
@@ -27,7 +29,8 @@ const updatedPayload = z.object({ fields: z.array(z.string()) });
 
 const NOW = new Date("2026-11-10T09:00:00.000Z");
 
-const deadlineOf = (date: string) => EventDeadline.fromParisWallTime(date).getValue();
+const deadlineOf = (date: string) =>
+  EventDeadline.fromWallTime(date, undefined, PARIS_TIME_ZONE).getValue();
 
 const EventTitleOf = (title: string) => EventTitle.create(title).getValue();
 
@@ -55,6 +58,7 @@ let planner: PortMock<IAlertPlanner>;
 let children: PortMock<IChildOwnership>;
 let outbox: PortMock<IOutboxRepository>;
 let uow: UnitOfWorkMock;
+let timeZones: PortMock<IParentTimeZone>;
 let service: EventIngestService;
 let stored: Map<string, AgendaEvent>;
 
@@ -128,6 +132,8 @@ beforeEach(() => {
   planner.planDefault.mockResolvedValue(Result.ok());
   planner.replan.mockResolvedValue(Result.ok());
   planner.cancel.mockResolvedValue(Result.ok());
+  timeZones = mockPort<IParentTimeZone>();
+  timeZones.of.mockResolvedValue(PARIS_TIME_ZONE);
 
   service = new EventIngestService(
     repo,
@@ -136,6 +142,7 @@ beforeEach(() => {
     uow.unitOfWork,
     outbox,
     new AnnouncementReconciler(repo, planner, outbox),
+    timeZones,
     mockInstrumentation(),
     () => NOW,
   );
@@ -301,10 +308,32 @@ describe("ingest", () => {
     expect(row?.get("deadline").value).toEqual({
       date: "2027-03-28",
       time: "03:30",
+      schoolTimeZone: PARIS_TIME_ZONE,
       at: new Date("2027-03-28T01:30:00.000Z"),
     });
     expect(planner.planDefault).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ["Montreal", "America/Toronto", "2026-11-27T04:59:00.000Z"],
+    ["Casablanca", "Africa/Casablanca", "2026-11-26T22:59:00.000Z"],
+  ])(
+    "given a parent in %s and a deadline read as tomorrow without a time, then it ends at 23:59 of the parent's day",
+    async (_city, timeZone, endOfDay) => {
+      timeZones.of.mockResolvedValue(timeZone);
+
+      await ingest([extracted({ deadlineDate: "2026-11-26" })]);
+
+      const row = [...stored.values()][0];
+      expect(timeZones.of).toHaveBeenCalledWith(PARENT);
+      expect(row?.get("deadline").value).toEqual({
+        date: "2026-11-26",
+        time: undefined,
+        schoolTimeZone: timeZone,
+        at: new Date(endOfDay),
+      });
+    },
+  );
 
   it.each(["party", "other"])(
     "given the category %s, which Classroom never gives, then EVENT_CATEGORY_INVALID and nothing is stored",
@@ -394,6 +423,7 @@ describe("ingestCoursework", () => {
     expect(courseworkRow()?.get("deadline").value).toEqual({
       date: "2027-03-28",
       time: "03:30",
+      schoolTimeZone: PARIS_TIME_ZONE,
       at: new Date("2027-03-28T01:30:00.000Z"),
     });
   });
@@ -420,6 +450,27 @@ describe("ingestCoursework", () => {
     );
     expect(updatedFields()).toEqual([["title", "deadline"]]);
   });
+
+  it.each([
+    ["at a time", { deadlineTime: "08:00" }],
+    ["without a time", { deadlineTime: undefined }],
+  ])(
+    "given a coursework due %s stored for a Paris parent who moved to Montreal, when the sync sees the same due date, then its school_time_zone and deadline stay as stored",
+    async (_due, due) => {
+      await ingestCoursework([homework({ deadlineDate: "2026-11-20", ...due })]);
+      const before = courseworkRow()?.get("deadline").value;
+      timeZones.of.mockResolvedValue("America/Toronto");
+      const montrealWall = due.deadlineTime ? { deadlineTime: "02:00" } : due;
+
+      const result = await ingestCoursework([
+        homework({ deadlineDate: "2026-11-20", ...montrealWall }),
+      ]);
+
+      expect(result.getValue().updated).toBe(0);
+      expect(courseworkRow()?.get("deadline").value).toEqual(before);
+      expect(before?.schoolTimeZone).toBe(PARIS_TIME_ZONE);
+    },
+  );
 
   it("given the sync follows a coursework, then EVENT_UPDATED names no parent as its actor", async () => {
     await ingestCoursework([homework()]);

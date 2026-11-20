@@ -1,4 +1,5 @@
 import { Option } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { AgendaEvent } from "../domain/event.aggregate";
 import { EventId } from "../domain/event-id";
 import { EventCategory } from "../domain/value-objects/event-category.vo";
@@ -38,9 +39,10 @@ export function agendaEvent(overrides: AgendaEventOverrides = {}): AgendaEvent {
       title: EventTitle.create("Contrôle de maths").getValue(),
       description: EventDescription.create("Chapitre 3").getValue(),
       category: EventCategory.create("assessment").getValue(),
-      deadline: EventDeadline.fromParisWallTime(
+      deadline: EventDeadline.fromWallTime(
         overrides.deadlineDate ?? "2026-11-19",
         overrides.deadlineTime,
+        PARIS_TIME_ZONE,
       ).getValue(),
       receivedAt: new Date("2026-11-09T07:00:00.000Z"),
       status: EventStatus.create(overrides.status ?? "confirmed").getValue(),

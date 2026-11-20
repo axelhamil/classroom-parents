@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -8,6 +9,7 @@ import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork } from "@packages/test/bun/unit-of-work";
 import type { AlertsError, IAlertRepository } from "../application/ports/alert-repository.port";
 import type { EventDeadline, IEventDeadlines } from "../application/ports/event-deadlines.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import type { IReminderSettingsRepository } from "../application/ports/reminder-settings.port";
 import { AlertPlanningService } from "../application/services/alert-planning.service";
 import { ReminderSettingsService } from "../application/services/reminder-settings.service";
@@ -73,6 +75,8 @@ function eventTypes(): string[] {
   return enqueuedEvents(outbox).map(({ eventType }) => eventType);
 }
 
+const parisZone = (): IParentTimeZone => ({ of: async () => PARIS_TIME_ZONE });
+
 beforeEach(() => {
   alerts = mockPort<IAlertRepository>();
   settings = mockPort<IReminderSettingsRepository>();
@@ -101,6 +105,7 @@ beforeEach(() => {
     alerts,
     settings,
     deadlines,
+    parisZone(),
     unitOfWork,
     outbox,
     mockInstrumentation(),
@@ -110,6 +115,7 @@ beforeEach(() => {
     settings,
     alerts,
     deadlines,
+    parisZone(),
     planning,
     unitOfWork,
     outbox,

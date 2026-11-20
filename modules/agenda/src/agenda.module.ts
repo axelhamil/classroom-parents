@@ -5,6 +5,7 @@ import type { IAlertPlanner } from "./application/ports/alert-planner.port";
 import type { IChildOwnership } from "./application/ports/child-ownership.port";
 import type { ICourseNames } from "./application/ports/course-names.port";
 import type { IEventRepository } from "./application/ports/event-repository.port";
+import type { IParentTimeZone } from "./application/ports/parent-time-zone.port";
 import type { IVisibleChildren } from "./application/ports/visible-children.port";
 import { AnnouncementReconciler } from "./application/services/announcement-reconciler";
 import { EventEditService } from "./application/services/event-edit.service";
@@ -22,6 +23,7 @@ export interface AgendaPrerequisites {
   IChildOwnership: IChildOwnership;
   IVisibleChildren: IVisibleChildren;
   ICourseNames: ICourseNames;
+  IParentTimeZone: IParentTimeZone;
 }
 
 export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
@@ -45,6 +47,7 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
           c.ITransactionService,
           c.IOutboxRepository,
           c.AnnouncementReconciler,
+          c.IParentTimeZone,
           c.IInstrumentation,
         ),
     )
@@ -70,6 +73,7 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
           c.IOutboxRepository,
           c.EventPresenter,
           c.AnnouncementReconciler,
+          c.IParentTimeZone,
           c.IInstrumentation,
         ),
     )
@@ -80,6 +84,7 @@ export const agendaModule = defineModule<AgendaPrerequisites>()((b) =>
           c.IEventRepository,
           c.IVisibleChildren,
           c.EventPresenter,
+          c.IParentTimeZone,
           c.IInstrumentation,
         ),
     ),

@@ -27,6 +27,7 @@ export interface ReminderDeadline {
   at: Date;
   date: string;
   time?: string;
+  timeZone: string;
 }
 
 export class Reminder extends ValueObject<ReminderValue> {
@@ -50,8 +51,8 @@ export class Reminder extends ValueObject<ReminderValue> {
   resolve(deadline: ReminderDeadline): Result<Option<AlertTime>> {
     const value = this.value;
     if (value.kind === "days_before")
-      return AlertTime.before(deadline.date, value.days, value.time).map((time) =>
-        Option.some(time),
+      return AlertTime.before(deadline.date, value.days, value.time, deadline.timeZone).map(
+        (time) => Option.some(time),
       );
     if (deadline.time === undefined) return Result.ok(Option.none());
 

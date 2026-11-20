@@ -29,9 +29,10 @@ export interface AlertOverrides {
 }
 
 export function existingAlert(overrides: AlertOverrides = {}): Alert {
-  const time = AlertTime.fromParisWallTime(
+  const time = AlertTime.fromWallTime(
     overrides.date ?? "2026-11-13",
     overrides.time ?? "18:00",
+    PARIS_TIME_ZONE,
   ).getValue();
 
   return Alert.reconstitute(

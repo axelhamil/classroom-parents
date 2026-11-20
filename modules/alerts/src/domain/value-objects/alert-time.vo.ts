@@ -1,30 +1,22 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
 import {
-  matchesZonedWall,
-  PARIS_TIME_ZONE,
   utcToZonedWall,
+  type ZonedWall,
   zonedWallTimeToUtc,
   zonedWallTimeToUtcShifted,
 } from "@packages/ddd-kit/zoned-time";
 import { z } from "zod";
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const MINUTE_MS = 60_000;
 
 export const WALL_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const alertTimeSchema = z.object({
-  date: z.string().regex(DATE_PATTERN),
-  time: z.string().regex(WALL_TIME),
-  at: z.date(),
+  at: z.date().refine((at) => Number.isInteger(at.getTime() / MINUTE_MS)),
 });
 
 export type AlertTimeValue = z.infer<typeof alertTimeSchema>;
-
-function parisInstant(date: string, time: string): Result<Date> {
-  return zonedWallTimeToUtc(date, time, PARIS_TIME_ZONE).mapError(
-    (code) => `${date} ${time} is not a Paris wall time (${code})`,
-  );
-}
 
 function daysBefore(date: string, days: number): Result<string> {
   const match = DATE_PATTERN.exec(date);
@@ -37,32 +29,42 @@ function daysBefore(date: string, days: number): Result<string> {
 }
 
 export class AlertTime extends ValueObject<AlertTimeValue> {
-  static fromParisWallTime(date: string, time: string): Result<AlertTime> {
-    const at = parisInstant(date, time);
-    if (at.isFailure) return Result.fail(at.getError());
+  static fromInstant(instant: Date): Result<AlertTime> {
+    const minute = Math.floor(instant.getTime() / MINUTE_MS) * MINUTE_MS;
 
-    return AlertTime.create({ date, time, at: at.getValue() });
+    return AlertTime.create({ at: new Date(minute) });
   }
 
-  static before(deadlineDate: string, days: number, time: string): Result<AlertTime> {
+  static fromWallTime(date: string, time: string, timeZone: string): Result<AlertTime> {
+    const at = zonedWallTimeToUtc(date, time, timeZone);
+    if (at.isFailure)
+      return Result.fail(`${date} ${time} is not a wall time of ${timeZone} (${at.getError()})`);
+
+    return AlertTime.create({ at: at.getValue() });
+  }
+
+  static before(
+    deadlineDate: string,
+    days: number,
+    time: string,
+    timeZone: string,
+  ): Result<AlertTime> {
     const date = daysBefore(deadlineDate, days);
     if (date.isFailure) return Result.fail(date.getError());
 
-    const shifted = zonedWallTimeToUtcShifted(date.getValue(), time, PARIS_TIME_ZONE);
+    const shifted = zonedWallTimeToUtcShifted(date.getValue(), time, timeZone);
     if (shifted.isFailure)
       return Result.fail(
-        `${date.getValue()} ${time} is not a Paris wall time (${shifted.getError()})`,
+        `${date.getValue()} ${time} is not a wall time of ${timeZone} (${shifted.getError()})`,
       );
 
-    const { at, wall } = shifted.getValue();
-    return AlertTime.create({ date: wall.date, time: wall.time, at });
+    return AlertTime.create({ at: shifted.getValue().at });
   }
 
-  static fromInstant(instant: Date): Result<AlertTime> {
-    const wall = utcToZonedWall(instant, PARIS_TIME_ZONE);
-    if (wall.isFailure) return Result.fail(`${String(instant)} has no Paris wall time`);
-
-    return AlertTime.fromParisWallTime(wall.getValue().date, wall.getValue().time);
+  wallIn(timeZone: string): Result<ZonedWall> {
+    return utcToZonedWall(this.value.at, timeZone).mapError(
+      (code) => `${this.value.at.toISOString()} has no wall time in ${timeZone} (${code})`,
+    );
   }
 
   isAfter(instant: Date): boolean {
@@ -71,12 +73,7 @@ export class AlertTime extends ValueObject<AlertTimeValue> {
 
   protected validate(value: AlertTimeValue): Result<AlertTimeValue> {
     const parsed = alertTimeSchema.safeParse(value);
-    if (!parsed.success) return Result.fail("an alert time is a YYYY-MM-DD date and an HH:MM time");
-
-    const { date, time, at } = parsed.data;
-    const matches = matchesZonedWall(date, time, at, PARIS_TIME_ZONE);
-    if (matches.isFailure)
-      return Result.fail(`an alert instant must match its Paris wall time (${matches.getError()})`);
+    if (!parsed.success) return Result.fail("an alert rings at a valid instant, on a whole minute");
 
     return Result.ok(parsed.data);
   }

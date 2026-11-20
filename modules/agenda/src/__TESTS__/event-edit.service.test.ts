@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Option, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -10,6 +11,7 @@ import type { EventPatch } from "../application/dto/event.dto";
 import type { IAlertPlanner } from "../application/ports/alert-planner.port";
 import type { ICourseNames } from "../application/ports/course-names.port";
 import type { AgendaError, IEventRepository } from "../application/ports/event-repository.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import type { IVisibleChildren } from "../application/ports/visible-children.port";
 import { AnnouncementReconciler } from "../application/services/announcement-reconciler";
 import { EventEditService } from "../application/services/event-edit.service";
@@ -25,6 +27,7 @@ import {
 const NOW = new Date("2026-11-10T09:00:00.000Z");
 
 let repo: PortMock<IEventRepository>;
+let timeZones: PortMock<IParentTimeZone>;
 let planner: PortMock<IAlertPlanner>;
 let outbox: PortMock<IOutboxRepository>;
 let children: PortMock<IVisibleChildren>;
@@ -56,6 +59,8 @@ beforeEach(() => {
   planner.planDefault.mockResolvedValue(Result.ok());
   planner.replan.mockResolvedValue(Result.ok());
   planner.cancel.mockResolvedValue(Result.ok());
+  timeZones = mockPort<IParentTimeZone>();
+  timeZones.of.mockResolvedValue(PARIS_TIME_ZONE);
   given();
 
   service = new EventEditService(
@@ -66,6 +71,7 @@ beforeEach(() => {
     outbox,
     new EventPresenter(courseNames, instrumentation),
     new AnnouncementReconciler(repo, planner, outbox),
+    timeZones,
     instrumentation,
     () => NOW,
   );

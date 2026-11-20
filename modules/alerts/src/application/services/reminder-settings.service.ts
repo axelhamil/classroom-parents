@@ -17,6 +17,7 @@ import {
   type IAlertRepository,
 } from "../ports/alert-repository.port";
 import type { EventDeadline, IEventDeadlines } from "../ports/event-deadlines.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
 import type { IReminderSettingsRepository } from "../ports/reminder-settings.port";
 import type { AlertPlanningService } from "./alert-planning.service";
 import {
@@ -91,6 +92,7 @@ export class ReminderSettingsService {
     private readonly settings: IReminderSettingsRepository,
     private readonly alerts: IAlertRepository,
     private readonly deadlines: IEventDeadlines,
+    private readonly timeZones: IParentTimeZone,
     private readonly planning: Pick<AlertPlanningService, "replan" | "replanUpcoming">,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
@@ -198,7 +200,8 @@ export class ReminderSettingsService {
 
         const reminders = reminderList(values);
         if (reminders.isFailure) return Result.fail(reminders.getError());
-        const fits = fitting(reminders.getValue(), reminderTarget(deadline.getValue()));
+        const target = reminderTarget(deadline.getValue(), await this.timeZones.of(userId));
+        const fits = fitting(reminders.getValue(), target);
         if (fits.isFailure) return Result.fail(fits.getError());
 
         const saved = await this.settings.saveEventPlan(
@@ -250,7 +253,7 @@ export class ReminderSettingsService {
     if (applicable.isFailure) return Result.fail(applicable.getError());
     const { reminders, customized } = applicable.getValue();
 
-    const target = reminderTarget(deadline);
+    const target = reminderTarget(deadline, await this.timeZones.of(userId));
     const resolved = reminders.resolve(target);
     if (resolved.isFailure) return Result.fail(corrupted(resolved.getError()));
 
