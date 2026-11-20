@@ -31,9 +31,10 @@ function ipKeyFn(name: string): (c: Context) => string {
 // page 6. Four browsers of one parent opening the app back to back (the accessibility
 // gate) spend 337 in under a minute, so 300 refused that parent mid-burst. 600 leaves
 // that burst near half its room, and at a third of the hour window a runaway client is
-// still stopped within three minutes. 600 is the production value
-// (`RATE_LIMIT_GLOBAL_PER_MINUTE`, refused above it in production): a test run that signs
-// every browser in as one parent raises it through that variable, never through this file.
+// still stopped within three minutes. 600 and 1800 are the production values
+// (`RATE_LIMIT_GLOBAL_PER_MINUTE`, `RATE_LIMIT_GLOBAL_PER_HOUR`, refused above them in
+// production): a test run that signs every browser in as one parent raises them through
+// those variables, never through this file.
 // Every credential path carries its own far tighter, fail-closed policy below.
 //
 // `sessionMiddleware` deliberately nulls the user for `/api/auth/*`, so BetterAuth
@@ -48,7 +49,7 @@ export const GLOBAL_POLICY: PolicyConfig = {
   },
   windows: [
     { policyName: "global", windowSec: 60, maxRequests: env.RATE_LIMIT_GLOBAL_PER_MINUTE },
-    { policyName: "global", windowSec: 3600, maxRequests: 1800 },
+    { policyName: "global", windowSec: 3600, maxRequests: env.RATE_LIMIT_GLOBAL_PER_HOUR },
   ],
 };
 
