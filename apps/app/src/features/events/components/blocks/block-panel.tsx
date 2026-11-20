@@ -9,8 +9,8 @@ import {
   DashboardPanelTitle,
   DashboardTileToolbar,
 } from "@packages/ui/components/ui/dashboard";
+import type { Icon } from "@packages/ui/components/ui/icons";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
-import type { LucideIcon } from "lucide-react";
 import { type ReactElement, type ReactNode, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type TileFrame, useTileFrame } from "../../../../shared/dashboard/tile-frame";
@@ -19,7 +19,7 @@ export interface BlockPanelProps {
   title: string;
   label?: string;
   count?: number;
-  icon: LucideIcon;
+  icon: Icon;
   note?: ReactNode;
   fit?: "card" | "natural";
   startAt?: string;
@@ -80,7 +80,7 @@ function wrapped(frame: TileFrame, header: ReactElement): ReactNode {
 interface BlockBodyProps {
   frame: TileFrame;
   titleId: string;
-  icon: LucideIcon;
+  icon: Icon;
   note: ReactNode;
   startAt: string | undefined;
   children: ReactNode;

@@ -1,5 +1,6 @@
 import { wallDateLabel } from "@packages/i18n";
 import { Button } from "@packages/ui/components/ui/button";
+import { PrintIcon } from "@packages/ui/components/ui/icons";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import {
   PrintSheet,
@@ -13,14 +14,12 @@ import { ToggleGroup, ToggleGroupItem } from "@packages/ui/components/ui/toggle-
 import { cn } from "@packages/ui/libs/utils.js";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { PrinterIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNow } from "../../shared/agenda/use-now";
+import { useSchoolClock } from "../../shared/agenda/school-clock-context";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
 import type { EventItem } from "../../shared/api/queries/events";
 import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
 import { EventBoardSkeleton } from "../../shared/events/event-board";
-import { schoolToday } from "../../shared/format/school-today";
 import { QueryState } from "../../shared/query/query-state";
 import { FridgePlanner } from "./components/fridge-planner";
 import { printWeekSearchSchema } from "./events.schema";
@@ -69,10 +68,10 @@ function PrintWeekPage() {
   const { t: tCommon } = useTranslation("common");
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const now = useNow();
-  const today = schoolToday(now);
-  const week = search.week ?? defaultPrintWeek(now);
-  const dates = printWeekDates(now, week);
+  const clock = useSchoolClock();
+  const { today } = clock;
+  const week = search.week ?? defaultPrintWeek(clock);
+  const dates = printWeekDates(today, week);
   const first = dates[0] ?? today;
   const last = dates.at(-1) ?? today;
   const range = { from: first, to: last };
@@ -98,7 +97,6 @@ function PrintWeekPage() {
         <ToggleGroup
           type="single"
           variant="chip"
-          size="touch"
           spacing={2}
           aria-label={t("print.weeks.label")}
           value={week}
@@ -111,7 +109,7 @@ function PrintWeekPage() {
           ))}
         </ToggleGroup>
         <Button type="button" onClick={() => window.print()}>
-          <PrinterIcon aria-hidden />
+          <PrintIcon aria-hidden />
           {t("print.print")}
         </Button>
       </div>
@@ -132,7 +130,7 @@ function PrintWeekPage() {
                     subtitle={t("print.subtitle")}
                     family={family}
                     events={eventsOfWeek(past.data ? [past.data, later] : [later], range)}
-                    now={now}
+                    clock={clock}
                   />
                 )
               }

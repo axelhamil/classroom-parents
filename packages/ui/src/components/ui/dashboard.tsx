@@ -75,8 +75,9 @@ const dashboardPanelVariants = cva(
   {
     variants: {
       fit: {
-        card: "rounded-2xl border bg-card px-4 pb-4 pt-1 shadow-rest",
-        natural: "md:rounded-2xl md:border md:bg-card md:px-4 md:pb-4 md:pt-1 md:shadow-rest",
+        card: "rounded-surface border bg-card px-surface pb-surface pt-1 shadow-rest",
+        natural:
+          "md:rounded-surface md:border md:bg-card md:px-surface md:pb-surface md:pt-1 md:shadow-rest",
       },
       tone: {
         default: "",
@@ -111,7 +112,7 @@ function DashboardPanel({ className, fit, tone, ...props }: DashboardPanelProps)
 }
 
 const DASHBOARD_HEADER =
-  "flex h-dashboard-header min-w-0 shrink-0 items-center gap-2 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-primary";
+  "flex h-dashboard-header min-w-0 shrink-0 items-center gap-2 [&>svg]:size-icon-lg [&>svg]:shrink-0 [&>svg]:text-primary";
 
 /**
  * The title row of a block, one fixed height so the titles of a row share their line. Its slot is
@@ -151,10 +152,7 @@ function DashboardPanelTitle({ className, ...props }: React.ComponentProps<"h2">
   return (
     <h2
       data-slot="dashboard-panel-title"
-      className={cn(
-        "min-w-0 flex-1 truncate font-display text-lg leading-tight font-semibold tracking-tight",
-        className,
-      )}
+      className={cn("min-w-0 flex-1 truncate font-display text-title", className)}
       {...props}
     />
   );
@@ -179,7 +177,7 @@ function DashboardPanelNote({ className, ...props }: React.ComponentProps<"p">) 
   return (
     <p
       data-slot="dashboard-panel-note"
-      className={cn("text-sm text-pretty text-muted-foreground tabular-nums", className)}
+      className={cn("text-small text-pretty text-muted-foreground tabular-nums", className)}
       {...props}
     />
   );
@@ -194,7 +192,7 @@ function DashboardEmpty({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dashboard-empty"
       className={cn(
-        "flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden text-center text-sm text-pretty text-muted-foreground [&>svg]:size-6 [&>svg]:shrink-0",
+        "flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden text-center text-small text-pretty text-muted-foreground [&>svg]:size-icon-lg [&>svg]:shrink-0",
         className,
       )}
       {...props}
@@ -223,7 +221,7 @@ function DashboardPanelFigure({ className, ...props }: React.ComponentProps<"p">
     <p
       data-slot="dashboard-panel-figure"
       className={cn(
-        "flex min-w-0 items-baseline gap-2 text-sm text-muted-foreground [&>:first-child]:font-display [&>:first-child]:text-4xl [&>:first-child]:leading-none [&>:first-child]:font-bold [&>:first-child]:tracking-tight [&>:first-child]:text-foreground [&>:first-child]:tabular-nums @2xs/panel:[&>:first-child]:text-2xl",
+        "flex min-w-0 items-baseline gap-2 text-small text-muted-foreground [&>:first-child]:font-display [&>:first-child]:text-display [&>:first-child]:text-foreground [&>:first-child]:tabular-nums @2xs/panel:[&>:first-child]:text-title",
         className,
       )}
       {...props}
@@ -232,8 +230,8 @@ function DashboardPanelFigure({ className, ...props }: React.ComponentProps<"p">
 }
 
 /**
- * What a block says when it has nothing to show, composed at the size its tile keeps: a mark
- * on a soft disc, a short title and one sentence, centred in the room left under the header.
+ * What a block says when it has nothing to show, composed at the size its tile keeps: an
+ * `IconTile` tinted with the action, a short title and one sentence, centred in the room left under the header.
  * Focusable from code (`tabIndex={-1}`) so the focus has a place to land when the last row
  * leaves. From `md` it adds no height of its own: it fills the tile, so an empty block never
  * pushes its row, reading or arranging.
@@ -243,7 +241,7 @@ function DashboardPanelEmpty({ className, ...props }: React.ComponentProps<"div"
     <div
       data-slot="dashboard-panel-empty"
       className={cn(
-        "flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl md:contain-size text-center text-sm text-balance text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring [&>p:first-of-type]:font-display [&>p:first-of-type]:text-base [&>p:first-of-type]:font-semibold [&>p:first-of-type]:text-foreground [&>svg]:size-8 [&>svg]:rounded-full [&>svg]:bg-primary-container [&>svg]:p-2 [&>svg]:text-primary motion-safe:[&>svg]:animate-pop-in",
+        "flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-inner md:contain-size text-center text-small text-balance text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring [&>p:first-of-type]:font-display [&>p:first-of-type]:text-heading [&>p:first-of-type]:text-foreground [&>[data-slot=icon-tile]]:bg-primary-container [&>[data-slot=icon-tile]]:text-primary motion-safe:[&>[data-slot=icon-tile]]:animate-pop-in",
         className,
       )}
       {...props}

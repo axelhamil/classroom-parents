@@ -4,27 +4,21 @@ import type * as React from "react";
 
 import { cn } from "../../libs/utils";
 
-const panelVariants = cva("rounded-md border", {
+const panelVariants = cva("rounded-inner p-block", {
   variants: {
     tone: {
-      default: "",
+      default: "bg-surface-container",
       muted: "bg-muted",
-    },
-    size: {
-      sm: "p-3",
-      md: "p-4",
     },
   },
   defaultVariants: {
     tone: "default",
-    size: "sm",
   },
 });
 
 function Panel({
   className,
   tone,
-  size,
   asChild = false,
   ...props
 }: React.ComponentProps<"div"> &
@@ -32,9 +26,7 @@ function Panel({
     asChild?: boolean;
   }) {
   const Comp = asChild ? Slot.Root : "div";
-  return (
-    <Comp data-slot="panel" className={cn(panelVariants({ tone, size, className }))} {...props} />
-  );
+  return <Comp data-slot="panel" className={cn(panelVariants({ tone, className }))} {...props} />;
 }
 
 export { Panel };

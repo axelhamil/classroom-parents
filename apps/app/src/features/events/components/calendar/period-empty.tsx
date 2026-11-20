@@ -1,7 +1,7 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { AddIcon, NothingDueIcon } from "@packages/ui/components/ui/icons";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarCheckIcon, PlusIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { BoardEmpty } from "../../../../shared/events/event-board";
@@ -11,7 +11,7 @@ import { nextEventQueryOptions } from "../../api/events.queries";
 export interface PeriodEmptyProps {
   family: readonly ChildDto[];
   childId: string | null;
-  now: Date;
+  today: string;
   onAdd: () => void;
   onGoTo: (date: string) => void;
 }
@@ -29,7 +29,7 @@ function useLastRead(family: readonly ChildDto[]): string {
   return latest ? t("card.lastSynced", { date: formatDateTime(latest) }) : t("card.neverSynced");
 }
 
-export function PeriodEmpty({ family, childId, now, onAdd, onGoTo }: PeriodEmptyProps) {
+export function PeriodEmpty({ family, childId, today, onAdd, onGoTo }: PeriodEmptyProps) {
   const { t } = useTranslation("events");
   const next = useQuery(nextEventQueryOptions(childId)).data;
   const watched = childId ? family.filter((child) => child.id === childId) : family;
@@ -37,7 +37,7 @@ export function PeriodEmpty({ family, childId, now, onAdd, onGoTo }: PeriodEmpty
 
   return (
     <BoardEmpty
-      icon={CalendarCheckIcon}
+      icon={NothingDueIcon}
       title={t("calendar.periodEmpty")}
       description={lastRead}
       action={
@@ -46,12 +46,12 @@ export function PeriodEmpty({ family, childId, now, onAdd, onGoTo }: PeriodEmpty
             <Button variant="outline" onClick={() => onGoTo(next.deadlineDate)}>
               {t("calendar.nextEvent", {
                 title: next.title,
-                day: inSentence(dayLabel(next.deadlineDate, now)),
+                day: inSentence(dayLabel(next.deadlineDate, today)),
               })}
             </Button>
           )}
           <Button onClick={onAdd}>
-            <PlusIcon aria-hidden />
+            <AddIcon aria-hidden />
             {t("calendar.addEvent")}
           </Button>
         </>

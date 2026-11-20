@@ -1,7 +1,7 @@
 import { daysFrom, shiftDate } from "@packages/ddd-kit/days";
 import type { EventItem } from "../api/queries/events";
 import type { EventCategory } from "../events/event-labels";
-import { hasOpenSteps } from "./checklist-template";
+import { hasOpenSteps, hasOpenStepsToPrepare } from "./checklist-template";
 import {
   bySoonest,
   isDueOn,
@@ -24,12 +24,16 @@ import {
 
 type Events = readonly EventItem[];
 
-/** The deadlines of one school day and what is left to prepare for it. */
+/**
+ * The deadlines of one school day and what is left to prepare for it: `toPrepare` holds those with
+ * a step the announcement asks or the parent added, `suggested` those left with template steps only.
+ */
 export interface DayPlan {
   day: string;
   deadlines: EventItem[];
   open: EventItem[];
   toPrepare: EventItem[];
+  suggested: EventItem[];
   leftToday: EventItem[];
 }
 
@@ -59,8 +63,10 @@ function planOf(
       (isDueOn(event, range.to) || isOpen(event) || kept.has(event.id)),
   );
   const open = deadlines.filter(isOpen);
+  const toPrepare = open.filter(hasOpenStepsToPrepare);
+  const suggested = open.filter((event) => !toPrepare.includes(event) && hasOpenSteps(event));
 
-  return { day: range.to, deadlines, open, toPrepare: open.filter(hasOpenSteps) };
+  return { day: range.to, deadlines, open, toPrepare, suggested };
 }
 
 /**

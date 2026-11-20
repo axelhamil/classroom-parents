@@ -1,4 +1,9 @@
-import { BusIcon, ClipboardCheckIcon, type LucideIcon, PenLineIcon } from "lucide-react";
+import {
+  AssessmentIcon,
+  DocumentDueIcon,
+  type Icon,
+  SchoolTripIcon,
+} from "@packages/ui/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { type DeadlineKind, upcomingByKind } from "../../../../shared/agenda/views";
 import { nextTwoWeeks } from "../../../../shared/agenda/windows";
@@ -8,10 +13,10 @@ import { EventSteps } from "../prepare-checklist";
 import { BlockPanel } from "./block-panel";
 import { EventRows } from "./event-rows";
 
-const ICONS: Record<DeadlineKind, LucideIcon> = {
-  assessments: ClipboardCheckIcon,
-  documents: PenLineIcon,
-  outings: BusIcon,
+const ICONS: Record<DeadlineKind, Icon> = {
+  assessments: AssessmentIcon,
+  documents: DocumentDueIcon,
+  outings: SchoolTripIcon,
 };
 
 function isDeadlineKind(id: string): id is DeadlineKind {

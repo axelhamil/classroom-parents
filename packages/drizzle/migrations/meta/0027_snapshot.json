@@ -1,5 +1,5 @@
 {
-  "id": "8c72c35c-a132-4de8-8eea-7bb1e5a3d1c0",
+  "id": "32e421db-e983-4be4-81b0-a633bfd678f5",
   "prevId": "c7d0ff80-f0ce-4c37-837b-be82c79261ff",
   "version": "7",
   "dialect": "postgresql",
@@ -2703,7 +2703,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"child_account\".\"status\" = 'connected'",
+          "where": "\"child_account\".\"status\" in ('connected', 'blocked_by_school')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3056,14 +3056,7 @@
           "name": "blocks",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": false
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "notNull": true
         },
         "updated_at": {
           "name": "updated_at",

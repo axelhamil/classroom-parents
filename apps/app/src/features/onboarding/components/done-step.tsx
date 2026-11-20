@@ -1,8 +1,13 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import {
+  AddIcon,
+  AlertsOnIcon,
+  EmailIcon,
+  LinkAccountIcon,
+} from "@packages/ui/components/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BellRing, Link2, Mail, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import { pushStatusQueryOptions } from "../../../shared/api/queries/push-status";
@@ -34,7 +39,7 @@ export function DoneStep({ child, hue, userId }: DoneStepProps) {
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link to="/children/new">
-              <Plus aria-hidden />
+              <AddIcon aria-hidden />
               {t("done.addAnother")}
             </Link>
           </Button>
@@ -45,12 +50,12 @@ export function DoneStep({ child, hue, userId }: DoneStepProps) {
         entries={[
           {
             id: "account",
-            icon: Link2,
+            icon: LinkAccountIcon,
             title: t("done.account", { email: child.googleEmail }),
           },
           pushLive
-            ? { id: "push", icon: BellRing, title: t("done.pushOn") }
-            : { id: "push", icon: Mail, title: t("done.pushOff") },
+            ? { id: "push", icon: AlertsOnIcon, title: t("done.pushOn") }
+            : { id: "push", icon: EmailIcon, title: t("done.pushOff") },
         ]}
       />
     </StepFrame>

@@ -1,6 +1,7 @@
 import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import type { frCatalog } from "@packages/i18n";
 import { Badge } from "@packages/ui/components/ui/badge";
+import { NeverIcon } from "@packages/ui/components/ui/icons";
 import { Item, ItemContent, ItemMedia } from "@packages/ui/components/ui/item";
 import { PageHeader } from "@packages/ui/components/ui/page-header";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
@@ -11,7 +12,6 @@ import {
   TypographyMuted,
   TypographyP,
 } from "@packages/ui/components/ui/typography";
-import { BanIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 type SchoolsCopy = (typeof frCatalog)["site"]["schools"];
@@ -97,7 +97,7 @@ export function SchoolAdminGuide({
         <TypographyList>
           {NEVER.map((key) => (
             <li key={key} className="flex items-start gap-2">
-              <BanIcon aria-hidden />
+              <NeverIcon aria-hidden />
               {copy.never[key]}
             </li>
           ))}

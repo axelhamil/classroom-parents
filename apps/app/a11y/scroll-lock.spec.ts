@@ -44,8 +44,8 @@ for (const width of [390, 1440]) {
     const late = {
       ...REVIEW_EVENT,
       status: "confirmed",
-      deadlineDate: inDays(-2),
-      deadlineAt: `${inDays(-2)}T07:00:00.000Z`,
+      deadlineDate: inDays(-10),
+      deadlineAt: `${inDays(-10)}T07:00:00.000Z`,
     };
     await serveFamily(page, {
       children: [LEA],

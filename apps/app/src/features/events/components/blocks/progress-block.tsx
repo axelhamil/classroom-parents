@@ -1,5 +1,5 @@
+import { AllDoneIcon } from "@packages/ui/components/ui/icons";
 import { Progress } from "@packages/ui/components/ui/progress";
-import { CheckCheckIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { progressView } from "../../../../shared/agenda/views";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
@@ -19,7 +19,7 @@ function ProgressBlock({ childId, clock, title }: HomeBlockProps) {
   return (
     <BlockPanel
       title={title}
-      icon={CheckCheckIcon}
+      icon={AllDoneIcon}
       note={query.isSuccess && (total === 0 ? t("blocks.progress.empty") : summary)}
     >
       {total > 0 && (
@@ -38,6 +38,6 @@ export const progressBlock: HomeBlockDefinition = {
   id: "progress",
   titleKey: "blocks.progress.title",
   descriptionKey: "blocks.progress.description",
-  icon: CheckCheckIcon,
+  icon: AllDoneIcon,
   Component: ProgressBlock,
 };

@@ -1,15 +1,15 @@
-import type { frCatalog } from "@packages/i18n";
+import { deadlineLine, type frCatalog } from "@packages/i18n";
 import {
-  AlarmClockIcon,
-  CalendarClockIcon,
-  CalendarPlusIcon,
-  CalendarRangeIcon,
-  CalendarSearchIcon,
-  CalendarXIcon,
-  type LucideIcon,
+  ConfirmDateIcon,
+  DeadlineCancelledIcon,
+  DeadlineMovedIcon,
+  type Icon,
+  NewDeadlinesIcon,
+  ReminderIcon,
   SchoolIcon,
   UnlinkIcon,
-} from "lucide-react";
+  WeeklyDigestIcon,
+} from "@packages/ui/components/ui/icons";
 import type { NotificationContent, NotificationItem } from "./notifications.queries";
 
 type PluralBase<Key> = Key extends `${infer Base}_${"one" | "other"}` ? Base : Key;
@@ -29,7 +29,7 @@ export type NotificationTarget =
 export interface NotificationView {
   copy: NotificationCopy;
   target: NotificationTarget;
-  icon: LucideIcon;
+  icon: Icon;
 }
 
 type Kind = NotificationContent["kind"];
@@ -44,10 +44,22 @@ function eventTarget(eventId: string): NotificationTarget {
   return { to: "/events/$eventId", params: { eventId } };
 }
 
-function titled(title: string | undefined, key: ItemKey, untitledKey: ItemKey): NotificationCopy {
+interface NamedDeadline {
+  title: string | undefined;
+  child: string | null;
+}
+
+function titled(
+  { title, child }: NamedDeadline,
+  key: ItemKey,
+  untitledKey: ItemKey,
+): NotificationCopy {
   if (title === undefined) return { key: `items.${untitledKey}`, values: {} };
 
-  return { key: `items.${key}`, values: { title } };
+  return {
+    key: `items.${key}`,
+    values: { line: deadlineLine({ child: child ?? undefined, title }) },
+  };
 }
 
 function named(
@@ -61,15 +73,15 @@ function named(
   return { key: `items.${key}`, values: { ...values, child } };
 }
 
-function amended(content: ContentOf<"deadline_amended">, title: string | undefined) {
+function amended(content: ContentOf<"deadline_amended">, deadline: NamedDeadline) {
   const cancelled = content.reason === "cancelled";
 
   return {
     copy: cancelled
-      ? titled(title, "deadlineCancelled", "deadlineCancelledUntitled")
-      : titled(title, "deadlineMoved", "deadlineMovedUntitled"),
+      ? titled(deadline, "deadlineCancelled", "deadlineCancelledUntitled")
+      : titled(deadline, "deadlineMoved", "deadlineMovedUntitled"),
     target: eventTarget(content.eventId),
-    icon: cancelled ? CalendarXIcon : CalendarClockIcon,
+    icon: cancelled ? DeadlineCancelledIcon : DeadlineMovedIcon,
   };
 }
 
@@ -80,7 +92,7 @@ function datesToCheck(content: ContentOf<"dates_to_check">, child: string | null
   return {
     copy: named(child, "datesToCheck", "datesToCheckUnnamed", { count }),
     target: only !== undefined && others.length === 0 ? eventTarget(only) : HOME,
-    icon: CalendarSearchIcon,
+    icon: ConfirmDateIcon,
   };
 }
 
@@ -88,26 +100,26 @@ export function notificationView(
   { content, event }: Pick<NotificationItem, "content" | "event">,
   child: string | null,
 ): NotificationView {
-  const title = event?.title;
+  const deadline = { title: event?.title, child };
 
   switch (content.kind) {
     case "deadline_reminder":
       return {
-        copy: titled(title, "deadlineReminder", "deadlineReminderUntitled"),
+        copy: titled(deadline, "deadlineReminder", "deadlineReminderUntitled"),
         target: eventTarget(content.eventId),
-        icon: AlarmClockIcon,
+        icon: ReminderIcon,
       };
     case "deadline_reminders":
       return {
         copy: { key: "items.deadlineReminders", values: { count: content.count } },
         target: HOME,
-        icon: AlarmClockIcon,
+        icon: ReminderIcon,
       };
     case "weekly_digest":
       return {
         copy: { key: "items.weeklyDigest", values: { count: content.deadlines } },
         target: HOME,
-        icon: CalendarRangeIcon,
+        icon: WeeklyDigestIcon,
       };
     case "access_lost":
       return {
@@ -125,10 +137,10 @@ export function notificationView(
       return {
         copy: named(child, "newDeadlines", "newDeadlinesUnnamed", { count: content.count }),
         target: HOME,
-        icon: CalendarPlusIcon,
+        icon: NewDeadlinesIcon,
       };
     case "deadline_amended":
-      return amended(content, title);
+      return amended(content, deadline);
     case "dates_to_check":
       return datesToCheck(content, child);
   }

@@ -1,7 +1,7 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { TourIcon } from "@packages/ui/components/ui/icons";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { useNavigate } from "@tanstack/react-router";
-import { MapIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { restartTours } from "../../../shared/tour/tours";
 
@@ -23,7 +23,7 @@ export function TourCard({ userId }: TourCardProps) {
       data-tour="settings-tour"
       footer={
         <Button type="button" variant="outline" onClick={restart}>
-          <MapIcon aria-hidden />
+          <TourIcon aria-hidden />
           {t("tour.action")}
         </Button>
       }

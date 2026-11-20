@@ -140,7 +140,7 @@ describe("dispatch budget under silent providers", () => {
           email: "parent@example.com",
           eventTitle: "Contrôle de maths",
           childLabel: "Léa",
-          deadlineLabel: "dimanche 15 novembre",
+          deadline: { date: "2026-11-15", today: "2026-11-13" },
           eventUrl: "https://app.example.com/events/1",
         })),
       ),

@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@packages/ui/components/ui/icons";
 import type { ComponentType } from "react";
 import type { BlockSize } from "./dashboard-pack";
 
@@ -30,7 +30,7 @@ export interface DashboardBlock<Context> {
   sizes: BlockSizeChoice;
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: Icon;
   tour?: string;
   flowsOnPhone?: boolean;
   fullView?: ComponentType<Context & FullViewProps>;

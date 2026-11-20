@@ -1,8 +1,8 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { ConfirmDateIcon, OpenRowIcon } from "@packages/ui/components/ui/icons";
 import { ListRowAction } from "@packages/ui/components/ui/list-row";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import { Link } from "@tanstack/react-router";
-import { ChevronRightIcon, SearchCheckIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
@@ -54,9 +54,9 @@ export function ReviewLine({ events, childLabel, childColor, stretched, label }:
           aria-label={label}
           onClick={() => setOpened(events.map((event) => event.id))}
         >
-          {!stretched && <SearchCheckIcon aria-hidden />}
+          {!stretched && <ConfirmDateIcon aria-hidden />}
           {!label && title}
-          <ChevronRightIcon aria-hidden className="ms-auto" />
+          <OpenRowIcon aria-hidden className="ms-auto" />
         </Button>
       )}
       {opened && shown.length > 0 && (

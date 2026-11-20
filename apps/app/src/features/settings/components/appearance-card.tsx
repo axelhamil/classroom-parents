@@ -1,3 +1,4 @@
+import { shiftDate } from "@packages/ddd-kit/days";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
 import {
@@ -10,6 +11,7 @@ import {
   FieldTitle,
 } from "@packages/ui/components/ui/field";
 import { HueDot } from "@packages/ui/components/ui/hue-dot";
+import { AddIcon } from "@packages/ui/components/ui/icons";
 import { PaletteSwatch } from "@packages/ui/components/ui/palette-swatch";
 import {
   PlannerCard,
@@ -28,22 +30,12 @@ import {
 import { isThemePreference } from "@packages/web-kit/theme/theme-store";
 import { usePalette } from "@packages/web-kit/theme/use-palette";
 import { useTheme } from "@packages/web-kit/theme/use-theme";
-import { PlusIcon } from "lucide-react";
 import type * as React from "react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { THEME_OPTIONS } from "../../../shared/components/theme-toggle";
 import { dayLabel } from "../../../shared/format/deadline-label";
-
-import { isoDay, localDay } from "../../../shared/format/local-day";
-import { schoolToday } from "../../../shared/format/school-today";
-
-function tomorrowOf(now: Date): string {
-  const tomorrow = localDay(schoolToday(now));
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  return isoDay(tomorrow);
-}
 
 export function AppearanceCard() {
   const { t } = useTranslation("settings");
@@ -185,15 +177,15 @@ const SAMPLE_CHILDREN = [2, 9, 14] as const;
 
 function PaletteSample() {
   const { t } = useTranslation("settings");
-  const now = new Date();
-  const tomorrow = tomorrowOf(now);
+  const { today } = useSchoolClock();
+  const tomorrow = shiftDate(today, 1);
 
   return (
     <>
       <PlannerCard hue={1}>
         <PlannerCardBody>
           <PlannerCardTitle className="line-clamp-1">{t("appearance.sample")}</PlannerCardTitle>
-          <PlannerCardMeta>{dayLabel(tomorrow, now)}</PlannerCardMeta>
+          <PlannerCardMeta>{dayLabel(tomorrow, today)}</PlannerCardMeta>
         </PlannerCardBody>
       </PlannerCard>
       <div className="flex items-center justify-between gap-2">
@@ -204,7 +196,7 @@ function PaletteSample() {
           ))}
         </div>
         <Badge>
-          <PlusIcon aria-hidden />
+          <AddIcon aria-hidden />
           {t("appearance.sampleAction")}
         </Badge>
       </div>

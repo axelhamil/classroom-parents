@@ -11,29 +11,31 @@ import { cn } from "@packages/ui/libs/utils.js";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionAlert } from "../components/action-alert";
-import { schoolToday } from "../format/school-today";
 import { captureError } from "../observability/sentry";
 import { InstallGuide } from "./install-guide";
 import { dismissInstallInvite, installInviteDue, recordVisitDay } from "./install-invite-moment";
 import { promptInstall, useInstallState } from "./use-install-state";
 
-function useInviteDue(): [boolean, () => void] {
+function useInviteDue(today: string): [boolean, () => void] {
   const [due, setDue] = useState(() => {
     if (typeof localStorage === "undefined") return false;
 
-    const now = new Date();
-    recordVisitDay(schoolToday(now));
+    recordVisitDay(today);
 
-    return installInviteDue(now);
+    return installInviteDue(new Date());
   });
 
   return [due, () => setDue(false)];
 }
 
-export function InstallInvite() {
+interface InstallInviteProps {
+  today: string;
+}
+
+export function InstallInvite({ today }: InstallInviteProps) {
   const { t } = useTranslation("common");
   const { platform, standalone, canPromptInstall } = useInstallState();
-  const [due, hide] = useInviteDue();
+  const [due, hide] = useInviteDue(today);
   const [guideOpen, setGuideOpen] = useState(false);
   const installable = canPromptInstall || platform === "ios";
 

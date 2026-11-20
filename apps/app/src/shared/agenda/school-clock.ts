@@ -16,6 +16,7 @@ export interface SchoolClockSettings {
 /** Every date the home reads for one instant: computed once, so no two blocks disagree on "today" or "tomorrow". */
 export interface SchoolClock {
   now: Date;
+  timeZone: string;
   today: string;
   time: string;
   focus: string;
@@ -73,6 +74,7 @@ export function schoolClock(
 
   return {
     now,
+    timeZone,
     today,
     time,
     focus,

@@ -1,7 +1,8 @@
 /**
  * Proves against a real Postgres that the host query feeding alert messages reads only the
  * alert owner's rows: an alert forged onto another family's event or on a child being
- * disconnected comes back empty, the announcement description never leaves the database, and the deadline reads in French.
+ * disconnected comes back empty, the announcement description never leaves the database, and the
+ * deadline carries the school's wall date with the parent's today read in the parent's zone.
  */
 
 import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/test/db-check";
@@ -12,14 +13,18 @@ import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { alert } from "@modules/alerts/schemas/alert.schema";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { authSchema, db, eq, like } from "@packages/drizzle";
 import { AlertContextQuery } from "../src/queries/alert-context.query";
 
-const NOW = new Date("2030-01-15T09:00:00.000Z");
+const NOW = new Date("2030-01-17T23:30:00.000Z");
 const ORIGIN = "https://app.example";
 const probe = `check-alert-context-${crypto.randomUUID()}`;
 const { instrumentation, spans } = spanRecorder();
-const query = new AlertContextQuery(instrumentation, ORIGIN, () => NOW);
+const MONTREAL = "America/Montreal";
+const zoneOf = new Map<string, string>();
+const timeZones = { of: async (userId: string) => zoneOf.get(userId) ?? PARIS_TIME_ZONE };
+const query = new AlertContextQuery(instrumentation, ORIGIN, timeZones, () => NOW);
 
 async function familyWithEvent(
   name: string,
@@ -78,8 +83,9 @@ async function cleanup(): Promise<void> {
 const { step, run } = stepRunner("check-alert-context", cleanup);
 
 run(async () => {
-  const a = await familyWithEvent("a", { date: "2030-01-17", time: "08:30:00" });
-  const b = await familyWithEvent("b", { date: "2030-01-20", time: null });
+  const a = await familyWithEvent("a", { date: "2030-01-18", time: "08:30:00" });
+  const b = await familyWithEvent("b", { date: "2030-01-18", time: null });
+  zoneOf.set(b.userId, MONTREAL);
   const c = await familyWithEvent("c", { date: "2030-01-21", time: null });
   const d = await familyWithEvent("d", { date: "2030-01-22", time: null }, "disconnecting");
   const alertOfA = await alertOn(a.userId, a.eventId);
@@ -110,11 +116,17 @@ run(async () => {
       byAlert.get(alertOfB)?.email === `${b.userId}@example.com`,
     contexts,
   );
+  const deadlineOfA = byAlert.get(alertOfA)?.deadline;
+  const deadlineOfB = byAlert.get(alertOfB)?.deadline;
   await step(
-    "the deadline reads as the app shows it, with its hour when set",
-    byAlert.get(alertOfA)?.deadlineLabel === "jeudi 17 janvier, 8 h 30" &&
-      byAlert.get(alertOfB)?.deadlineLabel === "dimanche 20 janvier",
-    contexts.map((context) => context.deadlineLabel),
+    "the deadline keeps the school's date and hour, and today is the parent's: Friday in Paris, still Thursday in Montreal",
+    deadlineOfA?.date === "2030-01-18" &&
+      deadlineOfA.time === "08:30" &&
+      deadlineOfA.today === "2030-01-18" &&
+      deadlineOfB?.date === "2030-01-18" &&
+      deadlineOfB.time === undefined &&
+      deadlineOfB.today === "2030-01-17",
+    contexts.map((context) => context.deadline),
   );
   await step(
     "the link opens the event in the app",

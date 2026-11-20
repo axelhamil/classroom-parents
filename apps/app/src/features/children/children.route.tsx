@@ -1,11 +1,11 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { CardGrid } from "@packages/ui/components/ui/card-grid";
+import { AddIcon, ChildIcon } from "@packages/ui/components/ui/icons";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Backpack, Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
@@ -68,7 +68,7 @@ function ChildrenPage() {
         children.data?.length ? (
           <Button asChild data-tour="children-add">
             <Link to="/children/new">
-              <Plus aria-hidden />
+              <AddIcon aria-hidden />
               {t("list.add")}
             </Link>
           </Button>
@@ -89,7 +89,7 @@ function ChildrenPage() {
         }
         empty={
           <BoardEmpty
-            icon={Backpack}
+            icon={ChildIcon}
             title={t("list.emptyTitle")}
             description={t("list.emptyDescription")}
             action={

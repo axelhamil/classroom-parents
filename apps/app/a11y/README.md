@@ -23,6 +23,11 @@ interaction checks a rule engine cannot see. Runs on every PR
   `<main>`, one `<h1>` and no blocking violation (`shell.spec.ts`).
 - **Page width**: a page in `FULL_WIDTH_PAGES` leaves at most 25 % of a
   1440 px screen empty (`page-width.spec.ts`).
+- **Visual system**: on home, the event drawer, Enfants, Réglages and onboarding, at 390 px (touch) and 1440 px, every
+  rendered icon is 14, 16 or 20 px (8 for a mark's dot), every one-line control is one of the three `--control-*`
+  heights the pointer resolves to, and a rounded block within 32 px of a painted rounded parent sits concentric to it
+  (`visual-system.spec.ts`, measured in `visual-system.ts`). Marks, multi-line tiles, accordion rows, links, the
+  bottom navigation and toasts are excluded there, each with its reason.
 - **Reduced motion**: `prefers-reduced-motion: reduce` skips the theme view
   transition entirely (asserted through a `MutationObserver`, since the
   transition leaves no trace once it ends).
@@ -43,7 +48,7 @@ The gate audits the **preview build** on port 4173, against a live API:
 ```sh
 docker compose up postgres -d
 pnpm db:migrate && pnpm --filter api db:seed # seeds dev@example.com and its session cookie
-pnpm --filter api dev                        # API on :3000
+pnpm --filter api start:gate                 # API on :3000, the gate's rate limit (as in CI)
 pnpm --filter app check:a11y                 # builds nothing, run `pnpm --filter app build` first
 ```
 
@@ -78,14 +83,15 @@ Three things bite when running repeatedly:
   (`GLOBAL_POLICY` in
   `apps/api/src/shared/middleware/rate-limit.policies.ts`, now 600/min burst
   with the 1800/hour sustained ceiling unchanged). The gate's API runs with
-  `RATE_LIMIT_GLOBAL_PER_MINUTE=1200` (CI and locally), its own room for one
+  `RATE_LIMIT_GLOBAL_PER_MINUTE=1200`, set once by `pnpm --filter api start:gate` that CI
+  and a local sweep both run, its own room for one
   parent signed in on four browsers; production keeps 600 and refuses a higher
   value at startup. A full sweep measured 790 requests in the parent's bucket
   over 2.4 min, none refused at 600, 20 November 2026. The hour window still holds:
   about five full sweeps per hour on one API process before it refuses the
   parent. The pin to `4` stays as a courtesy cap on host load. A spec that
   fakes the family (`serveFamily`) fakes everything the home it opens reads,
-  `/home/*` included: each request left to the live API spends the seeded
+  `/home/*` included, and `pinShell` fakes `/assistant/preferences`, `/notifications/unread-count` and `/school-calendar`, read by the shell on every page: each request left to the live API spends the seeded
   parent's bucket (a full sweep measured 475 there, 19 November 2026). The
   limiter is stored in Postgres and the API also keeps blocked keys in memory:
   between two local sweeps inside the hour, empty `rate_limit` and restart the

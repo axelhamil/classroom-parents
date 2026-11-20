@@ -12,9 +12,12 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Route as ProtectedRoute } from "../../../router/_protected";
-import { CHECKLIST_DEFAULTS } from "../../../shared/agenda/checklist-template";
+import {
+  type AskedStep,
+  askedStepsOf,
+  suggestedStepIdsOf,
+} from "../../../shared/agenda/checklist-template";
 import { EVENTS_KEY, type EventItem } from "../../../shared/api/queries/events";
-import type { EventCategory } from "../../../shared/events/event-labels";
 import { type ChecklistChange, changeChecklistMutationOptions } from "../api/events.mutations";
 import { patchCachedEvent } from "../api/events.queries";
 
@@ -32,35 +35,58 @@ export interface ChecklistEntry {
   id: string;
   label: string;
   done: boolean;
+  removable: boolean;
 }
 
+/**
+ * `toPrepare` is what the announcement asks, then what the parent added; `suggested` is the
+ * template of the category, kept apart and never counted. `quotes` are the passages of the
+ * announcement that ask, each once.
+ */
 export interface Checklist {
-  items: ChecklistEntry[];
+  toPrepare: ChecklistEntry[];
+  suggested: ChecklistEntry[];
+  quotes: string[];
   doneCount: number;
   toggle: (id: string, done: boolean) => void;
   add: (label: string) => void;
   remove: (id: string) => void;
 }
 
-type ChecklistEvent = Pick<EventItem, "id" | "category" | "checklist">;
+type ChecklistEvent = Pick<EventItem, "id" | "category" | "checklist" | "preparation">;
+
+const AMOUNT_LOCALE = "fr-FR";
 
 function localChecklistKey(userId: string, eventId: string): string {
   return userStorageKey(userId, `checklist:${eventId}`);
 }
 
-function entriesOf(
-  state: ChecklistState,
-  category: EventCategory,
-  t: TFunction<"events">,
-): ChecklistEntry[] {
-  const defaults = CHECKLIST_DEFAULTS[category]
-    .filter((key) => !state.removed.includes(key))
-    .map((key) => ({ id: key, label: t(key) }));
+function askedLabel({ label, amountCents, currency }: AskedStep, t: TFunction<"events">): string {
+  if (amountCents === null || currency === null) return label;
 
-  return [...defaults, ...state.extra].map((item) => ({
+  const amount = new Intl.NumberFormat(AMOUNT_LOCALE, { style: "currency", currency }).format(
+    amountCents / 100,
+  );
+
+  return t("prepare.amount", { label, amount });
+}
+
+function entriesOf(event: ChecklistEvent, t: TFunction<"events">) {
+  const { done } = event.checklist;
+  const ticked = (item: Omit<ChecklistEntry, "done">): ChecklistEntry => ({
     ...item,
-    done: state.done.includes(item.id),
-  }));
+    done: done.includes(item.id),
+  });
+  const asked = askedStepsOf(event);
+  const toPrepare = [
+    ...asked.map((step) => ({ id: step.id, label: askedLabel(step, t), removable: false })),
+    ...event.checklist.extra.map((item) => ({ ...item, removable: true })),
+  ].map(ticked);
+  const suggested = suggestedStepIdsOf(event)
+    .map((key) => ({ id: key, label: t(key), removable: true }))
+    .map(ticked);
+
+  return { toPrepare, suggested, quotes: [...new Set(asked.map((step) => step.quote))] };
 }
 
 function applied(state: ChecklistState, change: ChecklistChange): ChecklistState {
@@ -108,7 +134,7 @@ export function useChecklist(event: ChecklistEvent): Checklist {
   const { user } = ProtectedRoute.useRouteContext();
   const { mutate } = useChangeChecklist(event.id);
   const imported = useRef(false);
-  const items = entriesOf(event.checklist, event.category, t);
+  const entries = entriesOf(event, t);
   const send = (change: ChecklistChange) => mutate({ eventId: event.id, change });
 
   useEffect(() => {
@@ -124,8 +150,8 @@ export function useChecklist(event: ChecklistEvent): Checklist {
   }, [user.id, event.id, mutate]);
 
   return {
-    items,
-    doneCount: items.filter((item) => item.done).length,
+    ...entries,
+    doneCount: entries.toPrepare.filter((item) => item.done).length,
     toggle: (itemId, done) => send({ kind: "tick", itemId, done }),
     add: (label) => send({ kind: "add", id: crypto.randomUUID(), label }),
     remove: (itemId) => send({ kind: "remove", itemId }),

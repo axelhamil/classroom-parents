@@ -1,5 +1,5 @@
+import type { Icon } from "@packages/ui/components/ui/icons";
 import type { ParseKeys } from "i18next";
-import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
 import type { SchoolClock } from "../../shared/agenda/school-clock";
 import type { ChildDto } from "../../shared/api/queries/children";
@@ -23,7 +23,7 @@ export interface HomeBlockDefinition {
   descriptionKey: ParseKeys<"home">;
   /** The length of the window the block reads, written in its description. */
   windowDays?: number;
-  icon: LucideIcon;
+  icon: Icon;
   tour?: string;
   flowsOnPhone?: boolean;
   fullView?: ComponentType<HomeFullViewProps>;

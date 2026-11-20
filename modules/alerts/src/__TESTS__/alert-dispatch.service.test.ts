@@ -50,7 +50,7 @@ const CONTEXT: AlertContext = {
   email: "parent@example.com",
   eventTitle: "Contrôle de maths",
   childLabel: "Léa",
-  deadlineLabel: "dimanche 15 novembre",
+  deadline: { date: "2026-11-15", today: "2026-11-13" },
   eventUrl: "https://app.example.com/events/0196a000-0000-7000-8000-0000000000e1",
 };
 
@@ -213,7 +213,7 @@ describe("runOnce", () => {
       version: 1,
       eventTitle: "Contrôle de maths",
       childLabel: "Léa",
-      deadlineLabel: "dimanche 15 novembre",
+      deadline: { date: "2026-11-15", today: "2026-11-13" },
       eventUrl: CONTEXT.eventUrl,
     });
     expect(settledStatus()).toBe("sent");

@@ -18,9 +18,9 @@ import { WhenMeta } from "../../../../shared/agenda/when-meta";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import {
-  CATEGORY_ICONS,
   CATEGORY_LABEL_KEYS,
   CATEGORY_TONES,
+  categoryIcon,
 } from "../../../../shared/events/event-labels";
 import { EventLink } from "../../../../shared/events/event-link";
 import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
@@ -33,6 +33,9 @@ export interface CalendarEventRowProps {
   withChild?: boolean;
   compact?: boolean;
   withCountdown?: boolean;
+  courseName?: string;
+  surface?: "tint" | "paper";
+  withCategoryWord?: boolean;
   children?: ReactNode;
 }
 
@@ -50,12 +53,15 @@ export function CalendarEventRow({
   withChild = true,
   compact = false,
   withCountdown = false,
+  courseName,
+  surface = "tint",
+  withCategoryWord = !compact,
   children,
 }: CalendarEventRowProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
   const clock = useSchoolClock();
-  const CategoryIcon = CATEGORY_ICONS[event.category];
+  const CategoryIcon = categoryIcon(event.category);
   const hue = childHue(family, event.childId);
   const childLabel = withChild && family.length > 1 ? childLabelOf(family, event.childId) : "";
   const status = stateOf(event, clock);
@@ -66,7 +72,12 @@ export function CalendarEventRow({
   });
 
   return (
-    <CalendarEntry hue={hue} state={state} density={compact ? "compact" : "comfortable"}>
+    <CalendarEntry
+      hue={hue}
+      surface={surface}
+      state={state}
+      density={compact ? "compact" : "comfortable"}
+    >
       <Checkbox
         tone={hue}
         checked={event.done}
@@ -80,10 +91,11 @@ export function CalendarEventRow({
         <CalendarEntryMeta>
           <DeadlineCategory tone={CATEGORY_TONES[event.category]} size="xs">
             <CategoryIcon aria-hidden />
-            <span className={compact ? "sr-only" : undefined}>
+            <span className={withCategoryWord ? undefined : "sr-only"}>
               {t(CATEGORY_LABEL_KEYS[event.category])}
             </span>
           </DeadlineCategory>
+          {courseName && <span>{courseName}</span>}
           <WhenMeta when={when} clock={clock} />
           {childLabel && (
             <span className="flex min-w-0 items-center gap-1">

@@ -7,9 +7,9 @@ import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { assistantPreferencesQueryOptions } from "../../../shared/api/queries/assistant-preferences";
 import { QueryState } from "../../../shared/query/query-state";
 import { setExtractionMutationOptions } from "../api/settings.mutations";
-import { assistantPreferencesQueryOptions } from "../api/settings.queries";
 
 export interface AiReadingCardProps {
   userId: string;

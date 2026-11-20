@@ -4,12 +4,11 @@ export default {
     today: "Aujourd'hui",
     tomorrow: "Demain",
     dateWithTime: "{{date}}, {{time}}",
+    relativeWithDate: "{{day}}, {{date}}",
     hours: "{{hours}} h",
     hoursMinutes: "{{hours}} h {{minutes}}",
-  },
-  alertLine: {
-    short: "{{eventTitle}}, {{deadline}}",
-    withChild: "{{childLabel}} : {{eventTitle}}, {{deadline}}",
+    childTitle: "{{child}} : {{title}}",
+    lineWithWhen: "{{line}}, {{when}}",
   },
   reminders: {
     sameDay: "Le jour même, à {{time}}",

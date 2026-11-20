@@ -12,6 +12,7 @@ import { TypographyH3 } from "@packages/ui/components/ui/typography";
 import { UnreadDot } from "@packages/ui/components/ui/unread-mark";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useSchoolClock } from "../agenda/school-clock-context";
 import type { ChildDto } from "../api/queries/children";
 import { childAvatarSrc } from "../children/child-avatar-src";
 import { childHue } from "../format/child-hue";
@@ -45,10 +46,11 @@ interface NotificationRowProps {
   notification: NotificationItem;
   child: ChildDto | undefined;
   hue: ReturnType<typeof childHue>;
+  timeZone: string;
   onOpen: (notification: NotificationItem) => void;
 }
 
-function NotificationRow({ notification, child, hue, onOpen }: NotificationRowProps) {
+function NotificationRow({ notification, child, hue, timeZone, onOpen }: NotificationRowProps) {
   const { t } = useTranslation("notifications");
   const { copy, target, icon: Icon } = notificationView(notification, child?.label ?? null);
   const unread = notification.readAt === null;
@@ -67,8 +69,8 @@ function NotificationRow({ notification, child, hue, onOpen }: NotificationRowPr
           <ItemContent>
             <ItemTitle>{t(copy.key, copy.values)}</ItemTitle>
             <ItemDescription className="flex items-center gap-2 tabular-nums">
-              {child && <Icon aria-hidden className="size-4" />}
-              {notificationTimeLabel(notification.createdAt)}
+              {child && <Icon aria-hidden className="size-icon" />}
+              {notificationTimeLabel(notification.createdAt, timeZone)}
             </ItemDescription>
           </ItemContent>
           {unread && (
@@ -86,18 +88,18 @@ function NotificationRow({ notification, child, hue, onOpen }: NotificationRowPr
 export interface NotificationListProps {
   notifications: readonly NotificationItem[];
   family: readonly ChildDto[];
-  now: Date;
   onOpen: (notification: NotificationItem) => void;
 }
 
-export function NotificationList({ notifications, family, now, onOpen }: NotificationListProps) {
+export function NotificationList({ notifications, family, onOpen }: NotificationListProps) {
   const { t } = useTranslation("notifications");
+  const { today, timeZone } = useSchoolClock();
   const labels = { today: t("days.today"), yesterday: t("days.yesterday") };
 
-  return groupByDay(notifications).map((day) => (
+  return groupByDay(notifications, timeZone).map((day) => (
     <section key={day.date} aria-labelledby={`notifications-${day.date}`} className="flex flex-col">
       <TypographyH3 id={`notifications-${day.date}`}>
-        {notificationDayLabel(day.date, now, labels)}
+        {notificationDayLabel(day.date, today, labels)}
       </TypographyH3>
       <ul className="flex flex-col">
         {day.items.map((notification) => (
@@ -106,6 +108,7 @@ export function NotificationList({ notifications, family, now, onOpen }: Notific
             notification={notification}
             child={family.find((child) => child.id === notification.childId)}
             hue={notification.childId ? childHue(family, notification.childId) : 1}
+            timeZone={timeZone}
             onOpen={onOpen}
           />
         ))}

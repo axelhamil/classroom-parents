@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Option, Result } from "@packages/ddd-kit";
+import { mondayOf, shiftDate } from "@packages/ddd-kit/days";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -14,7 +16,7 @@ import type {
   IDigestAudience,
   IDigestDeadlines,
 } from "../application/ports/digest-audience.port";
-import type { IPushCopy } from "../application/ports/push-copy.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import type { IPushSender } from "../application/ports/push-sender.port";
 import type {
   IPushSubscriptionRepository,
@@ -28,6 +30,7 @@ import {
   DIGEST_PLAN_BATCH,
   WeeklyDigestService,
 } from "../application/services/weekly-digest.service";
+import { I18nPushCopy } from "../infrastructure/adapters/i18n-push.copy";
 import { PARENT, paris } from "../testing/alert.fixture";
 
 const DIGEST_ID = "0196a000-0000-7000-8000-0000000000d1";
@@ -69,7 +72,7 @@ let subscriptions: PortMock<IPushSubscriptionRepository>;
 let push: PortMock<IPushSender>;
 let email: PortMock<IAlertEmailSender>;
 let outbox: PortMock<IOutboxRepository>;
-let copy: PortMock<IPushCopy>;
+let timeZones: PortMock<IParentTimeZone>;
 let service: WeeklyDigestService;
 
 function claimed(overrides: Partial<ClaimedDigest> = {}): ClaimedDigest {
@@ -99,9 +102,9 @@ beforeEach(() => {
   push = mockPort<IPushSender>();
   email = mockPort<IAlertEmailSender>();
   outbox = mockPort<IOutboxRepository>();
-  copy = mockPort<IPushCopy>();
+  timeZones = mockPort<IParentTimeZone>();
 
-  copy.forWeek.mockImplementation(async (count) => `week of ${count}`);
+  timeZones.of.mockResolvedValue(PARIS_TIME_ZONE);
   audience.awaiting.mockResolvedValue(Result.ok([]));
   audience.emailOf.mockResolvedValue(Result.ok(Option.some("parent@example.com")));
   digests.plan.mockResolvedValue(Result.ok(0));
@@ -119,10 +122,11 @@ beforeEach(() => {
     digests,
     audience,
     deadlines,
+    timeZones,
     subscriptions,
     push,
     email,
-    copy,
+    new I18nPushCopy(),
     mockUnitOfWork().unitOfWork,
     outbox,
     mockInstrumentation(),
@@ -189,7 +193,7 @@ describe("sending a planned digest", () => {
     expect(deadlines.within).toHaveBeenCalledWith(PARENT, MONDAY, paris("2026-11-23", "00:00"));
     expect(push.send.mock.calls[0]?.[1]).toEqual({
       title: "Votre semaine",
-      body: "5 échéances cette semaine : 2 pour Léa, 3 pour Hugo. Prochaine : Piscine lundi.",
+      body: "5 échéances cette semaine : 2 pour Léa, 3 pour Hugo. Prochaine : Piscine, demain.",
       url: "https://app.example.com/",
       tag: `week-${WEEK}`,
       notificationRef: `digest:${DIGEST_ID}`,
@@ -220,8 +224,18 @@ describe("sending a planned digest", () => {
     await service.runOnce(SUNDAY_EVENING);
 
     expect(push.send.mock.calls[0]?.[1].body).toBe(
-      "1 échéance cette semaine pour Léa. Prochaine : Piscine mardi.",
+      "1 échéance cette semaine pour Léa. Prochaine : Piscine, mardi 17 novembre.",
     );
+  });
+
+  it("given a parent whose zone is already on Monday, then the next deadline reads today in that zone", async () => {
+    givenClaimed();
+    timeZones.of.mockResolvedValue("Asia/Tokyo");
+
+    await service.runOnce(SUNDAY_EVENING);
+
+    expect(timeZones.of).toHaveBeenCalledWith(PARENT);
+    expect(push.send.mock.calls[0]?.[1].body).toEndWith("Prochaine : Piscine, aujourd'hui.");
   });
 
   it("given a parent who never chose to show details on the lock screen, then the push only counts the deadlines", async () => {
@@ -232,7 +246,7 @@ describe("sending a planned digest", () => {
 
     expect(push.send.mock.calls[0]?.[1]).toMatchObject({
       title: "Votre semaine",
-      body: "week of 5",
+      body: "5 échéances cette semaine.",
     });
   });
 
@@ -245,7 +259,7 @@ describe("sending a planned digest", () => {
     expect(result.getValue()).toMatchObject({ sent: 0, emailed: 1 });
     expect(email.sendDigest).toHaveBeenCalledWith("parent@example.com", {
       digestId: DIGEST_ID,
-      summary: "5 échéances cette semaine : 2 pour Léa, 3 pour Hugo. Prochaine : Piscine lundi.",
+      summary: "5 échéances cette semaine : 2 pour Léa, 3 pour Hugo. Prochaine : Piscine, demain.",
       appUrl: "https://app.example.com/",
     });
     expect(settlement()).toEqual({ status: "sent", channel: "email", at: SUNDAY_EVENING });
@@ -345,5 +359,76 @@ describe("email fallback failures", () => {
 
     expect(digests.addFailure).not.toHaveBeenCalled();
     expect(digests.settle).not.toHaveBeenCalled();
+  });
+});
+
+describe("invariant: the digest counts what the app's week shows", () => {
+  interface FixtureDeadline extends DigestDeadline {
+    status: "confirmed" | "needs_review";
+    done: boolean;
+  }
+
+  function at(
+    title: string,
+    date: string,
+    time: string,
+    status: FixtureDeadline["status"] = "confirmed",
+    done = false,
+  ): FixtureDeadline {
+    return {
+      title,
+      childId: LEA,
+      childLabel: "Léa",
+      deadlineAt: paris(date, time),
+      deadlineDate: date,
+      status,
+      done,
+    };
+  }
+
+  const FIXTURE: FixtureDeadline[] = [
+    at("Veille", "2026-11-15", "23:30"),
+    at("Lundi minuit", "2026-11-16", "00:00"),
+    at("Mardi", "2026-11-17", "08:30"),
+    at("À vérifier", "2026-11-18", "08:30", "needs_review"),
+    at("Fait", "2026-11-19", "08:30", "confirmed", true),
+    at("Dimanche soir", "2026-11-22", "23:59"),
+    at("Lundi suivant", "2026-11-23", "00:00"),
+    at("Lundi suivant, nuit", "2026-11-23", "00:30"),
+  ];
+
+  function isAlertable({ status, done }: FixtureDeadline): boolean {
+    return status === "confirmed" && !done;
+  }
+
+  function appWeekCount(today: string): number {
+    const from = mondayOf(today);
+    const to = shiftDate(from, 6);
+
+    return FIXTURE.filter(
+      (deadline) =>
+        isAlertable(deadline) && deadline.deadlineDate >= from && deadline.deadlineDate <= to,
+    ).length;
+  }
+
+  it("given one fixture, then the count the digest announces equals the app's calendar week count on that Monday, same statuses", async () => {
+    givenClaimed();
+    deadlines.within.mockImplementation(async (_userId, from, to) =>
+      Result.ok(
+        FIXTURE.filter(
+          (deadline) =>
+            isAlertable(deadline) && deadline.deadlineAt >= from && deadline.deadlineAt < to,
+        ),
+      ),
+    );
+
+    await service.runOnce(SUNDAY_EVENING);
+
+    const announced = enqueuedEvents(outbox)[0]?.payload;
+    expect(announced).toMatchObject({ deadlines: appWeekCount(WEEK) });
+    expect(appWeekCount(WEEK)).toBe(3);
+    expect(push.send.mock.calls[0]?.[1].body).toBe(
+      "3 échéances cette semaine pour Léa. Prochaine : Lundi minuit, demain.",
+    );
   });
 });

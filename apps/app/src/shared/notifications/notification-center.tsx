@@ -1,4 +1,5 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { NotificationsIcon } from "@packages/ui/components/ui/icons";
 import {
   Popover,
   PopoverBody,
@@ -8,8 +9,7 @@ import {
 } from "@packages/ui/components/ui/popover";
 import { TypographyH2 } from "@packages/ui/components/ui/typography";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellIcon } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { childrenQueryOptions } from "../api/queries/children";
 import { BoardEmpty } from "../events/event-board";
@@ -39,7 +39,6 @@ export interface NotificationFeedProps {
 
 export function NotificationFeed({ onClose }: NotificationFeedProps) {
   const { t } = useTranslation("notifications");
-  const [now] = useState(() => new Date());
   const refresh = useRefreshNotifications();
   const feed = useInfiniteQuery(notificationPagesQueryOptions);
   const unread = useQuery(unreadCountQueryOptions).data ?? 0;
@@ -71,7 +70,7 @@ export function NotificationFeed({ onClose }: NotificationFeedProps) {
         skeleton={<NotificationListSkeleton label={t("loading")} />}
         empty={
           <BoardEmpty
-            icon={BellIcon}
+            icon={NotificationsIcon}
             title={t("empty.title")}
             description={t("empty.description")}
           />
@@ -83,7 +82,6 @@ export function NotificationFeed({ onClose }: NotificationFeedProps) {
             <NotificationList
               notifications={data.pages.flatMap((page) => page.notifications)}
               family={family}
-              now={now}
               onOpen={open}
             />
             {feed.hasNextPage && (

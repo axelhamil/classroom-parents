@@ -1,10 +1,10 @@
 import { CardColumns } from "@packages/ui/components/ui/card-columns";
+import { AnnouncementsIcon, CoursesIcon, CourseworkIcon } from "@packages/ui/components/ui/icons";
 import { Item, ItemContent, ItemGroup, ItemMedia } from "@packages/ui/components/ui/item";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { TypographyP } from "@packages/ui/components/ui/typography";
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, ClipboardList, Megaphone } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { env } from "../../shared/env";
 import { Screen } from "../../shared/layout/screen";
@@ -15,9 +15,9 @@ export const Route = createFileRoute("/_protected/_shell/settings/privacy")({
 });
 
 const READS = [
-  { key: "privacy.reads.courses", icon: BookOpen },
-  { key: "privacy.reads.announcements", icon: Megaphone },
-  { key: "privacy.reads.coursework", icon: ClipboardList },
+  { key: "privacy.reads.courses", icon: CoursesIcon },
+  { key: "privacy.reads.announcements", icon: AnnouncementsIcon },
+  { key: "privacy.reads.coursework", icon: CourseworkIcon },
 ] as const;
 
 function PrivacyPage() {

@@ -137,6 +137,20 @@ describe("the block À vérifier", () => {
     await waitFor(() => expect(document.activeElement).toBe(allClear.parentElement));
   });
 
+  it("given the last date confirmed, then its undo stays offered until the parent leaves the home", async () => {
+    at(THURSDAY_MORNING);
+    givenCalendar([CHILD], [museum()]);
+    const router = await renderAppAt("/");
+
+    await confirmMuseum();
+    await within(await reviewBlock()).findByText("Tout est vérifié");
+    expect(screen.getByRole("button", { name: "Annuler" })).toBeDefined();
+
+    void router.navigate({ to: "/history" });
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull());
+  });
+
   it("given nothing to check, then the block says so at its size instead of an empty card", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);

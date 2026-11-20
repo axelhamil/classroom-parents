@@ -2,6 +2,13 @@ import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
 import {
+  BrowserIcon,
+  ComputerIcon,
+  type Icon,
+  PhoneIcon,
+  SignOutIcon,
+} from "@packages/ui/components/ui/icons";
+import {
   Item,
   ItemActions,
   ItemContent,
@@ -17,7 +24,6 @@ import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { useFormatDateTime } from "@packages/web-kit/i18n/use-format-date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Globe, Laptop, LogOut, type LucideIcon, Smartphone } from "lucide-react";
 import { type ComponentProps, useId } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -32,13 +38,13 @@ import {
   summarizeUserAgent,
 } from "../device-labels";
 
-const DEVICE_ICONS: Record<DeviceKind, LucideIcon> = {
-  ios: Smartphone,
-  android: Smartphone,
-  mac: Laptop,
-  windows: Laptop,
-  linux: Laptop,
-  unknown: Globe,
+const DEVICE_ICONS: Record<DeviceKind, Icon> = {
+  ios: PhoneIcon,
+  android: PhoneIcon,
+  mac: ComputerIcon,
+  windows: ComputerIcon,
+  linux: ComputerIcon,
+  unknown: BrowserIcon,
 };
 
 export interface DevicesCardProps {
@@ -86,7 +92,7 @@ export function DevicesCard({ userId, currentSessionToken }: DevicesCardProps) {
           <DestructiveActionDialog
             trigger={
               <Button type="button" variant="outline" disabled={revokeOthers.isPending}>
-                <LogOut />
+                <SignOutIcon />
                 {t("devices.revokeOthers")}
               </Button>
             }
@@ -216,7 +222,7 @@ function DeviceRow({ session, isCurrent, locked, onRevoked, ...props }: DeviceRo
             disabled={locked || revoke.isPending}
             onClick={() => revoke.mutate(session.token)}
           >
-            <LogOut />
+            <SignOutIcon />
             <span className="sr-only @sm:not-sr-only">{t("devices.revoke")}</span>
           </Button>
         </ItemActions>

@@ -21,12 +21,12 @@ function CopyableValue({ value, copyLabel, onCopied, className, ...props }: Copy
   return (
     <Panel
       tone="muted"
-      className={cn("flex items-center gap-2 font-mono text-sm break-all", className)}
+      className={cn("flex items-center gap-2 font-mono text-small break-all", className)}
       {...props}
     >
       <span className="flex-1">{value}</span>
       <IconButton variant="ghost" onClick={copy} label={copyLabel}>
-        <CopyIcon className="size-4" />
+        <CopyIcon className="size-icon" />
       </IconButton>
     </Panel>
   );

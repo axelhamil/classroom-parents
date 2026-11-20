@@ -1,10 +1,10 @@
+import { ChildIcon, HomeIcon, SettingsIcon } from "@packages/ui/components/ui/icons";
 import { useRouterState } from "@tanstack/react-router";
-import { Backpack, House, Settings } from "lucide-react";
 
 export const NAV_ITEMS = [
-  { to: "/", sections: ["/events", "/history"], labelKey: "nav.home", icon: House },
-  { to: "/children", sections: ["/children"], labelKey: "nav.children", icon: Backpack },
-  { to: "/settings", sections: ["/settings"], labelKey: "nav.settings", icon: Settings },
+  { to: "/", sections: ["/events", "/history"], labelKey: "nav.home", icon: HomeIcon },
+  { to: "/children", sections: ["/children"], labelKey: "nav.children", icon: ChildIcon },
+  { to: "/settings", sections: ["/settings"], labelKey: "nav.settings", icon: SettingsIcon },
 ] as const;
 
 function isActive(pathname: string, to: string, sections: readonly string[]): boolean {

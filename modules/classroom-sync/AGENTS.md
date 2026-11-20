@@ -2,6 +2,10 @@
 
 Reads each linked child's Classroom (courses, announcements, coursework) and hands deadlines to the agenda. Module contract: `modules/CLAUDE.md`.
 
+## A child blocked by its school
+
+**The scheduled sync retries it by itself, the parent never has to.** A child `blocked_by_school` is claimed like a connected one once its `next_sync_at` is due, which the children module spaces out an hour after the block, then six hours, then once a day (`SCHOOL_RETRY_DELAYS_MS`, counted by `sync_attempts`): one course listing per try, so a school that never answers costs one Google call a day. A read that succeeds ends the sync like any other, and `markSynced` turns the child connected and emits `child.account.connected` with `restoredFrom: "school_blocked"` and `actorUserId: null` in that same unit of work; the notification center and the live stream take it from there. Proven by `check:child-db` and `check:end-to-end`.
+
 ## Rereading a parent's announcements (`reread:announcements`)
 
 `pnpm --filter api reread:announcements (--user <id> | --email <address>) [--child <id>] [--with-model] [--apply]` rereads, with the current extraction, the announcements of the sync window that already gave deadlines (ledger `extracted`), and fills the evidence and the preparation of those deadlines.

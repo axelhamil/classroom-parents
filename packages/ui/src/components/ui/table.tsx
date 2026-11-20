@@ -7,11 +7,11 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       data-slot="table-container"
       // biome-ignore lint/a11y/noNoninteractiveTabindex: a horizontally scrolling region must be reachable by keyboard, WCAG 2.1.1
       tabIndex={0}
-      className="relative w-full overflow-x-auto rounded-sm outline-none focus-visible:ring focus-visible:ring-ring"
+      className="relative w-full overflow-x-auto rounded-inner outline-none focus-visible:ring focus-visible:ring-ring"
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-small", className)}
         {...props}
       />
     </div>
@@ -85,7 +85,7 @@ function TableCaption({ className, ...props }: React.ComponentProps<"caption">) 
   return (
     <caption
       data-slot="table-caption"
-      className={cn("mt-4 text-sm text-muted-foreground", className)}
+      className={cn("mt-4 text-small text-muted-foreground", className)}
       {...props}
     />
   );

@@ -65,31 +65,41 @@
     "Google Sans Flex", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display-variation: "ROND" 100;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --radius: 1rem;
+  /*
+   * A closed system: every radius, padding, control height and icon size is named by its role. A surface's corner is computed
+   * from its padding (inner corner + padding), so a block laid inside a surface is concentric by construction.
+   */
+  --corner-mark: 0.375rem;
+  --corner-inner: 0.75rem;
+  --radius: var(--corner-inner);
+  --surface-padding: 1rem;
+  --popover-padding: 0.25rem;
+  --block-padding: 0.75rem;
+  /* Coarse pointer first: md is the 44px touch target, lg is always md + 8px so a tab list holds a concentric trigger. */
+  --control-sm: 2rem;
+  --control-md: 2.75rem;
+  --control-lg: 3.25rem;
+  --icon-mark: 0.5rem;
+  --icon-sm: 0.875rem;
+  --icon-md: 1rem;
+  --icon-lg: 1.25rem;
+  --icon-stroke: 1.75;
+  /* The urgency edge, the same in both themes: 3.10 to 4.28:1 in light and 3.01 to 4.90:1 in dark on every palette surface and child container, at most 4.5:1 on any card. */
+  --warning-edge: oklch(0.585 0.12 75);
+  --stripe-width: 0.1875rem;
   /*
    * Paper lying on a desk under one light from above: every shadow falls straight down, a tight contact line first, then a soft
    * spread pulled in by a negative spread so no sheet glows on its sides. Tinted by the palette's ink, never neutral black.
    */
-  --shadow-2xs: 0 1px 0 0 color-mix(in oklch, var(--shadow-color) 5%, transparent);
   --shadow-xs:
     0 1px 0 0 color-mix(in oklch, var(--shadow-color) 6%, transparent),
     0 1px 3px -1px color-mix(in oklch, var(--shadow-color) 8%, transparent);
   --shadow-sm:
     0 1px 1px 0 color-mix(in oklch, var(--shadow-color) 7%, transparent),
     0 3px 6px -2px color-mix(in oklch, var(--shadow-color) 10%, transparent);
-  --shadow:
-    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 7%, transparent),
-    0 4px 10px -3px color-mix(in oklch, var(--shadow-color) 11%, transparent);
-  --shadow-md:
-    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 7%, transparent),
-    0 6px 14px -4px color-mix(in oklch, var(--shadow-color) 12%, transparent);
   --shadow-lg:
     0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 8%, transparent),
     0 10px 28px -8px color-mix(in oklch, var(--shadow-color) 18%, transparent);
-  --shadow-xl:
-    0 2px 4px 0 color-mix(in oklch, var(--shadow-color) 8%, transparent),
-    0 16px 36px -12px color-mix(in oklch, var(--shadow-color) 20%, transparent);
-  --shadow-2xl: 0 24px 48px -16px color-mix(in oklch, var(--shadow-color) 24%, transparent);
   /* One elevation scale, three floors: a sheet resting on the paper, a sheet lifted (hover, selected, stamp), a surface floating above the page (menu, popover, dialog, sheet). */
   --shadow-rest: var(--shadow-xs);
   --shadow-raised: var(--shadow-sm);
@@ -196,9 +206,6 @@
   --tour-halo: color-mix(in oklch, var(--primary) 22%, transparent);
   --skeleton-shine: color-mix(in oklch, var(--card) 75%, transparent);
   --confetti-reach: 1.5rem;
-  --sidebar-width: 16rem;
-  --sidebar-width-icon: 3.5rem;
-  --sidebar-width-mobile: 18rem;
   --print-paper: oklch(1 0 0);
   --print-ink: oklch(0.2 0.01 60);
   --print-ink-muted: oklch(0.4 0.01 60);
@@ -226,12 +233,27 @@
   }
 }
 
+@media (pointer: fine) {
+  :root {
+    --control-sm: 1.75rem;
+    --control-md: 2.25rem;
+    --control-lg: 2.75rem;
+  }
+}
+
+@media (width >= 48rem) {
+  :root {
+    --surface-padding: 1.25rem;
+  }
+}
+
 .dark {
   color-scheme: dark;
   --destructive: oklch(0.74 0.15 25);
   --destructive-foreground: oklch(0.22 0.05 25);
   --warning: oklch(0.83 0.13 80);
   --warning-foreground: oklch(0.26 0.06 55);
+  --warning-edge: oklch(0.585 0.12 75);
   --highlight: oklch(0.44 0.08 75);
   --highlight-foreground: oklch(0.96 0.02 88);
   --success: oklch(0.79 0.13 150);
@@ -253,26 +275,15 @@
   --category-document-due: oklch(0.84 0.1 75);
   --category-document-due-tint: oklch(0.32 0.045 75);
   --skeleton-shine: color-mix(in oklch, var(--foreground) 7%, transparent);
-  --shadow-2xs: 0 1px 0 0 color-mix(in oklch, var(--shadow-color) 30%, transparent);
   --shadow-xs:
     0 1px 0 0 color-mix(in oklch, var(--shadow-color) 34%, transparent),
     0 1px 3px -1px color-mix(in oklch, var(--shadow-color) 40%, transparent);
   --shadow-sm:
     0 1px 1px 0 color-mix(in oklch, var(--shadow-color) 38%, transparent),
     0 3px 6px -2px color-mix(in oklch, var(--shadow-color) 44%, transparent);
-  --shadow:
-    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 40%, transparent),
-    0 4px 10px -3px color-mix(in oklch, var(--shadow-color) 46%, transparent);
-  --shadow-md:
-    0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 40%, transparent),
-    0 6px 14px -4px color-mix(in oklch, var(--shadow-color) 48%, transparent);
   --shadow-lg:
     0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 42%, transparent),
     0 10px 28px -8px color-mix(in oklch, var(--shadow-color) 56%, transparent);
-  --shadow-xl:
-    0 2px 4px 0 color-mix(in oklch, var(--shadow-color) 44%, transparent),
-    0 16px 36px -12px color-mix(in oklch, var(--shadow-color) 60%, transparent);
-  --shadow-2xl: 0 24px 48px -16px color-mix(in oklch, var(--shadow-color) 64%, transparent);
   /* On a dark sheet the grain turns to pale specks, weaker still. */
   --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.045'/%3E%3C/svg%3E");
 }
@@ -291,14 +302,6 @@
   --ring: var(--primary);
   /* The surface under a focused control, restated by every card, panel and popover: the focus gap takes its colour. */
   --focus-surface: var(--background);
-  --sidebar: var(--background);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--secondary);
-  --sidebar-accent-foreground: var(--secondary-foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
 }
 
 /*
@@ -483,7 +486,7 @@
 .dark [data-palette="slate"] {
   --background: oklch(0.215 0.016 190);
   --foreground: oklch(0.94 0.008 190);
-  --card: oklch(0.25 0.018 190);
+  --card: oklch(0.245 0.018 190);
   --popover: oklch(0.28 0.019 190);
   --surface-container: oklch(0.27 0.018 190);
   --surface-container-high: oklch(0.31 0.021 190);
@@ -496,7 +499,7 @@
   --secondary: oklch(0.335 0.021 190);
   --secondary-foreground: oklch(0.93 0.012 190);
   --border: oklch(0.37 0.019 190);
-  --input: oklch(0.56 0.02 190);
+  --input: oklch(0.58 0.02 190);
   --shadow-color: oklch(0.07 0.015 190);
   --child-1: oklch(0.47 0.085 175);
   --child-1-container: oklch(0.31 0.045 175);
@@ -590,7 +593,7 @@
   --secondary: oklch(0.31 0.025 248);
   --secondary-foreground: oklch(0.93 0.012 248);
   --border: oklch(0.345 0.048 248);
-  --input: oklch(0.56 0.02 248);
+  --input: oklch(0.58 0.02 248);
   --shadow-color: oklch(0.07 0.015 248);
   --child-2: oklch(0.47 0.119 268);
   --child-2-container: oklch(0.31 0.045 268);
@@ -639,7 +642,7 @@
   --secondary: oklch(0.31 0.025 155);
   --secondary-foreground: oklch(0.93 0.012 155);
   --border: oklch(0.345 0.036 155);
-  --input: oklch(0.56 0.02 155);
+  --input: oklch(0.58 0.02 155);
   --shadow-color: oklch(0.07 0.015 155);
   --child-6: oklch(0.47 0.085 112);
   --child-6-mark: oklch(0.8 0.085 112);
@@ -688,7 +691,7 @@
   --secondary: oklch(0.32 0.025 35);
   --secondary-foreground: oklch(0.93 0.012 35);
   --border: oklch(0.355 0.03 35);
-  --input: oklch(0.56 0.02 35);
+  --input: oklch(0.59 0.02 35);
   --shadow-color: oklch(0.07 0.015 35);
   --child-2: oklch(0.47 0.119 268);
   --child-2-container: oklch(0.31 0.045 268);
@@ -740,7 +743,7 @@
   --secondary: oklch(0.32 0.025 85);
   --secondary-foreground: oklch(0.93 0.012 85);
   --border: oklch(0.355 0.03 85);
-  --input: oklch(0.56 0.02 85);
+  --input: oklch(0.58 0.02 85);
   --shadow-color: oklch(0.07 0.015 85);
 }
 
@@ -784,7 +787,7 @@
   --secondary: oklch(0.32 0.025 355);
   --secondary-foreground: oklch(0.93 0.012 355);
   --border: oklch(0.355 0.026 355);
-  --input: oklch(0.56 0.02 355);
+  --input: oklch(0.59 0.02 355);
   --shadow-color: oklch(0.07 0.015 355);
   --child-1-mark: oklch(0.9 0.085 185);
   --child-7-mark: oklch(0.9 0.102 150);
@@ -832,7 +835,7 @@
   --secondary: oklch(0.32 0.025 175);
   --secondary-foreground: oklch(0.93 0.012 175);
   --border: oklch(0.355 0.03 175);
-  --input: oklch(0.56 0.02 175);
+  --input: oklch(0.58 0.02 175);
   --shadow-color: oklch(0.07 0.015 175);
 }
 
@@ -875,7 +878,7 @@
   --secondary: oklch(0.32 0.025 70);
   --secondary-foreground: oklch(0.93 0.012 70);
   --border: oklch(0.355 0.024 70);
-  --input: oklch(0.56 0.02 70);
+  --input: oklch(0.58 0.02 70);
   --shadow-color: oklch(0.07 0.015 70);
 }
 
@@ -920,7 +923,7 @@
   --secondary: oklch(0.285 0.025 275);
   --secondary-foreground: oklch(0.93 0.012 275);
   --border: oklch(0.32 0.054 275);
-  --input: oklch(0.56 0.02 275);
+  --input: oklch(0.58 0.02 275);
   --shadow-color: oklch(0.07 0.015 275);
   --child-3: oklch(0.47 0.128 306);
   --child-3-container: oklch(0.31 0.045 306);
@@ -969,7 +972,7 @@
   --secondary: oklch(0.29 0.025 210);
   --secondary-foreground: oklch(0.93 0.012 210);
   --border: oklch(0.325 0.048 210);
-  --input: oklch(0.56 0.02 210);
+  --input: oklch(0.58 0.02 210);
   --shadow-color: oklch(0.07 0.015 210);
   --child-1-mark: oklch(0.9 0.085 185);
   --child-6-container: oklch(0.28 0.045 125);
@@ -1004,6 +1007,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-edge: var(--warning-edge);
   --color-highlight: var(--highlight);
   --color-highlight-foreground: var(--highlight-foreground);
   --color-success: var(--success);
@@ -1081,21 +1085,12 @@
   --color-category-swimming-tint: var(--category-swimming-tint);
   --color-category-document-due: var(--category-document-due);
   --color-category-document-due-tint: var(--category-document-due-tint);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);
   --font-display--font-variation-settings: var(--font-display-variation);
   --font-mono: var(--font-mono);
 
-  --spacing-touch: var(--touch-target);
   --spacing-nav: var(--nav-height);
   --spacing-app-bar: var(--app-bar-height);
   --spacing-page-gutter: var(--page-gutter);
@@ -1114,14 +1109,39 @@
   --spacing-day-gutter-title: var(--day-gutter-title);
   --spacing-print-item: var(--print-item-space);
 
-  --radius-xs: calc(var(--radius) * 0.4);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --spacing-surface: var(--surface-padding);
+  --spacing-popover: var(--popover-padding);
+  --spacing-block: var(--block-padding);
+  --spacing-control-sm: var(--control-sm);
+  --spacing-control: var(--control-md);
+  --spacing-control-lg: var(--control-lg);
+  --spacing-icon-mark: var(--icon-mark);
+  --spacing-icon-sm: var(--icon-sm);
+  --spacing-icon: var(--icon-md);
+  --spacing-icon-lg: var(--icon-lg);
+
+  --radius-*: initial;
+  --radius-mark: var(--corner-mark);
+  --radius-inner: var(--corner-inner);
+  --radius-popover: calc(var(--corner-inner) + var(--popover-padding));
+  --radius-surface: calc(var(--corner-inner) + var(--surface-padding));
+
+  --text-display: 1.875rem;
+  --text-display--line-height: 2.25rem;
+  --text-display--letter-spacing: calc(var(--tracking-normal) - 0.025em);
+  --text-display--font-weight: 700;
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.5rem;
+  --text-title--font-weight: 600;
+  --text-heading: 1rem;
+  --text-heading--line-height: 1.5rem;
+  --text-heading--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.25rem;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1rem;
 
   --default-ring-width: var(--ring-width);
   --default-transition-duration: 150ms;
@@ -1131,14 +1151,7 @@
   --ease-drawer: var(--ease-drawer);
   --ease-move: var(--ease-move);
 
-  --shadow-2xs: var(--shadow-2xs);
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow: var(--shadow);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-2xl: var(--shadow-2xl);
+  --shadow-*: initial;
   --shadow-rest: var(--shadow-rest);
   --shadow-raised: var(--shadow-raised);
   --shadow-float: var(--shadow-float);
@@ -1176,7 +1189,7 @@
 
   /* A passage the app points at inside a quoted text: a soft amber, quieter than the warning of urgency. */
   mark {
-    @apply rounded-sm bg-highlight px-0.5 text-highlight-foreground;
+    @apply rounded-mark bg-highlight px-0.5 text-highlight-foreground;
     box-decoration-break: clone;
   }
 
@@ -1216,6 +1229,15 @@
 
   html {
     scroll-padding-top: calc(var(--app-bar-height) + env(safe-area-inset-top));
+  }
+
+  /* The phone agenda's strip of days sticks under the app bar: what Tab or a jump scrolls to lands below both. */
+  html:has([data-slot="calendar-day-strip"]) {
+    scroll-padding-top: calc(
+      var(--app-bar-height) +
+      var(--day-strip-height) +
+      env(safe-area-inset-top)
+    );
   }
 
   @media (width < 48rem) {
@@ -1266,6 +1288,13 @@
     cursor: pointer;
   }
 
+  /* An icon a primitive does not size draws at the default role, never at the library's 24 px. */
+  svg.lucide {
+    width: var(--icon-md);
+    height: var(--icon-md);
+    stroke-width: var(--icon-stroke);
+  }
+
   ::selection {
     @apply bg-primary/20 text-foreground;
   }
@@ -1287,8 +1316,7 @@
   [role="button"],
   [role="tab"],
   [data-slot="nav-link"],
-  [data-slot="app-navigation-item"],
-  [data-slot="sidebar-menu-button"] {
+  [data-slot="app-navigation-item"] {
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
@@ -1313,34 +1341,23 @@
     transform: scale(var(--press-scale));
   }
 
-  @media (pointer: coarse), (width < 48rem) {
-    [data-slot="button"],
-    [data-slot="nav-link"],
-    [data-slot="toggle-group-item"] {
-      min-height: var(--touch-target);
-      min-width: var(--touch-target);
-    }
-
-    [data-slot="input"],
-    [data-slot="select-trigger"],
-    [data-slot="select-item"],
-    [data-slot="dropdown-menu-item"],
-    [data-slot="dropdown-menu-checkbox-item"],
-    [data-slot="dropdown-menu-radio-item"] {
-      min-height: var(--touch-target);
-    }
-
-    [data-radix-popper-content-wrapper]:has(> [data-slot="tooltip-content"]) {
-      pointer-events: none;
-    }
-
+  /* A small control keeps its look and gets an invisible 44px hit area under a finger; md and lg already are 44px or more. */
+  @media (pointer: coarse) {
     [data-slot="checkbox"],
-    [data-slot="switch"] {
+    [data-slot="switch"],
+    [data-slot="button"][data-size="sm"],
+    [data-slot="button"][data-size="icon-sm"],
+    [data-slot="toggle"][data-size="sm"],
+    [data-slot="toggle-group-item"][data-size="sm"] {
       position: relative;
     }
 
     [data-slot="checkbox"]::after,
-    [data-slot="switch"]::after {
+    [data-slot="switch"]::after,
+    [data-slot="button"][data-size="sm"]::after,
+    [data-slot="button"][data-size="icon-sm"]::after,
+    [data-slot="toggle"][data-size="sm"]::after,
+    [data-slot="toggle-group-item"][data-size="sm"]::after {
       content: "";
       position: absolute;
       top: 50%;
@@ -1348,6 +1365,12 @@
       width: max(100%, var(--touch-target));
       height: max(100%, var(--touch-target));
       transform: translate(-50%, -50%);
+    }
+  }
+
+  @media (pointer: coarse), (width < 48rem) {
+    [data-radix-popper-content-wrapper]:has(> [data-slot="tooltip-content"]) {
+      pointer-events: none;
     }
 
     input,
@@ -1536,6 +1559,11 @@ html.theme-veil-out::after {
   }
 }
 
+/* The child's stripe on the leading edge of a paper entry; the entry names its child colour in --stripe-color. */
+@utility shadow-stripe {
+  box-shadow: inset var(--stripe-width) 0 0 var(--stripe-color, currentColor);
+}
+
 @utility scrollbar-none {
   scrollbar-width: none;
 
@@ -1563,6 +1591,12 @@ html.theme-switching *::after {
 
 [data-sonner-toaster].toaster {
   font-family: var(--font-sans);
+}
+
+/* Sonner ships a 20 px close button, under the 24 px floor of WCAG 2.5.8. */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 [data-sonner-toaster] [data-sonner-toast] [data-icon]:has(> [data-slot="celebration-stamp"]) {

@@ -31,7 +31,7 @@ function SectionCard({
         </CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
-      {children ? <CardContent className="flex flex-col gap-4">{children}</CardContent> : null}
+      {children ? <CardContent className="flex flex-col gap-3">{children}</CardContent> : null}
       {footer ? <CardFooter className="flex-wrap gap-3">{footer}</CardFooter> : null}
     </Card>
   );

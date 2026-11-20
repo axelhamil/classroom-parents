@@ -46,7 +46,7 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
     consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
   },
   "GET /assistant/preferences": {
-    consumer: "apps/app/src/features/settings/api/settings.queries.ts",
+    consumer: "apps/app/src/shared/api/queries/assistant-preferences.ts",
   },
   "PUT /assistant/preferences/language-and-region": {
     consumer: "apps/app/src/features/settings/api/settings.mutations.ts",

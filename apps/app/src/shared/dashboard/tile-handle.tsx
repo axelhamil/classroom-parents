@@ -1,5 +1,5 @@
 import { IconButton } from "@packages/ui/components/ui/icon-button";
-import { GripVerticalIcon } from "lucide-react";
+import { DragHandleIcon } from "@packages/ui/components/ui/icons";
 import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { KeyMove } from "./home-edit.machine";
@@ -65,7 +65,7 @@ export function TileHandle({ blockId, title, lifted, instructionsId, onKey }: Ti
       label={t("edit.move", { block: title })}
       onKeyDown={press}
     >
-      <GripVerticalIcon aria-hidden />
+      <DragHandleIcon aria-hidden />
     </IconButton>
   );
 }

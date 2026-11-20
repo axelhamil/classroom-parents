@@ -1,3 +1,4 @@
+import { relativeDayLabel } from "@packages/i18n";
 import {
   BriefingGroup,
   BriefingGroupHeader,
@@ -10,10 +11,10 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
+import { AllDoneIcon, TodayIcon } from "@packages/ui/components/ui/icons";
 import { Progress, ProgressLegend, ProgressRow } from "@packages/ui/components/ui/progress";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCheckIcon, SunIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isOpen } from "../../../shared/agenda/deadline-facts";
@@ -25,7 +26,7 @@ import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import { isFirstSyncRunning } from "../../../shared/events/event-board";
 import { EventCard } from "../../../shared/events/event-card";
 import { childHue, childLabelOf } from "../../../shared/format/child-hue";
-import { dayLabelFrom, inSentence } from "../../../shared/format/deadline-label";
+import { inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { nextEventQueryOptions } from "../api/events.queries";
 import { useHomeEvents } from "../hooks/use-home-events";
@@ -41,12 +42,12 @@ export interface NextSchoolBriefingProps {
 
 export function NextSchoolBriefing({ family, childId, clock }: NextSchoolBriefingProps) {
   const { t } = useTranslation("events");
-  const day = inSentence(dayLabelFrom(clock.focus, clock.today));
+  const day = inSentence(relativeDayLabel(clock.focus, clock.today));
   const query = useHomeEvents(clock);
   const watched = childId ? family.filter((child) => child.id === childId) : family;
 
   return (
-    <BlockPanel title={t("briefing.title", { day })} icon={SunIcon} jump={clock.focus}>
+    <BlockPanel title={t("briefing.title", { day })} icon={TodayIcon} jump={clock.focus}>
       <QueryState
         query={query}
         skeleton={
@@ -159,7 +160,7 @@ function BriefingBody({ events: loaded, family, childId, clock, day }: BriefingB
       {allSet ? (
         <BriefingSummary tone="ready">
           <CelebrationStamp>
-            <CheckCheckIcon />
+            <AllDoneIcon />
           </CelebrationStamp>
           {t("briefing.allSet", { day })}
         </BriefingSummary>

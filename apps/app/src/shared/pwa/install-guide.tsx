@@ -1,19 +1,24 @@
 import { Badge } from "@packages/ui/components/ui/badge";
+import {
+  AddToHomeScreenIcon,
+  type Icon,
+  IosShareIcon,
+  PhoneIcon,
+} from "@packages/ui/components/ui/icons";
 import { Item, ItemContent, ItemTitle } from "@packages/ui/components/ui/item";
 import { ListRow, ListRowMedia } from "@packages/ui/components/ui/list-row";
 import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
-import { type LucideIcon, Share, Smartphone, SquarePlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface InstallStep {
   key: "install.steps.share" | "install.steps.addToHome" | "install.steps.reopen";
-  icon: LucideIcon;
+  icon: Icon;
 }
 
 const STEPS: readonly InstallStep[] = [
-  { key: "install.steps.share", icon: Share },
-  { key: "install.steps.addToHome", icon: SquarePlus },
-  { key: "install.steps.reopen", icon: Smartphone },
+  { key: "install.steps.share", icon: IosShareIcon },
+  { key: "install.steps.addToHome", icon: AddToHomeScreenIcon },
+  { key: "install.steps.reopen", icon: PhoneIcon },
 ];
 
 export function InstallGuide() {

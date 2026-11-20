@@ -1,5 +1,5 @@
+import { CalendarIcon } from "@packages/ui/components/ui/icons";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { CalendarDaysIcon } from "lucide-react";
 import type { CalendarPlace } from "../../calendar";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { CalendarBoard } from "../calendar/calendar-board";
@@ -22,11 +22,11 @@ function CalendarBlock({
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
 
   return (
-    <BlockPanel title={title} icon={CalendarDaysIcon} fit="natural" startAt={clock.today}>
+    <BlockPanel title={title} icon={CalendarIcon} fit="natural" startAt={clock.today}>
       <CalendarBoard
         family={family}
         childId={childId}
-        place={{ view: search.view, date: search.date }}
+        place={{ view: search.view, date: search.date, courseId: search.courseId }}
         onPlaceChange={changePlace}
         briefingShown={briefingShown}
         overdueShown={overdueShown}
@@ -39,7 +39,7 @@ export const calendarBlock: HomeBlockDefinition = {
   id: "calendar",
   titleKey: "blocks.calendar.title",
   descriptionKey: "blocks.calendar.description",
-  icon: CalendarDaysIcon,
+  icon: CalendarIcon,
   tour: "home-week",
   flowsOnPhone: true,
   Component: CalendarBlock,

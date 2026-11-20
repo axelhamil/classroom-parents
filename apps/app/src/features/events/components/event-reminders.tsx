@@ -1,5 +1,6 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
+import { ReminderIcon } from "@packages/ui/components/ui/icons";
 import { ListRow, ListRowContent } from "@packages/ui/components/ui/list-row";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
@@ -14,9 +15,10 @@ import { formatApiError } from "@packages/web-kit/api/errors/messages";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { SchoolClock } from "../../../shared/agenda/school-clock";
+import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { inSentence, instantLabel } from "../../../shared/format/deadline-label";
 import { refusedReminder } from "../../../shared/reminders/reminders.schema";
 import { RemindersForm } from "../../../shared/reminders/reminders-form";
@@ -87,7 +89,7 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
   const [editing, setEditing] = useState(false);
   const label = useReminderLabel();
   const queryKey = eventRemindersQueryOptions(eventId).queryKey;
-  const now = new Date();
+  const clock = useSchoolClock();
   const waitsForReview = needsReview && !data.customized;
   const customize = useMutation({
     ...customizeEventRemindersMutationOptions,
@@ -139,7 +141,7 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
     );
   }
 
-  const next = nextAmongSeveral(data, now);
+  const next = nextAmongSeveral(data, clock);
 
   return (
     <>
@@ -154,12 +156,12 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
                 <TypographyInline size="sm">{label(item.reminder)}</TypographyInline>
                 {item.dueAt && item.status !== "unplanned" ? (
                   <TypographyInline size="xs" tone="muted">
-                    {t("reminders.due", { when: instantLabel(item.dueAt, now) })}
+                    {t("reminders.due", { when: instantLabel(item.dueAt, clock) })}
                   </TypographyInline>
                 ) : null}
                 {item.status === "unplanned" && !waitsForReview ? (
                   <TypographyInline size="xs" tone="muted">
-                    {t(UNPLANNED_REASON_KEYS[unplannedReason(item, now)])}
+                    {t(UNPLANNED_REASON_KEYS[unplannedReason(item, clock.now)])}
                   </TypographyInline>
                 ) : null}
               </ListRowContent>
@@ -174,7 +176,7 @@ function RemindersState({ eventId, timed, needsReview, data }: RemindersStatePro
       {waitsForReview ? <TypographyMuted>{t("reminders.awaitingReview")}</TypographyMuted> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(true)}>
-          <BellIcon aria-hidden />
+          <ReminderIcon aria-hidden />
           {t("reminders.edit")}
         </Button>
         {data.customized ? (
@@ -206,10 +208,10 @@ function unplannedReason(item: ReminderItem, now: Date): UnplannedReason {
   return item.dueAt !== null && new Date(item.dueAt) <= now ? "passed" : "waiting";
 }
 
-function nextAmongSeveral(data: EventRemindersData, now: Date): string | null {
+function nextAmongSeveral(data: EventRemindersData, clock: SchoolClock): string | null {
   if (data.reminders.length < 2) return null;
 
   const next = data.reminders.find((item) => item.status === "pending" && item.dueAt);
 
-  return next?.dueAt ? inSentence(instantLabel(next.dueAt, now)) : null;
+  return next?.dueAt ? inSentence(instantLabel(next.dueAt, clock)) : null;
 }

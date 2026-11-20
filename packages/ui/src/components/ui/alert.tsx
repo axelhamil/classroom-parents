@@ -4,16 +4,16 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const alertVariants = cva(
-  "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-xl border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
+  "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-inner p-block text-small has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-icon [&>svg]:translate-y-0.5 [&>svg]:text-current",
   {
     variants: {
       variant: {
-        default: "bg-card text-card-foreground",
+        default: "bg-surface-container text-foreground",
         destructive:
-          "bg-card text-destructive *:data-[slot=alert-description]:text-destructive [&>svg]:text-current",
-        info: "border-transparent bg-secondary text-secondary-foreground *:data-[slot=alert-description]:text-secondary-foreground",
+          "border-2 border-destructive bg-card text-destructive *:data-[slot=alert-description]:text-destructive [&>svg]:text-current",
+        info: "bg-secondary text-secondary-foreground *:data-[slot=alert-description]:text-secondary-foreground",
         warning:
-          "border-transparent bg-warning text-warning-foreground *:data-[slot=alert-description]:text-warning-foreground",
+          "bg-warning text-warning-foreground *:data-[slot=alert-description]:text-warning-foreground",
       },
       density: {
         default: "",
@@ -59,7 +59,7 @@ function AlertDescription({ className, ...props }: React.ComponentProps<"div">) 
     <div
       data-slot="alert-description"
       className={cn(
-        "col-start-2 grid justify-items-start gap-1 text-sm text-muted-foreground [&_p]:leading-relaxed",
+        "col-start-2 grid justify-items-start gap-1 text-small text-muted-foreground",
         className,
       )}
       {...props}

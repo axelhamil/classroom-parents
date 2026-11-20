@@ -7,7 +7,9 @@
  * late worker's end of sync is fenced out), a disconnect revokes outside any transaction and
  * a failed revoke leaves the child disconnecting until the resumption finishes it, and every
  * google-classroom link, attached to a child or not, ends revoked and erased, and parallel
- * writes of one child under its sync lease check ownership in share mode without deadlock.
+ * writes of one child under its sync lease check ownership in share mode without deadlock,
+ * and a child blocked by its school is retried by one worker at a time on an hour, six hours,
+ * then daily, until a read restores it with the school allowing the app announced.
  * Google is stubbed.
  */
 
@@ -15,6 +17,7 @@ import { exitUnlessLocalDatabase, spanRecorder, stepRunner } from "@packages/tes
 
 exitUnlessLocalDatabase("check-child-db", process.env.DATABASE_URL);
 
+import { isDeepStrictEqual } from "node:util";
 import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Option, Result, UnitOfWorkContext } from "@packages/ddd-kit";
 import {
@@ -50,6 +53,7 @@ import { DrizzleChildRepository } from "../src/infrastructure/repositories/drizz
 const SEAL = "sealed:";
 const LEASE_MS = 10 * 60_000;
 const COOLDOWN_MS = 5 * 60_000;
+const HOUR_MS = 60 * 60_000;
 const T0 = new Date("2030-01-01T08:00:00.000Z");
 const probe = `check-child-db-${crypto.randomUUID()}`;
 const { instrumentation } = spanRecorder();
@@ -158,13 +162,17 @@ async function accountRow(id: string) {
 }
 
 async function syncRequestsOf(childId: string): Promise<unknown[]> {
+  return eventsOf(childId, "child.account.sync_requested");
+}
+
+async function eventsOf(childId: string, eventType: string): Promise<unknown[]> {
   const rows = await db
     .select({ payload: outboxSchema.outboxEvent.payload })
     .from(outboxSchema.outboxEvent)
     .where(
       and(
         eq(outboxSchema.outboxEvent.aggregateId, childId),
-        eq(outboxSchema.outboxEvent.eventType, "child.account.sync_requested"),
+        eq(outboxSchema.outboxEvent.eventType, eventType),
       ),
     )
     .orderBy(outboxSchema.outboxEvent.id);
@@ -462,16 +470,68 @@ run(async () => {
       probeIds.size,
   );
 
-  await sync.markNeedsReconnect(bChild, "school_blocked");
+  const blockedAt = new Date(claimAt.getTime() + LEASE_MS);
+  await sync.markNeedsReconnect(bChild, "school_blocked", blockedAt);
   await step(
     "a manual sync on a child blocked by its school is refused with CHILD_SYNC_BLOCKED",
     codeOf(await sync.claimManualSync(b, bChild, claimAt)) === "CHILD_SYNC_BLOCKED",
   );
   await step(
-    "a blocked child is never claimed",
-    mine(await sync.claimDueForSync(1000, new Date(claimAt.getTime() + 3 * LEASE_MS))).every(
+    "a child blocked by its school waits an hour before the sync tries it again",
+    mine(await sync.claimDueForSync(1000, new Date(blockedAt.getTime() + HOUR_MS - 1000))).every(
       (id) => id !== bChild,
     ) && (await childRow(bChild))?.cause === "school_blocked",
+  );
+
+  const firstRetryAt = new Date(blockedAt.getTime() + HOUR_MS);
+  const racingRetries = await Promise.all([
+    sync.claimDueForSync(1000, firstRetryAt),
+    sync.claimDueForSync(1000, firstRetryAt),
+  ]);
+  const retries = racingRetries.flatMap((claimed) =>
+    claimed.isSuccess ? claimed.getValue().filter(({ childId }) => childId === bChild) : [],
+  );
+  await step(
+    "once its hour has passed, one of two racing workers alone claims the blocked child, and holds its lease",
+    retries.length === 1 &&
+      retries[0] !== undefined &&
+      (await sync.holdsLease({ childId: bChild, lease: retries[0].lease })).getValue() === true,
+    { claimed: retries.length },
+  );
+
+  await sync.markNeedsReconnect(bChild, "school_blocked", firstRetryAt);
+  await step(
+    "a retry still blocked waits six hours, without announcing the block twice",
+    (await childRow(bChild))?.nextSyncAt.getTime() === firstRetryAt.getTime() + 6 * HOUR_MS &&
+      (await eventsOf(bChild, "child.account.reconnect_needed")).length === 1,
+  );
+
+  const allowedAt = new Date(firstRetryAt.getTime() + 6 * HOUR_MS);
+  const [readAgain] = (await sync.claimDueForSync(1000, allowedAt))
+    .getValue()
+    .filter(({ childId }) => childId === bChild);
+  const restored =
+    readAgain === undefined
+      ? undefined
+      : await sync.markSynced(
+          { childId: bChild, lease: readAgain.lease },
+          allowedAt,
+          new Date(allowedAt.getTime() + HOUR_MS),
+        );
+  await step(
+    "a blocked child the sync reads again is connected, and the school allowing the app is announced in the same write, with no actor",
+    restored?.isSuccess === true &&
+      (await childRow(bChild))?.status === "connected" &&
+      (await childRow(bChild))?.cause === null &&
+      (await eventsOf(bChild, "child.account.connected")).some((payload) =>
+        isDeepStrictEqual(payload, {
+          userId: b,
+          childId: bChild,
+          restoredFrom: "school_blocked",
+          actorUserId: null,
+        }),
+      ),
+    await eventsOf(bChild, "child.account.connected"),
   );
 
   const twin = await register(a, await linkAccount(a, "a-twin"), "Jumeau");

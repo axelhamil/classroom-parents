@@ -96,6 +96,7 @@ export default {
       ready_one: "Rien à préparer ce soir, {{count}} échéance {{day}}",
       ready_other: "Rien à préparer ce soir, {{count}} échéances {{day}}",
       day: "À préparer pour {{day}}",
+      suggested: "Quelques idées pour {{day}}",
     },
     assessments: {
       title: "Contrôles à réviser",

@@ -21,7 +21,13 @@ import {
   DropdownMenuTrigger,
 } from "@packages/ui/components/ui/dropdown-menu";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
-import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon, EyeOffIcon, LayoutGridIcon } from "lucide-react";
+import {
+  ArrangeIcon,
+  HideIcon,
+  MoreIcon,
+  MoveDownIcon,
+  MoveUpIcon,
+} from "@packages/ui/components/ui/icons";
 import { type ReactElement, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { BLOCK_SIZES, type BlockSize } from "./dashboard-pack";
@@ -70,7 +76,7 @@ export function TileEditMenu({
           data-no-drag
           label={t("edit.menu", { block: title })}
         >
-          <EllipsisIcon aria-hidden />
+          <MoreIcon aria-hidden />
         </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -92,11 +98,11 @@ export function TileEditMenu({
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onMoveUp}>
-          <ArrowUpIcon aria-hidden />
+          <MoveUpIcon aria-hidden />
           {t("edit.moveUp", { block: title })}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onMoveDown}>
-          <ArrowDownIcon aria-hidden />
+          <MoveDownIcon aria-hidden />
           {t("edit.moveDown", { block: title })}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -106,7 +112,7 @@ export function TileEditMenu({
             onHide();
           }}
         >
-          <EyeOffIcon aria-hidden />
+          <HideIcon aria-hidden />
           {t("edit.hide", { block: title })}
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -140,7 +146,7 @@ export function TileContextMenu({
       <ContextMenuTrigger asChild>{header}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onSelect={onEdit}>
-          <LayoutGridIcon aria-hidden />
+          <ArrangeIcon aria-hidden />
           {t("edit.start")}
         </ContextMenuItem>
         <ContextMenuSub>
@@ -160,7 +166,7 @@ export function TileContextMenu({
         </ContextMenuSub>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={onHide}>
-          <EyeOffIcon aria-hidden />
+          <HideIcon aria-hidden />
           {t("edit.hide", { block: title })}
         </ContextMenuItem>
       </ContextMenuContent>

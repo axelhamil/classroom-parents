@@ -10,7 +10,7 @@ const FADE_EDGES = ["top", "bottom"] as const;
 type FadeEdge = (typeof FADE_EDGES)[number];
 
 const scrollRegionVariants = cva(
-  "-mx-scroll-gutter rounded-sm px-scroll-gutter outline-none focus-visible:ring focus-visible:ring-ring",
+  "-mx-scroll-gutter rounded-inner px-scroll-gutter outline-none focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       variant: {

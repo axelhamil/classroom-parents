@@ -1,6 +1,6 @@
 import { Alert, AlertDescription } from "@packages/ui/components/ui/alert";
 import { Button } from "@packages/ui/components/ui/button";
-import { BellOff, BellRing, CircleCheck } from "lucide-react";
+import { AlertsOffIcon, AlertsOnIcon, StepDoneIcon } from "@packages/ui/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { InstallButton } from "../../../shared/pwa/install-button";
 import { InstallGuide } from "../../../shared/pwa/install-guide";
@@ -26,7 +26,7 @@ export function NotificationsStep({ userId, onNext }: NotificationsStepProps) {
   if (push.subscribed) {
     return (
       <StepFrame
-        media={<CircleCheck />}
+        media={<StepDoneIcon />}
         mediaTone="success"
         title={t("notifications.title")}
         description={t("notifications.enabled")}
@@ -41,14 +41,14 @@ export function NotificationsStep({ userId, onNext }: NotificationsStepProps) {
 
   return (
     <StepFrame
-      media={<BellRing />}
+      media={<AlertsOnIcon />}
       title={t("notifications.title")}
       description={t("notifications.description")}
       actions={
         <>
           {canEnable && (
             <Button size="lg" disabled={push.pending} onClick={() => void push.enable()}>
-              <BellRing aria-hidden />
+              <AlertsOnIcon aria-hidden />
               {push.pending ? t("notifications.enabling") : t("notifications.enable")}
             </Button>
           )}
@@ -61,7 +61,7 @@ export function NotificationsStep({ userId, onNext }: NotificationsStepProps) {
       {needsInstall && <InstallGuide />}
       {push.permission === "unsupported" && (
         <Alert>
-          <BellOff aria-hidden />
+          <AlertsOffIcon aria-hidden />
           <AlertDescription>{tSettings("push.unsupported")}</AlertDescription>
         </Alert>
       )}

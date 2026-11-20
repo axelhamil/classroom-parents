@@ -1,5 +1,10 @@
 import { Button } from "@packages/ui/components/ui/button";
-import { Backpack, KeyRound, School, ShieldQuestion } from "lucide-react";
+import {
+  ChildIcon,
+  CredentialsIcon,
+  SchoolAccountIcon,
+  SchoolPolicyIcon,
+} from "@packages/ui/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { StepFrame } from "./step-frame";
 import { StepList } from "./step-list";
@@ -13,7 +18,7 @@ export function PrepareStep({ onNext }: PrepareStepProps) {
 
   return (
     <StepFrame
-      media={<Backpack />}
+      media={<ChildIcon />}
       title={t("prepare.title")}
       description={t("prepare.description")}
       actions={
@@ -26,20 +31,20 @@ export function PrepareStep({ onNext }: PrepareStepProps) {
         entries={[
           {
             id: "account",
-            icon: School,
+            icon: SchoolAccountIcon,
             title: t("prepare.schoolAccount"),
             detail: t("prepare.schoolAccountDetail"),
             hint: t("prepare.schoolAccountHint"),
           },
           {
             id: "password",
-            icon: KeyRound,
+            icon: CredentialsIcon,
             title: t("prepare.password"),
             detail: t("prepare.passwordDetail"),
           },
           {
             id: "school",
-            icon: ShieldQuestion,
+            icon: SchoolPolicyIcon,
             title: t("prepare.school"),
             detail: t("prepare.schoolDetail"),
           },

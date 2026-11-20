@@ -30,7 +30,7 @@ describe("markNeedsReconnect", () => {
     const owned = child();
     repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
 
-    const result = await sync.markNeedsReconnect(owned.id.value, cause);
+    const result = await sync.markNeedsReconnect(owned.id.value, cause, NOW);
 
     expect(result.isSuccess).toBe(true);
     expect(owned.get("status").value).toBe(status);
@@ -41,16 +41,93 @@ describe("markNeedsReconnect", () => {
     const owned = child({ syncStartedAt: NOW, nextSyncAt: new Date(NOW.getTime() + 600_000) });
     repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
 
-    await sync.markNeedsReconnect(owned.id.value, "school_blocked");
+    await sync.markNeedsReconnect(owned.id.value, "school_blocked", NOW);
 
     expect(owned.get("syncStartedAt").isNone()).toBe(true);
   });
 
   it("given a child already in that state, then nothing is written nor emitted", async () => {
-    const owned = child({ status: ChildStatus.brokenBy("school_blocked") });
+    const owned = child({ status: ChildStatus.brokenBy("invalid_grant") });
     repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
 
-    await sync.markNeedsReconnect(owned.id.value, "school_blocked");
+    await sync.markNeedsReconnect(owned.id.value, "invalid_grant", NOW);
+
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+});
+
+const HOUR_MS = 60 * 60_000;
+const later = (ms: number) => new Date(NOW.getTime() + ms);
+
+describe("a child blocked by its school", () => {
+  it("given the school blocks a connected child, then the sync tries again on its own in an hour", async () => {
+    const owned = child({ syncAttempts: 3 });
+    repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
+
+    await sync.markNeedsReconnect(owned.id.value, "school_blocked", NOW);
+
+    expect(owned.get("status").value).toBe("blocked_by_school");
+    expect(owned.get("nextSyncAt")).toEqual(later(HOUR_MS));
+    expect(owned.get("syncAttempts")).toBe(0);
+  });
+
+  it.each([
+    [1, 6 * HOUR_MS],
+    [2, 24 * HOUR_MS],
+    [9, 24 * HOUR_MS],
+  ])("given retry %i still blocked, then it waits %i ms, silently", async (retries, waitMs) => {
+    const owned = child({
+      status: ChildStatus.brokenBy("school_blocked"),
+      syncAttempts: retries,
+      syncStartedAt: NOW,
+    });
+    repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
+    repo.save.mockResolvedValue(ok(undefined));
+
+    const result = await sync.markNeedsReconnect(owned.id.value, "school_blocked", NOW);
+
+    expect(result.isSuccess).toBe(true);
+    expect(owned.get("nextSyncAt")).toEqual(later(waitMs));
+    expect(owned.get("syncStartedAt").isNone()).toBe(true);
+    expect(repo.save).toHaveBeenCalledWith(owned);
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given the scheduled sync reads a blocked child again, then it is connected and the school is announced as having allowed the app, with no parent as actor", async () => {
+    const owned = child({ status: ChildStatus.brokenBy("school_blocked") });
+    repo.markSynced.mockResolvedValue(ok(undefined));
+    repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
+    repo.save.mockResolvedValue(ok(undefined));
+
+    const result = await sync.markSynced(
+      { childId: owned.id.value, lease: 4 },
+      NOW,
+      later(HOUR_MS),
+    );
+
+    expect(result.isSuccess).toBe(true);
+    expect(owned.get("status").value).toBe("connected");
+    expect(enqueuedEvents(outbox)).toEqual([
+      {
+        eventType: EventTypes.CHILD_CONNECTED,
+        aggregateId: owned.id.value,
+        payload: {
+          userId: PARENT,
+          childId: owned.id.value,
+          restoredFrom: "school_blocked",
+          actorUserId: null,
+        },
+      },
+    ]);
+  });
+
+  it("given a connected child synced as usual, then nothing is announced", async () => {
+    const owned = child();
+    repo.markSynced.mockResolvedValue(ok(undefined));
+    repo.findForSystem.mockResolvedValue(ok(Option.some(owned)));
+
+    await sync.markSynced({ childId: owned.id.value, lease: 4 }, NOW, later(HOUR_MS));
 
     expect(repo.save).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([]);

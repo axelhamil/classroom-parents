@@ -1,9 +1,9 @@
 import { DashboardPanelNote } from "@packages/ui/components/ui/dashboard";
+import { NotesIcon } from "@packages/ui/components/ui/icons";
 import { Textarea } from "@packages/ui/components/ui/textarea";
 import { toastError } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { StickyNoteIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { saveHomeNoteMutationOptions } from "../../api/home.mutations";
@@ -59,7 +59,7 @@ function NotesBlock({ title }: HomeBlockProps) {
   const query = useQuery(homeNoteQueryOptions);
 
   return (
-    <BlockPanel title={title} icon={StickyNoteIcon}>
+    <BlockPanel title={title} icon={NotesIcon}>
       {query.data && <NoteEditor saved={query.data.body} />}
     </BlockPanel>
   );
@@ -69,6 +69,6 @@ export const notesBlock: HomeBlockDefinition = {
   id: "notes",
   titleKey: "blocks.notes.title",
   descriptionKey: "blocks.notes.description",
-  icon: StickyNoteIcon,
+  icon: NotesIcon,
   Component: NotesBlock,
 };

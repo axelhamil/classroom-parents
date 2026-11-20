@@ -157,11 +157,7 @@ export class CalendarFeedService {
         if (recorded.isFailure) return Result.fail(recorded.getError());
       }
 
-      return Result.ok(
-        Option.some(
-          writeFeedCalendar({ entries: listed.getValue(), appHost: this.settings.appHost, now }),
-        ),
-      );
+      return Result.ok(Option.some(writeFeedCalendar({ entries: listed.getValue(), now })));
     });
   }
 

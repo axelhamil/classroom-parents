@@ -4,17 +4,18 @@ import type * as React from "react";
 import { cn } from "../../libs/utils";
 
 const dateTabVariants = cva(
-  "inline-flex w-14 shrink-0 flex-col overflow-hidden rounded-md border bg-card text-center leading-none text-card-foreground shadow-raised",
+  "inline-flex w-14 shrink-0 flex-col overflow-hidden rounded-inner border bg-card text-center leading-none text-card-foreground",
   {
     variants: {
       tone: {
-        default: "[&>[data-part=month]]:bg-primary [&>[data-part=month]]:text-primary-foreground",
+        default:
+          "shadow-raised [&>[data-part=month]]:bg-primary [&>[data-part=month]]:text-primary-foreground",
         urgent:
-          "border-destructive/50 [&>[data-part=month]]:bg-destructive [&>[data-part=month]]:text-destructive-foreground",
+          "border-2 border-destructive shadow-raised [&>[data-part=month]]:bg-destructive [&>[data-part=month]]:text-destructive-foreground",
         today:
-          "border-warning [&>[data-part=month]]:bg-warning [&>[data-part=month]]:text-warning-foreground",
+          "border-2 border-warning-edge shadow-raised [&>[data-part=month]]:bg-warning [&>[data-part=month]]:text-warning-foreground",
         muted:
-          "text-muted-foreground shadow-none [&>[data-part=month]]:bg-muted [&>[data-part=month]]:text-muted-foreground",
+          "text-muted-foreground [&>[data-part=month]]:bg-muted [&>[data-part=month]]:text-muted-foreground",
       },
       hue: {
         1: "[&>[data-part=month]]:bg-child-1 [&>[data-part=month]]:text-child-foreground",
@@ -36,7 +37,7 @@ const dateTabVariants = cva(
       },
       size: {
         default: "",
-        lg: "w-24 rounded-lg [&>[data-part=month]]:py-1.5 [&>[data-part=month]]:text-sm [&>[data-part=day]]:pt-2 [&>[data-part=day]]:text-5xl [&>[data-part=weekday]]:pb-2 [&>[data-part=weekday]]:text-sm",
+        lg: "w-24 [&>[data-part=month]]:py-1.5 [&>[data-part=month]]:text-small [&>[data-part=day]]:pt-2 [&>[data-part=day]]:text-5xl [&>[data-part=weekday]]:pb-2 [&>[data-part=weekday]]:text-small",
       },
     },
     defaultVariants: { tone: "default", size: "default" },
@@ -75,7 +76,7 @@ function DateTab({
       className={cn(dateTabVariants({ tone, hue, size }), className)}
       {...props}
     >
-      <span data-part="month" className="py-1 text-xs font-bold">
+      <span data-part="month" className="py-1 text-meta font-bold">
         {month}
       </span>
       <span
@@ -85,7 +86,7 @@ function DateTab({
         {day}
       </span>
       {weekday && (
-        <span data-part="weekday" className="pb-1.5 text-xs">
+        <span data-part="weekday" className="pb-1.5 text-meta">
           {weekday}
         </span>
       )}

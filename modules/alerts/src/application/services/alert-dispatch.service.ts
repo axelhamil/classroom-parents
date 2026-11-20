@@ -264,10 +264,10 @@ export class AlertDispatchService {
 
       const emailed = await this.email.sendGroup(to, {
         groupKey: groupEmailKey(group),
-        items: group.map(({ context: { eventTitle, childLabel, deadlineLabel } }) => ({
+        items: group.map(({ context: { eventTitle, childLabel, deadline } }) => ({
           eventTitle,
           childLabel,
-          deadlineLabel,
+          deadline,
         })),
         appUrl: addressing(group).url,
       });
@@ -307,7 +307,7 @@ export class AlertDispatchService {
       version: alert.get("version"),
       eventTitle: context.eventTitle,
       childLabel: context.childLabel,
-      deadlineLabel: context.deadlineLabel,
+      deadline: context.deadline,
       eventUrl: context.eventUrl,
     });
     if (emailed.isSuccess)

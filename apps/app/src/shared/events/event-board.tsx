@@ -7,16 +7,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@packages/ui/components/ui/empty";
+import {
+  FilterIcon,
+  type Icon,
+  NothingDueIcon,
+  PastIcon,
+  SyncingIcon,
+} from "@packages/ui/components/ui/icons";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  ArchiveIcon,
-  CalendarCheckIcon,
-  HourglassIcon,
-  ListFilterIcon,
-  type LucideIcon,
-} from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../api/queries/children";
@@ -42,7 +42,7 @@ export function EventBoardSkeleton({ label }: EventBoardSkeletonProps) {
 }
 
 export interface BoardEmptyProps {
-  icon: LucideIcon;
+  icon: Icon;
   title: string;
   description: string;
   action?: ReactNode;
@@ -88,7 +88,7 @@ function ScopeEmpty({ scope, filtered, family, onResetFilters }: ScopeEmptyProps
 
     return (
       <BoardEmpty
-        icon={ListFilterIcon}
+        icon={FilterIcon}
         {...copy}
         action={
           <Button type="button" size="sm" variant="outline" onClick={onResetFilters}>
@@ -102,7 +102,7 @@ function ScopeEmpty({ scope, filtered, family, onResetFilters }: ScopeEmptyProps
   if (scope === "history") {
     return (
       <BoardEmpty
-        icon={ArchiveIcon}
+        icon={PastIcon}
         title={tHistory("empty.title")}
         description={tHistory("empty.description")}
         action={
@@ -117,7 +117,7 @@ function ScopeEmpty({ scope, filtered, family, onResetFilters }: ScopeEmptyProps
   if (isFirstSyncRunning(family)) {
     return (
       <BoardEmpty
-        icon={HourglassIcon}
+        icon={SyncingIcon}
         title={t("empty.syncing.title")}
         description={t("empty.syncing.description")}
       />
@@ -126,7 +126,7 @@ function ScopeEmpty({ scope, filtered, family, onResetFilters }: ScopeEmptyProps
 
   return (
     <BoardEmpty
-      icon={CalendarCheckIcon}
+      icon={NothingDueIcon}
       title={t("empty.nothing.title")}
       description={t("empty.nothing.description")}
       action={

@@ -14,5 +14,9 @@ export interface IChildSyncState {
 
   markSyncFailed(lease: SyncLease, nextSyncAt: Date): Promise<Result<void, AppError>>;
 
-  markNeedsReconnect(childId: string, cause: ReconnectCause): Promise<Result<void, AppError>>;
+  markNeedsReconnect(
+    childId: string,
+    cause: ReconnectCause,
+    now: Date,
+  ): Promise<Result<void, AppError>>;
 }

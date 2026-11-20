@@ -142,8 +142,8 @@ export const notifyOnSchoolAllowed = notifyOn(
   EventTypes.CHILD_CONNECTED,
   "notifications-school-allowed",
   PayloadByEventType[EventTypes.CHILD_CONNECTED],
-  (event, { userId, childId, restoredFrom }) => {
-    if (restoredFrom !== "school_blocked") return Option.none();
+  (event, { userId, childId, restoredFrom, actorUserId }) => {
+    if (restoredFrom !== "school_blocked" || actorUserId !== null) return Option.none();
 
     const at = event.dateOccurred;
     return draft(

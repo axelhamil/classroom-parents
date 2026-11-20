@@ -1,9 +1,9 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
+import { DeleteIcon } from "@packages/ui/components/ui/icons";
 import { toastError, toastSuccess } from "@packages/web-kit/api/errors/toast";
 import { errorFallback } from "@packages/web-kit/i18n/get-errors-t";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { deleteEventMutationOptions } from "../api/events.mutations";
 import { eventQueryOptions } from "../api/events.queries";
@@ -32,7 +32,7 @@ export function DeleteEventDialog({ eventId, eventTitle, onDeleted }: DeleteEven
     <DestructiveActionDialog
       trigger={
         <Button type="button" variant="quietDestructive" size="sm">
-          <Trash2 aria-hidden />
+          <DeleteIcon aria-hidden />
           {t("delete.trigger")}
         </Button>
       }

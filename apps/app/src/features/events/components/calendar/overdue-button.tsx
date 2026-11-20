@@ -1,6 +1,6 @@
 import { Badge } from "@packages/ui/components/ui/badge";
 import { Button } from "@packages/ui/components/ui/button";
-import { ChevronRightIcon, ClockAlertIcon } from "lucide-react";
+import { OpenRowIcon, OverdueIcon } from "@packages/ui/components/ui/icons";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { bySoonest } from "../../../../shared/agenda/deadline-facts";
@@ -45,10 +45,10 @@ export function OverdueButton({ family, childId, before }: OverdueButtonProps) {
           aria-label={title}
           onClick={() => setOpened(late.map((event) => event.id))}
         >
-          <ClockAlertIcon aria-hidden />
+          <OverdueIcon aria-hidden />
           {t("calendar.overdue")}
           <Badge variant="destructive">{late.length}</Badge>
-          <ChevronRightIcon aria-hidden className="ms-auto" />
+          <OpenRowIcon aria-hidden className="ms-auto" />
         </Button>
       )}
       {opened && (
@@ -59,7 +59,7 @@ export function OverdueButton({ family, childId, before }: OverdueButtonProps) {
           returnFocus={() => (trigger.current ? [trigger.current] : [])}
           onClose={() => setOpened(null)}
         >
-          <OverdueList events={shown} family={family} now={clock.now} />
+          <OverdueList events={shown} family={family} today={clock.today} />
           <OlderLateLink count={older} />
         </ResponsiveOverlay>
       )}

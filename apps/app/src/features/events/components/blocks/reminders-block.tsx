@@ -1,6 +1,6 @@
+import { AlertsOnIcon } from "@packages/ui/components/ui/icons";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@packages/ui/components/ui/item";
 import { useQueries } from "@tanstack/react-query";
-import { BellRingIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { watchedForReminders } from "../../../../shared/agenda/views";
 import { nextSevenDays } from "../../../../shared/agenda/windows";
@@ -42,7 +42,7 @@ function RemindersBlock({ childId, clock, title }: HomeBlockProps) {
   return (
     <BlockPanel
       title={title}
-      icon={BellRingIcon}
+      icon={AlertsOnIcon}
       note={
         settled && ringing.length === 0 && t("blocks.reminders.empty", { days: nextSevenDays.days })
       }
@@ -56,7 +56,7 @@ function RemindersBlock({ childId, clock, title }: HomeBlockProps) {
                   <ItemTitle>
                     <EventLink eventId={event.id}>{event.title}</EventLink>
                   </ItemTitle>
-                  <ItemDescription>{instantLabel(dueAt, now)}</ItemDescription>
+                  <ItemDescription>{instantLabel(dueAt, clock)}</ItemDescription>
                 </ItemContent>
               </li>
             </Item>
@@ -72,6 +72,6 @@ export const remindersBlock: HomeBlockDefinition = {
   titleKey: "blocks.reminders.title",
   descriptionKey: "blocks.reminders.description",
   windowDays: nextSevenDays.days,
-  icon: BellRingIcon,
+  icon: AlertsOnIcon,
   Component: RemindersBlock,
 };

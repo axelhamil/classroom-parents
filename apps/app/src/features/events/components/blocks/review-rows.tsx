@@ -12,7 +12,6 @@ import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
 import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { reflow } from "../../../../shared/motion/reflow";
-import { useReviewConfirmation } from "../../hooks/use-review-confirmation";
 import { reviewSentenceKeys } from "../../review-labels";
 
 const INLINE_ROWS = 20;
@@ -20,14 +19,14 @@ const INLINE_ROWS = 20;
 export interface ReviewRowsProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
-  now: Date;
+  today: string;
+  confirm: (event: EventItem) => Promise<void>;
   onLastLeft: () => void;
 }
 
-export function ReviewRows({ events, family, now, onLastLeft }: ReviewRowsProps) {
+export function ReviewRows({ events, family, today, confirm, onLastLeft }: ReviewRowsProps) {
   const { t } = useTranslation("home");
   const list = useRef<HTMLUListElement>(null);
-  const confirm = useReviewConfirmation();
 
   const confirmRow = (event: EventItem, trigger: HTMLElement) => {
     const next = neighbourConfirm(trigger);
@@ -49,7 +48,7 @@ export function ReviewRows({ events, family, now, onLastLeft }: ReviewRowsProps)
             key={event.id}
             event={event}
             family={family}
-            now={now}
+            today={today}
             onConfirm={(trigger) => confirmRow(event, trigger)}
           />
         ))}
@@ -68,11 +67,11 @@ function neighbourConfirm(trigger: HTMLElement): HTMLElement | null {
 interface ReviewRowProps {
   event: EventItem;
   family: readonly ChildDto[];
-  now: Date;
+  today: string;
   onConfirm: (trigger: HTMLElement) => void;
 }
 
-function ReviewRow({ event, family, now, onConfirm }: ReviewRowProps) {
+function ReviewRow({ event, family, today, onConfirm }: ReviewRowProps) {
   const { t } = useTranslation(["home", "events"]);
   const child = family.find((candidate) => candidate.id === event.childId);
   const name = childLabelOf(family, event.childId);
@@ -94,7 +93,7 @@ function ReviewRow({ event, family, now, onConfirm }: ReviewRowProps) {
         </TypographyInline>
         <TypographyInline size="sm" tone="muted">
           {t("blocks.review.proposed", {
-            when: inSentence(deadlineLabel(event.deadlineDate, event.deadlineTime, now)),
+            when: inSentence(deadlineLabel(event.deadlineDate, event.deadlineTime, today)),
           })}
         </TypographyInline>
         {reason && (

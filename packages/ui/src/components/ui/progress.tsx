@@ -79,7 +79,7 @@ function ProgressLegend({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="progress-legend"
-      className={cn("shrink-0 text-xs font-medium text-muted-foreground tabular-nums", className)}
+      className={cn("shrink-0 text-meta font-medium text-muted-foreground tabular-nums", className)}
       {...props}
     />
   );

@@ -39,6 +39,21 @@ function day(name: string): HTMLElement {
   return section;
 }
 
+/** Picks tomorrow in the strip of days, then opens the one "Ajouter" of the agenda on it. */
+async function addOnTomorrow(): Promise<void> {
+  const strip = await screen.findByRole("radiogroup", { name: "Jours de la semaine" });
+  fireEvent.click(within(strip).getByRole("radio", { name: /^Demain/ }));
+  const agenda = screen.getByRole("region", { name: "Agenda" });
+  fireEvent.click(within(agenda).getByRole("button", { name: "Ajouter" }));
+}
+
+/** The names of the agenda's days, a folded stretch of empty days counting as one. */
+function agendaDays(): string[] {
+  return [...document.querySelectorAll("[data-slot=calendar-day-mark] .sr-only")].map(
+    (name) => name.textContent ?? "",
+  );
+}
+
 function pick(dialog: HTMLElement, label: string, option: string): void {
   fireEvent.keyDown(within(dialog).getByLabelText(label), { key: "Enter" });
   fireEvent.click(screen.getByRole("option", { name: option }));
@@ -74,23 +89,21 @@ describe("Accueil, the family calendar", () => {
       await screen.findByRole("heading", { level: 2, name: "Du 12 au 18 novembre" }),
     ).toBeDefined();
     await waitFor(() =>
-      expect(
-        [...document.querySelectorAll("[data-slot=calendar-day-title]")].map(
-          (title) => title.textContent,
-        ),
-      ).toEqual([
-        "Demain",
-        "Samedi 14 novembre",
-        "Dimanche 15 novembre",
-        "Lundi 16 novembre",
-        "Mardi 17 novembre",
-        "Mercredi 18 novembre",
+      expect(agendaDays()).toEqual([
+        "Vendredi 13 novembre",
+        "Du samedi 14 novembre au dimanche 15 novembre",
+        "Du lundi 16 novembre au mercredi 18 novembre",
       ]),
     );
-    expect(within(day("Demain")).getByText("Sac de piscine")).toBeDefined();
+    const friday = day("Vendredi 13 novembre");
+    expect(within(friday).getByText("Sac de piscine")).toBeDefined();
+    expect(within(friday).getByText("Demain")).toBeDefined();
     expect(screen.getByRole("region", { name: "Pour aujourd'hui" })).toBeDefined();
-    expect(within(day("Samedi 14 novembre")).getByText("Rien de prévu")).toBeDefined();
-    expect(screen.getByRole("button", { name: "Aujourd'hui" }).hasAttribute("disabled")).toBe(true);
+    expect(
+      within(day("Du samedi 14 novembre au dimanche 15 novembre")).getByText("Rien de prévu"),
+    ).toBeDefined();
+    expect(screen.getByRole("group", { name: "Week-end" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Aujourd'hui" })).toBeNull();
   });
 
   it("on a phone whose parent hid Pour aujourd'hui, the week keeps today instead of losing it", async () => {
@@ -107,12 +120,10 @@ describe("Accueil, the family calendar", () => {
     );
     await renderAppAt("/");
 
-    await waitFor(() =>
-      expect(document.querySelector("[data-slot=calendar-day-title]")?.textContent).toBe(
-        "Aujourd'hui",
-      ),
-    );
-    expect(within(day("Aujourd'hui")).getByText("Fiche à signer")).toBeDefined();
+    await waitFor(() => expect(agendaDays()[0]).toBe("Jeudi 12 novembre"));
+    const today = day("Jeudi 12 novembre");
+    expect(today.getAttribute("aria-current")).toBe("date");
+    expect(within(today).getByText("Fiche à signer")).toBeDefined();
     expect(screen.queryByRole("region", { name: "Pour aujourd'hui" })).toBeNull();
   });
 
@@ -129,9 +140,11 @@ describe("Accueil, the family calendar", () => {
 
     await screen.findByRole("region", { name: "Pour lundi 16 novembre" });
     await waitFor(() =>
-      expect(
-        document.querySelectorAll("[data-slot=calendar-week] > [data-slot=calendar-day]"),
-      ).toHaveLength(7),
+      expect(agendaDays()).toEqual([
+        "Lundi 16 novembre",
+        "Du mardi 17 novembre au vendredi 20 novembre",
+        "Du samedi 21 novembre au dimanche 22 novembre",
+      ]),
     );
     expect(within(day("Lundi 16 novembre")).getByText("Cahier de liaison signé")).toBeDefined();
   });
@@ -160,12 +173,14 @@ describe("Accueil, the family calendar", () => {
     const briefing = await screen.findByRole("region", { name: "Pour demain" });
     expect(await within(briefing).findByText("Mot signé")).toBeDefined();
     expect(within(briefing).getByText("Sac de piscine")).toBeDefined();
-    await waitFor(() => expect(day("Samedi 14 novembre")).toBeDefined());
+    await waitFor(() =>
+      expect(agendaDays()[0]).toBe("Du samedi 14 novembre au dimanche 15 novembre"),
+    );
     const agenda = screen.getByRole("region", { name: "Agenda" });
     expect(within(agenda).queryByText("Mot signé")).toBeNull();
     expect(within(agenda).queryByText("Sac de piscine")).toBeNull();
-    expect(screen.queryByRole("heading", { level: 3, name: "Aujourd'hui" })).toBeNull();
-    expect(screen.queryByRole("heading", { level: 3, name: "Demain" })).toBeNull();
+    expect(agendaDays()).not.toContain("Jeudi 12 novembre");
+    expect(agendaDays()).not.toContain("Vendredi 13 novembre");
     expect(screen.queryByRole("heading", { name: "Ce soir" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Préparer la semaine" })).toBeNull();
   });
@@ -178,16 +193,7 @@ describe("Accueil, the family calendar", () => {
     const briefing = await screen.findByRole("region", { name: "Pour lundi 16 novembre" });
     expect(await within(briefing).findByText("Exposé à finir")).toBeDefined();
     await waitFor(() =>
-      expect(
-        [...document.querySelectorAll("[data-slot=calendar-day-title]")].map(
-          (title) => title.textContent,
-        ),
-      ).toEqual([
-        "Mardi 17 novembre",
-        "Mercredi 18 novembre",
-        "Jeudi 19 novembre",
-        "Vendredi 20 novembre",
-      ]),
+      expect(agendaDays()).toEqual(["Du mardi 17 novembre au vendredi 20 novembre"]),
     );
     expect(screen.getAllByRole("link", { name: /Exposé à finir/ })).toHaveLength(1);
   });
@@ -273,9 +279,7 @@ describe("Accueil, the family calendar", () => {
     const stub = givenCalendar([CHILD], [deadline(1, "2026-11-13", "Piscine")]);
     await renderAppAt("/");
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Ajouter une échéance pour demain" }),
-    );
+    await addOnTomorrow();
     const dialog = await screen.findByRole("dialog", { name: "Nouvelle échéance" });
     fireEvent.change(within(dialog).getByLabelText("Titre"), {
       target: { value: "Rendez-vous orthophoniste" },
@@ -292,7 +296,9 @@ describe("Accueil, the family calendar", () => {
       }),
     );
     await waitFor(() =>
-      expect(within(day("Demain")).getByText("Rendez-vous orthophoniste")).toBeDefined(),
+      expect(
+        within(day("Vendredi 13 novembre")).getByText("Rendez-vous orthophoniste"),
+      ).toBeDefined(),
     );
     expect(await screen.findByText("Échéance ajoutée")).toBeDefined();
   });
@@ -302,9 +308,7 @@ describe("Accueil, the family calendar", () => {
     const stub = givenCalendar([CHILD, HUGO], [deadline(1, "2026-11-13", "Piscine")]);
     await renderAppAt("/");
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Ajouter une échéance pour demain" }),
-    );
+    await addOnTomorrow();
     const dialog = await screen.findByRole("dialog", { name: "Nouvelle échéance" });
     fireEvent.change(within(dialog).getByLabelText("Titre"), {
       target: { value: "Sortie au zoo" },
@@ -336,9 +340,7 @@ describe("Accueil, the family calendar", () => {
     );
     await renderAppAt(`/?childId=${HUGO.id}`);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Ajouter une échéance pour demain" }),
-    );
+    await addOnTomorrow();
     const dialog = await screen.findByRole("dialog", { name: "Nouvelle échéance" });
 
     expect(within(dialog).getByLabelText("Enfant").textContent).toContain("Hugo");
@@ -384,7 +386,7 @@ describe("Accueil, the family calendar", () => {
 
     fireEvent.click(friday);
 
-    await waitFor(() => expect(document.activeElement).toBe(day("Demain")));
+    await waitFor(() => expect(document.activeElement).toBe(day("Vendredi 13 novembre")));
     expect(search(router).date).toBeUndefined();
   });
 
@@ -406,10 +408,10 @@ describe("Accueil, the family calendar", () => {
     givenCalendar(FIVE_CHILDREN, crunchDay("2026-11-13", 15));
     await renderAppAt("/");
 
-    const friday = await waitFor(() => day("Demain"));
+    const friday = await waitFor(() => day("Vendredi 13 novembre"));
     await waitFor(() => expect(within(friday).getAllByRole("link")).toHaveLength(15));
     expect(within(friday).getByText(STRESS.title120)).toBeDefined();
-    expect(within(friday).getByText("Journée chargée")).toBeDefined();
+    expect(within(friday).getByText(/^15 échéances/)).toBeDefined();
   });
 
   it("Mois marks a crunch day and lists the picked day under the grid", async () => {
@@ -615,9 +617,12 @@ describe("Accueil, the family calendar", () => {
     givenCalendar([CHILD], [homework], { detail: homework });
     await renderAppAt("/");
 
-    const opener = await within(await waitFor(() => day("Demain"))).findByRole("link", {
-      name: "Lire le chapitre 2",
-    });
+    const opener = await within(await waitFor(() => day("Vendredi 13 novembre"))).findByRole(
+      "link",
+      {
+        name: "Lire le chapitre 2",
+      },
+    );
     opener.focus();
     fireEvent.click(opener);
     const detail = await screen.findByRole("dialog");

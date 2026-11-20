@@ -7,17 +7,17 @@ import {
   DropdownMenuTrigger,
 } from "@packages/ui/components/ui/dropdown-menu";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
+import { DarkThemeIcon, LightThemeIcon, SystemThemeIcon } from "@packages/ui/components/ui/icons";
 import { SwapIcon, type SwapIconOption } from "@packages/ui/components/ui/swap-icon";
 import { TooltipProvider } from "@packages/ui/components/ui/tooltip";
 import { isThemePreference, type ThemePreference } from "@packages/web-kit/theme/theme-store";
 import { useTheme } from "@packages/web-kit/theme/use-theme";
-import { Moon, Sun, SunMoon } from "lucide-react";
 import { useId, useRef } from "react";
 
 const THEME_OPTIONS = [
-  { value: "light", icon: Sun },
-  { value: "dark", icon: Moon },
-  { value: "system", icon: SunMoon },
+  { value: "light", icon: LightThemeIcon },
+  { value: "dark", icon: DarkThemeIcon },
+  { value: "system", icon: SystemThemeIcon },
 ] as const satisfies readonly SwapIconOption<ThemePreference>[];
 
 export interface ThemeToggleProps {

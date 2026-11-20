@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { EventTypes } from "./event-types";
-import { CONTRIBUTED_PAYLOADS } from "./registry";
+import { CONTRIBUTED_EMITTED, CONTRIBUTED_PAYLOADS } from "./registry";
 
 const UserRef = z.object({ userId: z.string() });
 const Email = z.email();
@@ -108,3 +108,13 @@ export const PayloadByEventType = {
   [EventTypes.SECURITY_CSRF_REJECTED]: SecurityCsrfRejectedPayload,
   ...CONTRIBUTED_PAYLOADS,
 } as const;
+
+/**
+ * The schema an event must satisfy when emitted: its `PayloadByEventType` entry, unless the
+ * contribution declares a stricter `emitted` one. Handlers read with `PayloadByEventType`, which
+ * may still accept an older stored shape so a queued event survives a deploy.
+ */
+export function emittedPayloadSchema(eventType: string): z.ZodType | undefined {
+  const payloads: Readonly<Record<string, z.ZodType | undefined>> = PayloadByEventType;
+  return CONTRIBUTED_EMITTED[eventType] ?? payloads[eventType];
+}

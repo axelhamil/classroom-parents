@@ -1,7 +1,6 @@
 import { AppBar } from "@packages/ui/components/ui/app-bar";
 import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarHeart } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { UserMenu } from "../../shared/layout/user-menu";
 import { useAppUserStream } from "../../shared/stream/use-app-user-stream";
@@ -25,9 +24,7 @@ function OnboardingPage() {
       <AppBar className="justify-between">
         <BrandLink asChild>
           <Link to="/">
-            <BrandMark>
-              <CalendarHeart />
-            </BrandMark>
+            <BrandMark />
             {t("brand")}
           </Link>
         </BrandLink>

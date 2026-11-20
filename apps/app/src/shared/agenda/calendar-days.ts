@@ -1,9 +1,11 @@
 import { daysFrom, isWeekday, mondayOf, shiftDate } from "@packages/ddd-kit/days";
 import type { EventItem } from "../api/queries/events";
+import { courseShortener } from "../format/course-name";
 import { daysBetween } from "../format/deadline-label";
 import { isDueOn, isOfChild, isOfKind, isOpen } from "./deadline-facts";
 import type { SchoolClock } from "./school-clock";
 import { DEADLINE_KINDS } from "./views";
+import { RELATIVE_HORIZON_DAYS, type WhenBadge } from "./when";
 import type { DateRange } from "./windows";
 
 type Events = readonly EventItem[];
@@ -21,6 +23,7 @@ export interface AgendaDay {
   offset: number;
   crunch: boolean;
   summary: AgendaSummary;
+  badge: WhenBadge | null;
 }
 
 export interface AgendaSummary {
@@ -70,16 +73,28 @@ export function summaryOf(deadlines: Events): AgendaSummary {
   };
 }
 
+/** The one relative word a day's heading carries: today and tomorrow in amber, a few days ahead in plain words. */
+function dayBadge(offset: number): WhenBadge | null {
+  if (offset === 0) return { kind: "today", tone: "urgent" };
+  if (offset === 1) return { kind: "tomorrow", tone: "urgent" };
+  if (offset > 1 && offset <= RELATIVE_HORIZON_DAYS)
+    return { kind: "inDays", days: offset, tone: "soon" };
+
+  return null;
+}
+
 function agendaDay(date: string, events: Events, today: string): AgendaDay {
   const deadlines = events.filter((event) => isDueOn(event, date));
+  const offset = daysBetween(today, date);
 
   return {
     date,
     deadlines,
     tone: dayTone(date, today),
-    offset: daysBetween(today, date),
+    offset,
     crunch: isCrunchDay(date, deadlines, today),
     summary: summaryOf(deadlines),
+    badge: dayBadge(offset),
   };
 }
 
@@ -158,4 +173,86 @@ export function upcomingWeeks(clock: Pick<SchoolClock, "today">, count: number):
 
     return { from, to: days.at(-1) ?? from };
   });
+}
+
+/** One course the agenda can narrow to, under the name its line shows. */
+export interface AgendaCourse {
+  id: string;
+  name: string;
+}
+
+type Course = NonNullable<EventItem["course"]>;
+
+function coursesOf(events: Events, childId: string): Course[] {
+  return events.flatMap((event) =>
+    event.childId === childId && event.course ? [event.course] : [],
+  );
+}
+
+/** The short name of every course of the loaded deadlines, keyed by course id. */
+export function courseNamesView(events: Events): Map<string, string> {
+  const names = new Map<string, string>();
+
+  for (const childId of new Set(events.map((event) => event.childId))) {
+    const courses = coursesOf(events, childId);
+    const shorten = courseShortener(courses.map((course) => course.name));
+    for (const course of courses) names.set(course.id, shorten(course.name));
+  }
+
+  return names;
+}
+
+/**
+ * The courses of the loaded deadlines, each under its short name; two courses that would read the
+ * same keep their full names, so the filter never offers two identical choices.
+ */
+export function agendaCoursesView(events: Events): AgendaCourse[] {
+  const short = courseNamesView(events);
+  const full = new Map(
+    events
+      .flatMap((event) => (event.course ? [event.course] : []))
+      .map((course) => [course.id, course.name]),
+  );
+  const shortList = [...short.values()];
+  const isShared = (name: string) => shortList.filter((other) => other === name).length > 1;
+
+  return [...short]
+    .map(([id, name]) => ({ id, name: isShared(name) ? (full.get(id) ?? name) : name }))
+    .sort((left, right) => left.name.localeCompare(right.name, "fr"));
+}
+
+/**
+ * The days a phone's week shows under the briefing: the briefing already holds today up to the
+ * school day it looks at, so the week skips them; beside it (a wider screen) the week keeps all.
+ */
+export function daysBesideBriefing(
+  days: readonly AgendaDay[],
+  briefed: Pick<SchoolClock, "today" | "focus"> | null,
+): AgendaDay[] {
+  if (briefed === null) return [...days];
+
+  return days.filter((day) => day.date < briefed.today || day.date > briefed.focus);
+}
+
+/** A stretch of a week that is either school days or the weekend, in the order of the days. */
+export interface WeekSegment<T> {
+  weekend: boolean;
+  items: T[];
+}
+
+/** Cuts a week's items where the school week meets the weekend, so the weekend groups in place. */
+export function weekSegments<T>(
+  items: readonly T[],
+  dateOf: (item: T) => string,
+): WeekSegment<T>[] {
+  const segments: WeekSegment<T>[] = [];
+
+  for (const item of items) {
+    const weekend = !isWeekday(dateOf(item));
+    const last = segments.at(-1);
+    if (last?.weekend === weekend) last.items.push(item);
+    else segments.push({ weekend, items: [item] });
+  }
+
+  return segments;
 }

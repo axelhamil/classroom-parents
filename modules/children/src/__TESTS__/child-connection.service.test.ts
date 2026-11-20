@@ -99,7 +99,7 @@ describe("register", () => {
       {
         eventType: EventTypes.CHILD_CONNECTED,
         aggregateId: result.getValue().id,
-        payload: { userId: PARENT, childId: result.getValue().id },
+        payload: { userId: PARENT, childId: result.getValue().id, actorUserId: PARENT },
       },
     ]);
   });

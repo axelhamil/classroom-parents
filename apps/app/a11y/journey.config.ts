@@ -26,7 +26,7 @@ export default defineConfig<GateOptions>({
     viewport: { width: 390, height: 844 },
     trace: "retain-on-failure",
     // The journey moves time through its control server; a pinned browser clock would fight it.
-    pinSchoolClock: false,
+    pinShell: false,
   },
   webServer: [
     {

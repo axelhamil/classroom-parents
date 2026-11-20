@@ -6,12 +6,12 @@ import {
   EmptyHeader,
   EmptyMedia,
 } from "@packages/ui/components/ui/empty";
+import { NotFoundIcon } from "@packages/ui/components/ui/icons";
 import { pageContainerVariants } from "@packages/ui/components/ui/page-container";
 import { TypographyH1 } from "@packages/ui/components/ui/typography";
 import { cn } from "@packages/ui/libs/utils.js";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { MapPinOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { sessionQueryOptions } from "../api/queries/session";
 import { AppShell } from "../layout/app-shell";
@@ -30,7 +30,7 @@ export function NotFoundPage() {
       <Empty>
         <EmptyHeader>
           <EmptyMedia variant="scene">
-            <MapPinOff aria-hidden />
+            <NotFoundIcon aria-hidden />
           </EmptyMedia>
           <TypographyH1 variant="hero">{t("notFound.title")}</TypographyH1>
           <EmptyDescription>{t("notFound.description")}</EmptyDescription>

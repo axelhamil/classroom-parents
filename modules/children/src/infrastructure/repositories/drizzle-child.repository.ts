@@ -7,9 +7,10 @@ import {
   inArray,
   lte,
   resolveExecutor,
+  type SQL,
   sql,
 } from "@packages/drizzle";
-import { childAccount } from "../../../schemas/child.schema";
+import { childAccount, disconnectingStatus, syncedStatus } from "../../../schemas/child.schema";
 import type {
   ChildrenError,
   DisconnectingChild,
@@ -22,7 +23,7 @@ import { ChildAccountId } from "../../domain/child-account-id";
 import { AvatarUrl } from "../../domain/value-objects/avatar-url.vo";
 import { ChildColor } from "../../domain/value-objects/child-color.vo";
 import { ChildLabel } from "../../domain/value-objects/child-label.vo";
-import { ChildStatus, type ChildStatusValue } from "../../domain/value-objects/child-status.vo";
+import { ChildStatus } from "../../domain/value-objects/child-status.vo";
 import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 
 const dbAttrs = { "db.system.name": "postgresql" } as const;
@@ -77,6 +78,7 @@ function toDomain(row: ChildRow): Result<ChildAccount, string> {
         syncStartedAt: Option.fromNullable(row.syncStartedAt),
         lastSyncRequestedAt: Option.fromNullable(row.lastSyncRequestedAt),
         syncLease: row.syncLease,
+        syncAttempts: row.syncAttempts,
       },
       id.getValue(),
     ),
@@ -104,6 +106,7 @@ function mutableColumns(child: ChildAccount) {
     syncStartedAt: child.get("syncStartedAt").toNull(),
     lastSyncRequestedAt: child.get("lastSyncRequestedAt").toNull(),
     syncLease: child.get("syncLease"),
+    syncAttempts: child.get("syncAttempts"),
   };
 }
 
@@ -243,7 +246,10 @@ export class DrizzleChildRepository implements IChildRepository {
     now: Date,
     leaseMs: number,
   ): Promise<Result<DueChild[], ChildrenError>> {
-    const claimed = await this.claim("claimDue", "connected", limit, now, leaseMs);
+    const claimed = await this.claim("claimDue", syncedStatus(childAccount.status), limit, now, {
+      leaseMs,
+      startsSync: true,
+    });
     return claimed.map((rows) =>
       rows.map(({ childId, userId, label, lease }) => ({ childId, userId, label, lease })),
     );
@@ -254,7 +260,13 @@ export class DrizzleChildRepository implements IChildRepository {
     now: Date,
     leaseMs: number,
   ): Promise<Result<DisconnectingChild[], ChildrenError>> {
-    const claimed = await this.claim("claimDisconnecting", "disconnecting", limit, now, leaseMs);
+    const claimed = await this.claim(
+      "claimDisconnecting",
+      disconnectingStatus(childAccount.status),
+      limit,
+      now,
+      { leaseMs, startsSync: false },
+    );
     return claimed.map((rows) =>
       rows.map(({ childId, userId, linkedAccountId, lease }) => ({
         childId,
@@ -274,7 +286,7 @@ export class DrizzleChildRepository implements IChildRepository {
           const query = exec
             .select({ id: childAccount.id })
             .from(childAccount)
-            .where(and(leaseHeldBy(lease), eq(childAccount.status, "connected")))
+            .where(and(leaseHeldBy(lease), syncedStatus(childAccount.status)))
             .for("share");
           const rows = await this.instrumentation.startSpan(
             { name: query.toSQL().sql, op: "db.query", attributes: dbAttrs },
@@ -318,10 +330,10 @@ export class DrizzleChildRepository implements IChildRepository {
 
   private async claim(
     method: string,
-    status: ChildStatusValue,
+    claimable: SQL,
     limit: number,
     now: Date,
-    leaseMs: number,
+    { leaseMs, startsSync }: { leaseMs: number; startsSync: boolean },
   ) {
     const exec = resolveExecutor();
     return this.instrumentation.startSpan(
@@ -331,7 +343,7 @@ export class DrizzleChildRepository implements IChildRepository {
           const due = exec
             .select({ id: childAccount.id })
             .from(childAccount)
-            .where(and(eq(childAccount.status, status), lte(childAccount.nextSyncAt, now)))
+            .where(and(claimable, lte(childAccount.nextSyncAt, now)))
             .orderBy(asc(childAccount.nextSyncAt))
             .limit(limit)
             .for("update", { skipLocked: true });
@@ -340,7 +352,7 @@ export class DrizzleChildRepository implements IChildRepository {
             .set({
               syncAttempts: sql`${childAccount.syncAttempts} + 1`,
               syncLease: sql`${childAccount.syncLease} + 1`,
-              syncStartedAt: status === "connected" ? now : null,
+              syncStartedAt: startsSync ? now : null,
               nextSyncAt: new Date(now.getTime() + leaseMs),
             })
             .where(inArray(childAccount.id, due))

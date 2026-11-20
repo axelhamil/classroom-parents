@@ -15,6 +15,7 @@ import type { IAlertEmailSender } from "./application/ports/alert-email-sender.p
 import type { IAlertRepository } from "./application/ports/alert-repository.port";
 import type { IDigestAudience, IDigestDeadlines } from "./application/ports/digest-audience.port";
 import type { IEventDeadlines } from "./application/ports/event-deadlines.port";
+import type { IParentTimeZone } from "./application/ports/parent-time-zone.port";
 import type { IPushCopy } from "./application/ports/push-copy.port";
 import type { IPushSender } from "./application/ports/push-sender.port";
 import type { IPushSubscriptionRepository } from "./application/ports/push-subscription-repository.port";
@@ -47,6 +48,7 @@ export interface AlertsPrerequisites {
   IAlertContextReader: IAlertContextReader;
   IDigestAudience: IDigestAudience;
   IDigestDeadlines: IDigestDeadlines;
+  IParentTimeZone: IParentTimeZone;
   IAccessLossContextReader: IAccessLossContextReader;
   alertsSettings: AlertsSettings;
 }
@@ -130,6 +132,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.IWeeklyDigestRepository,
           c.IDigestAudience,
           c.IDigestDeadlines,
+          c.IParentTimeZone,
           c.IPushSubscriptionRepository,
           c.IPushSender,
           c.IAlertEmailSender,

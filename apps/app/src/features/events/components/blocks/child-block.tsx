@@ -1,4 +1,4 @@
-import { UserRoundIcon } from "lucide-react";
+import { ChildIcon } from "@packages/ui/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { childAgendaView } from "../../../../shared/agenda/views";
 import { nextSevenDays } from "../../../../shared/agenda/windows";
@@ -24,7 +24,7 @@ function ChildBlock({ family, clock, blockId, title }: HomeBlockProps) {
   return (
     <BlockPanel
       title={title}
-      icon={UserRoundIcon}
+      icon={ChildIcon}
       note={query.isSuccess && agenda.due.length === 0 && note}
     >
       {agenda.due.length > 0 && <EventRows events={agenda.due} family={family} withChild={false} />}
@@ -38,7 +38,7 @@ export function childBlock(child: ChildDto, description: string): UnsizedBlock {
     id: `${CHILD_PREFIX}${child.id}`,
     title: child.label,
     description,
-    icon: UserRoundIcon,
+    icon: ChildIcon,
     Component: ChildBlock,
   };
 }

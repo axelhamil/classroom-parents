@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { hasOpenSteps, hasOpenStepsToPrepare } from "../checklist-template";
 import { isDueWithin, isOpen, isOverdue, needsReview } from "../deadline-facts";
 import { isSchoolDay } from "../school-clock";
 import { dayPlanView, nextAfterFocus, overdueView, reviewView, tonightView } from "../views";
@@ -56,6 +57,21 @@ describe("tonight and the next school day", () => {
         if (plan.day !== tonight.day) return;
 
         expect(idsOf(tonight.toPrepare)).toEqual(idsOf(plan.toPrepare));
+        expect(idsOf(tonight.suggested)).toEqual(idsOf(plan.suggested));
+      }),
+      RUNS,
+    );
+  });
+
+  it("put what the announcement asks to prepare, and template steps apart, never both nor neither", () => {
+    fc.assert(
+      fc.property(agendaArb, ({ clock, events, childId }) => {
+        const tonight = tonightView(events, clock, childId);
+        const withSteps = tonight.open.filter(hasOpenSteps);
+
+        expect(idsOf([...tonight.toPrepare, ...tonight.suggested])).toEqual(idsOf(withSteps));
+        for (const event of tonight.open)
+          if (hasOpenStepsToPrepare(event)) expect(tonight.toPrepare).toContain(event);
       }),
       RUNS,
     );

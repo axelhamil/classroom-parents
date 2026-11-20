@@ -1,9 +1,15 @@
 import { CalendarPeriod } from "@packages/ui/components/ui/calendar-day";
+import { SyncingIcon } from "@packages/ui/components/ui/icons";
 import { Tabs, TabsContent } from "@packages/ui/components/ui/tabs";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HourglassIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  agendaCoursesView,
+  agendaDaysView,
+  filterAgenda,
+  periodSummaryView,
+} from "../../../../shared/agenda/calendar-days";
 import { useSchoolClock } from "../../../../shared/agenda/school-clock-context";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import {
@@ -12,6 +18,7 @@ import {
   isFirstSyncRunning,
 } from "../../../../shared/events/event-board";
 import { preloadOverlayFrame } from "../../../../shared/layout/responsive-overlay";
+import { useContainerAtLeast } from "../../../../shared/layout/use-container-width";
 import { usePrefetchWhenIdle } from "../../../../shared/perf/prefetch-when-idle";
 import { preloadable } from "../../../../shared/perf/preloadable";
 import { QueryState } from "../../../../shared/query/query-state";
@@ -25,6 +32,7 @@ import {
   periodHolds,
   placePeriod,
   shiftAnchor,
+  type WeekStart,
 } from "../../calendar";
 import { useShareDays } from "../../hooks/use-share-days";
 import { type SwipeStep, useSwipe } from "../../hooks/use-swipe";
@@ -33,7 +41,6 @@ import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { OverdueButton } from "./overdue-button";
 import { PeriodEmpty } from "./period-empty";
-import { WeekStrip } from "./week-strip";
 import { WeekView } from "./week-view";
 
 export interface CalendarBoardProps {
@@ -53,15 +60,20 @@ const { Component: MonthView, preload: preloadMonthView } = preloadable(() =>
 
 const OPENED_ON_DEMAND = [preloadOverlayFrame, preloadAddEventForm, preloadMonthView];
 
-function useNeighbourPrefetch(view: CalendarView, anchor: string): void {
+/** From this width of its block, the week opens as a planner of columns instead of a thread. */
+const BOARD_FROM_REM = 40;
+
+function useNeighbourPrefetch(view: CalendarView, anchor: string, weekStart: WeekStart): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     for (const step of [1, -1] as const)
       void queryClient.prefetchQuery(
-        calendarEventsQueryOptions(calendarPeriod(view, shiftAnchor(view, anchor, step))),
+        calendarEventsQueryOptions(
+          calendarPeriod(view, shiftAnchor(view, anchor, step), weekStart),
+        ),
       );
-  }, [queryClient, view, anchor]);
+  }, [queryClient, view, anchor, weekStart]);
 }
 
 export function CalendarBoard({
@@ -74,26 +86,34 @@ export function CalendarBoard({
 }: CalendarBoardProps) {
   const { t } = useTranslation("events");
   const clock = useSchoolClock();
-  const { now } = clock;
-  const { view, today, anchor, period } = placePeriod(place, clock);
+  const [blockRef, board] = useContainerAtLeast<HTMLDivElement>(BOARD_FROM_REM);
+  const weekStart: WeekStart = board ? "monday" : "anchor";
+  const { view, today, reference, anchor, period } = placePeriod(place, clock, weekStart);
   const query = useQuery({
     ...calendarEventsQueryOptions(period),
     placeholderData: keepPreviousData,
   });
-  useNeighbourPrefetch(view, anchor);
+  useNeighbourPrefetch(view, anchor, weekStart);
   usePrefetchWhenIdle(OPENED_ON_DEMAND);
   const [motion, setMotion] = useState<{ direction: Direction; turn: number }>({
     direction: "none",
     turn: 0,
   });
   const [adding, setAdding] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
-  const shareDays = useShareDays(family, now);
+  const shareDays = useShareDays(family, today);
   const loaded = query.data ?? [];
-  const shown = childId ? loaded.filter((event) => event.childId === childId) : loaded;
+  const filter = { childId, courseId: place.courseId ?? null };
+  const shown = filterAgenda(loaded, filter);
   const days = daysOf(period, shown);
+  const agendaDays = agendaDaysView(period.days, loaded, clock, filter);
+  const summary = periodSummaryView(
+    agendaDays.filter((day) => periodHolds(view, anchor, day.date, weekStart)),
+  );
+  const courses = agendaCoursesView(filterAgenda(loaded, { childId, courseId: null }));
 
-  const select = (date: string) => onPlaceChange({ date: date === today ? undefined : date });
+  const select = (date: string) => onPlaceChange({ date: date === reference ? undefined : date });
 
   const turnTo = (date: string) => {
     setMotion((current) => ({
@@ -114,13 +134,13 @@ export function CalendarBoard({
     onPlaceChange({ view: picked });
   };
 
-  const viewProps = { days, family, now, today, onAdd: setAdding };
+  const viewProps = { days, family, today, onAdd: setAdding };
   const periodEmpty =
     shown.length === 0 ? (
       <PeriodEmpty
         family={family}
         childId={childId}
-        now={now}
+        today={today}
         onAdd={() => setAdding(anchor)}
         onGoTo={turnTo}
       />
@@ -128,19 +148,25 @@ export function CalendarBoard({
 
   return (
     <Tabs value={view} onValueChange={changeView} className="gap-4">
-      {view === "week" && shown.length > 0 && (
-        <WeekStrip days={days} family={family} now={now} today={today} />
-      )}
-      <div className="@container flex min-w-0 flex-col gap-4">
+      <div ref={blockRef} className="@container flex min-w-0 flex-col gap-4">
         {!overdueShown && <OverdueButton family={family} childId={childId} before={period.from} />}
         <CalendarToolbar
           view={view}
           anchor={anchor}
           period={period}
-          todayInView={periodHolds(view, anchor, today)}
+          todayInView={periodHolds(view, anchor, reference, weekStart)}
+          summary={summary}
+          settled={query.isSuccess && !query.isPlaceholderData}
+          courses={courses}
+          courseId={filter.courseId}
+          onCourseChange={(courseId) => onPlaceChange({ courseId: courseId ?? undefined })}
           onStep={step}
-          onToday={() => turnTo(today)}
-          onAdd={() => setAdding(anchor)}
+          onToday={() => turnTo(reference)}
+          onAdd={() =>
+            setAdding(
+              picked !== null && periodHolds(view, anchor, picked, weekStart) ? picked : anchor,
+            )
+          }
           onShare={() => shareDays(days)}
           onSubscribe={() => setSubscribing(true)}
         />
@@ -153,7 +179,7 @@ export function CalendarBoard({
               {() =>
                 loaded.length === 0 && isFirstSyncRunning(family) ? (
                   <BoardEmpty
-                    icon={HourglassIcon}
+                    icon={SyncingIcon}
                     title={t("empty.syncing.title")}
                     description={t("empty.syncing.description")}
                   />
@@ -165,7 +191,13 @@ export function CalendarBoard({
                   >
                     {candidate === "week" &&
                       (periodEmpty ?? (
-                        <WeekView {...viewProps} briefed={briefingShown ? clock : null} />
+                        <WeekView
+                          days={agendaDays}
+                          family={family}
+                          board={board}
+                          briefed={briefingShown ? clock : null}
+                          onPick={setPicked}
+                        />
                       ))}
                     {candidate === "month" && (
                       <Suspense fallback={<EventBoardSkeleton label={t("calendar.loading")} />}>

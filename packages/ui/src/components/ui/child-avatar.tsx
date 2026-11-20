@@ -40,9 +40,9 @@ const childInitialsVariants = cva("font-semibold text-child-foreground", {
     tone: childHueFill,
     size: {
       xs: "text-2xs",
-      sm: "text-xs",
-      md: "text-sm",
-      lg: "text-xl",
+      sm: "text-meta",
+      md: "text-small",
+      lg: "text-title",
     },
   },
   defaultVariants: { size: "md" },

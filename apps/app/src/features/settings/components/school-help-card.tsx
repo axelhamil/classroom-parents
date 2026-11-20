@@ -1,7 +1,7 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { SchoolIcon } from "@packages/ui/components/ui/icons";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
 import { Link } from "@tanstack/react-router";
-import { School } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export function SchoolHelpCard() {
@@ -14,7 +14,7 @@ export function SchoolHelpCard() {
       footer={
         <Button asChild variant="outline">
           <Link to="/aide/ecole">
-            <School aria-hidden />
+            <SchoolIcon aria-hidden />
             {t("schoolHelp.action")}
           </Link>
         </Button>

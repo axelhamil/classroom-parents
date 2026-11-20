@@ -1,0 +1,2 @@
+DROP INDEX "child_account_due_idx";--> statement-breakpoint
+CREATE INDEX "child_account_due_idx" ON "child_account" USING btree ("next_sync_at") WHERE "child_account"."status" in ('connected', 'blocked_by_school');

@@ -2,6 +2,10 @@ import { daysFrom, shiftDate } from "@packages/ddd-kit/days";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 import {
+  assistantPreferencesQueryOptions,
+  parentTimeZoneOf,
+} from "../api/queries/assistant-preferences";
+import {
   type SchoolCalendarDays,
   schoolCalendarQueryOptions,
 } from "../api/queries/school-calendar";
@@ -19,24 +23,35 @@ export function closedDaysOf(calendar: SchoolCalendarDays): ReadonlySet<string> 
   return new Set([...holidays, ...calendar.bankHolidays.map(({ date }) => date)]);
 }
 
+function useParentTimeZone(userId: string): string {
+  const { data } = useQuery({
+    ...assistantPreferencesQueryOptions(userId),
+    select: parentTimeZoneOf,
+  });
+
+  return data ?? DEFAULT_CLOCK_SETTINGS.timeZone;
+}
+
 /**
- * The school clock of this minute for the signed-in parent: the holidays and bank holidays of their school calendar
- * are days off. Until the calendar answers (offline, or in a shape it does not know), weekends are the
- * only days off.
+ * The school clock of this minute for the signed-in parent, in the time zone they chose: the
+ * holidays and bank holidays of their school calendar are days off. Until the preferences answer (offline, or a zone
+ * the browser does not know), the clock runs on Paris time; until the calendar answers (or in a
+ * shape it does not know), weekends are the only days off. Neither ever holds the shell back.
  */
 export function useLiveSchoolClock(userId: string): SchoolClock {
   const now = useNow();
-  const today = schoolClock(now).today;
+  const timeZone = useParentTimeZone(userId);
+  const today = schoolClock(now, { ...DEFAULT_CLOCK_SETTINGS, timeZone }).today;
   const range = { from: today, to: shiftDate(today, CLOSED_DAYS_AHEAD) };
   const { data } = useQuery(schoolCalendarQueryOptions(userId, range));
 
   return useMemo(
     () =>
       schoolClock(now, {
-        ...DEFAULT_CLOCK_SETTINGS,
+        timeZone,
         closedDays: data ? closedDaysOf(data) : DEFAULT_CLOCK_SETTINGS.closedDays,
       }),
-    [now, data],
+    [now, timeZone, data],
   );
 }
 

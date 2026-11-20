@@ -1,6 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
+import { DoneIcon, ShareIcon } from "@packages/ui/components/ui/icons";
 import { toastSuccess } from "@packages/web-kit/api/errors/toast";
-import { CheckIcon, Share2Icon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -46,9 +46,9 @@ export function ShareButton({ label, payload, "data-tour": tour }: ShareButtonPr
       onClick={() => void share(payload())}
     >
       {copied ? (
-        <CheckIcon key="copied" data-slot="feedback-icon" aria-hidden />
+        <DoneIcon key="copied" data-slot="feedback-icon" aria-hidden />
       ) : (
-        <Share2Icon key="share" data-slot="feedback-icon" aria-hidden />
+        <ShareIcon key="share" data-slot="feedback-icon" aria-hidden />
       )}
       {label}
     </Button>
