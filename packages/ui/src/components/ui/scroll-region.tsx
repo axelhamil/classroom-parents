@@ -41,6 +41,11 @@ interface TileScrollRegionProps
   "aria-labelledby": string;
   /** Edit mode: nothing scrolls, and the scroll position is given back when it ends. */
   inert?: boolean;
+  /**
+   * The content keeps headers stuck to the top of the region (the dates of a planner): the top
+   * edge neither fades nor pads them, and what scrolls in by keyboard lands below them.
+   */
+  stickyHead?: boolean;
 }
 
 /**
@@ -50,7 +55,8 @@ interface TileScrollRegionProps
  * - `tile` is the body of a fixed-size tile, between a header of `h-dashboard-header` and an optional footer laid
  *   outside it: it fills what is left (`flex-1 min-h-0`), is a `group` named by the tile title, chains the gesture to
  *   the page at the end of its course, and shows its thin bar only on hover, focus or while scrolling
- *   (`data-scrolling`). Where scroll-driven animations are missing, two sentinels and an `IntersectionObserver` set the
+ *   (`data-scrolling`). The gesture stays in the region while it can still scroll (`data-contained`), so a
+ *   flick that reaches its end does not jolt the page; the next one, from the end, scrolls the page. Where scroll-driven animations are missing, two sentinels and an `IntersectionObserver` set the
  *   fade edges instead. The forwarded `ref` reads and writes `scrollTop`, so a caller can keep the position across
  *   two mounts; within one mount, `inert` keeps it on its own.
  */
@@ -76,6 +82,7 @@ function TileScrollRegion({
   className,
   ref,
   inert,
+  stickyHead,
   children,
   ...props
 }: TileScrollRegionProps) {
@@ -90,6 +97,7 @@ function TileScrollRegion({
   const fadeFallback = needsFadeFallback();
 
   useScrollingFlag(element);
+  useContainedWhileScrollable(element);
   useFadeSentinels(element, fadeFallback);
   useScrollKeptWhileInert(element, inert);
 
@@ -98,6 +106,7 @@ function TileScrollRegion({
       ref={attach}
       data-slot="scroll-region"
       data-variant={variant}
+      data-sticky-head={stickyHead || undefined}
       role="group"
       // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region must be reachable by keyboard, WCAG 2.1.1
       tabIndex={0}
@@ -149,6 +158,37 @@ function useScrollingFlag(element: HTMLElement | null) {
       element.removeEventListener("scroll", flag);
       element.removeEventListener("scrollend", settle);
       window.clearTimeout(settleTimer);
+    };
+  }, [element]);
+}
+
+/** Whether the region can still scroll both ways, a pixel of rounding aside. */
+function scrollsBothWays(element: HTMLElement): boolean {
+  const rest = element.scrollHeight - element.clientHeight - element.scrollTop;
+
+  return element.scrollTop > 1 && rest > 1;
+}
+
+/**
+ * Keeps the gesture inside the region only while it is between its two ends: from an end, the
+ * wheel or the finger carries on to the page in one move instead of stopping then jumping.
+ */
+function useContainedWhileScrollable(element: HTMLElement | null) {
+  useEffect(() => {
+    if (!element) return;
+
+    const update = () => element.toggleAttribute("data-contained", scrollsBothWays(element));
+    update();
+    element.addEventListener("scroll", update, { passive: true });
+    if (typeof ResizeObserver === "undefined")
+      return () => element.removeEventListener("scroll", update);
+
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+
+    return () => {
+      element.removeEventListener("scroll", update);
+      observer.disconnect();
     };
   }, [element]);
 }

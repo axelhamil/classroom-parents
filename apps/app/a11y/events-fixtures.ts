@@ -73,6 +73,24 @@ export const REVIEW_EVENT = {
   checklist: { done: [], removed: [], extra: [] },
 };
 
+const BUSY_TITLES = ["Fiche de fractions", "Lire le chapitre 3", "Contrôle de géographie"];
+
+/** Three deadlines on each of the next six days, alternating children: enough to scroll every view. */
+export const BUSY_WEEK = Array.from({ length: 18 }, (_, index) => {
+  const day = inDays(1 + Math.floor(index / 3));
+
+  return {
+    ...REVIEW_EVENT,
+    id: `5e6f7a8b-9c0d-4e1f-8a2b-${String(index).padStart(12, "0")}`,
+    childId: index % 2 === 0 ? LEA.id : MAXIMILIEN.id,
+    status: "confirmed",
+    category: index % 3 === 2 ? "assessment" : "homework",
+    title: `${BUSY_TITLES[index % 3]} ${index + 1}`,
+    deadlineDate: day,
+    deadlineAt: `${day}T07:00:00.000Z`,
+  };
+});
+
 export const EVENTS = [
   REVIEW_EVENT,
   {

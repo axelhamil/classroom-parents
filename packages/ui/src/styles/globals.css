@@ -193,6 +193,11 @@
   /* Above the first row of a tile: the room of a focus ring, no more, so the body starts right
      under the title. Its top fade is nothing at rest and grows only once the body scrolls. */
   --scroll-fade-ring: 0.25rem;
+  /* The dates stuck to the top of a planner's columns, the weekend's label
+     above its day's date included: Tab never hides a deadline under them. */
+  --sticky-head-height: 5rem;
+  /* The "Week-end" label stuck above the date of the weekend day being read. */
+  --weekend-label-height: 1.75rem;
   /* Header of a home tile: the title row beside its menu button, fixed so the body takes what is left. */
   --dashboard-header-height: var(--touch-target);
   /* Inner gutter of a scroll region: holds the 3px focus ring and the 4px avatar ring (2px offset + 2px ring) its overflow would clip. */
@@ -2278,6 +2283,22 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
 
   &:focus-visible {
     mask-image: none;
+  }
+
+  &[data-contained] {
+    overscroll-behavior-y: contain;
+  }
+
+  /* Headers stuck to the top (the dates of a planner) stay whole: no fade nor
+     padding above them, and what Tab brings in lands under them. */
+  &[data-sticky-head] {
+    padding-top: 0;
+    scroll-padding-top: var(--sticky-head-height);
+    mask-image: linear-gradient(
+      to bottom,
+      black calc(100% - var(--scroll-fade-bottom)),
+      transparent
+    );
   }
 
   @supports (animation-timeline: scroll()) {

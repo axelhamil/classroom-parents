@@ -1,6 +1,11 @@
 import { CalendarWeek, CalendarWeekend } from "@packages/ui/components/ui/calendar-day";
 import { useTranslation } from "react-i18next";
-import { type AgendaDay, weekSegments } from "../../../../shared/agenda/calendar-days";
+import {
+  type AgendaDay,
+  foldsInPlanner,
+  weekSegments,
+} from "../../../../shared/agenda/calendar-days";
+import { useSchoolClock } from "../../../../shared/agenda/school-clock-context";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { AgendaDaySection } from "./agenda-day";
 
@@ -13,12 +18,14 @@ export interface WeekBoardProps {
 /** The open planner of a wider block: one column per school day, the weekend stacked in one. */
 export function WeekBoard({ days, family, courseNames }: WeekBoardProps) {
   const { t } = useTranslation("events");
+  const { focus } = useSchoolClock();
 
   const column = (day: AgendaDay) => (
     <AgendaDaySection
       key={day.date}
       day={day}
       layout="column"
+      folded={foldsInPlanner(day, focus)}
       family={family}
       courseNames={courseNames}
     />
