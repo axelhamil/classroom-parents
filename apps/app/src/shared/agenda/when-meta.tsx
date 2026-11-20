@@ -1,8 +1,7 @@
-import { wallTimeLabel } from "@packages/i18n";
+import { relativeDayLabel, wallTimeLabel } from "@packages/i18n";
 import { Badge } from "@packages/ui/components/ui/badge";
 import { AlarmClockIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { dayLabelFrom } from "../format/deadline-label";
 import type { SchoolClock } from "./school-clock";
 import type { When, WhenBadge } from "./when";
 
@@ -57,7 +56,7 @@ export function WhenMeta({ when, clock }: WhenMetaProps) {
   return (
     <>
       <WhenBadgeView badge={urgent} />
-      {when.date && <span>{dayLabelFrom(when.date, clock.today)}</span>}
+      {when.date && <span>{relativeDayLabel(when.date, clock.today)}</span>}
       {when.time && <span>{wallTimeLabel(when.time)}</span>}
       <WhenBadgeView badge={soon} />
     </>

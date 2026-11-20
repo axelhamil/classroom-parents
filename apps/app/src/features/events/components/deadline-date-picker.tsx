@@ -4,6 +4,7 @@ import { FormControl } from "@packages/ui/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@packages/ui/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { useState } from "react";
+import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { dayLabel } from "../../../shared/format/deadline-label";
 import { isoDay, localDay } from "../../../shared/format/local-day";
 
@@ -14,6 +15,7 @@ export interface DeadlineDatePickerProps {
 
 export function DeadlineDatePicker({ value, onChange }: DeadlineDatePickerProps) {
   const [open, setOpen] = useState(false);
+  const { today } = useSchoolClock();
   const selected = localDay(value);
 
   return (
@@ -22,7 +24,7 @@ export function DeadlineDatePicker({ value, onChange }: DeadlineDatePickerProps)
         <FormControl>
           <Button type="button" variant="outline" className="w-full justify-start">
             <CalendarIcon aria-hidden />
-            {dayLabel(value, new Date())}
+            {dayLabel(value, today)}
           </Button>
         </FormControl>
       </PopoverTrigger>

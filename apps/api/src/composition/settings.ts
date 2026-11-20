@@ -47,7 +47,6 @@ export const apiSettings = (source: SettingsSource) => {
   };
   const calendarFeedSettings: CalendarFeedSettings = {
     feedOrigin: source.BETTER_AUTH_URL,
-    appHost: new URL(source.APP_ORIGIN).host,
   };
   const llmSettings: LlmSettings = {
     anthropicApiKey: source.ANTHROPIC_API_KEY ?? "",

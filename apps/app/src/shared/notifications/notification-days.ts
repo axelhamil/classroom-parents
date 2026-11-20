@@ -1,7 +1,6 @@
-import { PARIS_TIME_ZONE, utcToZonedWall } from "@packages/ddd-kit/zoned-time";
+import { utcToZonedWall } from "@packages/ddd-kit/zoned-time";
 import { wallDateLabel, wallTimeLabel } from "@packages/i18n";
-import { capitalize, daysUntil } from "../format/deadline-label";
-import { schoolToday } from "../format/school-today";
+import { capitalize, daysBetween } from "../format/deadline-label";
 
 interface WallInstant {
   date: string;
@@ -18,8 +17,8 @@ export interface DayLabels {
   yesterday: string;
 }
 
-function wallOf(instant: string): WallInstant {
-  const wall = utcToZonedWall(new Date(instant), PARIS_TIME_ZONE);
+function wallOf(instant: string, timeZone: string): WallInstant {
+  const wall = utcToZonedWall(new Date(instant), timeZone);
 
   return wall.isSuccess
     ? wall.getValue()
@@ -28,11 +27,12 @@ function wallOf(instant: string): WallInstant {
 
 export function groupByDay<Item extends { createdAt: string }>(
   items: readonly Item[],
+  timeZone: string,
 ): NotificationDay<Item>[] {
   const days: NotificationDay<Item>[] = [];
 
   for (const item of items) {
-    const date = wallOf(item.createdAt).date;
+    const date = wallOf(item.createdAt, timeZone).date;
     const last = days.at(-1);
 
     if (last?.date === date) last.items.push(item);
@@ -42,14 +42,14 @@ export function groupByDay<Item extends { createdAt: string }>(
   return days;
 }
 
-export function notificationDayLabel(date: string, now: Date, labels: DayLabels): string {
-  const daysAgo = -daysUntil(date, now);
+export function notificationDayLabel(date: string, today: string, labels: DayLabels): string {
+  const daysAgo = -daysBetween(today, date);
   if (daysAgo === 0) return labels.today;
   if (daysAgo === 1) return labels.yesterday;
 
-  return capitalize(wallDateLabel(date, schoolToday(now)));
+  return capitalize(wallDateLabel(date, today));
 }
 
-export function notificationTimeLabel(createdAt: string): string {
-  return wallTimeLabel(wallOf(createdAt).time);
+export function notificationTimeLabel(createdAt: string, timeZone: string): string {
+  return wallTimeLabel(wallOf(createdAt, timeZone).time);
 }

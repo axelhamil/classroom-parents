@@ -1,12 +1,12 @@
+import { deadlineLine } from "@packages/i18n";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
-import { deadlineTitle } from "../../../shared/events/deadline-title";
 import { childLabelOf } from "../../../shared/format/child-hue";
 import { dayLabel } from "../../../shared/format/deadline-label";
 import type { CalendarDay } from "../calendar";
 import { useShare } from "../components/share-button";
 
-export function useShareDays(family: readonly ChildDto[], now: Date) {
+export function useShareDays(family: readonly ChildDto[], today: string) {
   const { t } = useTranslation("events");
   const { share } = useShare();
 
@@ -19,9 +19,9 @@ export function useShareDays(family: readonly ChildDto[], now: Date) {
         : planned
             .map((day) =>
               [
-                t("week.shareDay", { day: dayLabel(day.date, now) }),
+                t("week.shareDay", { day: dayLabel(day.date, today) }),
                 ...day.events.map((event) =>
-                  deadlineTitle(t, event.title, childLabelOf(family, event.childId)),
+                  deadlineLine({ child: childLabelOf(family, event.childId), title: event.title }),
                 ),
               ].join("\n"),
             )

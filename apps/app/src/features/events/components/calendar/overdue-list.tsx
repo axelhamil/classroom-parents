@@ -15,7 +15,7 @@ import { CalendarEventRow } from "./calendar-event-row";
 export interface OverdueListProps {
   events: readonly EventItem[];
   family: readonly ChildDto[];
-  now: Date;
+  today: string;
 }
 
 function byDate(events: readonly EventItem[]): [string, EventItem[]][] {
@@ -26,7 +26,7 @@ function byDate(events: readonly EventItem[]): [string, EventItem[]][] {
   return [...groups];
 }
 
-export function OverdueList({ events, family, now }: OverdueListProps) {
+export function OverdueList({ events, family, today }: OverdueListProps) {
   const { t } = useTranslation("events");
   const groupId = useId();
 
@@ -36,7 +36,7 @@ export function OverdueList({ events, family, now }: OverdueListProps) {
         {byDate(events).map(([date, due]) => (
           <CalendarDay key={date} tone="past" aria-labelledby={`${groupId}${date}`}>
             <CalendarDayHeader>
-              <CalendarDayTitle id={`${groupId}${date}`}>{dayLabel(date, now)}</CalendarDayTitle>
+              <CalendarDayTitle id={`${groupId}${date}`}>{dayLabel(date, today)}</CalendarDayTitle>
             </CalendarDayHeader>
             <CalendarDayList>
               {due.map((event) => (

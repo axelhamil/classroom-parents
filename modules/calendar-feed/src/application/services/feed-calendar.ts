@@ -1,16 +1,21 @@
 import { Option } from "@packages/ddd-kit";
 import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
+import { deadlineLine } from "@packages/i18n";
 import {
   alarmLines,
   allDayLines,
+  CALENDAR_PRODUCT_ID,
   calendarText,
   dateValue,
   escapeText,
+  eventIdentity,
   utcValue,
 } from "@packages/icalendar";
 import type { FeedEntry } from "../ports/feed-entries.port";
 
 export const FEED_CALENDAR_NAME = "Échéances scolaires";
+
+const DONE_SEPARATOR = " · ";
 
 const PARIS_TIME_ZONE_LINES = [
   "BEGIN:VTIMEZONE",
@@ -35,7 +40,6 @@ const PARIS_TIME_ZONE_LINES = [
 
 export interface FeedCalendarInput {
   entries: FeedEntry[];
-  appHost: string;
   now: Date;
 }
 
@@ -66,12 +70,9 @@ function startLines(entry: FeedEntry): string[] {
   return allDayLines(entry.deadlineDate);
 }
 
-function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] {
-  const summary = [
-    ...entry.doneLabel.map((done) => [done]).unwrapOr([]),
-    entry.childLabel,
-    entry.title,
-  ].join(" · ");
+function eventLines(entry: FeedEntry, stamp: string): string[] {
+  const line = deadlineLine({ child: entry.childLabel, title: entry.title });
+  const summary = entry.doneLabel.map((done) => `${done}${DONE_SEPARATOR}${line}`).unwrapOr(line);
   const url = webUrl(entry.classroomUrl);
   const description = [
     entry.courseName.map((name) => `Cours : ${name}`).unwrapOr(""),
@@ -84,7 +85,7 @@ function eventLines(entry: FeedEntry, appHost: string, stamp: string): string[] 
 
   return [
     "BEGIN:VEVENT",
-    `UID:${entry.eventId}@${appHost}`,
+    `UID:${eventIdentity(entry.eventId)}`,
     `DTSTAMP:${stamp}`,
     ...startLines(entry),
     `SUMMARY:${escapeText(summary)}`,
@@ -102,7 +103,7 @@ export function writeFeedCalendar(input: FeedCalendarInput): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//classroom-parents//calendar feed//FR",
+    CALENDAR_PRODUCT_ID,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `NAME:${escapeText(FEED_CALENDAR_NAME)}`,
@@ -111,7 +112,7 @@ export function writeFeedCalendar(input: FeedCalendarInput): string {
     "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
     "X-PUBLISHED-TTL:PT1H",
     ...PARIS_TIME_ZONE_LINES,
-    ...input.entries.flatMap((entry) => eventLines(entry, input.appHost, stamp)),
+    ...input.entries.flatMap((entry) => eventLines(entry, stamp)),
     "END:VCALENDAR",
   ];
 

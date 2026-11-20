@@ -85,7 +85,7 @@ Three things bite when running repeatedly:
   about five full sweeps per hour on one API process before it refuses the
   parent. The pin to `4` stays as a courtesy cap on host load. A spec that
   fakes the family (`serveFamily`) fakes everything the home it opens reads,
-  `/home/*` included: each request left to the live API spends the seeded
+  `/home/*` included, and `pinShell` fakes `/assistant/preferences`, `/notifications/unread-count` and `/school-calendar`, read by the shell on every page: each request left to the live API spends the seeded
   parent's bucket (a full sweep measured 475 there, 19 November 2026). The
   limiter is stored in Postgres and the API also keeps blocked keys in memory:
   between two local sweeps inside the hour, empty `rate_limit` and restart the

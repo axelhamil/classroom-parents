@@ -1,3 +1,4 @@
+import { relativeDayLabel } from "@packages/i18n";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import {
   readStoredValue,
@@ -16,7 +17,7 @@ import type { SchoolClock } from "../../../shared/agenda/school-clock";
 import { calendarWeek } from "../../../shared/agenda/windows";
 import { markEventDoneMutationOptions } from "../../../shared/api/mutations/mark-event-done";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { dayLabelFrom, inSentence } from "../../../shared/format/deadline-label";
+import { inSentence } from "../../../shared/format/deadline-label";
 import { useHomeEvents } from "./use-home-events";
 
 const celebratedSchema = z.object({ days: z.array(z.string()), weeks: z.array(z.string()) });
@@ -83,7 +84,7 @@ export function useCelebrateProgress(clock: SchoolClock): void {
     const day = days.at(-1);
     const message = weekDone
       ? t("celebration.week")
-      : t("celebration.day", { day: inSentence(dayLabelFrom(day ?? today, today)) });
+      : t("celebration.day", { day: inSentence(relativeDayLabel(day ?? today, today)) });
 
     toast.success(message, {
       id: weekDone ? `celebration:week:${week}` : `celebration:day:${day ?? today}`,

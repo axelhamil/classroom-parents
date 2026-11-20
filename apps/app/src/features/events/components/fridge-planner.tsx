@@ -18,11 +18,12 @@ import {
   PrintTableTitleText,
 } from "@packages/ui/components/ui/print-planner";
 import { useTranslation } from "react-i18next";
+import type { SchoolClock } from "../../../shared/agenda/school-clock";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { CATEGORY_ICONS, CATEGORY_LABEL_KEYS } from "../../../shared/events/event-labels";
 import { childHue } from "../../../shared/format/child-hue";
-import { daysUntil, wallDateParts } from "../../../shared/format/deadline-label";
+import { dayLabel, daysBetween, wallDateParts } from "../../../shared/format/deadline-label";
 
 const COLUMNS = [1, 2, 3, 4] as const;
 const DENSE_FROM = 8;
@@ -32,8 +33,10 @@ export interface FridgePlannerProps {
   subtitle: string;
   family: readonly ChildDto[];
   events: readonly EventItem[];
-  now: Date;
+  clock: PlannerClock;
 }
+
+type PlannerClock = Pick<SchoolClock, "now" | "today">;
 
 interface ChildColumn {
   child: ChildDto;
@@ -47,7 +50,7 @@ function chunksOf<T>(items: readonly T[], size: number): T[][] {
   );
 }
 
-export function FridgePlanner({ title, subtitle, family, events, now }: FridgePlannerProps) {
+export function FridgePlanner({ title, subtitle, family, events, clock }: FridgePlannerProps) {
   const columns: ChildColumn[] = family.map((child) => ({
     child,
     hue: childHue(family, child.id),
@@ -68,7 +71,7 @@ export function FridgePlanner({ title, subtitle, family, events, now }: FridgePl
                 <ChildAvatar name={child.label} tone={hue} size="sm" />
                 {child.label}
               </PrintPlannerColumnTitle>
-              <Deadlines events={childEvents} now={now} />
+              <Deadlines events={childEvents} clock={clock} />
             </PrintPlannerColumn>
           );
         })}
@@ -96,7 +99,7 @@ export function FridgePlanner({ title, subtitle, family, events, now }: FridgePl
             <tr>
               {row.map(({ child, events: childEvents }) => (
                 <PrintTableCell key={child.id}>
-                  <Deadlines events={childEvents} now={now} />
+                  <Deadlines events={childEvents} clock={clock} />
                 </PrintTableCell>
               ))}
               {row.length < perRow && <PrintTableCell colSpan={perRow - row.length} />}
@@ -110,18 +113,16 @@ export function FridgePlanner({ title, subtitle, family, events, now }: FridgePl
 
 interface DeadlinesProps {
   events: readonly EventItem[];
-  now: Date;
+  clock: PlannerClock;
 }
 
-function Deadlines({ events, now }: DeadlinesProps) {
+function Deadlines({ events, clock }: DeadlinesProps) {
   const { t } = useTranslation("events");
-  const { t: tCommon } = useTranslation("common");
 
   const countdown = (event: EventItem, past: boolean) => {
     if (past) return t("print.past");
-    const days = daysUntil(event.deadlineDate, now);
-    if (days <= 0) return tCommon("deadline.today");
-    if (days === 1) return tCommon("deadline.tomorrow");
+    const days = daysBetween(clock.today, event.deadlineDate);
+    if (days <= 1) return dayLabel(event.deadlineDate, clock.today);
 
     return t("countdown.inDays", { count: days });
   };
@@ -132,7 +133,7 @@ function Deadlines({ events, now }: DeadlinesProps) {
     <PrintPlannerList>
       {events.map((event) => {
         const CategoryIcon = CATEGORY_ICONS[event.category];
-        const past = Date.parse(event.deadlineAt) < now.getTime();
+        const past = Date.parse(event.deadlineAt) < clock.now.getTime();
 
         return (
           <PrintPlannerItem key={event.id} past={past}>

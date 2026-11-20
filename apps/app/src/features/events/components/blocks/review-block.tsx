@@ -12,6 +12,7 @@ import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../../shared/format/deadline-label";
 import { lateBacklogQueryOptions, reviewEventsQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
+import { useReviewConfirmation } from "../../hooks/use-review-confirmation";
 import { mainReviewSentenceKey } from "../../review-labels";
 import { ReviewLine } from "../review-line";
 import { BlockPanel } from "./block-panel";
@@ -21,6 +22,7 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const coming = useQuery(reviewEventsQueryOptions({ category: null, childId }));
   const backlog = useQuery(lateBacklogQueryOptions(childId));
+  const confirm = useReviewConfirmation();
   const { upcoming, past } = reviewView([...(coming.data ?? []), ...(backlog.data ?? [])], clock);
   const [handOver, setHandOver] = useState(false);
   const takeFocus = useCallback((node: HTMLDivElement | null) => {
@@ -44,11 +46,12 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
       {upcoming.length > 0 && (
         <>
           <ReviewFigure events={upcoming} family={family} />
-          <ReviewGlance events={upcoming} now={clock.now} />
+          <ReviewGlance events={upcoming} today={clock.today} />
           <ReviewRows
             events={upcoming}
             family={family}
-            now={clock.now}
+            today={clock.today}
+            confirm={confirm}
             onLastLeft={() => setHandOver(true)}
           />
           {pastNote}
@@ -101,15 +104,15 @@ function ReviewFigure({ events, family }: ReviewFigureProps) {
 
 interface ReviewGlanceProps {
   events: readonly EventItem[];
-  now: Date;
+  today: string;
 }
 
-function ReviewGlance({ events, now }: ReviewGlanceProps) {
+function ReviewGlance({ events, today }: ReviewGlanceProps) {
   const { t } = useTranslation(["home", "events"]);
   const [nearest] = events;
   if (!nearest) return null;
 
-  const when = inSentence(deadlineLabel(nearest.deadlineDate, nearest.deadlineTime, now));
+  const when = inSentence(deadlineLabel(nearest.deadlineDate, nearest.deadlineTime, today));
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden md:contain-size @2xs/panel:hidden">

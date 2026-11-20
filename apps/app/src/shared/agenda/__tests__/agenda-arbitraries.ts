@@ -67,6 +67,11 @@ export const familyArb = fc.constantFrom([CHILDREN[0]], [...CHILDREN]);
 
 let sequence = 0;
 
+const ASKS_A_WATER_BOTTLE = {
+  parentActions: [],
+  toBring: [{ item: "Gourde", quote: "Chaque enfant apporte une gourde." }],
+};
+
 function eventArb(today: string, family: readonly string[]): fc.Arbitrary<EventItem> {
   return fc
     .record({
@@ -79,8 +84,10 @@ function eventArb(today: string, family: readonly string[]): fc.Arbitrary<EventI
       done: fc.boolean(),
       review: fc.boolean(),
       ticked: fc.boolean(),
+      asks: fc.boolean(),
+      answered: fc.boolean(),
     })
-    .map(({ offset, time, childId, category, done, review, ticked }) => {
+    .map(({ offset, time, childId, category, done, review, ticked, asks, answered }) => {
       sequence += 1;
       const deadlineDate = shiftDate(today, offset);
 
@@ -101,8 +108,12 @@ function eventArb(today: string, family: readonly string[]): fc.Arbitrary<EventI
         receivedAt: "2026-08-20T08:00:00.000Z",
         edited: false,
         editedFields: [],
+        ...(asks && { preparation: ASKS_A_WATER_BOTTLE }),
         checklist: {
-          done: ticked ? [...CHECKLIST_DEFAULTS[category]] : [],
+          done: [
+            ...(ticked ? CHECKLIST_DEFAULTS[category] : []),
+            ...(asks && answered ? ["asked.bring.0"] : []),
+          ],
           removed: [],
           extra: [],
         },

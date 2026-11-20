@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { EVENT_BASE } from "../../../__tests__/event-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
+import { at } from "../../../__tests__/week-fixtures";
+import { askedStepsOf } from "../../../shared/agenda/checklist-template";
+import type { EventItem } from "../../../shared/api/queries/events";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({
@@ -324,6 +327,70 @@ describe("event detail, preparation checklist shared across devices", () => {
     expect(
       await screen.findByText("Échec de l'enregistrement de la liste à préparer"),
     ).toBeDefined();
+  });
+});
+
+describe("event detail, what the announcement asks", () => {
+  afterEach(() => {
+    cleanup();
+    resetApp();
+    vi.useRealTimers();
+    localStorage.clear();
+  });
+
+  const OUTING_ASKS: NonNullable<EventItem["preparation"]> = {
+    parentActions: [
+      {
+        kind: "pay",
+        label: "Payer la sortie",
+        amountCents: 1250,
+        currency: "EUR",
+        quote: "Merci de régler 12,50 € avant vendredi.",
+      },
+    ],
+    toBring: [{ item: "Gourde", quote: "Chaque enfant apporte une gourde." }],
+  };
+
+  const OUTING = {
+    ...EVENT,
+    title: "Sortie au musée",
+    category: "school_trip",
+    preparation: OUTING_ASKS,
+  };
+  const PAY = /^Payer la sortie : 12,50\s€$/;
+
+  it("given an outing asking to pay and to bring, then the drawer lists them with the amount and the quotes, the template apart and uncounted", async () => {
+    at("2026-11-12T17:00:00.000Z");
+    stubApi(serverChecklist(OUTING));
+    await renderAppAt(DETAIL_PATH);
+
+    const section = await screen.findByRole("region", { name: "À préparer" });
+    expect(within(section).getByRole("checkbox", { name: PAY })).toBeDefined();
+    expect(within(section).getByRole("checkbox", { name: "Gourde" })).toBeDefined();
+    expect(within(section).getByText("0 sur 2")).toBeDefined();
+    expect(within(section).getByText("Lu dans l'annonce")).toBeDefined();
+    expect(within(section).getByText("Merci de régler 12,50 € avant vendredi.")).toBeDefined();
+    expect(within(section).getByText("Chaque enfant apporte une gourde.")).toBeDefined();
+    const ideas = within(section).getByRole("list", { name: "Suggestions" });
+    expect(within(ideas).getAllByRole("checkbox")).toHaveLength(3);
+    expect(within(section).queryByRole("button", { name: "Retirer « Gourde »" })).toBeNull();
+  });
+
+  it("given an outing asking to pay, when the parent ticks the payment, then the server keeps that step", async () => {
+    at("2026-11-12T17:00:00.000Z");
+    const calls = stubApi(serverChecklist(OUTING));
+    await renderAppAt(DETAIL_PATH);
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: PAY }));
+
+    await waitFor(() =>
+      expect(calls.find(({ url }) => url.pathname.endsWith("/checklist"))?.body).toEqual({
+        kind: "tick",
+        itemId: askedStepsOf({ preparation: OUTING_ASKS })[0]?.id,
+        done: true,
+      }),
+    );
+    await waitFor(() => expect(screen.getByText("1 sur 2")).toBeDefined());
   });
 });
 

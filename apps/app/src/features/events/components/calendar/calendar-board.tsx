@@ -86,7 +86,6 @@ export function CalendarBoard({
 }: CalendarBoardProps) {
   const { t } = useTranslation("events");
   const clock = useSchoolClock();
-  const { now } = clock;
   const [blockRef, board] = useContainerAtLeast<HTMLDivElement>(BOARD_FROM_REM);
   const weekStart: WeekStart = board ? "monday" : "anchor";
   const { view, today, reference, anchor, period } = placePeriod(place, clock, weekStart);
@@ -103,7 +102,7 @@ export function CalendarBoard({
   const [adding, setAdding] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
-  const shareDays = useShareDays(family, now);
+  const shareDays = useShareDays(family, today);
   const loaded = query.data ?? [];
   const filter = { childId, courseId: place.courseId ?? null };
   const shown = filterAgenda(loaded, filter);
@@ -135,13 +134,13 @@ export function CalendarBoard({
     onPlaceChange({ view: picked });
   };
 
-  const viewProps = { days, family, now, today, onAdd: setAdding };
+  const viewProps = { days, family, today, onAdd: setAdding };
   const periodEmpty =
     shown.length === 0 ? (
       <PeriodEmpty
         family={family}
         childId={childId}
-        now={now}
+        today={today}
         onAdd={() => setAdding(anchor)}
         onGoTo={turnTo}
       />

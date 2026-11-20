@@ -27,16 +27,3 @@ export function digestQueryOptions(userId: string) {
     },
   });
 }
-
-const $assistantPreferences = api.assistant.preferences.$get;
-
-export function assistantPreferencesQueryOptions(userId: string) {
-  return queryOptions({
-    queryKey: ["assistant", "preferences", userId] as const,
-    queryFn: async ({ signal }) => {
-      const res = await $assistantPreferences({}, { init: { signal } });
-      if (!res.ok) await throwApiError(res, "loadAssistantPreferences");
-      return res.json();
-    },
-  });
-}

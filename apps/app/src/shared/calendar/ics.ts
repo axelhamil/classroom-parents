@@ -1,11 +1,20 @@
-import { alarmLines, allDayLines, calendarText, escapeText, utcValue } from "@packages/icalendar";
+import { deadlineLine } from "@packages/i18n";
+import {
+  alarmLines,
+  allDayLines,
+  CALENDAR_PRODUCT_ID,
+  calendarText,
+  escapeText,
+  eventIdentity,
+  utcValue,
+} from "@packages/icalendar";
 
-const UID_DOMAIN = "echeances-classroom";
 const REVOKE_AFTER_MS = 1000;
 
 export interface IcsDeadline {
   id: string;
-  summary: string;
+  title: string;
+  childLabel?: string | undefined;
   description: string;
   deadlineDate: string;
   deadlineTime?: string | undefined;
@@ -20,20 +29,22 @@ function timing(deadline: IcsDeadline): string[] {
 }
 
 export function deadlineIcs(deadline: IcsDeadline, stamp: Date): string {
+  const summary = deadlineLine({ child: deadline.childLabel, title: deadline.title });
+
   return calendarText([
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    `PRODID:-//${UID_DOMAIN}//FR`,
+    CALENDAR_PRODUCT_ID,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:${deadline.id}@${UID_DOMAIN}`,
+    `UID:${eventIdentity(deadline.id)}`,
     `DTSTAMP:${utcValue(stamp)}`,
     ...timing(deadline),
-    `SUMMARY:${escapeText(deadline.summary)}`,
+    `SUMMARY:${escapeText(summary)}`,
     ...(deadline.description ? [`DESCRIPTION:${escapeText(deadline.description)}`] : []),
     "TRANSP:TRANSPARENT",
-    ...alarmLines(deadline.summary, deadline.alarmsAt),
+    ...alarmLines(summary, deadline.alarmsAt),
     "END:VEVENT",
     "END:VCALENDAR",
   ]);

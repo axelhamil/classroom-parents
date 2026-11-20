@@ -7,7 +7,7 @@ import type { AgendaDay } from "../../../../shared/agenda/calendar-days";
 import { useSchoolClock } from "../../../../shared/agenda/school-clock-context";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import { childHue } from "../../../../shared/format/child-hue";
-import { dayLabelFrom, wallDateParts } from "../../../../shared/format/deadline-label";
+import { dayLabel, wallDateParts } from "../../../../shared/format/deadline-label";
 import { jumpToDay } from "../../calendar";
 
 export interface WeekStripProps {
@@ -49,7 +49,7 @@ export function WeekStrip({ days, family, onPick }: WeekStripProps) {
       >
         {days.map((day) => {
           const parts = wallDateParts(day.date);
-          const label = { day: dayLabelFrom(day.date, clock.today), count: day.summary.count };
+          const label = { day: dayLabel(day.date, clock.today), count: day.summary.count };
 
           return (
             <ToggleGroupItem

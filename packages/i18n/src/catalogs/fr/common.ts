@@ -6,6 +6,8 @@ export default {
     dateWithTime: "{{date}}, {{time}}",
     hours: "{{hours}} h",
     hoursMinutes: "{{hours}} h {{minutes}}",
+    childTitle: "{{child}} : {{title}}",
+    lineWithWhen: "{{line}}, {{when}}",
   },
   alertLine: {
     short: "{{eventTitle}}, {{deadline}}",

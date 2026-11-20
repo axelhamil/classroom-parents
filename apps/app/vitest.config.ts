@@ -17,6 +17,7 @@ export default mergeConfig(
       // a11y/ holds Playwright specs; vitest's default glob would collect them and
       // fail on the first test.describe().
       exclude: ["a11y/**"],
+      setupFiles: ["./src/__tests__/setup.ts"],
       // `TZ` only reaches `Date` in a forked worker: a worker thread keeps the time zone of the
       // main process, so a project's zone would silently be ignored.
       pool: "forks",

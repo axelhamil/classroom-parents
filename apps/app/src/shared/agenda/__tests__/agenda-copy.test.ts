@@ -1,8 +1,17 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { frCatalog } from "@packages/i18n";
-import { describe, expect, it } from "vitest";
+import { createI18n, frCatalog, relativeDayLabel } from "@packages/i18n";
+import fc from "fast-check";
+import type { i18n as I18n } from "i18next";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { I18nextProvider } from "react-i18next";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { EventItem } from "../../api/queries/events";
+import type { SchoolClock } from "../school-clock";
+import { type When, whenOf } from "../when";
+import { WhenMeta } from "../when-meta";
+import { agendaArb } from "./agenda-arbitraries";
 
 const APP_SRC = join(import.meta.dirname, "../../..");
 
@@ -26,6 +35,7 @@ const EVENT_FIELDS = {
   reviewReasons: { shown: "features/events/review-labels.ts" },
   amendReason: { shown: "features/events/review-labels.ts" },
   evidence: { shown: "features/events/components/review-reasons.tsx" },
+  preparation: { shown: "shared/agenda/checklist-template.ts" },
   source: { shown: "features/events/components/event-when.tsx" },
   done: { shown: "features/events/components/calendar/calendar-event-row.tsx" },
   announcementUrl: { shown: "features/events/components/event-detail-body.tsx" },
@@ -110,5 +120,40 @@ describe("a plural key is always given its count (16)", () => {
     );
 
     expect(missing).toEqual([]);
+  });
+});
+
+describe("a deadline's day reads the same in its row as everywhere else (7)", () => {
+  const { today, tomorrow } = frCatalog.common.deadline;
+  const SAME_DAY_AS_WORD = { today, tonight: today, tomorrow, tomorrowMorning: tomorrow };
+  let i18n: I18n;
+
+  beforeAll(async () => {
+    i18n = await createI18n({ locale: "fr", resources: frCatalog });
+  });
+
+  const rowText = (when: When, clock: SchoolClock) =>
+    renderToStaticMarkup(
+      createElement(I18nextProvider, { i18n }, createElement(WhenMeta, { when, clock })),
+    )
+      .replaceAll(/<[^>]*>/g, " ")
+      .replaceAll("&#x27;", "'");
+
+  it("names the day the shared relative label names, for any clock and deadline", () => {
+    fc.assert(
+      fc.property(agendaArb, ({ clock, events }) => {
+        for (const event of events) {
+          const when = whenOf(event, clock, { dated: true });
+          const label = relativeDayLabel(event.deadlineDate, clock.today);
+          const text = rowText(when, clock);
+
+          if (when.date !== null) expect(text).toContain(label);
+          if (when.badge?.kind === "inDays") expect([today, tomorrow]).not.toContain(label);
+          if (when.badge && when.badge.kind !== "inDays")
+            expect(label).toBe(SAME_DAY_AS_WORD[when.badge.kind]);
+        }
+      }),
+      { numRuns: 200 },
+    );
   });
 });

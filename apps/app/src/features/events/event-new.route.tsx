@@ -2,9 +2,9 @@ import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useSchoolClock } from "../../shared/agenda/school-clock-context";
 import { childrenQueryOptions } from "../../shared/api/queries/children";
 import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
-import { schoolToday } from "../../shared/format/school-today";
 import { Screen } from "../../shared/layout/screen";
 import { QueryState } from "../../shared/query/query-state";
 import { newEventSearchSchema } from "./events.schema";
@@ -22,6 +22,7 @@ function NewEventPage() {
   const children = useQuery(childrenQueryOptions);
   const navigate = useNavigate();
   const draft = sharedDraft(Route.useSearch());
+  const { today } = useSchoolClock();
 
   return (
     <Screen
@@ -42,7 +43,7 @@ function NewEventPage() {
           <AddEventForm
             family={family}
             childId={family[0]?.id ?? ""}
-            date={schoolToday(new Date())}
+            date={today}
             draft={draft}
             onAdded={() => void navigate({ to: "/", viewTransition: true })}
           />

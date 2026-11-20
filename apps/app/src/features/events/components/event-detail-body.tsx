@@ -1,3 +1,4 @@
+import { deadlineLine } from "@packages/i18n";
 import { Button } from "@packages/ui/components/ui/button";
 import {
   DeadlineActions,
@@ -12,9 +13,9 @@ import { CalendarPlusIcon, CheckCheckIcon, CheckIcon, ExternalLink, Pencil } fro
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Route as ProtectedRoute } from "../../../router/_protected";
+import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
-import { deadlineTitle } from "../../../shared/events/deadline-title";
 import { childHue } from "../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../shared/format/deadline-label";
 import { ScreenTour } from "../../../shared/tour/screen-tour";
@@ -87,13 +88,13 @@ interface EventActionsProps {
 function EventActions({ event, child }: EventActionsProps) {
   const { t } = useTranslation("events");
   const toggle = useToggleDone();
-  const now = new Date();
+  const { today } = useSchoolClock();
 
   const addToAgenda = useAgendaDownload(event, child);
 
   const sharePayload = () => {
-    const title = deadlineTitle(t, event.title, child?.label);
-    const when = inSentence(deadlineLabel(event.deadlineDate, event.deadlineTime, now));
+    const title = deadlineLine({ child: child?.label, title: event.title });
+    const when = inSentence(deadlineLabel(event.deadlineDate, event.deadlineTime, today));
 
     return {
       title,

@@ -9,6 +9,7 @@ import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyList, TypographyMuted } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useSchoolClock } from "../../../shared/agenda/school-clock-context";
 import { dayLabel } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { schoolCalendarPreviewQueryOptions } from "../api/school-calendar.queries";
@@ -29,7 +30,7 @@ export function SchoolCalendarPreview({
 }: SchoolCalendarPreviewProps) {
   const { t } = useTranslation("settings");
   const query = useQuery(schoolCalendarPreviewQueryOptions(country, region));
-  const now = new Date();
+  const { today } = useSchoolClock();
 
   return (
     <QueryState
@@ -52,8 +53,8 @@ export function SchoolCalendarPreview({
                       <li key={`${name}-${startsOn}`}>
                         {t("schoolHolidays.period", {
                           name,
-                          from: dayLabel(startsOn, now),
-                          to: dayLabel(endsOn, now),
+                          from: dayLabel(startsOn, today),
+                          to: dayLabel(endsOn, today),
                         })}
                       </li>
                     ))}
@@ -78,7 +79,7 @@ export function SchoolCalendarPreview({
               {bankHoliday
                 ? t("schoolHolidays.day", {
                     name: bankHoliday.name,
-                    date: dayLabel(bankHoliday.date, now),
+                    date: dayLabel(bankHoliday.date, today),
                   })
                 : t("schoolHolidays.previewNone")}
             </DescriptionDetails>

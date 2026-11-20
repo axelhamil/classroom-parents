@@ -11,7 +11,7 @@ import { nextEventQueryOptions } from "../../api/events.queries";
 export interface PeriodEmptyProps {
   family: readonly ChildDto[];
   childId: string | null;
-  now: Date;
+  today: string;
   onAdd: () => void;
   onGoTo: (date: string) => void;
 }
@@ -29,7 +29,7 @@ function useLastRead(family: readonly ChildDto[]): string {
   return latest ? t("card.lastSynced", { date: formatDateTime(latest) }) : t("card.neverSynced");
 }
 
-export function PeriodEmpty({ family, childId, now, onAdd, onGoTo }: PeriodEmptyProps) {
+export function PeriodEmpty({ family, childId, today, onAdd, onGoTo }: PeriodEmptyProps) {
   const { t } = useTranslation("events");
   const next = useQuery(nextEventQueryOptions(childId)).data;
   const watched = childId ? family.filter((child) => child.id === childId) : family;
@@ -46,7 +46,7 @@ export function PeriodEmpty({ family, childId, now, onAdd, onGoTo }: PeriodEmpty
             <Button variant="outline" onClick={() => onGoTo(next.deadlineDate)}>
               {t("calendar.nextEvent", {
                 title: next.title,
-                day: inSentence(dayLabel(next.deadlineDate, now)),
+                day: inSentence(dayLabel(next.deadlineDate, today)),
               })}
             </Button>
           )}

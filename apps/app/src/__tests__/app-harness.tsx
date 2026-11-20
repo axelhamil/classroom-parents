@@ -8,7 +8,6 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { type RenderResult, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
-import { toast } from "sonner";
 import { vi } from "vitest";
 import { router } from "../router";
 import { sessionQueryOptions } from "../shared/api/queries/session";
@@ -120,6 +119,5 @@ export async function renderAppAt(
 
 export function resetApp(): void {
   queryClient.clear();
-  toast.dismiss();
   vi.unstubAllGlobals();
 }

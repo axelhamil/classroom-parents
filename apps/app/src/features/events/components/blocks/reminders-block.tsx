@@ -61,7 +61,7 @@ function RemindersBlock({ childId, clock, title, rows }: HomeBlockProps) {
                     <ItemTitle>
                       <EventLink eventId={event.id}>{event.title}</EventLink>
                     </ItemTitle>
-                    <ItemDescription>{instantLabel(dueAt, now)}</ItemDescription>
+                    <ItemDescription>{instantLabel(dueAt, clock)}</ItemDescription>
                   </ItemContent>
                 </li>
               </Item>

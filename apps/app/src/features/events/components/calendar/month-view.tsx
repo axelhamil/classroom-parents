@@ -25,7 +25,6 @@ export interface MonthViewProps {
   days: readonly CalendarDay[];
   anchor: string;
   family: readonly ChildDto[];
-  now: Date;
   today: string;
   onSelect: (date: string) => void;
   onAdd: (date: string) => void;
@@ -36,7 +35,6 @@ export function MonthView({
   days,
   anchor,
   family,
-  now,
   today,
   onSelect,
   onAdd,
@@ -121,7 +119,7 @@ export function MonthView({
         density={wide ? "planner" : "compact"}
       />
       {emptyPeriod ?? (
-        <CalendarDaySection day={selected} family={family} now={now} today={today} onAdd={onAdd} />
+        <CalendarDaySection day={selected} family={family} today={today} onAdd={onAdd} />
       )}
     </div>
   );
