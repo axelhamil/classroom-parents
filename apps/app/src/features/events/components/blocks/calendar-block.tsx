@@ -22,7 +22,7 @@ function CalendarBlock({
     void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true });
 
   return (
-    <BlockPanel title={title} icon={CalendarIcon} fit="natural" startAt={clock.today}>
+    <BlockPanel title={title} icon={CalendarIcon} fit="natural" startAt={clock.today} scrollsInside>
       <CalendarBoard
         family={family}
         childId={childId}

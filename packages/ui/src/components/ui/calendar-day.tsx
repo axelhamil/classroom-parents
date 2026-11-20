@@ -34,7 +34,10 @@ const calendarWeekVariants = cva("min-w-0", {
     arrangement: {
       stack: "@container/week flex flex-col gap-3 [&>[data-quiet=true]+[data-quiet=true]]:-mt-2",
       fil: "flex flex-col [&>*+*]:border-t [&>*+*]:border-border",
-      board: "flex items-stretch gap-2 [&>*]:min-w-0 [&>*]:flex-1",
+      board: [
+        "flex items-stretch gap-2 [&>*]:min-w-0 [&>*]:flex-1 [&>[data-folded]]:w-(--day-rail) [&>[data-folded]]:flex-none [&>[data-slot=calendar-weekend]:not(:has(>[data-slot=calendar-day]:not([data-folded])))]:w-(--day-rail) [&>[data-slot=calendar-weekend]:not(:has(>[data-slot=calendar-day]:not([data-folded])))]:flex-none",
+        "[&>[data-slot=calendar-weekend]]:pt-0 [&>[data-slot=calendar-weekend]>[data-part=label]]:sticky [&>[data-slot=calendar-weekend]>[data-part=label]]:top-0 [&>[data-slot=calendar-weekend]>[data-part=label]]:z-30 [&>[data-slot=calendar-weekend]>[data-part=label]]:flex [&>[data-slot=calendar-weekend]>[data-part=label]]:h-(--weekend-label-height) [&>[data-slot=calendar-weekend]>[data-part=label]]:items-end [&>[data-slot=calendar-weekend]>[data-part=label]]:bg-surface-weekend [&>[data-slot=calendar-weekend]_[data-slot=calendar-day-mark]]:top-(--weekend-label-height)",
+      ],
     },
   },
   defaultVariants: { arrangement: "stack" },
@@ -80,7 +83,11 @@ function CalendarWeekend({ className, label, children, ...props }: CalendarWeeke
       )}
       {...props}
     >
-      <p id={labelId} className="px-2 text-small font-semibold text-muted-foreground">
+      <p
+        id={labelId}
+        data-part="label"
+        className="px-2 text-small font-semibold text-muted-foreground"
+      >
         {label}
       </p>
       {children}
@@ -175,7 +182,7 @@ function CalendarDayMark({ className, ...props }: React.ComponentProps<"h3">) {
         "group-data-[layout=rail]/day:sticky group-data-[layout=rail]/day:top-[calc(var(--spacing-app-bar)+var(--spacing-day-strip)+env(safe-area-inset-top))] group-data-[layout=rail]/day:row-span-full group-data-[layout=rail]/day:flex-col group-data-[layout=rail]/day:items-center group-data-[layout=rail]/day:self-start",
         "group-data-[layout=rail]/day:[&>[data-part=day]]:min-w-10 group-data-[layout=rail]/day:[&>[data-part=day]]:h-10 group-data-[layout=rail]/day:[&>[data-part=day]]:px-1 group-data-[layout=rail]/day:[&>[data-part=day]]:text-2xl",
         "group-data-[quiet=true]/day:[&>[data-part=day]]:h-7 group-data-[quiet=true]/day:[&>[data-part=day]]:text-body group-data-[quiet=true]/day:[&>[data-part=day]]:whitespace-nowrap group-data-[quiet=true]/day:[&>[data-part=day]]:text-muted-foreground group-data-[quiet=true]/day:[&>[data-part=weekday]]:text-meta",
-        "group-data-[layout=column]/day:sticky group-data-[layout=column]/day:top-0 group-data-[layout=column]/day:flex-wrap group-data-[layout=column]/day:items-baseline group-data-[layout=column]/day:gap-1.5 group-data-[layout=column]/day:border-b group-data-[layout=column]/day:border-border group-data-[layout=column]/day:bg-inherit group-data-[layout=column]/day:px-0.5 group-data-[layout=column]/day:pt-1 group-data-[layout=column]/day:pb-1.5",
+        "group-data-[layout=column]/day:sticky group-data-[layout=column]/day:z-20 group-data-[layout=column]/day:top-0 group-data-[layout=column]/day:flex-wrap group-data-[layout=column]/day:items-baseline group-data-[layout=column]/day:gap-1.5 group-data-[layout=column]/day:border-b group-data-[layout=column]/day:border-border group-data-[layout=column]/day:bg-inherit group-data-[layout=column]/day:px-0.5 group-data-[layout=column]/day:pt-1 group-data-[layout=column]/day:pb-1.5",
         "group-data-[layout=column]/day:[&>[data-part=day]]:min-w-7 group-data-[layout=column]/day:[&>[data-part=day]]:px-1 group-data-[layout=column]/day:[&>[data-part=day]]:text-xl",
         className,
       )}

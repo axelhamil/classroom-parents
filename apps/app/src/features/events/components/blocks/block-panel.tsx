@@ -10,7 +10,15 @@ import {
 } from "@packages/ui/components/ui/dashboard";
 import type { Icon } from "@packages/ui/components/ui/icons";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
-import { type ReactElement, type ReactNode, useEffect, useId, useState } from "react";
+import {
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useId,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { type TileFrame, useTileFrame } from "../../../../shared/dashboard/tile-frame";
 
@@ -25,7 +33,29 @@ export interface BlockPanelProps {
   jump?: string;
   hero?: boolean;
   fits?: boolean;
+  /** The block keeps its own controls still and scrolls only the part it wraps in `BlockScrollArea`. */
+  scrollsInside?: boolean;
   children?: ReactNode;
+}
+
+type ScrollWrap = (children: ReactNode) => ReactNode;
+
+/**
+ * The size whose body is too short to keep a block's controls still: under them only a slit
+ * would scroll. There the whole body scrolls once and opens on the controls, not on `startAt`.
+ */
+const ROOMLESS_SIZE = "m";
+
+const BlockScrollContext = createContext<ScrollWrap | null>(null);
+
+/**
+ * The part of a block that scrolls when the block keeps its controls still (`scrollsInside`).
+ * Outside a fixed tile (a phone, a small tile, a page of its own) it lays its content out as is.
+ */
+export function BlockScrollArea({ children }: { children: ReactNode }) {
+  const wrap = useContext(BlockScrollContext);
+
+  return wrap ? wrap(children) : children;
 }
 
 export function BlockPanel({
@@ -39,6 +69,7 @@ export function BlockPanel({
   jump,
   hero,
   fits = false,
+  scrollsInside = false,
   children,
 }: BlockPanelProps) {
   const { t } = useTranslation("home");
@@ -64,7 +95,14 @@ export function BlockPanel({
           {frame.controls}
         </Header>,
       )}
-      <BlockBody frame={frame} titleId={titleId} note={note} startAt={startAt} fits={fits}>
+      <BlockBody
+        frame={frame}
+        titleId={titleId}
+        note={note}
+        startAt={startAt}
+        fits={fits}
+        scrollsInside={scrollsInside}
+      >
         {children}
       </BlockBody>
       {frame.footer && children ? (
@@ -84,11 +122,21 @@ interface BlockBodyProps {
   note: ReactNode;
   startAt: string | undefined;
   fits: boolean;
+  scrollsInside: boolean;
   children: ReactNode;
 }
 
-function BlockBody({ frame, titleId, note, startAt, fits, children }: BlockBodyProps) {
-  const openAt = useOpenAt(startAt, frame);
+function BlockBody({
+  frame,
+  titleId,
+  note,
+  startAt,
+  fits,
+  scrollsInside,
+  children,
+}: BlockBodyProps) {
+  const stillControls = scrollsInside && frame.size !== ROOMLESS_SIZE;
+  const openAt = useOpenAt(scrollsInside && !stillControls ? undefined : startAt, frame);
 
   if (!children) return null;
 
@@ -101,6 +149,26 @@ function BlockBody({ frame, titleId, note, startAt, fits, children }: BlockBodyP
 
   if (fits || frame.size === "s" || frame.flows)
     return <DashboardPanelBody inert={frame.editing}>{content}</DashboardPanelBody>;
+
+  if (stillControls) {
+    const wrap: ScrollWrap = (inside) => (
+      <ScrollRegion
+        variant="tile"
+        aria-labelledby={titleId}
+        inert={frame.editing}
+        ref={openAt}
+        stickyHead
+      >
+        {inside}
+      </ScrollRegion>
+    );
+
+    return (
+      <DashboardPanelBody inert={frame.editing}>
+        <BlockScrollContext value={wrap}>{content}</BlockScrollContext>
+      </DashboardPanelBody>
+    );
+  }
 
   return (
     <ScrollRegion variant="tile" aria-labelledby={titleId} inert={frame.editing} ref={openAt}>

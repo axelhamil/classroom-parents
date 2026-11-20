@@ -36,6 +36,7 @@ import {
 } from "../../calendar";
 import { useShareDays } from "../../hooks/use-share-days";
 import { type SwipeStep, useSwipe } from "../../hooks/use-swipe";
+import { BlockScrollArea } from "../blocks/block-panel";
 import { AddEventDialog, preloadAddEventForm } from "./add-event-dialog";
 import { CalendarFeedDialog } from "./calendar-feed-dialog";
 import { CalendarToolbar } from "./calendar-toolbar";
@@ -147,8 +148,8 @@ export function CalendarBoard({
     ) : null;
 
   return (
-    <Tabs value={view} onValueChange={changeView} className="gap-4">
-      <div ref={blockRef} className="@container flex min-w-0 flex-col gap-4">
+    <Tabs value={view} onValueChange={changeView} className="min-h-0 flex-1 gap-4">
+      <div ref={blockRef} className="@container flex min-h-0 min-w-0 flex-1 flex-col gap-4">
         {!overdueShown && <OverdueButton family={family} childId={childId} before={period.from} />}
         <CalendarToolbar
           view={view}
@@ -170,51 +171,53 @@ export function CalendarBoard({
           onShare={() => shareDays(days)}
           onSubscribe={() => setSubscribing(true)}
         />
-        {CALENDAR_VIEWS.map((candidate) => (
-          <TabsContent key={candidate} value={candidate}>
-            <QueryState
-              query={query}
-              skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
-            >
-              {() =>
-                loaded.length === 0 && isFirstSyncRunning(family) ? (
-                  <BoardEmpty
-                    icon={SyncingIcon}
-                    title={t("empty.syncing.title")}
-                    description={t("empty.syncing.description")}
-                  />
-                ) : (
-                  <CalendarPeriod
-                    key={`${candidate}:${motion.turn}`}
-                    direction={motion.direction}
-                    {...swipe}
-                  >
-                    {candidate === "week" &&
-                      (periodEmpty ?? (
-                        <WeekView
-                          days={agendaDays}
-                          family={family}
-                          board={board}
-                          briefed={briefingShown ? clock : null}
-                          onPick={setPicked}
-                        />
-                      ))}
-                    {candidate === "month" && (
-                      <Suspense fallback={<EventBoardSkeleton label={t("calendar.loading")} />}>
-                        <MonthView
-                          {...viewProps}
-                          anchor={anchor}
-                          onSelect={select}
-                          emptyPeriod={periodEmpty}
-                        />
-                      </Suspense>
-                    )}
-                  </CalendarPeriod>
-                )
-              }
-            </QueryState>
-          </TabsContent>
-        ))}
+        <BlockScrollArea>
+          {CALENDAR_VIEWS.map((candidate) => (
+            <TabsContent key={candidate} value={candidate}>
+              <QueryState
+                query={query}
+                skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
+              >
+                {() =>
+                  loaded.length === 0 && isFirstSyncRunning(family) ? (
+                    <BoardEmpty
+                      icon={SyncingIcon}
+                      title={t("empty.syncing.title")}
+                      description={t("empty.syncing.description")}
+                    />
+                  ) : (
+                    <CalendarPeriod
+                      key={`${candidate}:${motion.turn}`}
+                      direction={motion.direction}
+                      {...swipe}
+                    >
+                      {candidate === "week" &&
+                        (periodEmpty ?? (
+                          <WeekView
+                            days={agendaDays}
+                            family={family}
+                            board={board}
+                            briefed={briefingShown ? clock : null}
+                            onPick={setPicked}
+                          />
+                        ))}
+                      {candidate === "month" && (
+                        <Suspense fallback={<EventBoardSkeleton label={t("calendar.loading")} />}>
+                          <MonthView
+                            {...viewProps}
+                            anchor={anchor}
+                            onSelect={select}
+                            emptyPeriod={periodEmpty}
+                          />
+                        </Suspense>
+                      )}
+                    </CalendarPeriod>
+                  )
+                }
+              </QueryState>
+            </TabsContent>
+          ))}
+        </BlockScrollArea>
       </div>
       <AddEventDialog
         date={adding}

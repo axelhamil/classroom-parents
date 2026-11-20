@@ -16,11 +16,19 @@ import { useSummaryLabel } from "./use-summary-label";
 export interface AgendaDayProps {
   day: AgendaDay;
   layout: "rail" | "column";
+  /** A planner's empty column, narrowed to its date. */
+  folded?: boolean;
   family: readonly ChildDto[];
   courseNames: ReadonlyMap<string, string>;
 }
 
-export function AgendaDaySection({ day, layout, family, courseNames }: AgendaDayProps) {
+export function AgendaDaySection({
+  day,
+  layout,
+  folded = false,
+  family,
+  courseNames,
+}: AgendaDayProps) {
   const { t } = useTranslation("events");
   const summaryLabel = useSummaryLabel();
   const titleId = useId();
@@ -36,12 +44,13 @@ export function AgendaDaySection({ day, layout, family, courseNames }: AgendaDay
       data-jump={day.date}
       tabIndex={-1}
       layout={layout}
+      data-folded={folded || undefined}
       tone={day.tone}
       quiet={quiet}
     >
       <CalendarDayMark id={titleId}>
         <span data-part="weekday" aria-hidden>
-          {column ? (
+          {column && !folded ? (
             <>
               <span className="@5xl:hidden">{parts.weekday}</span>
               <span className="hidden @5xl:inline">{parts.weekdayLong}</span>
