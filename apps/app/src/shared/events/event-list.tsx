@@ -1,5 +1,5 @@
 import type { EventItem } from "../api/queries/events";
-import type { ChildHue } from "../format/child-hue";
+import type { ChildHue, DeadlineSurface } from "../format/child-hue";
 import { VirtualList } from "../virtual/virtual-list";
 import { EventCard } from "./event-card";
 
@@ -9,10 +9,11 @@ export interface EventListProps {
   events: readonly EventItem[];
   childLabel: (childId: string) => string;
   childColor: (childId: string) => ChildHue;
+  surface: DeadlineSurface;
   muted: boolean;
 }
 
-export function EventList({ events, childLabel, childColor, muted }: EventListProps) {
+export function EventList({ events, childLabel, childColor, surface, muted }: EventListProps) {
   return (
     <VirtualList
       items={events}
@@ -26,6 +27,7 @@ export function EventList({ events, childLabel, childColor, muted }: EventListPr
           event={event}
           childLabel={childLabel(event.childId)}
           hue={childColor(event.childId)}
+          surface={surface}
           muted={muted}
         />
       )}

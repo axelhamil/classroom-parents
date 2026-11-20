@@ -33,7 +33,7 @@ function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
         />
       )}
       {open.length > 0 && (
-        <Table>
+        <Table fit>
           <TableHeader>
             <TableRow>
               <TableHead scope="col">{t("blocks.workload.child")}</TableHead>

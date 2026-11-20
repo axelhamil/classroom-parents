@@ -7,7 +7,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { EventCard } from "../../../shared/events/event-card";
-import type { ChildHue } from "../../../shared/format/child-hue";
+import type { ChildHue, DeadlineSurface } from "../../../shared/format/child-hue";
 import { ResponsiveOverlay } from "../../../shared/layout/responsive-overlay";
 import { VirtualList } from "../../../shared/virtual/virtual-list";
 import { useConfirmEvent } from "../hooks/use-confirm-event";
@@ -19,6 +19,7 @@ export interface ReviewListProps {
   events: readonly EventItem[];
   childLabel: (childId: string) => string;
   childColor: (childId: string) => ChildHue;
+  surface: DeadlineSurface;
 }
 
 export interface ReviewLineProps extends ReviewListProps {
@@ -32,7 +33,14 @@ export interface ReviewLineProps extends ReviewListProps {
  * `label` names a trigger that shows only its chevron, when the count is already
  * written beside it.
  */
-export function ReviewLine({ events, childLabel, childColor, stretched, label }: ReviewLineProps) {
+export function ReviewLine({
+  events,
+  childLabel,
+  childColor,
+  surface,
+  stretched,
+  label,
+}: ReviewLineProps) {
   const { t } = useTranslation("events");
   const trigger = useRef<HTMLButtonElement>(null);
   const [opened, setOpened] = useState<readonly string[] | null>(null);
@@ -67,14 +75,19 @@ export function ReviewLine({ events, childLabel, childColor, stretched, label }:
           returnFocus={() => (trigger.current ? [trigger.current] : [])}
           onClose={() => setOpened(null)}
         >
-          <ReviewList events={shown} childLabel={childLabel} childColor={childColor} />
+          <ReviewList
+            events={shown}
+            childLabel={childLabel}
+            childColor={childColor}
+            surface={surface}
+          />
         </ResponsiveOverlay>
       )}
     </>
   );
 }
 
-function ReviewList({ events, childLabel, childColor }: ReviewListProps) {
+function ReviewList({ events, childLabel, childColor, surface }: ReviewListProps) {
   const { t } = useTranslation("events");
   const confirm = useConfirmEvent();
 
@@ -93,6 +106,7 @@ function ReviewList({ events, childLabel, childColor }: ReviewListProps) {
               event={event}
               childLabel={childLabel(event.childId)}
               hue={childColor(event.childId)}
+              surface={surface}
               markReview={false}
             />
             <ReviewReasons event={event} />

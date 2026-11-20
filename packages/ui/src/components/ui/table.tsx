@@ -1,7 +1,29 @@
 import type * as React from "react";
 import { cn } from "../../libs/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+interface TableProps extends React.ComponentProps<"table"> {
+  /**
+   * Fit the width it is given instead of scrolling sideways: headers and cells wrap and lose
+   * part of their padding. For a table inside a box that already scrolls (a home tile), where a
+   * second scroller would cut the reading in two.
+   */
+  fit?: boolean;
+}
+
+function Table({ className, fit = false, ...props }: TableProps) {
+  if (fit)
+    return (
+      <table
+        data-slot="table"
+        data-fit=""
+        className={cn(
+          "w-full caption-bottom text-small [&_td]:px-1 [&_td]:whitespace-normal [&_th]:px-1 [&_th]:whitespace-normal",
+          className,
+        )}
+        {...props}
+      />
+    );
+
   return (
     <div
       data-slot="table-container"

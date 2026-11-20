@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { type ChildDto, childrenQueryOptions } from "../../../shared/api/queries/children";
-import { childHue } from "../../../shared/format/child-hue";
+import { childHue, type DeadlineSurface, deadlineSurface } from "../../../shared/format/child-hue";
 import { QueryState } from "../../../shared/query/query-state";
 import {
   type OnboardingMode,
@@ -108,6 +108,7 @@ function ResolvedStepper({ mode, userId, search, navigate, family }: ResolvedSte
           step={step}
           child={child}
           hue={child ? childHue(family, child.id) : 1}
+          surface={deadlineSurface(family)}
           mode={mode}
           userId={userId}
           search={search}
@@ -123,6 +124,7 @@ interface CurrentStepProps {
   step: OnboardingStep;
   child: ChildDto | undefined;
   hue: ReturnType<typeof childHue>;
+  surface: DeadlineSurface;
   mode: OnboardingMode;
   userId: string;
   search: OnboardingSearch;
@@ -130,13 +132,31 @@ interface CurrentStepProps {
   go: (step: OnboardingStep) => void;
 }
 
-function CurrentStep({ step, child, hue, mode, userId, search, navigate, go }: CurrentStepProps) {
+function CurrentStep({
+  step,
+  child,
+  hue,
+  surface,
+  mode,
+  userId,
+  search,
+  navigate,
+  go,
+}: CurrentStepProps) {
   if (step === "welcome") return <WelcomeStep onNext={() => go("prepare")} />;
   if (step === "prepare") return <PrepareStep onNext={() => go("connect")} />;
   if (!child) return <ConnectStep mode={mode} search={search} navigate={navigate} />;
   if (step === "name") return <NameStep child={child} hue={hue} onNext={() => go("analysis")} />;
   if (step === "analysis") {
-    return <AnalysisStep mode={mode} child={child} hue={hue} onNext={() => go("reminders")} />;
+    return (
+      <AnalysisStep
+        mode={mode}
+        child={child}
+        hue={hue}
+        surface={surface}
+        onNext={() => go("reminders")}
+      />
+    );
   }
   if (step === "reminders") {
     return <RemindersStep child={child} userId={userId} onNext={() => go("notifications")} />;

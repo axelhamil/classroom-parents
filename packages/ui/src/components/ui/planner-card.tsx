@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
 import type * as React from "react";
 
+import { CHILD_TONES, childHueEdge } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 
 const plannerCardVariants = cva(
@@ -30,8 +31,17 @@ const plannerCardVariants = cva(
         15: "bg-child-15-container hover:bg-child-15-container",
         16: "bg-child-16-container hover:bg-child-16-container",
       },
+      surface: {
+        tint: "",
+        paper: "",
+      },
     },
-    defaultVariants: { muted: false },
+    compoundVariants: CHILD_TONES.map((hue) => ({
+      surface: "paper" as const,
+      hue,
+      className: `bg-surface-container hover:bg-accent ${childHueEdge[hue]}`,
+    })),
+    defaultVariants: { muted: false, surface: "tint" },
   },
 );
 
@@ -44,16 +54,26 @@ interface PlannerCardProps
 /**
  * A deadline on paper. With a `hue`, the card takes the container of the
  * child it belongs to: the background says who, nothing else on the card
- * repeats it in color.
+ * repeats it in color. `surface="paper"` is the card of a family with one
+ * child: neutral paper, the hue kept as an edge on the leading side, like
+ * the agenda's entries.
  */
-function PlannerCard({ className, muted, hue, asChild = false, ...props }: PlannerCardProps) {
+function PlannerCard({
+  className,
+  muted,
+  hue,
+  surface,
+  asChild = false,
+  ...props
+}: PlannerCardProps) {
   const Comp = asChild ? Slot.Root : "div";
 
   return (
     <Comp
       data-slot="planner-card"
       data-muted={muted ? "" : undefined}
-      className={cn(plannerCardVariants({ muted, hue }), className)}
+      data-surface={surface ?? "tint"}
+      className={cn(plannerCardVariants({ muted, hue, surface }), className)}
       {...props}
     />
   );

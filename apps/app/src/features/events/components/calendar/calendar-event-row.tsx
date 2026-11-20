@@ -23,7 +23,7 @@ import {
   categoryIcon,
 } from "../../../../shared/events/event-labels";
 import { EventLink } from "../../../../shared/events/event-link";
-import { childHue, childLabelOf } from "../../../../shared/format/child-hue";
+import { childHue, childLabelOf, deadlineSurface } from "../../../../shared/format/child-hue";
 import { useToggleDone } from "../../hooks/use-toggle-done";
 
 export interface CalendarEventRowProps {
@@ -34,7 +34,6 @@ export interface CalendarEventRowProps {
   compact?: boolean;
   withCountdown?: boolean;
   courseName?: string;
-  surface?: "tint" | "paper";
   withCategoryWord?: boolean;
   children?: ReactNode;
 }
@@ -54,7 +53,6 @@ export function CalendarEventRow({
   compact = false,
   withCountdown = false,
   courseName,
-  surface = "tint",
   withCategoryWord = !compact,
   children,
 }: CalendarEventRowProps) {
@@ -74,7 +72,7 @@ export function CalendarEventRow({
   return (
     <CalendarEntry
       hue={hue}
-      surface={surface}
+      surface={deadlineSurface(family)}
       state={state}
       density={compact ? "compact" : "comfortable"}
     >

@@ -8,11 +8,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { DEADLINE_KINDS, type DeadlineKind, upcomingByKind } from "../../../../shared/agenda/views";
 import { nextTwoWeeks } from "../../../../shared/agenda/windows";
+import { useTileFrame } from "../../../../shared/dashboard/tile-frame";
 import { nextOfCategoriesQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { EventSteps } from "../prepare-checklist";
 import { BlockEmpty, NextDeadlineLink } from "./block-empty";
+import { BlockGlance } from "./block-glance";
 import { BlockPanel } from "./block-panel";
 import { EventRows } from "./event-rows";
 
@@ -27,17 +29,27 @@ function isDeadlineKind(id: string): id is DeadlineKind {
 }
 
 function UpcomingBlock({ blockId, family, childId, clock, title }: HomeBlockProps) {
+  const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
+  const { size } = useTileFrame();
   if (!isDeadlineKind(blockId)) return null;
 
   const due = upcomingByKind(query.data ?? [], clock, blockId, childId);
+  const glance = size === "s";
 
   return (
     <BlockPanel title={title} icon={ICONS[blockId]}>
       {query.isSuccess && due.length === 0 && (
         <NothingOfKind kind={blockId} childId={childId} today={clock.today} />
       )}
-      {due.length > 0 && (
+      {due.length > 0 && glance && (
+        <BlockGlance
+          events={due}
+          label={(count) => t(`blocks.${blockId}.count`, { count })}
+          today={clock.today}
+        />
+      )}
+      {due.length > 0 && !glance && (
         <EventRows
           events={due}
           family={family}

@@ -75,7 +75,6 @@ export function AgendaDaySection({ day, layout, family, courseNames }: AgendaDay
                 event={event}
                 family={family}
                 courseName={event.course ? courseNames.get(event.course.id) : undefined}
-                surface={family.length > 1 ? "tint" : "paper"}
                 compact={column}
                 withCategoryWord
               />

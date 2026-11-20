@@ -15,7 +15,7 @@ import { useSchoolClock } from "../agenda/school-clock-context";
 import { whenOf } from "../agenda/when";
 import { WhenMeta } from "../agenda/when-meta";
 import type { EventItem } from "../api/queries/events";
-import type { ChildHue } from "../format/child-hue";
+import type { ChildHue, DeadlineSurface } from "../format/child-hue";
 import { wallDateParts } from "../format/deadline-label";
 import { CATEGORY_LABEL_KEYS, CATEGORY_TONES, categoryIcon } from "./event-labels";
 import { EventLink } from "./event-link";
@@ -24,6 +24,7 @@ export interface EventCardProps {
   event: EventItem;
   childLabel: string;
   hue: ChildHue;
+  surface: DeadlineSurface;
   muted?: boolean;
   markReview?: boolean;
 }
@@ -32,6 +33,7 @@ export function EventCard({
   event,
   childLabel,
   hue,
+  surface,
   muted = false,
   markReview = true,
 }: EventCardProps) {
@@ -42,7 +44,7 @@ export function EventCard({
   const CategoryIcon = categoryIcon(event.category);
 
   return (
-    <PlannerCard asChild muted={muted} hue={muted ? undefined : hue}>
+    <PlannerCard asChild muted={muted} hue={muted ? undefined : hue} surface={surface}>
       <EventLink eventId={event.id}>
         <DateTab
           dateTime={event.deadlineDate}
