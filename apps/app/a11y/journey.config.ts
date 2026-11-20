@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
+import type { GateOptions } from "./csp";
 
 export const JOURNEY_APP_URL = process.env.JOURNEY_APP_URL ?? "http://localhost:4183";
 export const JOURNEY_API_URL = process.env.JOURNEY_API_URL ?? "http://localhost:3183";
@@ -12,7 +13,7 @@ const APP_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const API_ROOT = fileURLToPath(new URL("../../api", import.meta.url));
 const BUILD_DIR = "dist/journey";
 
-export default defineConfig({
+export default defineConfig<GateOptions>({
   testDir: fileURLToPath(new URL(".", import.meta.url)),
   testMatch: /journey\.spec\.ts$/,
   workers: 1,
@@ -24,6 +25,8 @@ export default defineConfig({
     baseURL: JOURNEY_APP_URL,
     viewport: { width: 390, height: 844 },
     trace: "retain-on-failure",
+    // The journey moves time through its control server; a pinned browser clock would fight it.
+    pinSchoolClock: false,
   },
   webServer: [
     {

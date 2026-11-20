@@ -21,9 +21,14 @@ export const MAXIMILIEN = {
   syncing: false,
 };
 
-export const TODAY =
-  process.env.A11Y_TODAY ??
-  new Intl.DateTimeFormat("en-CA", { timeZone: PARIS_TIME_ZONE }).format(Date.now());
+/**
+ * A Thursday of school term: what the home shows depends on the day (evening, weekend, holidays),
+ * so the gate pins its pages to one day instead of the day it happens to run on. `A11Y_TODAY` moves
+ * it, which is how a change is checked on other days; the weekend has its own project.
+ */
+export const SCHOOL_THURSDAY = "2026-11-19";
+
+export const TODAY = process.env.A11Y_TODAY ?? SCHOOL_THURSDAY;
 
 export function inDays(days: number): string {
   return shiftDate(TODAY, days);

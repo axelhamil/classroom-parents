@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiCall, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
+import { at } from "../../../__tests__/week-fixtures";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({
@@ -50,10 +51,15 @@ function eventListRequests(calls: ApiCall[]): URLSearchParams[] {
     .map((call) => call.url.searchParams);
 }
 
+const THURSDAY_BEFORE = "2026-11-12T09:00:00.000Z";
+
 describe("Accueil around the calendar", () => {
+  beforeEach(() => at(THURSDAY_BEFORE));
+
   afterEach(() => {
     cleanup();
     resetApp();
+    vi.useRealTimers();
   });
 
   it("given an event to review, then its line opens the dates to confirm or to edit", async () => {

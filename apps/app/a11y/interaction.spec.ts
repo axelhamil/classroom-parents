@@ -8,6 +8,7 @@ import {
   inDays,
   LEA,
   MAXIMILIEN,
+  parisTime,
   REVIEW_EVENT,
   serveFamily,
   todayAt,
@@ -357,7 +358,7 @@ test.describe("calendar month grid", () => {
   test("walks the days with the arrows, Home, End and the page keys, Enter picks one", async ({
     page,
   }) => {
-    await page.clock.setFixedTime(new Date(2026, 10, 11, 10));
+    await page.clock.setFixedTime(parisTime("2026-11-11", "10:00"));
     await serveFamily(page, { children: [LEA], events: [] });
     await page.goto("/?view=month&date=2026-11-11");
 
@@ -463,7 +464,7 @@ test.describe("home grid", () => {
   test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.clock.setFixedTime(new Date(2026, 10, 12, 10));
+    await page.clock.setFixedTime(parisTime("2026-11-12", "10:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [] });
   });
 
@@ -617,7 +618,7 @@ test.describe("deadline steps", () => {
       deadlineAt: "2026-11-12T07:00:00.000Z",
       checklist: { done: [] as string[], removed: [], extra: [] },
     };
-    await page.clock.setFixedTime(new Date(2026, 10, 12, 10));
+    await page.clock.setFixedTime(parisTime("2026-11-12", "10:00"));
     await serveFamily(page, { children: [LEA], events: [swimming] });
     await serveHome(page);
     await page.route(`**/events/${swimming.id}/checklist`, async (route) => {

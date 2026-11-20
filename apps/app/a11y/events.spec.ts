@@ -534,7 +534,7 @@ test.describe("the child dots of the month", () => {
 
   for (const colorScheme of COLOR_SCHEMES) {
     test(`stand out at 3:1 on a plain and a crunch day (${colorScheme})`, async ({ page }) => {
-      await page.clock.setFixedTime(new Date("2026-11-12T09:00:00"));
+      await page.clock.setFixedTime(parisTime("2026-11-12", "09:00"));
       await showColorScheme(page, colorScheme);
       await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [...crunch, single] });
       await page.goto("/?view=month&date=2026-11-25");
@@ -545,7 +545,7 @@ test.describe("the child dots of the month", () => {
   }
 
   test("a crunch day keeps its whole date next to the badge", async ({ page }) => {
-    await page.clock.setFixedTime(new Date("2026-11-12T09:00:00"));
+    await page.clock.setFixedTime(parisTime("2026-11-12", "09:00"));
     await serveFamily(page, { children: [LEA, MAXIMILIEN], events: crunch });
     await page.goto("/?view=week&date=2026-11-17");
 
