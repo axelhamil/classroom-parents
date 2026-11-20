@@ -90,19 +90,15 @@ describe("guided first child onboarding", () => {
     expect(posts(calls, "/children")).toHaveLength(1);
   });
 
-  it("onboarding shows the school procedure when the school blocks", async () => {
-    fakeApi({
-      "GET /children": { body: [] },
-      "GET /children/link-config": { body: LINK_CONFIG },
-    });
+  it("onboarding points to the request for the school when the school blocks", async () => {
+    fakeApi({ "GET /children": { body: [] } });
 
     await renderApp("/onboarding?error=admin_policy_enforced");
 
     expect(await heading(copy.connect.blockedTitle)).toBeTruthy();
-    expect(screen.getByText(frCatalog.children.school.title)).toBeTruthy();
     expect(
-      await screen.findByRole("button", { name: frCatalog.children.school.share }),
-    ).toBeTruthy();
+      screen.getByRole("link", { name: frCatalog.children.school.guide }).getAttribute("href"),
+    ).toBe("/aide/ecole");
     expect(screen.getByRole("button", { name: copy.connect.tryAgain })).toBeTruthy();
     expect(screen.getByRole("link", { name: copy.connect.later })).toBeTruthy();
   });

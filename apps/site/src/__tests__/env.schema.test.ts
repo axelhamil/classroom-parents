@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { parseSiteEnv } from "../env.schema";
 
+const COMPLETE = {
+  PUBLIC_SITE_URL: "https://example.com",
+  PUBLIC_APP_URL: "https://app.example.com",
+  PUBLIC_GOOGLE_CLIENT_ID: "123-abc.apps.googleusercontent.com",
+  PUBLIC_CONTACT_EMAIL: "contact@example.com",
+};
+
 describe("the site env", () => {
   it("accepts bare origins", () => {
-    const env = parseSiteEnv({
-      PUBLIC_SITE_URL: "https://example.com",
-      PUBLIC_APP_URL: "https://app.example.com",
-    });
+    const env = parseSiteEnv(COMPLETE);
 
     expect(env.PUBLIC_APP_URL).toBe("https://app.example.com");
   });
@@ -14,22 +18,17 @@ describe("the site env", () => {
   it.each(["https://example.com/", "https://example.com/fr", "not a url"])(
     "refuses %s, which would break the links built from it",
     (value) => {
-      expect(() =>
-        parseSiteEnv({ PUBLIC_SITE_URL: value, PUBLIC_APP_URL: "https://app.example.com" }),
-      ).toThrow(/PUBLIC_SITE_URL/);
+      expect(() => parseSiteEnv({ ...COMPLETE, PUBLIC_SITE_URL: value })).toThrow(
+        /PUBLIC_SITE_URL/,
+      );
     },
   );
 
-  it.each(["PUBLIC_SITE_URL", "PUBLIC_APP_URL"])(
-    "refuses a missing or blank %s, which would bake localhost into the build",
+  it.each(Object.keys(COMPLETE))(
+    "refuses a missing or blank %s, which would bake a wrong value into the build",
     (key) => {
-      const complete = {
-        PUBLIC_SITE_URL: "https://example.com",
-        PUBLIC_APP_URL: "https://app.example.com",
-      };
-
-      expect(() => parseSiteEnv({ ...complete, [key]: undefined })).toThrow(key);
-      expect(() => parseSiteEnv({ ...complete, [key]: "" })).toThrow(key);
+      expect(() => parseSiteEnv({ ...COMPLETE, [key]: undefined })).toThrow(key);
+      expect(() => parseSiteEnv({ ...COMPLETE, [key]: "" })).toThrow(key);
     },
   );
 });

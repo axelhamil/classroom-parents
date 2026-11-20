@@ -36,9 +36,9 @@ import {
   alertDefaultReminders,
   alertEventReminders,
 } from "@modules/alerts/schemas/reminder-settings.schema";
-import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { DATASET_CHILDREN, type DatasetChildKey } from "@modules/extraction/eval/classroom-dataset";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Result } from "@packages/ddd-kit";
 import {
   type AnyPgTable,

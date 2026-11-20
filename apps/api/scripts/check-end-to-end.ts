@@ -22,10 +22,10 @@ import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { alert, alertDelivery } from "@modules/alerts/schemas/alert.schema";
 import { pushSubscription } from "@modules/alerts/schemas/push-subscription.schema";
 import { CHILD_PROVIDER_ID } from "@modules/children/application/config/child-provider";
-import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { classroomCourse } from "@modules/classroom-sync/schemas/classroom-course.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Result } from "@packages/ddd-kit";
 import {
   type AnyPgTable,

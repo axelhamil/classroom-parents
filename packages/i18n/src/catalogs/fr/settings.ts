@@ -7,7 +7,7 @@ export default {
     label: "Sections des réglages",
     notifications: "Rappels et notifications",
     region: "Langue, région et IA",
-    appearance: "Apparence",
+    appearance: "Apparence et aide",
     account: "Compte et appareils",
     privacy: "Données et confidentialité",
   },
@@ -82,6 +82,12 @@ export default {
     title: "Visite guidée",
     description: "Les repères de chaque écran, montrés une fois. Relancez-les à tout moment.",
     action: "Revoir la visite guidée",
+  },
+  schoolHelp: {
+    title: "L'école bloque l'application ?",
+    description:
+      "Certains établissements doivent autoriser l'application pour les comptes élèves. Nous vous préparons la demande à leur envoyer.",
+    action: "Faire autoriser l'application",
   },
   devices: {
     title: "Appareils connectés",

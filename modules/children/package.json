@@ -16,6 +16,7 @@
     "check:child-db": "bun --env-file=../../packages/drizzle/.env scripts/check-child-db.ts"
   },
   "dependencies": {
+    "@packages/classroom-scopes": "workspace:*",
     "@packages/ddd-kit": "workspace:*",
     "@packages/drizzle": "workspace:*",
     "@packages/events": "workspace:*",

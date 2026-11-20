@@ -83,13 +83,13 @@ describe("Accueil around the calendar", () => {
     expect(await screen.findByText(/analyse en cours/)).toBeDefined();
   });
 
-  it("given a child blocked by the school, then the list points the parent to the children screen", async () => {
+  it("given a child blocked by the school, then the notice points the parent to the request for the school", async () => {
     givenFamily([{ ...CHILD, status: "blocked_by_school", cause: "school_blocked" }], [EVENT]);
     await renderAppAt("/");
 
-    const pointer = await screen.findByRole("link", { name: "Voir les enfants" });
+    const pointer = await screen.findByRole("link", { name: "Que faire ?" });
 
-    expect(pointer.getAttribute("href")).toBe("/children");
+    expect(pointer.getAttribute("href")).toBe("/aide/ecole");
   });
 
   it("given a child whose Google access was lost, then the notice offers to reconnect at once", async () => {
@@ -97,7 +97,7 @@ describe("Accueil around the calendar", () => {
     await renderAppAt("/");
 
     expect(await screen.findByRole("button", { name: "Reconnecter" })).toBeDefined();
-    expect(screen.queryByRole("link", { name: "Voir les enfants" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Que faire ?" })).toBeNull();
   });
 
   it("given an event to review beyond the loaded page, then the review line still lists it", async () => {

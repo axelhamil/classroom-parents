@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Option, Result, UnitOfWorkContext } from "@packages/ddd-kit";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import type { PortMock } from "@packages/test/bun";
 import type { UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
-import { CLASSROOM_SCOPES } from "../application/config/classroom-scopes";
 import type {
   DisconnectingChild,
   IChildRepository,
@@ -352,6 +352,27 @@ describe("reconnect", () => {
     expect(result.getValue().syncing).toBe(false);
     expect(repo.save).toHaveBeenCalledWith(blocked);
     expect(enqueuedEvents(outbox).map((e) => e.eventType)).toEqual([EventTypes.CHILD_CONNECTED]);
+  });
+
+  it("given the school had blocked the app, then the reconnection says the school block is over", async () => {
+    const blocked = child({ status: ChildStatus.brokenBy("school_blocked") });
+    repo.findOwned.mockResolvedValue(ok(Option.some(blocked)));
+
+    await connection.reconnect(PARENT, blocked.id.value);
+
+    expect(enqueuedEvents(outbox)[0]?.payload).toMatchObject({ restoredFrom: "school_blocked" });
+  });
+
+  it("given a connected child, then the reconnection names no break", async () => {
+    const connected = child({});
+    repo.findOwned.mockResolvedValue(ok(Option.some(connected)));
+
+    await connection.reconnect(PARENT, connected.id.value);
+
+    expect(enqueuedEvents(outbox)[0]?.payload).not.toHaveProperty(
+      "restoredFrom",
+      expect.anything(),
+    );
   });
 
   it("given the Google picture changed, then the reconnect refreshes the avatar", async () => {

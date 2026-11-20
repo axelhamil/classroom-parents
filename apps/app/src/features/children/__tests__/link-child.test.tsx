@@ -172,7 +172,7 @@ describe("refused Google link", () => {
     await renderApp("/children/link-error?error=account_already_linked_to_different_user");
 
     expect(await screen.findByText(copy.linkError.kinds.already_linked)).toBeTruthy();
-    expect(screen.queryByText(copy.school.title)).toBeNull();
+    expect(screen.queryByRole("link", { name: copy.school.guide })).toBeNull();
   });
 
   it("given a refused reconnection, then Réessayer reconnects the same child", async () => {

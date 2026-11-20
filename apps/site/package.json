@@ -14,6 +14,7 @@
   "dependencies": {
     "@astrojs/react": "~7.1.4",
     "@astrojs/sitemap": "^3.7.4",
+    "@packages/classroom-scopes": "workspace:*",
     "@packages/i18n": "workspace:*",
     "@packages/ui": "workspace:*",
     "@packages/web-kit": "workspace:*",

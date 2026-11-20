@@ -1,9 +1,9 @@
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { Option, Result, UnitOfWorkContext } from "@packages/ddd-kit";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork, type UnitOfWorkMock } from "@packages/test/bun/unit-of-work";
-import { CLASSROOM_SCOPES } from "../application/config/classroom-scopes";
 import type { ChildrenError, IChildRepository } from "../application/ports/child-repository.port";
 import type {
   GoogleCredentials,

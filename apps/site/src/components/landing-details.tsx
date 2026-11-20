@@ -13,6 +13,7 @@ import {
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import { BellRingIcon, PencilOffIcon, UsersIcon } from "lucide-react";
 import { GoogleCta } from "./google-cta";
+import { SCHOOL_GUIDE_PATH } from "./school-admin-guide";
 
 const PROOFS = [
   { key: "family", icon: UsersIcon },
@@ -50,6 +51,11 @@ export function LandingDetails({ copy, signInUrl, privacyUrl }: LandingDetailsPr
             <LandingFaqItem key={question}>
               <LandingFaqQuestion>{copy.faq[question].question}</LandingFaqQuestion>
               <LandingFaqAnswer>{copy.faq[question].answer}</LandingFaqAnswer>
+              {question === "blocked" && (
+                <LandingFaqAnswer>
+                  <TextLink href={SCHOOL_GUIDE_PATH}>{copy.faq.blocked.link}</TextLink>
+                </LandingFaqAnswer>
+              )}
               {question === "data" && (
                 <LandingFaqAnswer>
                   <TextLink href={privacyUrl}>{copy.faq.data.link}</TextLink>

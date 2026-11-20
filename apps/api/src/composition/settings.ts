@@ -1,7 +1,7 @@
 import type { AlertsSettings } from "@modules/alerts/application/config/alerts-settings";
 import type { CalendarFeedSettings } from "@modules/calendar-feed/application/config/calendar-feed-settings";
 import type { ChildrenSettings } from "@modules/children/application/config/children-settings";
-import { CLASSROOM_SCOPES } from "@modules/children/application/config/classroom-scopes";
+import { CLASSROOM_SCOPES } from "@packages/classroom-scopes";
 import { defineModule } from "inwire";
 import type { RgpdSettings } from "../modules/rgpd/application/config/rgpd-settings";
 import { SESSION_FRESH_AGE_SECONDS } from "../shared/auth/session-freshness";

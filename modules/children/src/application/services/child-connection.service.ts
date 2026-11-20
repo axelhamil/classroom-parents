@@ -6,6 +6,7 @@ import { ChildAccount, DISCONNECT_LEASE_MS } from "../../domain/child-account.ag
 import { AvatarUrl } from "../../domain/value-objects/avatar-url.vo";
 import { ChildColor } from "../../domain/value-objects/child-color.vo";
 import { CHILD_LABEL_MAX, ChildLabel } from "../../domain/value-objects/child-label.vo";
+import type { ReconnectCause } from "../../domain/value-objects/child-status.vo";
 import { GoogleEmail } from "../../domain/value-objects/google-email.vo";
 import { CHILD_PROVIDER_ID } from "../config/child-provider";
 import type { ChildrenSettings } from "../config/children-settings";
@@ -244,7 +245,7 @@ export class ChildConnectionService {
         const inserted = await this.children.create(child);
         if (inserted.isFailure) return inserted;
 
-        await this.emitConnected(userId, child.id.value);
+        await this.emitConnected(userId, child.id.value, Option.none());
         return Result.ok<ChildrenError>();
       });
       if (created.isFailure) return Result.fail(created.getError());
@@ -266,12 +267,13 @@ export class ChildConnectionService {
         const usable = await this.usableLinkedAccount(userId, child.get("linkedAccountId"));
         if (usable.isFailure) return Result.fail(usable.getError());
 
+        const restoredFrom = child.get("status").cause();
         if (child.reconnect(this.clock()).isFailure) return Result.fail(childNotFound);
         if (avatar.isSome()) child.showAvatar(avatar.unwrap());
         const saved = await this.children.save(child);
         if (saved.isFailure) return Result.fail(saved.getError());
 
-        await this.emitConnected(userId, childId);
+        await this.emitConnected(userId, childId, restoredFrom);
         return Result.ok(toChildDto(child));
       });
     });
@@ -594,10 +596,15 @@ export class ChildConnectionService {
     );
   }
 
-  private async emitConnected(userId: string, childId: string): Promise<void> {
+  private async emitConnected(
+    userId: string,
+    childId: string,
+    restoredFrom: Option<ReconnectCause>,
+  ): Promise<void> {
     await emitEvent(this.outbox, EventTypes.CHILD_CONNECTED, "child", childId, {
       userId,
       childId,
+      restoredFrom: restoredFrom.toUndefined(),
     });
   }
 }
