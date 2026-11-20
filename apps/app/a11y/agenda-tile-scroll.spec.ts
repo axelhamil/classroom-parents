@@ -1,6 +1,16 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./csp";
-import { BUSY_WEEK, EVENTS, LEA, MAXIMILIEN, serveFamily, todayAt } from "./events-fixtures";
+import {
+  BUSY_WEEK,
+  EVENTS,
+  inDays,
+  LEA,
+  MAXIMILIEN,
+  parisTime,
+  REVIEW_EVENT,
+  serveFamily,
+  todayAt,
+} from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
 
 /** The width where the Agenda measured 1200 × 436 on the home: an XL tile beside nothing. */
@@ -161,4 +171,76 @@ test.describe("the Agenda tile", () => {
     ]);
     expect((foldedBox?.width ?? 0) * 3).toBeLessThan(todayBox?.width ?? 0);
   });
+});
+
+/** What spills out of a planner's column: a descendant wider than its own box or than the column. */
+function spills(board: Locator): Promise<string[]> {
+  return board.evaluate((element) =>
+    [...element.children].flatMap((column) => {
+      const edge = column.getBoundingClientRect();
+      const label = column.getAttribute("data-jump") ?? column.getAttribute("data-slot") ?? "";
+
+      return [column, ...column.querySelectorAll<HTMLElement>("*")]
+        .filter((inner) => inner.clientWidth > 0 && !inner.closest(".sr-only"))
+        .filter((inner) => {
+          const box = inner.getBoundingClientRect();
+
+          return (
+            inner.scrollWidth > inner.clientWidth + 1 ||
+            box.left < edge.left - 1 ||
+            box.right > edge.right + 1
+          );
+        })
+        .map((inner) => `${label}: ${inner.textContent?.trim().slice(0, 20)}`);
+    }),
+  );
+}
+
+/** The day after today is a Friday whose weekend holds nothing: Saturday says "Demain". */
+const FRIDAY = inDays(1);
+const FRIDAY_ONLY = [
+  {
+    ...REVIEW_EVENT,
+    status: "confirmed",
+    deadlineDate: FRIDAY,
+    deadlineAt: `${FRIDAY}T07:00:00.000Z`,
+  },
+];
+
+test.describe("the planner's columns", () => {
+  for (const width of [768, 1280, 1440]) {
+    test(`hold everything they show, folded or not (${width} px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const agenda = await openAgenda(page, EVENTS);
+
+      expect(await spills(agenda.locator("[data-arrangement=board]"))).toEqual([]);
+    });
+
+    test(`keep the weekend open when Saturday is tomorrow (${width} px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.clock.setFixedTime(parisTime(FRIDAY, "09:00"));
+      await serveFamily(page, { children: [LEA, MAXIMILIEN], events: FRIDAY_ONLY });
+      await page.goto("/");
+      const board = page
+        .getByRole("region", { name: "Agenda" })
+        .locator("[data-arrangement=board]");
+      await expect(board.locator("[data-slot=calendar-entry-link]").first()).toBeVisible();
+
+      expect(await spills(board)).toEqual([]);
+      const weekend = page.getByRole("group", { name: "Week-end" });
+      await expect(weekend).not.toHaveAttribute("data-folded");
+      await expect(weekend.getByText("Demain", { exact: true })).toBeVisible();
+    });
+
+    test(`fold a quiet weekend whole to its dates (${width} px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const agenda = await openAgenda(page, FRIDAY_ONLY);
+      const board = agenda.locator("[data-arrangement=board]");
+
+      expect(await spills(board)).toEqual([]);
+      const weekend = page.getByRole("group", { name: "Week-end" });
+      await expect(weekend).toHaveAttribute("data-folded", "true");
+      await expect(board.locator("[data-folded] [data-slot=calendar-day-note]")).toHaveCount(0);
+    });
+  }
 });

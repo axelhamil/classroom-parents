@@ -65,7 +65,8 @@ export function AgendaDaySection({
         <span className="sr-only">{fullDateLabel(day.date)}</span>
       </CalendarDayMark>
       {column ? (
-        urgent && (
+        urgent &&
+        !folded && (
           <CalendarDayNote>
             <WhenBadgeView badge={urgent} />
           </CalendarDayNote>

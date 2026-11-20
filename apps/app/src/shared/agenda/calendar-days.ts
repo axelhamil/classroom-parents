@@ -259,8 +259,14 @@ export function weekSegments<T>(
 
 /**
  * Whether a planner's column folds to its date: an empty day gives its width to the days that hold
- * deadlines, except today and the school day the home looks at, which always keep theirs.
+ * deadlines, except today, tomorrow (a day with an urgent word to say) and the school day the home
+ * looks at, which always keep theirs. A folded column then never has more than its date to show.
  */
 export function foldsInPlanner(day: AgendaDay, focus: string): boolean {
-  return day.deadlines.length === 0 && day.tone !== "today" && day.date !== focus;
+  return (
+    day.deadlines.length === 0 &&
+    day.tone !== "today" &&
+    day.badge?.tone !== "urgent" &&
+    day.date !== focus
+  );
 }

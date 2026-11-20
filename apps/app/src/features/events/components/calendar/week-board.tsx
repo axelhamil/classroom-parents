@@ -20,12 +20,14 @@ export function WeekBoard({ days, family, courseNames }: WeekBoardProps) {
   const { t } = useTranslation("events");
   const { focus } = useSchoolClock();
 
+  const folds = (day: AgendaDay) => foldsInPlanner(day, focus);
+
   const column = (day: AgendaDay) => (
     <AgendaDaySection
       key={day.date}
       day={day}
       layout="column"
-      folded={foldsInPlanner(day, focus)}
+      folded={folds(day)}
       family={family}
       courseNames={courseNames}
     />
@@ -35,7 +37,12 @@ export function WeekBoard({ days, family, courseNames }: WeekBoardProps) {
     <CalendarWeek arrangement="board">
       {weekSegments(days, (day) => day.date).map((segment) =>
         segment.weekend ? (
-          <CalendarWeekend key={segment.items[0]?.date} label={t("calendar.weekend")}>
+          <CalendarWeekend
+            key={segment.items[0]?.date}
+            label={t("calendar.weekend")}
+            shortLabel={t("calendar.weekendShort")}
+            folded={segment.items.every(folds)}
+          >
             {segment.items.map(column)}
           </CalendarWeekend>
         ) : (
