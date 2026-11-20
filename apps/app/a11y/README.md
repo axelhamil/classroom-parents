@@ -87,15 +87,17 @@ Three things bite when running repeatedly:
   and a local sweep both run, its own room for one
   parent signed in on four browsers; production keeps 600 and refuses a higher
   value at startup. A full sweep measured 790 requests in the parent's bucket
-  over 2.4 min, none refused at 600, 20 November 2026. The hour window still holds:
-  about five full sweeps per hour on one API process before it refuses the
-  parent. The pin to `4` stays as a courtesy cap on host load. A spec that
+  over 2.4 min, none refused at 600, 20 November 2026. The hour window takes
+  `RATE_LIMIT_GLOBAL_PER_HOUR=72000` the same way (production keeps 1800 and
+  refuses more): a sweep spends about 960 requests in the parent's bucket, and
+  the counters live in Postgres across API restarts, so at 1800 the second
+  sweep inside the hour got 184 refusals. The setup reads the API's
+  `RateLimit-Policy` and stops with the command to run when the API it finds
+  was not started with `start:gate`. The pin to `4` stays as a courtesy cap on
+  host load. A spec that
   fakes the family (`serveFamily`) fakes everything the home it opens reads,
   `/home/*` included, and `pinShell` fakes `/assistant/preferences`, `/notifications/unread-count` and `/school-calendar`, read by the shell on every page: each request left to the live API spends the seeded
-  parent's bucket (a full sweep measured 475 there, 19 November 2026). The
-  limiter is stored in Postgres and the API also keeps blocked keys in memory:
-  between two local sweeps inside the hour, empty `rate_limit` and restart the
-  API, or the second sweep fails on 429s that look like broken pages.
+  parent's bucket (a full sweep measured 475 there, 19 November 2026).
 - **Resetting the limiter takes two steps.** `DELETE FROM rate_limit` on the
   dev database *and* a restart of the API process, `inMemoryBlockOnConsumed`
   caches the block in-process, so clearing the table alone leaves it in place.

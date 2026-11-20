@@ -42,10 +42,11 @@ export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
 /**
  * Pages declared `full` (`pageContainerVariants`): cards or lists that reflow into more columns.
  * `page-width.spec.ts` fails any of them that leaves more than a quarter of a 1440px screen empty.
+ * `settings` is left out: from a tablet up it only redirects to its first section, listed below,
+ * so measuring it at 1440px raced the redirect.
  */
 export const FULL_WIDTH_PAGES: ReadonlySet<string> = new Set([
   "not found",
-  "settings",
   "settings, notifications",
   "settings, language and region",
   "settings, ai",

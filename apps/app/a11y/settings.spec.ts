@@ -73,7 +73,7 @@ test.describe("settings on a phone", () => {
   }) => {
     await page.goto("/settings/account");
 
-    await page.getByRole("button", { name: "Se déconnecter" }).click();
+    await page.getByRole("button", { name: "Se déconnecter", exact: true }).click();
     const dialog = page.getByRole("alertdialog", { name: "Se déconnecter de ce téléphone ?" });
     await expect(dialog).toBeVisible();
 

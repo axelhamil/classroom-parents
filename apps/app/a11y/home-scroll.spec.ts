@@ -282,10 +282,12 @@ test.describe("a home tile on a phone", () => {
     await expect(agenda.locator("[data-slot=calendar-day]").first()).toBeVisible();
 
     await expect(agenda.getByRole("group", { name: "Agenda" })).toHaveCount(0);
-    const overflow = await agenda
-      .locator("[data-slot=dashboard-panel-body]")
-      .evaluate((el) => el.scrollHeight - el.clientHeight);
-    expect(overflow).toBeLessThanOrEqual(1);
+    // The panel reaches its week's height a frame after the first day shows: read once, it can
+    // still overflow by a pixel or two that is gone 70 ms later.
+    const body = agenda.locator("[data-slot=dashboard-panel-body]");
+    await expect
+      .poll(() => body.evaluate((el) => el.scrollHeight - el.clientHeight))
+      .toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight)).toBe(
       true,
     );

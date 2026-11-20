@@ -79,6 +79,13 @@ describe("env contract at boot", () => {
     expect(envSchema.parse(PRODUCTION_ENV).RATE_LIMIT_GLOBAL_PER_MINUTE).toBe(600);
   });
 
+  it("refuses an hour ceiling raised for a test run in production, and keeps 1800 there", () => {
+    expect(failingKeys({ ...PRODUCTION_ENV, RATE_LIMIT_GLOBAL_PER_HOUR: "72000" })).toContain(
+      "RATE_LIMIT_GLOBAL_PER_HOUR",
+    );
+    expect(envSchema.parse(PRODUCTION_ENV).RATE_LIMIT_GLOBAL_PER_HOUR).toBe(1800);
+  });
+
   it("refuses a VAPID subject that is neither a mailto nor an https URL", () => {
     expect(failingKeys({ ...PRODUCTION_ENV, VAPID_SUBJECT: "contact@example.com" })).toContain(
       "VAPID_SUBJECT",

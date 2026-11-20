@@ -5,6 +5,9 @@ import { validateEnvBounds, validateHostsEnv, validateTrustedProxiesEnv } from "
 /** The per-parent minute burst a production API grants; a test API may raise it, never production. */
 export const PRODUCTION_GLOBAL_BURST_PER_MINUTE = 600;
 
+/** The per-parent hour ceiling a production API grants; a test API may raise it, never production. */
+export const PRODUCTION_GLOBAL_SUSTAINED_PER_HOUR = 1800;
+
 const commaList = (value: string): string[] =>
   value
     .split(",")
@@ -108,6 +111,12 @@ export const envSchema = z
       .min(60)
       .max(10_000)
       .default(PRODUCTION_GLOBAL_BURST_PER_MINUTE),
+    RATE_LIMIT_GLOBAL_PER_HOUR: z.coerce
+      .number()
+      .int()
+      .min(600)
+      .max(1_000_000)
+      .default(PRODUCTION_GLOBAL_SUSTAINED_PER_HOUR),
     TRUSTED_PROXIES: z.string().transform(commaList).optional(),
     CAPTCHA_SECRET_KEY: z.string().optional(),
     CAPTCHA_VERIFY_URL: z
@@ -146,6 +155,7 @@ function validateProductionEnv(
     NODE_ENV: string;
     FAKE_PROVIDERS: boolean;
     RATE_LIMIT_GLOBAL_PER_MINUTE: number;
+    RATE_LIMIT_GLOBAL_PER_HOUR: number;
   } & Partial<Record<ProductionRequiredKey, string | string[]>>,
   ctx: z.RefinementCtx,
 ): void {
@@ -165,6 +175,14 @@ function validateProductionEnv(
       code: "custom",
       path: ["RATE_LIMIT_GLOBAL_PER_MINUTE"],
       message: `RATE_LIMIT_GLOBAL_PER_MINUTE above ${PRODUCTION_GLOBAL_BURST_PER_MINUTE} is refused in production: it exists so a test run signing every browser in as one parent fits in a minute.`,
+    });
+  }
+
+  if (value.RATE_LIMIT_GLOBAL_PER_HOUR > PRODUCTION_GLOBAL_SUSTAINED_PER_HOUR) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["RATE_LIMIT_GLOBAL_PER_HOUR"],
+      message: `RATE_LIMIT_GLOBAL_PER_HOUR above ${PRODUCTION_GLOBAL_SUSTAINED_PER_HOUR} is refused in production: it exists so repeated test runs signing every browser in as one parent fit in an hour.`,
     });
   }
 
