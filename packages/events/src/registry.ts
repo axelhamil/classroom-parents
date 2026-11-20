@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import { agendaEvents } from "./contrib/agenda";
 import { alertsEvents } from "./contrib/alerts";
 import { assistantEvents } from "./contrib/assistant";
@@ -47,6 +48,11 @@ export const CONTRIBUTED_PAYLOADS = {
   ...homeEvents.payloads,
   ...notificationsEvents.payloads,
 };
+
+export const CONTRIBUTED_EMITTED: Readonly<Record<string, z.ZodType | undefined>> = Object.assign(
+  {},
+  ...CONTRIBUTIONS.map((contribution) => contribution.emitted ?? {}),
+);
 
 export const CONTRIBUTED_RETENTION = {
   ...childrenEvents.retention,

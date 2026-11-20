@@ -19,7 +19,7 @@ export default {
       },
       back: {
         title: "Revenir ici",
-        body: "Quand l'école confirme, reconnectez le compte de votre enfant depuis la page Enfants. Le changement peut prendre jusqu'à 24 heures côté Google.",
+        body: "Rien à relancer : KeepUpKids vérifie seul, au plus tard une fois par jour, et vous prévient dès que l'école a autorisé l'application. Le changement peut prendre jusqu'à 24 heures côté Google.",
         action: "Voir mes enfants",
       },
     },

@@ -384,7 +384,7 @@ describe("syncChild", () => {
       const result = await h.service.syncChild(CHILD, NOW);
 
       expect(result.getError().code).toBe("SYNC_BLOCKED");
-      expect(h.state.markNeedsReconnect).toHaveBeenCalledWith(CHILD.childId, "school_blocked");
+      expect(h.state.markNeedsReconnect).toHaveBeenCalledWith(CHILD.childId, "school_blocked", NOW);
       expect(h.ingest.ingest).not.toHaveBeenCalled();
       expect(h.state.markSynced).not.toHaveBeenCalled();
       expect(h.state.markSyncFailed).not.toHaveBeenCalled();
@@ -397,7 +397,7 @@ describe("syncChild", () => {
       const result = await h.service.syncChild(CHILD, NOW);
 
       expect(result.getError().code).toBe("SYNC_BLOCKED");
-      expect(h.state.markNeedsReconnect).toHaveBeenCalledWith(CHILD.childId, "school_blocked");
+      expect(h.state.markNeedsReconnect).toHaveBeenCalledWith(CHILD.childId, "school_blocked", NOW);
       expect(h.ingest.ingest).not.toHaveBeenCalled();
       expect(h.state.markSynced).not.toHaveBeenCalled();
     });
@@ -412,7 +412,7 @@ describe("syncChild", () => {
     const result = await h.service.syncChild(CHILD, NOW);
 
     expect(result.getError().code).toBe("SYNC_BLOCKED");
-    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant", NOW]]);
     expect(h.extractor.extract).not.toHaveBeenCalled();
     expect(h.state.markSynced).not.toHaveBeenCalled();
   });
@@ -423,7 +423,7 @@ describe("syncChild", () => {
     const result = await h.service.syncChild(CHILD, NOW);
 
     expect(result.getError().code).toBe("SYNC_BLOCKED");
-    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant", NOW]]);
   });
 
   it("asks for a reconnection when every course answers 401", async () => {
@@ -435,7 +435,7 @@ describe("syncChild", () => {
     const result = await h.service.syncChild(CHILD, NOW);
 
     expect(result.getError().code).toBe("SYNC_BLOCKED");
-    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant", NOW]]);
   });
 
   it("leaves the child connected and retries later when the app's Google project has Classroom disabled", async () => {
@@ -477,7 +477,7 @@ describe("syncChild", () => {
     const result = await h.service.syncChild(CHILD, NOW);
 
     expect(result.getError().code).toBe("SYNC_BLOCKED");
-    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant"]]);
+    expect(h.state.markNeedsReconnect.mock.calls).toEqual([[CHILD.childId, "invalid_grant", NOW]]);
   });
 
   it("asks for a reconnection without calling Google when the token is refused", async () => {
@@ -486,7 +486,7 @@ describe("syncChild", () => {
     const result = await h.service.syncChild(CHILD, NOW);
 
     expect(result.getError().code).toBe("SYNC_BLOCKED");
-    expect(h.state.markNeedsReconnect).toHaveBeenCalledWith(CHILD.childId, "invalid_grant");
+    expect(h.state.markNeedsReconnect).toHaveBeenCalledWith(CHILD.childId, "invalid_grant", NOW);
     expect(h.client.listCourses).not.toHaveBeenCalled();
     expect(h.state.markSynced).not.toHaveBeenCalled();
   });

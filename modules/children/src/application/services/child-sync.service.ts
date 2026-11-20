@@ -90,7 +90,14 @@ export class ChildSyncService {
     at: Date,
     nextSyncAt: Date,
   ): Promise<Result<void, ChildrenError>> {
-    return this.span("markSynced", () => this.children.markSynced(lease, at, nextSyncAt));
+    return this.span("markSynced", () =>
+      this.transactions.run(async () => {
+        const marked = await this.children.markSynced(lease, at, nextSyncAt);
+        if (marked.isFailure) return marked;
+
+        return this.restoreIfSchoolAllowed(lease.childId);
+      }),
+    );
   }
 
   async markSyncFailed(lease: SyncLease, nextSyncAt: Date): Promise<Result<void, ChildrenError>> {
@@ -100,6 +107,7 @@ export class ChildSyncService {
   async markNeedsReconnect(
     childId: string,
     cause: ReconnectCause,
+    now: Date,
   ): Promise<Result<void, ChildrenError>> {
     return this.span("markNeedsReconnect", () =>
       this.transactions.run(async () => {
@@ -108,7 +116,8 @@ export class ChildSyncService {
         if (found.getValue().isNone()) return Result.fail(childNotFound);
         const child = found.getValue().unwrap();
 
-        if (child.markNeedsReconnect(cause).isFailure) return Result.ok<ChildrenError>();
+        if (child.markNeedsReconnect(cause, now).isFailure)
+          return this.retrySchoolLater(child, now);
 
         const saved = await this.children.save(child);
         if (saved.isFailure) return saved;
@@ -122,6 +131,34 @@ export class ChildSyncService {
         return Result.ok<ChildrenError>();
       }),
     );
+  }
+
+  private async retrySchoolLater(
+    child: ChildAccount,
+    now: Date,
+  ): Promise<Result<void, ChildrenError>> {
+    if (child.retrySchoolLater(now).isFailure) return Result.ok();
+
+    return this.children.save(child);
+  }
+
+  private async restoreIfSchoolAllowed(childId: string): Promise<Result<void, ChildrenError>> {
+    const found = await this.children.findForSystem(childId);
+    if (found.isFailure) return Result.fail(found.getError());
+    if (found.getValue().isNone()) return Result.ok();
+    const child = found.getValue().unwrap();
+    if (child.restoreAfterSchoolBlock().isFailure) return Result.ok();
+
+    const saved = await this.children.save(child);
+    if (saved.isFailure) return saved;
+
+    await emitEvent(this.outbox, EventTypes.CHILD_CONNECTED, "child", childId, {
+      userId: child.get("userId"),
+      childId,
+      restoredFrom: "school_blocked",
+      actorUserId: null,
+    });
+    return Result.ok();
   }
 
   private span<T>(method: string, work: () => Promise<T>): Promise<T> {

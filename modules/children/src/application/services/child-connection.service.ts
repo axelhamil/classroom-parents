@@ -605,6 +605,7 @@ export class ChildConnectionService {
       userId,
       childId,
       restoredFrom: restoredFrom.toUndefined(),
+      actorUserId: userId,
     });
   }
 }

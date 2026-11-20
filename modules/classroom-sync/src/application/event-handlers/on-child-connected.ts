@@ -5,7 +5,12 @@ import { isNothingToSync, type ManualSyncService } from "../services/manual-sync
 interface ChildConnected {
   userId: string;
   childId: string;
+  restoredFrom?: "invalid_grant" | "school_blocked";
+  actorUserId: string | null;
 }
+
+const restoredBySync = ({ restoredFrom, actorUserId }: ChildConnected) =>
+  restoredFrom === "school_blocked" && actorUserId === null;
 
 function parseChildConnected(payload: unknown): Result<ChildConnected, string> {
   const parsed = PayloadByEventType[EventTypes.CHILD_CONNECTED].safeParse(payload);
@@ -17,6 +22,8 @@ export const onChildConnected = onEvent(
   "classroom-sync-first-sync",
   (deps: { ManualSyncService: Pick<ManualSyncService, "requestChild"> }) =>
     async (_event, payload: ChildConnected) => {
+      if (restoredBySync(payload)) return Result.ok();
+
       const requested = await deps.ManualSyncService.requestChild(payload.userId, payload.childId);
       if (requested.isFailure && !isNothingToSync(requested.getError()))
         return Result.fail(requested.getError());

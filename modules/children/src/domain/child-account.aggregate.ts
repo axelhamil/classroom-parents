@@ -10,6 +10,13 @@ export const MANUAL_SYNC_COOLDOWN_MS = 5 * 60_000;
 export const SYNC_LEASE_MS = 10 * 60_000;
 export const DISCONNECT_LEASE_MS = 2 * 60_000;
 
+const HOUR_MS = 60 * 60_000;
+export const SCHOOL_RETRY_DELAYS_MS = [HOUR_MS, 6 * HOUR_MS, 24 * HOUR_MS] as const;
+
+function schoolRetryDelay(retries: number): number {
+  return SCHOOL_RETRY_DELAYS_MS[Math.min(retries, SCHOOL_RETRY_DELAYS_MS.length - 1)] ?? HOUR_MS;
+}
+
 export interface ChildAccountProps {
   userId: string;
   linkedAccountId: string;
@@ -25,6 +32,7 @@ export interface ChildAccountProps {
   syncStartedAt: Option<Date>;
   lastSyncRequestedAt: Option<Date>;
   syncLease: number;
+  syncAttempts: number;
 }
 
 export type ManualSyncRefusal = "unavailable" | "running" | "throttled";
@@ -61,6 +69,7 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
         syncStartedAt: Option.none(),
         lastSyncRequestedAt: Option.none(),
         syncLease: 0,
+        syncAttempts: 0,
       },
       new ChildAccountId(),
     );
@@ -115,14 +124,39 @@ export class ChildAccount extends Aggregate<ChildAccountProps, ChildAccountId> {
     return this._props.status.value === "disconnecting";
   }
 
-  markNeedsReconnect(cause: ReconnectCause): Result<void, "unchanged"> {
+  markNeedsReconnect(cause: ReconnectCause, now: Date): Result<void, "unchanged"> {
     const broken = ChildStatus.brokenBy(cause);
     if (this._props.status.equals(broken) || this.isDisconnecting())
       return Result.fail("unchanged");
 
     this._props.status = broken;
     this._props.syncStartedAt = Option.none();
+    if (cause === "school_blocked") this.waitForSchool(now, 0);
     return Result.ok();
+  }
+
+  retrySchoolLater(now: Date): Result<void, "not_blocked"> {
+    if (!this.isBlockedBySchool()) return Result.fail("not_blocked");
+
+    this._props.syncStartedAt = Option.none();
+    this.waitForSchool(now, this._props.syncAttempts);
+    return Result.ok();
+  }
+
+  restoreAfterSchoolBlock(): Result<void, "not_blocked"> {
+    if (!this.isBlockedBySchool()) return Result.fail("not_blocked");
+
+    this._props.status = ChildStatus.connected();
+    return Result.ok();
+  }
+
+  isBlockedBySchool(): boolean {
+    return this._props.status.value === "blocked_by_school";
+  }
+
+  private waitForSchool(now: Date, retries: number): void {
+    this._props.syncAttempts = retries;
+    this._props.nextSyncAt = new Date(now.getTime() + schoolRetryDelay(retries));
   }
 
   requestManualSync(now: Date): Result<void, ManualSyncRefusal> {

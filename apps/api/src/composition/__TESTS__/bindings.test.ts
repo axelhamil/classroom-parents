@@ -721,7 +721,7 @@ describe("sync IChildSyncState bound to children", () => {
       },
     });
 
-    await state.markNeedsReconnect(LEA, "school_blocked");
+    await state.markNeedsReconnect(LEA, "school_blocked", PUBLISHED_AT);
 
     expect(asked).toEqual({ childId: LEA, cause: "school_blocked" });
   });
@@ -750,9 +750,9 @@ describe("sync IChildSyncState bound to children", () => {
     });
 
     expect((await state.holdsLease(lease)).getError().code).toBe("CHILD_PROVIDER_FAILURE");
-    expect((await state.markNeedsReconnect(LEA, "invalid_grant")).getError().code).toBe(
-      "CHILD_NOT_FOUND",
-    );
+    expect(
+      (await state.markNeedsReconnect(LEA, "invalid_grant", PUBLISHED_AT)).getError().code,
+    ).toBe("CHILD_NOT_FOUND");
   });
 });
 

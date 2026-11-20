@@ -27,7 +27,7 @@ export class GoogleAccessService {
       const token = await this.liveAccessToken(child.get("userId"), child.get("linkedAccountId"));
       if (token.isSuccess || token.getError().code !== "CHILD_TOKEN_INVALID_GRANT") return token;
 
-      const marked = await this.sync.markNeedsReconnect(childId, "invalid_grant");
+      const marked = await this.sync.markNeedsReconnect(childId, "invalid_grant", this.clock());
       if (marked.isFailure)
         this.instrumentation.capture(marked.getError(), { metadata: { childId } });
       return token;

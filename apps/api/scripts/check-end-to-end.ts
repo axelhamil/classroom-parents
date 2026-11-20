@@ -458,13 +458,28 @@ run(async () => {
   );
 
   fakes.unblockSchool("hugo");
-  const reconnected = await call(`/children/${hugo.id}/reconnect`, "POST");
-  const afterReconnect = await childrenOf(call);
+  const stillWaiting = await syncDue(new Date(now + 3 * HOUR_MS + 30 * 60_000));
   await step(
-    "once the school unblocks the app, a reconnect brings the child back",
-    reconnected.status === 200 &&
-      afterReconnect.find((child) => child.id === hugo.id)?.status === "connected",
-    afterReconnect,
+    "the sync leaves a child blocked by its school alone for an hour",
+    (await childrenOf(call)).find((child) => child.id === hugo.id)?.status === "blocked_by_school",
+    { stillWaiting },
+  );
+  const unblockedSeen = nextMessage(family.userId, "children.changed");
+  const schoolAllowed = nextMessage(family.userId, "notification.created");
+  const retried = await syncDue(new Date(now + 4 * HOUR_MS + 60_000));
+  const afterRetry = await childrenOf(call);
+  await step(
+    "an hour later the scheduled sync reads the child again, with no parent action, and brings it back",
+    retried && afterRetry.find((child) => child.id === hugo.id)?.status === "connected",
+    afterRetry,
+  );
+  await step(
+    "the parent's screens learn it live and the center says the school allowed the app",
+    (await unblockedSeen)?.type === "children.changed" &&
+      (await schoolAllowed)?.type === "notification.created" &&
+      NotificationFeed.parse(await (await call("/notifications")).json()).notifications.some(
+        ({ content, childId }) => content.kind === "school_allowed" && childId === hugo.id,
+      ),
   );
 
   await db.insert(authSchema.account).values({
