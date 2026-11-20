@@ -89,7 +89,7 @@ export function CalendarBoard({
   const { now } = clock;
   const [blockRef, board] = useContainerAtLeast<HTMLDivElement>(BOARD_FROM_REM);
   const weekStart: WeekStart = board ? "monday" : "anchor";
-  const { view, today, anchor, period } = placePeriod(place, clock, weekStart);
+  const { view, today, reference, anchor, period } = placePeriod(place, clock, weekStart);
   const query = useQuery({
     ...calendarEventsQueryOptions(period),
     placeholderData: keepPreviousData,
@@ -114,7 +114,7 @@ export function CalendarBoard({
   );
   const courses = agendaCoursesView(filterAgenda(loaded, { childId, courseId: null }));
 
-  const select = (date: string) => onPlaceChange({ date: date === today ? undefined : date });
+  const select = (date: string) => onPlaceChange({ date: date === reference ? undefined : date });
 
   const turnTo = (date: string) => {
     setMotion((current) => ({
@@ -155,14 +155,14 @@ export function CalendarBoard({
           view={view}
           anchor={anchor}
           period={period}
-          todayInView={periodHolds(view, anchor, today, weekStart)}
+          todayInView={periodHolds(view, anchor, reference, weekStart)}
           summary={summary}
           settled={query.isSuccess && !query.isPlaceholderData}
           courses={courses}
           courseId={filter.courseId}
           onCourseChange={(courseId) => onPlaceChange({ courseId: courseId ?? undefined })}
           onStep={step}
-          onToday={() => turnTo(today)}
+          onToday={() => turnTo(reference)}
           onAdd={() =>
             setAdding(
               picked !== null && periodHolds(view, anchor, picked, weekStart) ? picked : anchor,

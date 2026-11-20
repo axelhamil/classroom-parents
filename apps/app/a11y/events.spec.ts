@@ -71,22 +71,29 @@ function comingFriday(): string {
   return inDays((FRIDAY - weekdayOf(TODAY) + 7) % 7);
 }
 
-async function expectSevenRowsOnFridayEvening(page: Page): Promise<void> {
+/**
+ * On Friday evening the planner already shows the week Monday opens, the very day "Pour ce soir"
+ * prepares: both read the school day of the shared clock, so they never speak of two days.
+ */
+async function expectNextWeekOnFridayEvening(page: Page): Promise<void> {
   const friday = comingFriday();
+  const monday = shiftDate(friday, 3);
   await page.clock.setFixedTime(parisTime(friday, "17:00"));
   await serveFamily(page, { children: [LEA, MAXIMILIEN], events: EVENTS });
-  await page.goto(`/?view=week&date=${friday}`);
+  await page.goto("/");
 
-  const columns = page.locator(
-    "[data-slot=calendar-week][data-arrangement=board] [data-slot=calendar-day]",
-  );
+  const week = page.locator("[data-slot=calendar-week][data-arrangement=board]");
+  const columns = week.locator("[data-slot=calendar-day]");
   await expect(columns).toHaveCount(7);
-  await expect(columns.and(page.locator(`[data-jump="${shiftDate(friday, -4)}"]`))).toHaveCount(1);
-  await expect(columns.and(page.locator("[aria-current=date]"))).toHaveAttribute(
-    "data-jump",
-    friday,
+  await expect(columns.first()).toHaveAttribute("data-jump", monday);
+  const mondayName = await columns
+    .first()
+    .locator("[data-slot=calendar-day-mark] .sr-only")
+    .textContent();
+  await expect(page.getByRole("region", { name: "Pour ce soir" })).toContainText(
+    new RegExp(mondayName ?? "", "i"),
   );
-  await expect(page.locator("[data-slot=briefing]")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Revenir à aujourd'hui" })).toHaveCount(0);
 }
 
 async function expectOverdueOverlay(
@@ -465,8 +472,10 @@ test.describe("the week on a tablet", () => {
     await expectOnePageWithoutOverflow(page);
   });
 
-  test("keeps Monday to Sunday on Friday evening, Monday briefed beside them", async ({ page }) => {
-    await expectSevenRowsOnFridayEvening(page);
+  test("already shows the week Monday opens on Friday evening, like Pour ce soir", async ({
+    page,
+  }) => {
+    await expectNextWeekOnFridayEvening(page);
   });
 });
 
@@ -482,8 +491,10 @@ test.describe("the week on a desktop", () => {
     await expectOnePageWithoutOverflow(page);
   });
 
-  test("keeps Monday to Sunday on Friday evening, Monday briefed beside them", async ({ page }) => {
-    await expectSevenRowsOnFridayEvening(page);
+  test("already shows the week Monday opens on Friday evening, like Pour ce soir", async ({
+    page,
+  }) => {
+    await expectNextWeekOnFridayEvening(page);
   });
 });
 

@@ -57,15 +57,34 @@ export interface CalendarPlace {
   courseId?: string;
 }
 
+/**
+ * The day a calendar opens on when no date is asked for. The thread reads from today on; the
+ * planner shows the week of the school day the home looks at, so on Friday evening and over the
+ * weekend it already shows the week that Monday opens.
+ */
+export function referenceDay(
+  { today, focus }: Pick<SchoolClock, "today" | "focus">,
+  weekStart: WeekStart,
+): string {
+  return weekStart === "monday" ? focus : today;
+}
+
 export function placePeriod(
   place: CalendarPlace,
-  { today }: Pick<SchoolClock, "today">,
+  clock: Pick<SchoolClock, "today" | "focus">,
   weekStart: WeekStart = "anchor",
 ) {
   const view = place.view ?? "week";
-  const anchor = place.date ?? today;
+  const reference = referenceDay(clock, weekStart);
+  const anchor = place.date ?? reference;
 
-  return { view, today, anchor, period: calendarPeriod(view, anchor, weekStart) };
+  return {
+    view,
+    today: clock.today,
+    reference,
+    anchor,
+    period: calendarPeriod(view, anchor, weekStart),
+  };
 }
 
 function shiftMonth(anchor: string, step: 1 | -1): string {
