@@ -1,4 +1,5 @@
 import { childAccount } from "@modules/children/schemas/child.schema";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { authSchema } from "@packages/drizzle";
 import { EVENT_CATEGORIES, REVIEW_REASONS } from "@packages/events/agenda-contract";
 import { sql } from "drizzle-orm";
@@ -43,6 +44,7 @@ export const agendaEvent = pgTable(
     deadlineDate: date("deadline_date", { mode: "string" }).notNull(),
     deadlineTime: time("deadline_time"),
     deadlineAt: timestamp("deadline_at", { withTimezone: true }).notNull(),
+    schoolTimeZone: text("school_time_zone").notNull().default(PARIS_TIME_ZONE),
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
     status: text("status", { enum: EVENT_STATUSES }).notNull(),
     reviewReasons: text("review_reasons", { enum: REVIEW_REASONS })

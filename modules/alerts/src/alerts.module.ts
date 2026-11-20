@@ -9,6 +9,7 @@ import {
   onChildAccessLost,
   onChildReconnected,
 } from "./application/event-handlers/on-child-access-changed";
+import { onParentTimeZoneChanged } from "./application/event-handlers/on-parent-time-zone-changed";
 import type { IAccessLossContextReader } from "./application/ports/access-loss-context.port";
 import type { IAlertContextReader } from "./application/ports/alert-context-reader.port";
 import type { IAlertEmailSender } from "./application/ports/alert-email-sender.port";
@@ -91,6 +92,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.IAlertRepository,
           c.IReminderSettingsRepository,
           c.IEventDeadlines,
+          c.IParentTimeZone,
           c.ITransactionService,
           c.IOutboxRepository,
           c.IInstrumentation,
@@ -103,6 +105,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
           c.IReminderSettingsRepository,
           c.IAlertRepository,
           c.IEventDeadlines,
+          c.IParentTimeZone,
           c.AlertPlanningService,
           c.ITransactionService,
           c.IOutboxRepository,
@@ -159,6 +162,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
         new AccessLossAlertService(
           new DrizzleAccessLossRepository(c.IInstrumentation),
           c.IReminderSettingsRepository,
+          c.IParentTimeZone,
           c.IAccessLossContextReader,
           c.IPushSubscriptionRepository,
           c.IPushSender,
@@ -172,6 +176,7 @@ export const alertsModule = defineModule<AlertsPrerequisites>()((b) =>
     )
     .add("onChildAccessLost", (c) => onChildAccessLost(c))
     .add("onChildReconnected", (c) => onChildReconnected(c))
+    .add("onParentTimeZoneChanged", (c) => onParentTimeZoneChanged(c))
     .add(
       "PushSubscriptionService",
       (c) =>

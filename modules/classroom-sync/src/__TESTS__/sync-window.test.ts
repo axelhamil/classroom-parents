@@ -22,7 +22,7 @@ function wall(at: Date): string {
 
 const JITTERS_MS = [1_000, 45_000, 90_000, 135_000, 179_000];
 
-const noAlert = { jitterMs: 0, nextAlertAt: Option.none<Date>() };
+const noAlert = { jitterMs: 0, nextAlertAt: Option.none<Date>(), timeZone: PARIS_TIME_ZONE };
 
 function after(now: Date, plan: Partial<typeof noAlert> = {}): string {
   return wall(nextSyncAt(now, { ...noAlert, ...plan }));
@@ -168,6 +168,7 @@ describe("before an alert", () => {
 
   it("given a jitter that would cross the alert lead, then it is spent before the lead", () => {
     const next = nextSyncAt(now, {
+      ...noAlert,
       jitterMs: 3 * MINUTE_MS,
       nextAlertAt: Option.some(paris("2026-11-09", "12:31")),
     });
@@ -180,6 +181,7 @@ describe("before an alert", () => {
 
     const syncs = JITTERS_MS.map((jitterMs) =>
       nextSyncAt(now, {
+        ...noAlert,
         jitterMs,
         nextAlertAt: Option.some(paris("2026-11-09", "12:00")),
       }).getTime(),
@@ -195,6 +197,31 @@ describe("before an alert", () => {
         nextAlertAt: Option.some(paris("2026-11-14", "04:00")),
       }),
     ).toBe("2026-11-14 03:30");
+  });
+});
+
+describe("a parent outside Paris", () => {
+  it.each([
+    ["Montreal", "America/Toronto", "2026-11-09T12:00:00.000Z"],
+    ["Casablanca", "Africa/Casablanca", "2026-11-09T06:00:00.000Z"],
+  ])(
+    "given a parent in %s at 06:50 there on a Monday, then the next sync is the 07:00 opening there",
+    (_city, timeZone, opening) => {
+      const before = zonedWallTimeToUtc("2026-11-09", "06:50", timeZone).getValue();
+
+      const next = nextSyncAt(before, { ...noAlert, timeZone });
+
+      expect(next.toISOString()).toBe(opening);
+    },
+  );
+
+  it("given 11:00 in Paris, which is 05:00 in Montreal, then a Montreal parent waits for the 07:00 opening", () => {
+    const next = nextSyncAt(paris("2026-11-09", "11:00"), {
+      ...noAlert,
+      timeZone: "America/Toronto",
+    });
+
+    expect(next.toISOString()).toBe("2026-11-09T12:00:00.000Z");
   });
 });
 
@@ -241,6 +268,7 @@ describe("1000 children around a deadline", () => {
 
       const lookup = alertLookupFrom(tick);
       due = nextSyncAt(tick, {
+        ...noAlert,
         jitterMs: jitterOf(child, run.ran.length),
         nextAlertAt: Option.fromNullable(alerts.find((alertAt) => alertAt > lookup)),
       });

@@ -12,8 +12,10 @@
  * moving or deleting it, a complete listing retires a coursework the teacher removed while
  * an archived course keeps its past coursework in the history, the user cascade on event reads
  * event_user_deadline_idx, and listUpcoming on 10 000 rows uses event_user_deadline_idx. A child being disconnected hides its events from lists, detail,
- * edit, confirm and delete. The calendar lists every event between the Paris midnights of its
- * range, done ones included, through event_user_deadline_idx. A manual event has no Classroom
+ * edit, confirm and delete. A deadline read back keeps the time zone it was written in, a Montreal
+ * parent's undated deadline ending at 23:59 in Montreal, and a reread keeps that school_time_zone
+ * after the parent moves. The calendar lists every event between the
+ * midnights of its range in the parent's zone, done ones included, through event_user_deadline_idx. A manual event has no Classroom
  * course nor link and no sync withdraws, shadows or changes it; a parent never adds one to
  * another family's child.
  */
@@ -25,6 +27,7 @@ exitUnlessLocalDatabase("check-event-db", process.env.DATABASE_URL);
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import {
   and,
   authSchema,
@@ -43,6 +46,7 @@ import type { EventPageDto } from "../src/application/dto/event.dto";
 import type { IAlertPlanner, PlannedDeadline } from "../src/application/ports/alert-planner.port";
 import type { IChildOwnership } from "../src/application/ports/child-ownership.port";
 import type { EventFilter } from "../src/application/ports/event-repository.port";
+import type { IParentTimeZone } from "../src/application/ports/parent-time-zone.port";
 import type { IVisibleChildren } from "../src/application/ports/visible-children.port";
 import { AnnouncementReconciler } from "../src/application/services/announcement-reconciler";
 import { EventEditService } from "../src/application/services/event-edit.service";
@@ -54,6 +58,7 @@ import {
 } from "../src/application/services/event-ingest.service";
 import { EventPresenter } from "../src/application/services/event-presenter";
 import { EventQueryService } from "../src/application/services/event-query.service";
+import { EventRereadService } from "../src/application/services/event-reread.service";
 import { DrizzleEventRepository } from "../src/infrastructure/repositories/drizzle-event.repository";
 
 const NOW = new Date("2030-01-15T09:00:00.000Z");
@@ -95,6 +100,9 @@ const visibleChildren: IVisibleChildren = {
   },
 };
 
+const zoneOf = new Map<string, string>();
+const timeZones: IParentTimeZone = { of: async (userId) => zoneOf.get(userId) ?? PARIS_TIME_ZONE };
+
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const transactions = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check-event-db" });
@@ -108,9 +116,11 @@ const ingestService = new EventIngestService(
   transactions,
   outbox,
   reconciler,
+  timeZones,
   instrumentation,
   () => NOW,
 );
+const rereads = new EventRereadService(repository, children, transactions, outbox, instrumentation);
 const presenter = new EventPresenter({ namesOf: async () => Result.ok([]) }, instrumentation);
 const edits = new EventEditService(
   repository,
@@ -120,10 +130,17 @@ const edits = new EventEditService(
   outbox,
   presenter,
   reconciler,
+  timeZones,
   instrumentation,
   () => NOW,
 );
-const query = new EventQueryService(repository, visibleChildren, presenter, instrumentation);
+const query = new EventQueryService(
+  repository,
+  visibleChildren,
+  presenter,
+  timeZones,
+  instrumentation,
+);
 
 async function createUser(name: string): Promise<string> {
   const id = `${probe}-${name}`;
@@ -320,6 +337,51 @@ run(async () => {
   await step(
     "EVENT_CREATED is committed once per created event",
     createdEvents.filter((e) => e.eventType === "agenda.event.created").length === 2,
+  );
+
+  const montreal = await createUser("montreal");
+  const montrealChild = await createChild(montreal, "noe");
+  zoneOf.set(montreal, "America/Toronto");
+  await ingest(montreal, montrealChild, "ann-montreal", [
+    extracted({ deadlineDate: "2030-01-17" }),
+  ]);
+  const [montrealRow] = await rowsOf(montrealChild, "ann-montreal");
+  const montrealRead = await repository.findOwned(montreal, montrealRow?.id ?? probe);
+  const montrealDeadline = montrealRead.isSuccess
+    ? montrealRead
+        .getValue()
+        .map((event) => event.get("deadline").value)
+        .toUndefined()
+    : undefined;
+  await step(
+    "a Montreal parent's deadline is stored with school_time_zone Montreal and read back with it, ending at 23:59 there",
+    montrealRow?.schoolTimeZone === "America/Toronto" &&
+      montrealRow.deadlineAt.toISOString() === "2030-01-18T04:59:00.000Z" &&
+      montrealDeadline?.schoolTimeZone === "America/Toronto" &&
+      montrealDeadline.at.toISOString() === "2030-01-18T04:59:00.000Z",
+    { stored: montrealRow?.schoolTimeZone, at: montrealRow?.deadlineAt.toISOString() },
+  );
+
+  zoneOf.set(montreal, PARIS_TIME_ZONE);
+  const calculator = { item: "Calculatrice", quote: "Apportez une calculatrice" };
+  const reread = await rereads.apply({
+    userId: montreal,
+    childId: montrealChild,
+    announcementId: "ann-montreal",
+    events: [extracted({ deadlineDate: "2030-01-17", toBring: [calculator] })],
+  });
+  const [rereadRow] = await rowsOf(montrealChild, "ann-montreal");
+  await step(
+    "a deadline reread after the parent moved back to Paris keeps the school_time_zone and instant it was read in",
+    reread.isSuccess &&
+      reread.getValue().changed === 1 &&
+      rereadRow?.toBring.some(({ item }) => item === "Calculatrice") === true &&
+      rereadRow.schoolTimeZone === "America/Toronto" &&
+      rereadRow.deadlineAt.toISOString() === "2030-01-18T04:59:00.000Z",
+    {
+      reread: reread.isSuccess ? reread.getValue() : reread.getError(),
+      stored: rereadRow?.schoolTimeZone,
+    },
   );
 
   const exam = racedRows.find((row) => row.ordinal === 0);
@@ -989,7 +1051,7 @@ run(async () => {
   const calendarSql = spans.at(-1) ?? "";
   const calendarItems = calendar.isSuccess ? calendar.getValue().items : [];
   await step(
-    "the calendar of two days lists every event between their Paris midnights, done ones included, in deadline order",
+    "the calendar of two days lists every event between their midnights in the parent's zone, done ones included, in deadline order",
     calendarItems.length === 48 &&
       calendarItems[0]?.title === "Seed 23" &&
       calendarItems.at(-1)?.title === "Seed 70" &&

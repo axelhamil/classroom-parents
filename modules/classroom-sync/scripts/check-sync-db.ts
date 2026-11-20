@@ -17,6 +17,7 @@ import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import {
   and,
   authSchema,
@@ -145,7 +146,7 @@ const quiet: ILogger = { debug: () => {}, info: () => {}, warn: () => {}, error:
 const ledger = new DrizzleSeenAnnouncementRepository(instrumentation);
 const courses = new DrizzleCourseRepository(instrumentation);
 const service = new SyncChildService(
-  new ClassroomReader(classroom, ledger, instrumentation),
+  new ClassroomReader(classroom, ledger, { in: () => [] }, instrumentation),
   { accessTokenFor: async (childId) => Result.ok(childId) },
   extractor,
   ingest,
@@ -153,6 +154,7 @@ const service = new SyncChildService(
   syncState,
   ledger,
   courses,
+  { of: async () => PARIS_TIME_ZONE },
   transactions,
   outbox,
   instrumentation,

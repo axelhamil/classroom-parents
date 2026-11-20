@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Option, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
@@ -14,6 +15,7 @@ import type {
 } from "../application/ports/access-loss-repository.port";
 import type { IAlertEmailSender } from "../application/ports/alert-email-sender.port";
 import type { AlertsError } from "../application/ports/alert-repository.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import type { IPushSender } from "../application/ports/push-sender.port";
 import type {
   IPushSubscriptionRepository,
@@ -42,6 +44,7 @@ const providerDown: AlertsError = { code: "ALERT_PROVIDER_FAILURE", message: "qu
 let losses: PortMock<IAccessLossRepository>;
 let settings: PortMock<IReminderSettingsRepository>;
 let contexts: PortMock<IAccessLossContextReader>;
+let timeZones: PortMock<IParentTimeZone>;
 let subscriptions: PortMock<IPushSubscriptionRepository>;
 let push: PortMock<IPushSender>;
 let email: PortMock<IAlertEmailSender>;
@@ -79,6 +82,8 @@ beforeEach(() => {
   losses.settle.mockResolvedValue(Result.ok(true));
   losses.addFailure.mockResolvedValue(Result.ok(true));
   settings.quietHoursFor.mockResolvedValue(Result.ok(Option.none()));
+  timeZones = mockPort<IParentTimeZone>();
+  timeZones.of.mockResolvedValue(PARIS_TIME_ZONE);
   contexts.stillLost.mockResolvedValue(
     Result.ok(Option.some({ email: "parent@example.com", childLabel: "Jade" })),
   );
@@ -90,6 +95,7 @@ beforeEach(() => {
   service = new AccessLossAlertService(
     losses,
     settings,
+    timeZones,
     contexts,
     subscriptions,
     push,
@@ -126,6 +132,23 @@ describe("planning the warning when a child's Classroom access is lost", () => {
 
     expect(losses.open).toHaveBeenCalledWith(CHILD, paris("2026-11-20", "07:00"));
   });
+
+  it.each([
+    ["Montreal", "America/Toronto"],
+    ["Casablanca", "Africa/Casablanca"],
+  ])(
+    "given a parent in %s and an access lost at 23:30 there, then the warning waits for 07:00 there",
+    async (_city, timeZone) => {
+      const local = (date: string, time: string) =>
+        zonedWallTimeToUtc(date, time, timeZone).unwrapOr(new Date(Number.NaN));
+      timeZones.of.mockResolvedValue(timeZone);
+
+      await service.warn(CHILD, local("2026-11-19", "23:30"));
+
+      expect(timeZones.of).toHaveBeenCalledWith(CHILD.userId);
+      expect(losses.open).toHaveBeenCalledWith(CHILD, local("2026-11-20", "07:00"));
+    },
+  );
 
   it("given the warning of this loss is still open, when another sync fails, then nothing more is planned", async () => {
     losses.open.mockResolvedValue(Result.ok(Option.none()));

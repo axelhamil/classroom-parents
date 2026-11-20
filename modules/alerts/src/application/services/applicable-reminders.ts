@@ -14,10 +14,16 @@ export interface ApplicableReminders {
 
 export interface ReminderTarget extends AlertDeadline {
   time?: string;
+  timeZone: string;
 }
 
-export function reminderTarget(deadline: EventDeadline): ReminderTarget {
-  return { at: deadline.deadlineAt, date: deadline.deadlineDate, time: deadline.deadlineTime };
+export function reminderTarget(deadline: EventDeadline, timeZone: string): ReminderTarget {
+  return {
+    at: deadline.deadlineAt,
+    date: deadline.deadlineDate,
+    time: deadline.deadlineTime,
+    timeZone,
+  };
 }
 
 export function ringsBefore({ time }: ResolvedReminder, deadline: AlertDeadline): boolean {

@@ -39,9 +39,11 @@ import type {
   CourseRead,
   IClassroomReader,
   PendingAnnouncement,
+  ReadClock,
 } from "../ports/classroom-reader.port";
 import type { ICourseRepository, NamedCourse } from "../ports/course-repository.port";
 import type { IEventIngest } from "../ports/event-ingest.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
 import type { ISeenAnnouncementRepository } from "../ports/seen-announcement-repository.port";
 import type { IUpcomingAlerts } from "../ports/upcoming-alerts.port";
 import type { SyncError } from "../sync-error";
@@ -113,6 +115,7 @@ export class SyncChildService {
     private readonly syncState: IChildSyncState,
     private readonly ledger: ISeenAnnouncementRepository,
     private readonly courses: ICourseRepository,
+    private readonly timeZones: IParentTimeZone,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
@@ -136,7 +139,8 @@ export class SyncChildService {
         const courses = await this.reader.listCourses(access);
         if (courses.isFailure) return this.courseListFailed(lease, courses.getError(), now);
 
-        return this.syncCourses(input, lease, access, courses.getValue(), now);
+        const clock = { now, timeZone: await this.timeZones.of(input.userId) };
+        return this.syncCourses(input, lease, access, courses.getValue(), clock);
       },
     );
   }
@@ -146,13 +150,14 @@ export class SyncChildService {
     lease: SyncLease,
     access: ClassroomAccess,
     { courses, complete }: CourseList,
-    now: Date,
+    clock: ReadClock,
   ): Promise<Result<SyncReport, SyncError>> {
+    const { now } = clock;
     if ((await this.saveCourseNames(lease, { courses, complete }, now)).kind === "lease_lost")
       return Result.fail(leaseLost);
 
     const reads = await mapBounded(courses, COURSE_CONCURRENCY, (course) =>
-      this.reader.readCourse(input.childId, access, course, now),
+      this.reader.readCourse(input.childId, access, course, clock),
     );
     const failures = reads.filter((read) => read.isFailure).map((read) => read.getError());
     if (failures.includes("lease_lost")) return Result.fail(leaseLost);
@@ -176,7 +181,7 @@ export class SyncChildService {
     if (complete && (await this.withdrawOutside(input, lease, courses)).kind === "lease_lost")
       return Result.fail(leaseLost);
 
-    return this.finish(input, lease, now, {
+    return this.finish(input, lease, clock, {
       courses: courses.length,
       skippedCourses: failures.length,
       newAnnouncements: pending.length,
@@ -389,10 +394,11 @@ export class SyncChildService {
   private async finish(
     input: SyncChildInput,
     lease: SyncLease,
-    now: Date,
+    clock: ReadClock,
     report: SyncReport,
   ): Promise<Result<SyncReport, SyncError>> {
-    const next = await this.plannedNextSync(input, now);
+    const { now } = clock;
+    const next = await this.plannedNextSync(input, clock);
     const done = await this.transactions.run(async (): Promise<Result<void, AppError>> => {
       const marked = await this.syncState.markSynced(lease, now, next);
       if (marked.isFailure) return marked;
@@ -414,7 +420,10 @@ export class SyncChildService {
     return Result.ok(report);
   }
 
-  private async plannedNextSync(input: SyncChildInput, now: Date): Promise<Date> {
+  private async plannedNextSync(
+    input: SyncChildInput,
+    { now, timeZone }: ReadClock,
+  ): Promise<Date> {
     const alert = await this.alerts.nextAlertAt(input.userId, input.childId, alertLookupFrom(now));
     if (alert.isFailure)
       this.instrumentation.capture(alert.getError(), { metadata: { childId: input.childId } });
@@ -422,6 +431,7 @@ export class SyncChildService {
     return nextSyncAt(now, {
       jitterMs: nextDelayMs(SYNC_JITTER_BASE_MS),
       nextAlertAt: alert.isSuccess ? alert.getValue() : Option.none(),
+      timeZone,
     });
   }
 

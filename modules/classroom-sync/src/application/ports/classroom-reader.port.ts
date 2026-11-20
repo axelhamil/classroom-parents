@@ -15,6 +15,11 @@ export interface ClassroomAccess {
   scope: ReadScope;
 }
 
+export interface ReadClock {
+  now: Date;
+  timeZone: string;
+}
+
 export interface CourseList {
   courses: Course[];
   complete: boolean;
@@ -40,7 +45,7 @@ export interface IClassroomReader {
     childId: string,
     access: ClassroomAccess,
     course: Course,
-    now: Date,
+    clock: ReadClock,
   ): Promise<Result<CourseRead, CourseFailure>>;
 
   recentAnnouncements(

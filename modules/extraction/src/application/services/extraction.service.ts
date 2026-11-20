@@ -1,5 +1,4 @@
 import { type IInstrumentation, Option, Result, utcToZonedWall } from "@packages/ddd-kit";
-import type { ReviewReason } from "@packages/events/agenda-contract";
 import type { ILanguageModel, ModelTier } from "@packages/llm/contract/language-model.port";
 import { UNTRUSTED_DATA_POLICY } from "@packages/llm/contract/untrusted-data";
 import type { ExtractedEvent, ExtractionResult } from "../../domain/extracted-event";
@@ -10,7 +9,7 @@ import { type DateOrder, dateOrderOf, englishWeekdayOf } from "./calendar-words"
 import { mayHoldADeadline } from "./date-signal";
 import { type ExtractionError, extractionErrorOf, NOT_CACHED } from "./extraction-error";
 import { extractionOutputSchema } from "./extraction-output.schema";
-import { readOutput } from "./extraction-reading";
+import { type CheckedAnswer, readOutput } from "./extraction-reading";
 
 export interface ExtractInput {
   userId: string;
@@ -33,7 +32,7 @@ Languages. Write title, description, every label, every item and every reference
 
 Scope. Emit one event per distinct action with a date that the parent or the pupil must handle:
 - assessment: test, exam, quiz ("contrôle", "évaluation", "DS", "examen", "prova", "teste", "فرض", "اختبار", "امتحان").
-- homework: homework to hand in or to prepare, a project or a presentation ("exposé") included.
+- homework: homework to hand in or to prepare, a project, a presentation ("exposé"), a poem or a song to learn by heart included.
 - school_trip: school trip or outing.
 - swimming: swimming session, its gear or its authorisation.
 - document_due: form, authorisation, payment slip or any document to fill, sign or return.
@@ -57,7 +56,7 @@ Dates. Resolve every date from the publication date of the context, never from t
 - "Next week" without a weekday ("pour la semaine prochaine", "for next week"): the Monday of the week after the publication week. A weekday of next week ("mardi de la semaine prochaine", "el martes de la semana que viene"): that weekday in that week.
 - A period ("du 15 au 19 mars", "from 15 to 19 March"): its first day.
 - A weekday and a date that disagree: keep the date as written.
-- A date relative to school holidays ("avant les vacances", "after the break"): you do not know the holiday calendar, give your best estimate with confidence medium at most.
+- A date relative to school holidays ("avant les vacances", "pour la rentrée", "after the break"): you do not know the holiday calendar, give your best estimate with confidence medium at most, never leave the deadline out.
 
 Confidence. high: explicit date and clear category. medium: relative date resolved by a clear rule, or a clear date with a doubtful category. low: guessed, partial or conflicting information.
 
@@ -78,18 +77,6 @@ const LANGUAGE_NAMES: Record<ReaderLocale, string> = {
 };
 
 const NOTHING_TO_READ: ExtractionResult = { events: [], amendments: [] };
-
-const NOT_ESCALATED: readonly ReviewReason[] = [
-  "relative_holiday",
-  "date_ambiguous",
-  "title_missing",
-  "time_unreadable",
-  "injection_suspected",
-];
-
-function escalationReasons(event: ExtractedEvent): ReviewReason[] {
-  return event.reviewReasons.filter((reason) => !NOT_ESCALATED.includes(reason));
-}
 
 function forReview(event: ExtractedEvent): ExtractedEvent {
   return {
@@ -219,21 +206,21 @@ export class ExtractionService {
 
   private async read(call: ExtractionCall): Promise<Extraction> {
     const first = await this.pass("fast", call);
-    if (first.isFailure) return first;
+    if (first.isFailure) return Result.fail(first.getError());
 
-    const fast = first.getValue();
-    const doubtful = fast.events.some(
-      (event) => event.needsReview && escalationReasons(event).length > 0,
-    );
-    if (!doubtful) return first;
+    const { result: fast, secondReadingMayHelp } = first.getValue();
+    if (!secondReadingMayHelp) return Result.ok(fast);
 
     const second = await this.pass("strong", call);
-    if (second.isSuccess) return second;
+    if (second.isSuccess) return Result.ok(second.getValue().result);
 
     return Result.ok({ ...fast, events: fast.events.map(forReview) });
   }
 
-  private async pass(tier: ModelTier, call: ExtractionCall): Promise<Extraction> {
+  private async pass(
+    tier: ModelTier,
+    call: ExtractionCall,
+  ): Promise<Result<CheckedAnswer, ExtractionError>> {
     const output = await this.model.parse({
       scope: { userId: call.userId },
       feature: "announcement_extraction",

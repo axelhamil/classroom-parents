@@ -31,6 +31,7 @@ import {
   childNotFound,
   type IEventRepository,
 } from "../ports/event-repository.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
 import { type AnnouncementReconciler, courseDayOf } from "./announcement-reconciler";
 import {
   parseClassroomCategory,
@@ -134,13 +135,14 @@ export class EventIngestService {
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly reconciler: AnnouncementReconciler,
+    private readonly timeZones: IParentTimeZone,
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
   async ingest(input: IngestInput): Promise<Result<IngestOutput, AgendaError | AppError>> {
     return traced(this.instrumentation, "EventIngestService > ingest", async () => {
-      const built = this.build(input);
+      const built = this.build(input, await this.timeZones.of(input.userId));
       if (built.isFailure) return Result.fail(built.getError());
       const amendments = this.parseAmendments(input.amendments);
 
@@ -263,8 +265,9 @@ export class EventIngestService {
       if (owned.isFailure) return Result.fail(owned.getError());
       if (!owned.getValue()) return Result.fail(childNotFound);
 
+      const timeZone = await this.timeZones.of(input.userId);
       const parsed = input.items.flatMap((item) =>
-        this.parseCoursework(item)
+        this.parseCoursework(item, timeZone)
           .map((coursework) => [coursework])
           .unwrapOr([]),
       );
@@ -374,9 +377,9 @@ export class EventIngestService {
     return Result.ok(withdrawn);
   }
 
-  private parseCoursework(item: IngestedCoursework): Option<ParsedCoursework> {
+  private parseCoursework(item: IngestedCoursework, timeZone: string): Option<ParsedCoursework> {
     const title = parseTitle(item.title);
-    const deadline = parseComputedDeadline(item.deadlineDate, item.deadlineTime);
+    const deadline = parseComputedDeadline(item.deadlineDate, item.deadlineTime, timeZone);
     if (title.isSuccess && deadline.isSuccess)
       return Option.some({ item, title: title.getValue(), deadline: deadline.getValue() });
 
@@ -452,7 +455,7 @@ export class EventIngestService {
     return Result.ok();
   }
 
-  private build(input: IngestInput): Result<AgendaEvent[], AgendaError> {
+  private build(input: IngestInput, timeZone: string): Result<AgendaEvent[], AgendaError> {
     const now = this.clock();
     const built: AgendaEvent[] = [];
     for (const [ordinal, raw] of input.events.entries()) {
@@ -462,7 +465,7 @@ export class EventIngestService {
       if (description.isFailure) return Result.fail(description.getError());
       const category = parseClassroomCategory(raw.category);
       if (category.isFailure) return Result.fail(category.getError());
-      const deadline = parseComputedDeadline(raw.deadlineDate, raw.deadlineTime);
+      const deadline = parseComputedDeadline(raw.deadlineDate, raw.deadlineTime, timeZone);
       if (deadline.isFailure) return Result.fail(deadline.getError());
 
       built.push(

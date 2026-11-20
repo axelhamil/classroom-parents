@@ -15,6 +15,7 @@ import type {
   EventPage,
   IEventRepository,
 } from "../ports/event-repository.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
 import type { IVisibleChildren } from "../ports/visible-children.port";
 import { parseRange } from "./event-fields";
 import type { EventPresenter } from "./event-presenter";
@@ -44,6 +45,7 @@ export class EventQueryService {
     private readonly events: IEventRepository,
     private readonly children: IVisibleChildren,
     private readonly presenter: EventPresenter,
+    private readonly timeZones: IParentTimeZone,
     private readonly instrumentation: IInstrumentation,
   ) {}
 
@@ -74,7 +76,7 @@ export class EventQueryService {
     { from, to, ...filter }: CalendarQuery,
   ): Promise<Result<EventListDto, ListError>> {
     return traced(this.instrumentation, "EventQueryService > listCalendar", async () => {
-      const range = parseRange(from, to);
+      const range = parseRange(from, to, await this.timeZones.of(userId));
       if (range.isFailure) return Result.fail(range.getError());
 
       const visible = await this.visibleFilter(userId, filter);

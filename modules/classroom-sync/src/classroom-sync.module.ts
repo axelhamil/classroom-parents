@@ -13,8 +13,10 @@ import type { IDueChildren } from "./application/ports/due-children.port";
 import type { IEventIngest } from "./application/ports/event-ingest.port";
 import type { IManualSyncGate } from "./application/ports/manual-sync-gate.port";
 import type { IParentChildren } from "./application/ports/parent-children.port";
+import type { IParentTimeZone } from "./application/ports/parent-time-zone.port";
 import type { ISeenAnnouncementRepository } from "./application/ports/seen-announcement-repository.port";
 import type { IUpcomingAlerts } from "./application/ports/upcoming-alerts.port";
+import type { IWrittenDates } from "./application/ports/written-dates.port";
 import { ClassroomReader } from "./application/services/classroom-reader.service";
 import { CourseNamesService } from "./application/services/course-names.service";
 import { ManualSyncService } from "./application/services/manual-sync.service";
@@ -39,6 +41,8 @@ export interface ClassroomSyncPrerequisites {
   IManualSyncGate: IManualSyncGate;
   IUpcomingAlerts: IUpcomingAlerts;
   IParentChildren: IParentChildren;
+  IParentTimeZone: IParentTimeZone;
+  IWrittenDates: IWrittenDates;
 }
 
 export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b) =>
@@ -59,7 +63,12 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
     .add(
       "IClassroomReader",
       (c): IClassroomReader =>
-        new ClassroomReader(c.IClassroomClient, c.ISeenAnnouncementRepository, c.IInstrumentation),
+        new ClassroomReader(
+          c.IClassroomClient,
+          c.ISeenAnnouncementRepository,
+          c.IWrittenDates,
+          c.IInstrumentation,
+        ),
     )
     .add(
       "SyncChildService",
@@ -73,6 +82,7 @@ export const classroomSyncModule = defineModule<ClassroomSyncPrerequisites>()((b
           c.IChildSyncState,
           c.ISeenAnnouncementRepository,
           c.ICourseRepository,
+          c.IParentTimeZone,
           c.ITransactionService,
           c.IOutboxRepository,
           c.IInstrumentation,
