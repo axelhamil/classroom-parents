@@ -202,7 +202,7 @@ run(async () => {
   await step(
     "the planned reminder rings as an alarm and the child names the event",
     calendar.includes(`TRIGGER;VALUE=DATE-TIME:${compact(inDays(3))}T170000Z`) &&
-      calendar.includes("SUMMARY:Léa · Échéance timed") &&
+      calendar.includes("SUMMARY:Léa : Échéance timed") &&
       calendar.includes(`DTSTART;TZID=Europe/Paris:${compact(inDays(5))}T073000`) &&
       calendar.includes(`DTSTART;VALUE=DATE:${compact(inDays(7))}`),
     calendar,
