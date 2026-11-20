@@ -82,6 +82,16 @@ describe("on child connected", () => {
     expect(h.client.listCourses).not.toHaveBeenCalled();
   });
 
+  it("starts the first sync of a connection queued before the actor was recorded", async () => {
+    claims({ outcome: "started", lease: CHILD.lease, label: CHILD.label, retryAt: COOLDOWN_END });
+    const handler = onChildConnected({ ManualSyncService: manual });
+
+    await handler.handle(connected({ userId: CHILD.userId, childId: CHILD.childId }));
+    await deferredWork();
+
+    expect(gate.claim).toHaveBeenCalled();
+  });
+
   it("starts no sync for a child the scheduled sync itself just read back from a school block", async () => {
     const handler = onChildConnected({ ManualSyncService: manual });
 

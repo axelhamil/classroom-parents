@@ -1,6 +1,7 @@
 import { authSchema } from "@packages/drizzle";
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   index,
@@ -12,6 +13,20 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { CHILD_STATUSES, RECONNECT_CAUSES } from "../src/domain/value-objects/child-status.vo";
+
+/**
+ * Statuses the scheduled sync claims, written as SQL literals: a partial index only serves a
+ * query whose predicate the planner can prove implies the index's own, which a bound parameter
+ * never does in a generic plan. The due index and the claim query share this one predicate.
+ */
+export function syncedStatus(status: AnyPgColumn) {
+  return sql`${status} in ('connected', 'blocked_by_school')`;
+}
+
+/** Same contract as `syncedStatus`, for the disconnect resumption and its partial index. */
+export function disconnectingStatus(status: AnyPgColumn) {
+  return sql`${status} = 'disconnecting'`;
+}
 
 export const childAccount = pgTable(
   "child_account",
@@ -41,12 +56,10 @@ export const childAccount = pgTable(
   },
   (table) => [
     index("child_account_user_idx").on(table.userId),
-    index("child_account_due_idx")
-      .on(table.nextSyncAt)
-      .where(sql`${table.status} in ('connected', 'blocked_by_school')`),
+    index("child_account_due_idx").on(table.nextSyncAt).where(syncedStatus(table.status)),
     index("child_account_disconnecting_idx")
       .on(table.nextSyncAt)
-      .where(sql`${table.status} = 'disconnecting'`),
+      .where(disconnectingStatus(table.status)),
     check("child_account_color_hue", sql`${table.color} BETWEEN 1 AND 16`),
   ],
 );

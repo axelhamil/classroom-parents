@@ -27,7 +27,7 @@ import {
   secondsFromNow,
   sql,
 } from "@packages/drizzle";
-import { PayloadByEventType } from "@packages/events";
+import { emittedPayloadSchema } from "@packages/events";
 import { stripQueryValues } from "@packages/sentry-scrub";
 import type {
   IOutboxRepository,
@@ -49,10 +49,8 @@ type PayloadSchema = {
   safeParse: (v: unknown) => { success: true } | { success: false; error: { message: string } };
 };
 
-const PAYLOAD_SCHEMAS: Readonly<Record<string, PayloadSchema | undefined>> = PayloadByEventType;
-
 function assertPayloadValid(event: IDomainEvent): void {
-  const schema = PAYLOAD_SCHEMAS[event.eventType];
+  const schema: PayloadSchema | undefined = emittedPayloadSchema(event.eventType);
   if (!schema) {
     throw new Error(`outbox: unknown event type "${event.eventType}" (not in PayloadByEventType)`);
   }

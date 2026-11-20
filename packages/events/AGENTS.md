@@ -37,7 +37,8 @@ A platform event (auth, email, outbox, security) touches five files; `tsc` names
 2. **System-triggered events** (cron, cascade, webhook bridge with no upstream user) make `actorUserId` nullable explicitly in the schema (`z.string().nullable()`), never implicitly.
 3. **Payload fields are simple values**: ids and primitives, never a value-object instance or a class. A serialization boundary is `.value` out, `X.create` in.
 4. **No orphan**: a type in the catalog without an emit site fails QA. Before adding one, find the emit call (`aggregate.addEvent(...)` inside `uow.run()`, or `emitEvent(outbox, ...)` inside `uow.run()` for service and library-bridge code); before removing a call, check the type is still emitted elsewhere.
-5. **`EVENT_DESCRIPTIONS` stays English**, like the rest of the API documentation: a documented exception to the app's i18n rule.
+5. **A payload change never rejects a queued event.** A field added to an existing type is read with a default in `payloads` (an absent actor reads as `null`, the system), and the strict shape goes in the contribution's `emitted` map, which the outbox enforces at emit. **Why**: rows written by the previous deploy are still in the outbox; a handler that refuses them kills the event for every subscriber.
+6. **`EVENT_DESCRIPTIONS` stays English**, like the rest of the API documentation: a documented exception to the app's i18n rule.
 
 ## Commands
 

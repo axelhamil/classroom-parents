@@ -3,6 +3,11 @@ import { defineEventContribution } from "../contribution";
 
 const ChildRef = z.object({ userId: z.string(), childId: z.string() });
 
+const ChildConnected = ChildRef.extend({
+  restoredFrom: z.enum(["invalid_grant", "school_blocked"]).optional(),
+  actorUserId: z.string().nullable(),
+});
+
 export const childrenEvents = defineEventContribution({
   types: {
     CHILD_CONNECTED: "child.account.connected",
@@ -15,9 +20,8 @@ export const childrenEvents = defineEventContribution({
     CHILD_SYNC_REQUESTED: "child.account.sync_requested",
   },
   payloads: {
-    "child.account.connected": ChildRef.extend({
-      restoredFrom: z.enum(["invalid_grant", "school_blocked"]).optional(),
-      actorUserId: z.string().nullable(),
+    "child.account.connected": ChildConnected.extend({
+      actorUserId: ChildConnected.shape.actorUserId.default(null),
     }),
     "child.account.renamed": ChildRef,
     "child.account.color_changed": ChildRef.extend({
@@ -35,6 +39,9 @@ export const childrenEvents = defineEventContribution({
       actorUserId: z.null(),
     }),
     "child.account.sync_requested": ChildRef.extend({ actorUserId: z.string() }),
+  },
+  emitted: {
+    "child.account.connected": ChildConnected,
   },
   retention: {
     "child.account.connected": "compliance",
