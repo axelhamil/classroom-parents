@@ -144,3 +144,18 @@ export const INTERNAL_CLOCK_POLICY: PolicyConfig = {
   emitSecurityEvent: true,
   advertiseBudget: false,
 };
+
+// POST /school-calendar/periods/import: a signed-in parent makes the server fetch a URL they
+// typed. 10 imports an hour is far above a parent trying a few links, and bounds how hard one
+// account can use the api to hit a third-party site. Fail closed: an outbound fetch stays
+// guarded even when the limiter store is down.
+export const ICS_IMPORT_POLICY: PolicyConfig = {
+  name: "school-calendar-import",
+  keyFn: (c) => {
+    const user = c.get("user") as { id: string } | null | undefined;
+    return `school-calendar-import:${user?.id ?? resolveClientIp(c)}`;
+  },
+  windows: [{ policyName: "school-calendar-import", windowSec: 3600, maxRequests: 10 }],
+  emitSecurityEvent: true,
+  failClosed: true,
+};

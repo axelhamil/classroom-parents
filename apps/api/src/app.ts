@@ -36,6 +36,7 @@ import {
   AUTH_SIGN_IN_POLICY,
   AUTH_SIGN_UP_POLICY,
   AUTH_VERIFY_EMAIL_POLICY,
+  ICS_IMPORT_POLICY,
   INTERNAL_CLOCK_POLICY,
   type PolicyConfig,
 } from "./shared/middleware/rate-limit.policies";
@@ -188,7 +189,12 @@ const routes = app
     "/school-calendar",
     createSchoolCalendarRoutes({
       routeGuards,
+      icsImportRateLimit: requireRateLimit(
+        { limiter: di.IRateLimiter, outbox: di.IOutboxRepository },
+        ICS_IMPORT_POLICY,
+      ),
       SchoolCalendarService: schoolCalendar.SchoolCalendarService,
+      CalendarChoiceService: schoolCalendar.CalendarChoiceService,
     }),
   )
   .route(

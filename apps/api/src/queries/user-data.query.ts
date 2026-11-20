@@ -19,7 +19,10 @@ import { childAccount } from "@modules/children/schemas/child.schema";
 import { seenAnnouncement } from "@modules/classroom-sync/schemas/seen-announcement.schema";
 import { homeLayout, homeNote } from "@modules/home/schemas/home.schema";
 import { notification } from "@modules/notifications/schemas/notification.schema";
-import { schoolZonePreference } from "@modules/school-calendar/schemas/school-calendar.schema";
+import {
+  schoolCalendarChoice,
+  schoolHolidayPeriod,
+} from "@modules/school-calendar/schemas/school-calendar.schema";
 import { type AppError, type IInstrumentation, Result } from "@packages/ddd-kit";
 import { and, asc, count, dbOperationFailure, eq, resolveExecutor } from "@packages/drizzle";
 import { aiCall } from "@packages/llm/schemas/ai-call.schema";
@@ -141,10 +144,26 @@ export class UserDataQuery implements IUserDataReader {
           .from(alertAccessLoss)
           .where(eq(alertAccessLoss.userId, userId))
           .orderBy(asc(alertAccessLoss.dueAt));
-        const [schoolZone] = await exec
-          .select({ zone: schoolZonePreference.zone, updatedAt: schoolZonePreference.updatedAt })
-          .from(schoolZonePreference)
-          .where(eq(schoolZonePreference.userId, userId));
+        const [schoolCalendar] = await exec
+          .select({
+            country: schoolCalendarChoice.country,
+            region: schoolCalendarChoice.region,
+            schoolHolidays: schoolCalendarChoice.schoolHolidays,
+            updatedAt: schoolCalendarChoice.updatedAt,
+          })
+          .from(schoolCalendarChoice)
+          .where(eq(schoolCalendarChoice.userId, userId));
+        const schoolHolidayPeriods = await exec
+          .select({
+            name: schoolHolidayPeriod.name,
+            startsOn: schoolHolidayPeriod.startsOn,
+            endsOn: schoolHolidayPeriod.endsOn,
+            origin: schoolHolidayPeriod.origin,
+            createdAt: schoolHolidayPeriod.createdAt,
+          })
+          .from(schoolHolidayPeriod)
+          .where(eq(schoolHolidayPeriod.userId, userId))
+          .orderBy(asc(schoolHolidayPeriod.startsOn));
         const [layout] = await exec
           .select({ blocks: homeLayout.blocks, updatedAt: homeLayout.updatedAt })
           .from(homeLayout)
@@ -303,9 +322,18 @@ export class UserDataQuery implements IUserDataReader {
             sentAt: iso(warning.sentAt),
             closedAt: iso(warning.closedAt),
           })),
-          schoolZone: schoolZone
-            ? { zone: schoolZone.zone, chosenAt: schoolZone.updatedAt.toISOString() }
+          schoolCalendar: schoolCalendar
+            ? {
+                country: schoolCalendar.country,
+                region: schoolCalendar.region,
+                schoolHolidays: schoolCalendar.schoolHolidays,
+                chosenAt: schoolCalendar.updatedAt.toISOString(),
+              }
             : null,
+          schoolHolidayPeriods: schoolHolidayPeriods.map(({ createdAt, ...period }) => ({
+            ...period,
+            addedAt: createdAt.toISOString(),
+          })),
           assistantPreferences: preferences
             ? {
                 locale: preferences.locale,

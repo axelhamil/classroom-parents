@@ -277,7 +277,7 @@ export const di = container()
   )
   .build();
 
-export const schoolCalendar = schoolCalendarContainer(di);
+export const schoolCalendar = schoolCalendarContainer(di, () => assistant.PreferenceService);
 
 export const assistant = assistantContainer(di, env, logger);
 export const home = homeContainer(di);

@@ -30,8 +30,19 @@ export default {
       "Cette échéance n'a pas d'heure : choisissez un rappel en jours avant, à une heure précise.",
     ALERT_QUIET_HOURS_INVALID:
       "Les heures calmes vont d'une heure à une autre, différente. Choisissez deux heures distinctes.",
-    SCHOOL_CALENDAR_ZONE_INVALID:
-      "Cette zone scolaire n'existe pas. Choisissez la zone A, B, C, la Corse ou un département d'outre-mer.",
+    SCHOOL_CALENDAR_CHOICE_INVALID:
+      "Ce calendrier scolaire n'existe pas. Choisissez un pays, puis une région de ce pays.",
+    SCHOOL_CALENDAR_COUNTRY_INVALID:
+      "Aucun calendrier n'est connu pour ce pays. Choisissez un pays de la liste.",
+    SCHOOL_CALENDAR_PERIOD_INVALID:
+      "Donnez un nom à la période et des dates dans l'ordre, sur moins de 120 jours.",
+    SCHOOL_CALENDAR_PERIOD_NOT_FOUND: "Cette période de vacances n'existe plus.",
+    SCHOOL_CALENDAR_ICS_INVALID:
+      "Ce fichier n'est pas un calendrier lisible. Importez le fichier .ics publié par l'école, de 512 Ko au plus.",
+    SCHOOL_CALENDAR_ICS_URL_INVALID:
+      "Ce lien ne peut pas être lu. Collez un lien public qui commence par https://, ou importez le fichier.",
+    SCHOOL_CALENDAR_ICS_PROVIDER_FAILURE:
+      "Le site de l'école ne répond pas. Réessayez plus tard, ou importez le fichier.",
     SCHOOL_CALENDAR_RANGE_INVALID: "Choisissez une période de 400 jours au plus.",
     SCHOOL_CALENDAR_UNAVAILABLE:
       "Le calendrier officiel ne répond pas pour le moment. Les vacances s'afficheront dès son retour.",
@@ -169,8 +180,13 @@ export default {
     setQuietHours: "Échec de l'enregistrement des heures calmes",
     loadDigest: "Échec du chargement du choix de résumé du dimanche",
     setDigest: "Échec de l'enregistrement du choix de résumé du dimanche",
-    loadSchoolZone: "Échec du chargement de la zone scolaire",
-    setSchoolZone: "Échec de l'enregistrement de la zone scolaire",
+    loadSchoolCalendarSettings: "Échec du chargement du calendrier scolaire",
+    loadSchoolCalendarRegions: "Échec du chargement des régions",
+    loadSchoolCalendarPreview: "Échec du chargement de l'aperçu",
+    setSchoolCalendar: "Échec de l'enregistrement du calendrier scolaire",
+    addSchoolHoliday: "Échec de l'ajout de la période",
+    removeSchoolHoliday: "Échec du retrait de la période",
+    importSchoolHolidays: "Échec de l'import du calendrier",
     loadAssistantPreferences: "Échec du chargement de la langue et de la région",
     setLanguageAndRegion: "Échec de l'enregistrement de la langue et de la région",
     setExtraction: "Échec de l'enregistrement du choix de lecture par l'IA",
