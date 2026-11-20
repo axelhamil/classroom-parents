@@ -438,14 +438,22 @@ interface TileRect {
   height: number;
 }
 
-function tileRects(page: Page): Promise<Record<string, TileRect>> {
-  return page.locator("[data-slot=dashboard]").evaluate((grid) => {
-    const origin = grid.getBoundingClientRect();
-    const tiles = [...grid.querySelectorAll<HTMLElement>("[data-slot=dashboard-tile]")];
+/**
+ * The card of each block, from the corner of the grid that holds it: the CSS grid while the home is
+ * read, the react-grid-layout container while it is arranged. Measured once nothing moves.
+ */
+async function tileRects(page: Page): Promise<Record<string, TileRect>> {
+  const grid = page.locator(".react-grid-layout, [data-slot=dashboard]:not([aria-hidden])").first();
+  await expect.poll(() => page.evaluate(noTimedAnimationRunning)).toBe(true);
+
+  return grid.evaluate((el) => {
+    const origin = el.getBoundingClientRect();
+    const tiles = [...el.querySelectorAll<HTMLElement>("[data-block][data-size]")];
 
     return Object.fromEntries(
       tiles.map((tile) => {
-        const box = tile.getBoundingClientRect();
+        const panel = tile.querySelector("[data-slot=dashboard-panel]") ?? tile;
+        const box = panel.getBoundingClientRect();
         const rect = {
           x: box.x - origin.x,
           y: box.y - origin.y,

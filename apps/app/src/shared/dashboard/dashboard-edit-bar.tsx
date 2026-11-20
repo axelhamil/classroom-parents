@@ -9,7 +9,7 @@ import {
   ItemTitle,
 } from "@packages/ui/components/ui/item";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
-import { PlusIcon, RotateCcwIcon } from "lucide-react";
+import { PlusIcon, RotateCcwIcon, Undo2Icon } from "lucide-react";
 import { type RefObject, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveOverlay } from "../layout/responsive-overlay";
@@ -20,9 +20,16 @@ export interface DashboardEditBarProps {
   hidden: readonly Pick<DashboardBlock<unknown>, "id" | "title" | "description" | "icon">[];
   onShow: (id: string) => void;
   onReset: () => void;
+  onUndo: () => void;
 }
 
-export function DashboardEditBar({ addButton, hidden, onShow, onReset }: DashboardEditBarProps) {
+export function DashboardEditBar({
+  addButton,
+  hidden,
+  onShow,
+  onReset,
+  onUndo,
+}: DashboardEditBarProps) {
   const { t } = useTranslation("home");
   const [adding, setAdding] = useState(false);
 
@@ -42,6 +49,10 @@ export function DashboardEditBar({ addButton, hidden, onShow, onReset }: Dashboa
       >
         <PlusIcon aria-hidden />
         {t("edit.add")}
+      </Button>
+      <Button type="button" variant="ghost" onClick={onUndo}>
+        <Undo2Icon aria-hidden />
+        {t("edit.undo")}
       </Button>
       <DestructiveActionDialog
         trigger={

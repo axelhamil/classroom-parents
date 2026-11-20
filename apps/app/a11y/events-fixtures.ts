@@ -115,6 +115,12 @@ function apiPath(request: Request): string | undefined {
 export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Request[]> {
   const eventRequests: Request[] = [];
 
+  // The signed-in state carries the home kept by the seeded account; the family served here is another one.
+  await page.addInitScript(() => {
+    for (const key of Object.keys(localStorage))
+      if (key.endsWith(":home:layout:v2")) localStorage.removeItem(key);
+  });
+
   await page.route("**/*", async (route) => {
     const request = route.request();
     const path = apiPath(request);

@@ -172,10 +172,8 @@ function useServerChanges(
   useEffect(() => {
     if (!data) return;
 
-    if (data.revision !== actor.getSnapshot().context.baseRevision) {
-      const remote = remoteOf(data, registryRef.current);
-      actor.send({ type: "REMOTE_CHANGED", layout: remote.blocks, revision: remote.revision });
-    }
+    const remote = remoteOf(data, registryRef.current);
+    actor.send({ type: "REMOTE_CHANGED", layout: remote.blocks, revision: remote.revision });
 
     if (onlineManager.isOnline()) actor.send({ type: "ONLINE" });
   }, [actor, data, registryRef]);
@@ -242,8 +240,11 @@ function remoteOf(layout: ServerLayout, registry: readonly string[]) {
 }
 
 function draftOf(blocks: readonly LayoutBlock[] | null, registry: readonly string[]): Draft {
-  if (!blocks) return ADVISED_LAYOUT;
+  return blocks ? fitToRegistry(blocks, registry) : ADVISED_LAYOUT;
+}
 
+/** The blocks the home can draw, once each, at a size the block allows. */
+export function fitToRegistry(blocks: readonly LayoutBlock[], registry: readonly string[]): Draft {
   const known = new Set(registry);
   const seen = new Set<string>();
 

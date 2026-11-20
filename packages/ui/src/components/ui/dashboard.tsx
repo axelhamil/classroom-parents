@@ -117,13 +117,21 @@ function DashboardPanelHeader({ className, ...props }: React.ComponentProps<"hea
   );
 }
 
-/** The controls of a block while the home is arranged, in the slot of its header and at its height. */
+/**
+ * The controls of a block while the home is arranged, in the slot of its header and at its height.
+ * It is where the block is grabbed: a finger on it drags at once instead of scrolling the page, and
+ * holding it neither selects its words nor opens the system's callout.
+ */
 function DashboardTileToolbar({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dashboard-tile-toolbar"
       role="group"
-      className={cn(DASHBOARD_HEADER, className)}
+      className={cn(
+        DASHBOARD_HEADER,
+        "cursor-grab touch-none select-none [-webkit-touch-callout:none] active:cursor-grabbing",
+        className,
+      )}
       {...props}
     />
   );

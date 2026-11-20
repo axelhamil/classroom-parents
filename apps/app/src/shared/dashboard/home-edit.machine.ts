@@ -61,7 +61,7 @@ export interface HomeEditContext {
 }
 
 export type HomeEditEvent =
-  | { type: "EDIT" }
+  | { type: "EDIT"; advice?: Draft }
   | { type: "LOADED" }
   | { type: "DONE" }
   | { type: "ESC" }
@@ -77,12 +77,12 @@ export type HomeEditEvent =
   | { type: "KEY_MOVE"; move: KeyMove }
   | { type: "KEY_SIZE"; step: Step; allowed: readonly BlockSize[] }
   | { type: "KEY_DROP" }
-  | { type: "SIZE"; id: string; size: BlockSize }
-  | { type: "HIDE"; id: string }
+  | { type: "SIZE"; id: string; size: BlockSize; from?: Draft }
+  | { type: "HIDE"; id: string; from?: Draft }
   | { type: "SHOW"; id: string; size: BlockSize }
   | { type: "UNDO" }
   | { type: "RESET" }
-  | { type: "CONFIRM_RESET"; layout: Draft }
+  | { type: "CONFIRM_RESET"; layout: Draft; shown?: Draft }
   | { type: "BREAKPOINT_CHANGED"; units: GridUnits }
   | { type: "REMOTE_CHANGED"; layout: Draft; revision: number }
   | { type: "ONLINE" }
@@ -144,7 +144,9 @@ export const homeEditMachine = setup({
   guards: {
     hasUnsaved: ({ context }) => context.unsaved !== null,
     isNewerRemote: ({ context, event }) =>
-      event.type === "REMOTE_CHANGED" && event.revision > context.baseRevision,
+      event.type === "REMOTE_CHANGED" &&
+      (event.revision > context.baseRevision ||
+        (event.revision === context.baseRevision && !sameDraft(event.layout, context.committed))),
     isSaved: ({ event }) => event.type === "SAVE_RESULT" && event.outcome.kind === "ok",
     isOffline: ({ event }) => event.type === "SAVE_RESULT" && event.outcome.kind === "network",
     isConflict: ({ event }) => event.type === "SAVE_RESULT" && event.outcome.kind === "conflict",
@@ -154,7 +156,19 @@ export const homeEditMachine = setup({
   actions: {
     emitSavedOffline: emit({ type: "savedOffline" }),
     emitSaveRejected: emit({ type: "saveRejected" }),
-    openSession: assign({ past: [], activeId: null, gestureStart: null }),
+    openSession: assign(({ context, event }) => ({
+      past: [],
+      activeId: null,
+      gestureStart: null,
+      draft: event.type === "EDIT" && event.advice ? event.advice : context.draft,
+    })),
+    showResetAdvice: assign(({ context, event }) => ({
+      draft: event.type === "CONFIRM_RESET" && event.shown ? event.shown : context.draft,
+    })),
+    settleDraft: assign(({ context }) => ({
+      draft:
+        context.unsaved === null && context.inFlight === null ? context.committed : context.draft,
+    })),
     adoptRemote: assign(({ event }) => {
       if (event.type !== "REMOTE_CHANGED") return {};
 
@@ -200,9 +214,9 @@ export const homeEditMachine = setup({
       return { draft: stepSize(context.draft, context.activeId, event.step, event.allowed) };
     }),
     applyCommand: assign(({ context, event }) => {
-      const next = commandResult(context.draft, event);
+      const base = commandBase(context.draft, event);
 
-      return commitDraft(context, context.draft, next);
+      return commitDraft(context, base, commandResult(base, event));
     }),
     undoDraft: assign(({ context }) => {
       const history = undo({ draft: context.draft, past: context.past });
@@ -274,8 +288,12 @@ export const homeEditMachine = setup({
       initial: "viewing",
       states: {
         viewing: {
+          entry: "settleDraft",
           on: {
             EDIT: { target: "editing", actions: "openSession" },
+            SIZE: { actions: "applyCommand" },
+            HIDE: { actions: "applyCommand" },
+            UNDO: { guard: "canUndo", actions: "undoDraft" },
           },
         },
         editing: {
@@ -361,7 +379,7 @@ export const homeEditMachine = setup({
             },
             confirming: {
               on: {
-                CONFIRM_RESET: { target: "idle", actions: "applyCommand" },
+                CONFIRM_RESET: { target: "idle", actions: ["applyCommand", "showResetAdvice"] },
                 CANCEL: "idle",
                 ESC: "idle",
               },
@@ -430,6 +448,20 @@ export const homeEditMachine = setup({
     },
   },
 });
+
+function sameDraft(left: Draft, right: Draft): boolean {
+  if (left.length !== right.length) return false;
+
+  return left.every(
+    (block, index) => block.id === right[index]?.id && block.size === right[index]?.size,
+  );
+}
+
+function commandBase(draft: Draft, event: HomeEditEvent): Draft {
+  if (event.type === "SIZE" || event.type === "HIDE") return event.from ?? draft;
+
+  return draft;
+}
 
 function commandResult(draft: Draft, event: HomeEditEvent): Draft {
   if (event.type === "SIZE") return resize(draft, event.id, event.size);

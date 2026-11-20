@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { nextSevenDays } from "../../shared/agenda/windows";
 import type { ChildDto } from "../../shared/api/queries/children";
@@ -46,17 +47,20 @@ function sized(block: UnsizedBlock): RegisteredBlock[] {
 
 export function useHomeRegistry(family: readonly ChildDto[]): RegisteredBlock[] {
   const { t } = useTranslation("home");
-  const shared = HOME_BLOCKS.map(({ titleKey, descriptionKey, windowDays, ...block }) => ({
-    ...block,
-    title: t(titleKey),
-    description: t(descriptionKey, { days: windowDays }),
-  }));
-  const perChild = family.map((child) =>
-    childBlock(
-      child,
-      t("blocks.child.description", { child: child.label, days: nextSevenDays.days }),
-    ),
-  );
 
-  return [...shared, ...perChild].flatMap(sized);
+  return useMemo(() => {
+    const shared = HOME_BLOCKS.map(({ titleKey, descriptionKey, windowDays, ...block }) => ({
+      ...block,
+      title: t(titleKey),
+      description: t(descriptionKey, { days: windowDays }),
+    }));
+    const perChild = family.map((child) =>
+      childBlock(
+        child,
+        t("blocks.child.description", { child: child.label, days: nextSevenDays.days }),
+      ),
+    );
+
+    return [...shared, ...perChild].flatMap(sized);
+  }, [t, family]);
 }

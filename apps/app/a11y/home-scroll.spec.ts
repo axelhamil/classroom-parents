@@ -240,7 +240,7 @@ test.describe("a home tile scrolls inside itself", () => {
     await expect(region).not.toBeFocused();
 
     await page.getByRole("button", { name: "Terminé" }).click();
-    expect(await region.evaluate((el) => el.hasAttribute("inert"))).toBe(false);
+    await expect(region).not.toHaveAttribute("inert");
     expect(await region.evaluate((el) => el.scrollTop)).toBe(kept);
   });
 });

@@ -11,7 +11,7 @@ import {
 } from "@packages/ui/components/ui/dashboard";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
 import type { LucideIcon } from "lucide-react";
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactElement, type ReactNode, useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type TileFrame, useTileFrame } from "../../../../shared/dashboard/tile-frame";
 
@@ -51,12 +51,15 @@ export function BlockPanel({
       data-jump={jump}
       tabIndex={jump ? -1 : undefined}
     >
-      <Header aria-label={frame.editing ? t("edit.controls", { block: title }) : undefined}>
-        <Icon aria-hidden />
-        <DashboardPanelTitle id={titleId}>{title}</DashboardPanelTitle>
-        {count !== undefined && count > 0 && <Badge variant="destructive">{count}</Badge>}
-        {frame.controls}
-      </Header>
+      {wrapped(
+        frame,
+        <Header aria-label={frame.editing ? t("edit.controls", { block: title }) : undefined}>
+          <Icon aria-hidden />
+          <DashboardPanelTitle id={titleId}>{title}</DashboardPanelTitle>
+          {count !== undefined && count > 0 && <Badge variant="destructive">{count}</Badge>}
+          {frame.controls}
+        </Header>,
+      )}
       <BlockBody frame={frame} titleId={titleId} icon={Icon} note={note} startAt={startAt}>
         {children}
       </BlockBody>
@@ -65,6 +68,10 @@ export function BlockPanel({
       ) : null}
     </DashboardPanel>
   );
+}
+
+function wrapped(frame: TileFrame, header: ReactElement): ReactNode {
+  return frame.wrapHeader ? frame.wrapHeader(header) : header;
 }
 
 interface BlockBodyProps {
@@ -77,7 +84,7 @@ interface BlockBodyProps {
 }
 
 function BlockBody({ frame, titleId, icon: Icon, note, startAt, children }: BlockBodyProps) {
-  const openAt = useOpenAt(startAt);
+  const openAt = useOpenAt(startAt, frame);
 
   if (!children && note)
     return (
@@ -106,11 +113,16 @@ function BlockBody({ frame, titleId, icon: Icon, note, startAt, children }: Bloc
   );
 }
 
-function useOpenAt(startAt: string | undefined): (region: HTMLDivElement | null) => void {
+function useOpenAt(
+  startAt: string | undefined,
+  { size, scroll }: TileFrame,
+): (region: HTMLDivElement | null) => void {
   const [region, setRegion] = useState<HTMLDivElement | null>(null);
+  const [kept] = useState(() => scroll?.read());
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a tile drawn at another size shows another stretch of its list, so the jump is made again
   useEffect(() => {
-    if (!region || !startAt) return;
+    if (!region || !startAt || kept !== undefined) return;
     if (scrollToJump(region, startAt)) return;
 
     const observer = new MutationObserver(() => {
@@ -119,9 +131,25 @@ function useOpenAt(startAt: string | undefined): (region: HTMLDivElement | null)
     observer.observe(region, { childList: true, subtree: true });
 
     return () => observer.disconnect();
-  }, [region, startAt]);
+  }, [region, startAt, size, kept]);
 
-  return setRegion;
+  useEffect(() => {
+    if (!region || !scroll) return;
+
+    const keep = () => scroll.keep(region.scrollTop);
+    region.addEventListener("scroll", keep, { passive: true });
+
+    return () => region.removeEventListener("scroll", keep);
+  }, [region, scroll]);
+
+  return useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node && kept !== undefined) node.scrollTop = kept;
+
+      setRegion(node);
+    },
+    [kept],
+  );
 }
 
 function scrollToJump(region: HTMLElement, jump: string): boolean {

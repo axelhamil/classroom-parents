@@ -436,3 +436,80 @@ describe("home edit machine rollback during a gesture", () => {
     expect(actor.getSnapshot().context.gestureStart).toBe(LAYOUT);
   });
 });
+
+describe("home edit machine trusting the server over the copy kept on the device", () => {
+  it("given a kept copy, when the server answers the same revision with other blocks, then its blocks are adopted", () => {
+    const actor = createActor(homeEditMachine, { input: INPUT }).start();
+
+    actor.send({ type: "REMOTE_CHANGED", layout: REMOTE, revision: INPUT.revision });
+
+    expect(actor.getSnapshot().context.draft).toBe(REMOTE);
+  });
+});
+
+describe("home edit machine on the advised layout", () => {
+  const ADVISED: Draft = [];
+  const SHOWN: Draft = [
+    { id: "c", size: "l" },
+    { id: "b", size: "m" },
+  ];
+
+  function startOnAdvice() {
+    const saves: Deferred[] = [];
+    const machine = homeEditMachine.provide({
+      actors: {
+        save: fromPromise<SaveOutcome, SaveInput>(
+          ({ input }) => new Promise((resolve) => saves.push({ input, resolve })),
+        ),
+      },
+    });
+    const actor = createActor(machine, { input: { ...INPUT, layout: ADVISED } }).start();
+
+    return { actor, saves };
+  }
+
+  it("given the advised home, when arranged then left untouched, then nothing is saved and the advice comes back", () => {
+    const { actor, saves } = startOnAdvice();
+
+    actor.send({ type: "EDIT", advice: SHOWN });
+    actor.send({ type: "LOADED" });
+    expect(actor.getSnapshot().context.draft).toBe(SHOWN);
+    actor.send({ type: "DONE" });
+
+    expect(saves).toHaveLength(0);
+    expect(actor.getSnapshot().context.draft).toBe(ADVISED);
+  });
+
+  it("given the advised home being arranged, when a block moves, then the layout as shown is saved", () => {
+    const { actor, saves } = startOnAdvice();
+
+    actor.send({ type: "EDIT", advice: SHOWN });
+    actor.send({ type: "LOADED" });
+    actor.send({ type: "KEY_LIFT", id: "b" });
+    actor.send({ type: "KEY_MOVE", move: { kind: "edge", edge: "start" } });
+    actor.send({ type: "KEY_DROP" });
+
+    expect(saves[0]?.input.blocks.map((block) => block.id)).toEqual(["b", "c"]);
+  });
+
+  it("given the advised home read, when a block is resized from its menu, then the advice as shown is saved resized", () => {
+    const { actor, saves } = startOnAdvice();
+
+    actor.send({ type: "SIZE", id: "b", size: "l", from: SHOWN });
+
+    expect(saves[0]?.input.blocks).toEqual([
+      { id: "c", size: "l" },
+      { id: "b", size: "l" },
+    ]);
+  });
+
+  it("given an arranged home, when reset, then the advice is saved and shown for the rest of the session", () => {
+    const { actor, saves } = startEditing();
+
+    actor.send({ type: "RESET" });
+    actor.send({ type: "CONFIRM_RESET", layout: ADVISED, shown: SHOWN });
+
+    expect(saves[0]?.input.blocks).toBe(ADVISED);
+    expect(actor.getSnapshot().context.draft).toBe(SHOWN);
+  });
+});

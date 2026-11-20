@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { byRoute, json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
 import { CHILD } from "../../../__tests__/family-fixtures";
@@ -34,9 +35,21 @@ function givenHome(blocks: unknown) {
 }
 
 function shownBlocks(): (string | undefined)[] {
-  return [...document.querySelectorAll<HTMLElement>("[data-slot=dashboard-tile]")].map(
+  return [...document.querySelectorAll<HTMLElement>("[data-block][data-size]")].map(
     (tile) => tile.dataset.block,
   );
+}
+
+async function openMenu(trigger: HTMLElement) {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  await userEvent.click(trigger);
 }
 
 describe("Accueil is arranged by the parent and follows them", () => {
@@ -69,7 +82,9 @@ describe("Accueil is arranged by the parent and follows them", () => {
     await waitFor(() => expect(shownBlocks()).toEqual(["notes", "today"]));
 
     fireEvent.click(screen.getByRole("button", { name: "Modifier l'accueil" }));
-    fireEvent.click(screen.getByRole("button", { name: "Masquer Pense-bête" }));
+    await act(() => import("../../../shared/dashboard/edit/home-edit-grid"));
+    await openMenu(await screen.findByRole("button", { name: "Disposition de Pense-bête" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Masquer Pense-bête" }));
 
     await waitFor(() => expect(shownBlocks()).toEqual(["today"]));
     expect(screen.getByRole("button", { name: "Ajouter un bloc" })).toBe(document.activeElement);

@@ -37,6 +37,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     expect(overdue.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
     cleanup();
     resetApp();
+    localStorage.clear();
 
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
     await renderAppAt("/");
@@ -208,6 +209,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     ).toHaveLength(1);
     cleanup();
     resetApp();
+    localStorage.clear();
 
     givenCalendar(
       [CHILD],

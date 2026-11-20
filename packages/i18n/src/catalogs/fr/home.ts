@@ -9,6 +9,10 @@ export default {
       "Les blocs reprennent leur place et leur taille d'origine. Votre pense-bête est gardé.",
     resetConfirm: "Rétablir",
     cancel: "Annuler",
+    undo: "Annuler",
+    hidden: "{{block}} masqué",
+    menu: "Disposition de {{block}}",
+    size: "Taille",
     controls: "Disposition de {{block}}",
     move: "Déplacer {{block}}",
     moveUp: "Monter {{block}}",
@@ -54,6 +58,12 @@ export default {
       l: "grande",
       xl: "très grande",
     },
+  },
+  sizes: {
+    s: "Petite",
+    m: "Moyenne",
+    l: "Grande",
+    xl: "Très grande",
   },
   sync: {
     savedOffline: "Enregistré hors ligne, envoi au retour du réseau.",

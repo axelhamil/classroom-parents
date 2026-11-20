@@ -1750,6 +1750,80 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
   }
 }
 
+/* The home while it is arranged, laid out by the grid library: the library
+   places each tile through `transform`, width and height, and names its
+   states by class (`react-draggable-dragging`, `react-grid-placeholder`,
+   `resizing`). The others slide on the spring, which a CSS transition
+   resumes from where it stands; the lifted tile follows the finger at once
+   and only its inner panel rises, never the element the library moves. */
+@utility dashboard-edit {
+  position: relative;
+
+  & .react-grid-item {
+    box-sizing: border-box;
+    transition-property: transform, width, height;
+    transition-duration: var(--duration-spring);
+    transition-timing-function: var(--ease-spring);
+  }
+
+  & .react-grid-item > [data-slot="dashboard-panel"] {
+    transition-property: scale, box-shadow;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+
+  & .react-draggable-dragging,
+  & .react-grid-item.resizing {
+    z-index: 3;
+    transition: none;
+    will-change: transform;
+  }
+
+  & .react-draggable-dragging > [data-slot="dashboard-panel"] {
+    scale: 1.03;
+    box-shadow: var(--shadow-float);
+  }
+
+  & .react-grid-placeholder {
+    z-index: 2;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-2xl);
+    background: color-mix(in oklab, var(--muted) 60%, transparent);
+    user-select: none;
+  }
+
+  & .react-resizable-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: var(--touch-target);
+    height: var(--touch-target);
+    cursor: se-resize;
+  }
+
+  & .react-resizable-handle::after {
+    content: "";
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid var(--muted-foreground);
+    border-bottom: 2px solid var(--muted-foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    & .react-grid-item,
+    & .react-grid-item > [data-slot="dashboard-panel"] {
+      transition: none;
+    }
+
+    & .react-draggable-dragging > [data-slot="dashboard-panel"] {
+      scale: none;
+    }
+  }
+}
+
 @keyframes scroll-fade-top {
   from {
     --scroll-fade-top: 0px;
