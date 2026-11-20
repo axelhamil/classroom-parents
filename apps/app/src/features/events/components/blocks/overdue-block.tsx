@@ -7,7 +7,7 @@ import { OlderLateLink } from "../older-late-link";
 import { BlockPanel } from "./block-panel";
 import { EventRows } from "./event-rows";
 
-function OverdueBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
+function OverdueBlock({ family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const { t: tEvents } = useTranslation("events");
   const { isSuccess, late, older } = useLate(clock, childId);
@@ -26,7 +26,7 @@ function OverdueBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
     >
       {(late.length > 0 || older > 0) && (
         <>
-          {late.length > 0 && <EventRows events={late} family={family} rows={rows} />}
+          {late.length > 0 && <EventRows events={late} family={family} />}
           <OlderLateLink count={older} />
         </>
       )}
@@ -40,7 +40,5 @@ export const overdueBlock: HomeBlockDefinition = {
   descriptionKey: "blocks.overdue.description",
   windowDays: lateWindow.days,
   icon: OverdueIcon,
-  sizes: { w: [3, 4, 6, 8], h: [1, 2, 3] },
-  defaultSize: { w: 4, h: 1 },
   Component: OverdueBlock,
 };

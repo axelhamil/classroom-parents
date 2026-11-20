@@ -39,7 +39,5 @@ export const progressBlock: HomeBlockDefinition = {
   titleKey: "blocks.progress.title",
   descriptionKey: "blocks.progress.description",
   icon: AllDoneIcon,
-  sizes: { w: [3, 4, 6], h: [1] },
-  defaultSize: { w: 3, h: 1 },
   Component: ProgressBlock,
 };

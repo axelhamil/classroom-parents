@@ -9,12 +9,14 @@ export const USER_STREAM_INVALIDATIONS: StreamInvalidations<UserStreamMessage["t
   "sync.finished": [["events"], ["children"]],
   "notification.created": [NOTIFICATIONS_KEY],
   "notifications.read": [NOTIFICATIONS_KEY],
+  "home.changed": [["home", "layout"]],
 };
 
 export const USER_STREAM_RECONNECT_KEYS: readonly QueryKey[] = [
   ["events"],
   ["children"],
   NOTIFICATIONS_KEY,
+  ["home", "layout"],
 ];
 
 export function parseUserStreamMessage(value: unknown): UserStreamMessage | undefined {

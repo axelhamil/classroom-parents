@@ -1,0 +1,118 @@
+diff --git a/dist/chunk-CUP5Y2ZG.js b/dist/chunk-CUP5Y2ZG.js
+index 23399caefebeefb2038279331382aa20e5932bc1..9f890f529a0b29e28636d5b76c6162b2a40f927b 100644
+--- a/dist/chunk-CUP5Y2ZG.js
++++ b/dist/chunk-CUP5Y2ZG.js
+@@ -125,6 +125,7 @@ function GridItemInner(props) {
+   } = props;
+   const [dragging, setDragging] = React2.useState(false);
+   const [resizing, setResizing] = React2.useState(false);
++  const [, setInteractionRevision] = React2.useState(0);
+   const elementRef = React2.useRef(null);
+   const dragPositionRef = React2.useRef({ left: 0, top: 0 });
+   const resizePositionRef = React2.useRef({
+@@ -334,6 +335,7 @@ function GridItemInner(props) {
+       }
+       const newPosition = { top, left };
+       dragPositionRef.current = newPosition;
++      setInteractionRevision((revision) => revision + 1);
+       const rawPos = chunkVJJIA3HC_js.calcXYRaw(positionParams, top, left);
+       const { x: newX, y: newY } = chunkQAIA5KAO_js.applyPositionConstraints(
+         constraints,
+@@ -430,6 +432,9 @@ function GridItemInner(props) {
+         };
+       }
+       resizePositionRef.current = updatedSize;
++      if (handlerName === "onResize" && resizing) {
++        setInteractionRevision((revision) => revision + 1);
++      }
+       const containerHeight = node?.offsetParent?.clientHeight ?? 0;
+       const rawSize = chunkVJJIA3HC_js.calcWHRaw(
+         positionParams,
+@@ -459,6 +464,7 @@ function GridItemInner(props) {
+       onResizeStartProp,
+       onResizeProp,
+       onResizeStopProp,
++      resizing,
+       containerWidth,
+       positionParams,
+       i,
+@@ -613,6 +619,7 @@ function GridItemInner(props) {
+       cancel: ".react-resizable-handle" + (cancel ? "," + cancel : ""),
+       scale: transformScale,
+       allowMobileScroll,
++      enableUserSelectHack: false,
+       nodeRef: elementRef,
+       children: newChild
+     }
+diff --git a/dist/chunk-Z6CWRR74.mjs b/dist/chunk-Z6CWRR74.mjs
+index 5d3ee00ad7b14cfe15445fcf7bfdbee04408236e..a59eddf5c0180dd77cbe9e884ab6963a65ae0ccd 100644
+--- a/dist/chunk-Z6CWRR74.mjs
++++ b/dist/chunk-Z6CWRR74.mjs
+@@ -118,6 +118,7 @@ function GridItemInner(props) {
+   } = props;
+   const [dragging, setDragging] = useState(false);
+   const [resizing, setResizing] = useState(false);
++  const [, setInteractionRevision] = useState(0);
+   const elementRef = useRef(null);
+   const dragPositionRef = useRef({ left: 0, top: 0 });
+   const resizePositionRef = useRef({
+@@ -327,6 +328,7 @@ function GridItemInner(props) {
+       }
+       const newPosition = { top, left };
+       dragPositionRef.current = newPosition;
++      setInteractionRevision((revision) => revision + 1);
+       const rawPos = calcXYRaw(positionParams, top, left);
+       const { x: newX, y: newY } = applyPositionConstraints(
+         constraints,
+@@ -423,6 +425,9 @@ function GridItemInner(props) {
+         };
+       }
+       resizePositionRef.current = updatedSize;
++      if (handlerName === "onResize" && resizing) {
++        setInteractionRevision((revision) => revision + 1);
++      }
+       const containerHeight = node?.offsetParent?.clientHeight ?? 0;
+       const rawSize = calcWHRaw(
+         positionParams,
+@@ -452,6 +457,7 @@ function GridItemInner(props) {
+       onResizeStartProp,
+       onResizeProp,
+       onResizeStopProp,
++      resizing,
+       containerWidth,
+       positionParams,
+       i,
+@@ -606,6 +612,7 @@ function GridItemInner(props) {
+       cancel: ".react-resizable-handle" + (cancel ? "," + cancel : ""),
+       scale: transformScale,
+       allowMobileScroll,
++      enableUserSelectHack: false,
+       nodeRef: elementRef,
+       children: newChild
+     }
+diff --git a/dist/types-DlzNckle.d.mts b/dist/types-DlzNckle.d.mts
+index 7733e862ba99967e57c8c06ca4342e4daab5449e..e118120836cc779c2bab596d8f39c72e55531b6c 100644
+--- a/dist/types-DlzNckle.d.mts
++++ b/dist/types-DlzNckle.d.mts
+@@ -153,7 +153,7 @@ interface DragOverEvent extends MouseEvent {
+  * - 'wrap': Items arranged in wrapped-paragraph style (like words in text)
+  * - null: No compaction (free-form positioning)
+  */
+-type CompactType = "horizontal" | "vertical" | "wrap" | null;
++type CompactType = "horizontal" | "vertical" | "wrap" | null | (string & {});
+ /**
+  * Standard callback signature for layout change events.
+  *
+diff --git a/dist/types-DlzNckle.d.ts b/dist/types-DlzNckle.d.ts
+index 7733e862ba99967e57c8c06ca4342e4daab5449e..e118120836cc779c2bab596d8f39c72e55531b6c 100644
+--- a/dist/types-DlzNckle.d.ts
++++ b/dist/types-DlzNckle.d.ts
+@@ -153,7 +153,7 @@ interface DragOverEvent extends MouseEvent {
+  * - 'wrap': Items arranged in wrapped-paragraph style (like words in text)
+  * - null: No compaction (free-form positioning)
+  */
+-type CompactType = "horizontal" | "vertical" | "wrap" | null;
++type CompactType = "horizontal" | "vertical" | "wrap" | null | (string & {});
+ /**
+  * Standard callback signature for layout change events.
+  *

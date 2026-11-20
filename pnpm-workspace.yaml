@@ -11,3 +11,5 @@ packageExtensions:
   dependency-cruiser:
     dependencies:
       typescript: ^6.0.3
+patchedDependencies:
+  react-grid-layout@2.3.0: patches/react-grid-layout@2.3.0.patch

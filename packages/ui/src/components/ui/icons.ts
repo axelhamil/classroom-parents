@@ -116,6 +116,7 @@ export {
   SunMoon as SystemThemeIcon,
   Trash2 as DeleteIcon,
   TriangleAlert as WarningIcon,
+  Undo2 as UndoIcon,
   Unlink as UnlinkIcon,
   UserRoundCheck as ChildAccountIcon,
   UserRoundSearch as PickAccountIcon,

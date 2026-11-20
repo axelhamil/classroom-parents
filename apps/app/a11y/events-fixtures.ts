@@ -105,10 +105,7 @@ interface ApiFixtures {
 }
 
 /** The line of late deadlines lives in the Agenda only while the "En retard" block is hidden. */
-export const AGENDA_WITHOUT_OVERDUE_BLOCK = [
-  { id: "calendar", w: 12, h: 3, hidden: false },
-  { id: "overdue", w: 4, h: 1, hidden: true },
-];
+export const AGENDA_WITHOUT_OVERDUE_BLOCK = [{ id: "calendar", size: "xl" }];
 
 function statusOf(event: unknown): unknown {
   return typeof event === "object" && event !== null && "status" in event
@@ -123,13 +120,19 @@ function apiPath(request: Request): string | undefined {
 export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Request[]> {
   const eventRequests: Request[] = [];
 
+  // The signed-in state carries the home kept by the seeded account; the family served here is another one.
+  await page.addInitScript(() => {
+    for (const key of Object.keys(localStorage))
+      if (key.endsWith(":home:layout:v2")) localStorage.removeItem(key);
+  });
+
   await page.route("**/*", async (route) => {
     const request = route.request();
     const path = apiPath(request);
     if (path === "/children") return route.fulfill({ json: fixtures.children });
     if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
     if (path === "/home/layout")
-      return route.fulfill({ json: { blocks: fixtures.homeLayout ?? null } });
+      return route.fulfill({ json: { blocks: fixtures.homeLayout ?? null, revision: 0 } });
     if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
     if (path === "/notifications/unread-count") return route.fulfill({ json: { count: 0 } });
     if (path === "/events") {

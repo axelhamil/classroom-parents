@@ -136,7 +136,7 @@ export interface ExportedSchoolCalendar {
 }
 
 export interface ExportedHomeLayout {
-  blocks: unknown[];
+  blocks: unknown;
   chosenAt: string;
 }
 

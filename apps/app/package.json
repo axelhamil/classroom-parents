@@ -14,8 +14,6 @@
     "check:perf": "playwright test --config a11y/perf.config.ts"
   },
   "dependencies": {
-    "@dnd-kit/dom": "0.5.3",
-    "@dnd-kit/react": "0.5.3",
     "@hookform/resolvers": "^6.0.1",
     "@packages/ddd-kit": "workspace:*",
     "@packages/events": "workspace:*",
@@ -30,6 +28,7 @@
     "@tanstack/react-query": "^5.105.0",
     "@tanstack/react-router": "^1.170.46",
     "@tanstack/react-virtual": "3.14.26",
+    "@xstate/react": "6.1.0",
     "api": "workspace:*",
     "better-auth": "1.7.14",
     "hono": "^4.13.14",
@@ -37,9 +36,11 @@
     "idb-keyval": "^6.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-grid-layout": "2.3.0",
     "react-hook-form": "^7.91.0",
     "react-i18next": "^17.1.9",
     "sonner": "^2.0.8",
+    "xstate": "5.33.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -59,6 +60,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "@xstate/graph": "3.0.4",
     "fast-check": "^4.10.3",
     "jsdom": "^31.0.0",
     "tailwindcss": "^4.3.3",

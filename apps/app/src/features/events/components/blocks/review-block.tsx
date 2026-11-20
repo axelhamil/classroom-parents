@@ -134,7 +134,5 @@ export const reviewBlock: HomeBlockDefinition = {
   titleKey: "blocks.review.title",
   descriptionKey: "blocks.review.description",
   icon: ConfirmDateIcon,
-  sizes: { w: [3, 4, 6, 8, 12], h: [1, 2] },
-  defaultSize: { w: 4, h: 1 },
   Component: ReviewBlock,
 };

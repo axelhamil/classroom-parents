@@ -1,3 +1,4 @@
+import { readStoredLayout } from "../shared/dashboard/layout-migration";
 import { type ApiCall, json, stubApi } from "./app-harness";
 import { CHILD } from "./family-fixtures";
 import { deadline, HUGO } from "./week-fixtures";
@@ -54,7 +55,7 @@ export function givenCalendar(
     if (url.pathname === "/children") return json(children);
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     if (url.pathname === "/home/layout" && method === "GET")
-      return json({ blocks: homeLayout ?? null });
+      return json({ blocks: homeLayout ? readStoredLayout(homeLayout) : null, revision: 0 });
     if (url.pathname === "/notifications/unread-count") return json({ count: unread });
     if (url.pathname === "/calendar-feed" && method === "GET") return json({ exists: false });
     if (url.pathname === "/events" && method === "GET") {

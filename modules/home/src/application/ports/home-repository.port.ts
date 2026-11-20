@@ -8,12 +8,20 @@ export interface StoredHomeNote {
   updatedAt: Date;
 }
 
+export interface StoredHomeLayout {
+  layout: Option<HomeLayout>;
+  revision: number;
+}
+
 export interface IHomeRepository {
-  layoutOf(userId: string): Promise<Result<Option<HomeLayout>, HomeError>>;
+  layoutOf(userId: string): Promise<Result<StoredHomeLayout, HomeError>>;
 
-  saveLayout(userId: string, layout: HomeLayout, at: Date): Promise<Result<void, HomeError>>;
-
-  clearLayout(userId: string): Promise<Result<void, HomeError>>;
+  writeLayout(
+    userId: string,
+    layout: Option<HomeLayout>,
+    baseRevision: number,
+    at: Date,
+  ): Promise<Result<Option<number>, HomeError>>;
 
   noteOf(userId: string): Promise<Result<Option<StoredHomeNote>, HomeError>>;
 

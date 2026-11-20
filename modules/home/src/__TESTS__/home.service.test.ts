@@ -6,7 +6,8 @@ import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork } from "@packages/test/bun/unit-of-work";
-import type { IHomeRepository } from "../application/ports/home-repository.port";
+import type { HomeError } from "../application/errors/home-errors";
+import type { IHomeRepository, StoredHomeLayout } from "../application/ports/home-repository.port";
 import { HomeService } from "../application/services/home.service";
 import { type HomeBlock, HomeLayout } from "../domain/value-objects/home-layout.vo";
 import { HomeNote } from "../domain/value-objects/home-note.vo";
@@ -15,11 +16,17 @@ const PARENT = "parent-1";
 const NOW = new Date("2026-11-19T10:00:00.000Z");
 const LAST_WEEK = new Date("2026-11-12T10:00:00.000Z");
 
-const AGENDA: HomeBlock = { id: "agenda", w: 8, h: 2, hidden: false };
-const CHILD: HomeBlock = { id: "child:0193a1b2-c3d4", w: 4, h: 1, hidden: true };
+const AGENDA: HomeBlock = { id: "agenda", size: "xl" };
+const CHILD: HomeBlock = { id: "child:0193a1b2-c3d4", size: "m" };
 
-const layoutOf = (blocks: HomeBlock[]) => HomeLayout.create(blocks).getValue();
+const layoutOf = (blocks: HomeBlock[]) => HomeLayout.of(blocks).getValue();
 const noteOf = (body: string) => HomeNote.create(body).getValue();
+
+const storedLayout = (
+  blocks: HomeBlock[] | null,
+  revision: number,
+): Result<StoredHomeLayout, HomeError> =>
+  Result.ok({ layout: Option.fromNullable(blocks).map(layoutOf), revision });
 
 let repository: PortMock<IHomeRepository>;
 let outbox: PortMock<IOutboxRepository>;
@@ -29,9 +36,8 @@ beforeEach(() => {
   repository = mockPort<IHomeRepository>();
   outbox = mockPort<IOutboxRepository>();
 
-  repository.layoutOf.mockResolvedValue(Result.ok(Option.none()));
-  repository.saveLayout.mockResolvedValue(Result.ok());
-  repository.clearLayout.mockResolvedValue(Result.ok());
+  repository.layoutOf.mockResolvedValue(storedLayout(null, 0));
+  repository.writeLayout.mockResolvedValue(Result.ok(Option.some(1)));
   repository.noteOf.mockResolvedValue(Result.ok(Option.none()));
   repository.saveNote.mockResolvedValue(Result.ok());
   repository.clearNote.mockResolvedValue(Result.ok());
@@ -46,70 +52,98 @@ beforeEach(() => {
 });
 
 describe("layout of the parent's home", () => {
-  it("given a parent who never arranged their home, then no layout is returned", async () => {
+  it("given a parent who never arranged their home, then the advised layout at revision 0 is returned", async () => {
     const result = await service.layout(PARENT);
 
-    expect(result.getValue()).toEqual({ blocks: null });
+    expect(result.getValue()).toEqual({ blocks: null, revision: 0 });
   });
 
-  it("given a parent arranging their home, then the layout is stored and announced", async () => {
-    const result = await service.setLayout(PARENT, [AGENDA, CHILD]);
+  it("given a parent arranging their home, then the layout is stored and announced with its revision", async () => {
+    repository.layoutOf.mockResolvedValue(storedLayout([AGENDA], 3));
+    repository.writeLayout.mockResolvedValue(Result.ok(Option.some(4)));
 
-    expect(result.getValue()).toEqual({ blocks: [AGENDA, CHILD] });
-    expect(repository.saveLayout).toHaveBeenCalledWith(PARENT, layoutOf([AGENDA, CHILD]), NOW);
+    const result = await service.setLayout(PARENT, { blocks: [AGENDA, CHILD], baseRevision: 3 });
+
+    expect(result.getValue()).toEqual({ blocks: [AGENDA, CHILD], revision: 4 });
+    expect(repository.writeLayout).toHaveBeenCalledWith(
+      PARENT,
+      Option.some(layoutOf([AGENDA, CHILD])),
+      3,
+      NOW,
+    );
     expect(enqueuedEvents(outbox)).toEqual([
       {
         eventType: EventTypes.HOME_LAYOUT_CHANGED,
         aggregateId: PARENT,
-        payload: { userId: PARENT, reset: false },
+        payload: { userId: PARENT, reset: false, revision: 4 },
       },
     ]);
   });
 
-  it("given a parent resetting their home, then the layout is removed and announced as a reset", async () => {
-    repository.layoutOf.mockResolvedValue(Result.ok(Option.some(layoutOf([AGENDA]))));
+  it("given a layout changed elsewhere since the parent's base, then the save is refused as stale and nothing is announced", async () => {
+    repository.layoutOf.mockResolvedValue(storedLayout([AGENDA], 5));
+    repository.writeLayout.mockResolvedValue(Result.ok(Option.none()));
 
-    const result = await service.setLayout(PARENT, null);
+    const result = await service.setLayout(PARENT, { blocks: [CHILD], baseRevision: 4 });
 
-    expect(result.getValue()).toEqual({ blocks: null });
-    expect(repository.clearLayout).toHaveBeenCalledWith(PARENT);
+    expect(result.getError().code).toBe("HOME_LAYOUT_STALE");
+    expect(enqueuedEvents(outbox)).toEqual([]);
+  });
+
+  it("given a parent resetting their home, then the advised layout comes back under a new revision, announced as a reset", async () => {
+    repository.layoutOf.mockResolvedValue(storedLayout([AGENDA], 2));
+    repository.writeLayout.mockResolvedValue(Result.ok(Option.some(3)));
+
+    const result = await service.setLayout(PARENT, { blocks: null, baseRevision: 2 });
+
+    expect(result.getValue()).toEqual({ blocks: null, revision: 3 });
+    expect(repository.writeLayout).toHaveBeenCalledWith(PARENT, Option.none(), 2, NOW);
     expect(enqueuedEvents(outbox)).toEqual([
       {
         eventType: EventTypes.HOME_LAYOUT_CHANGED,
         aggregateId: PARENT,
-        payload: { userId: PARENT, reset: true },
+        payload: { userId: PARENT, reset: true, revision: 3 },
       },
     ]);
   });
 
-  it("given the layout already in force, then nothing is written nor announced", async () => {
-    repository.layoutOf.mockResolvedValue(Result.ok(Option.some(layoutOf([AGENDA, CHILD]))));
+  it("given the layout already in force, then nothing is written nor announced and the current revision is returned", async () => {
+    repository.layoutOf.mockResolvedValue(storedLayout([AGENDA, CHILD], 7));
 
-    const result = await service.setLayout(PARENT, [AGENDA, CHILD]);
+    const result = await service.setLayout(PARENT, { blocks: [AGENDA, CHILD], baseRevision: 7 });
 
-    expect(result.getValue()).toEqual({ blocks: [AGENDA, CHILD] });
-    expect(repository.saveLayout).not.toHaveBeenCalled();
+    expect(result.getValue()).toEqual({ blocks: [AGENDA, CHILD], revision: 7 });
+    expect(repository.writeLayout).not.toHaveBeenCalled();
     expect(enqueuedEvents(outbox)).toEqual([]);
   });
 
   it("given the same block twice, then the layout is refused", async () => {
-    const result = await service.setLayout(PARENT, [AGENDA, { ...AGENDA, w: 12 }]);
+    const result = await service.setLayout(PARENT, {
+      blocks: [AGENDA, { ...AGENDA, size: "l" }],
+      baseRevision: 0,
+    });
 
     expect(result.getError().code).toBe("HOME_LAYOUT_INVALID");
-    expect(repository.saveLayout).not.toHaveBeenCalled();
+    expect(repository.writeLayout).not.toHaveBeenCalled();
   });
 
   it("given more than 40 blocks, then the layout is refused", async () => {
     const blocks = Array.from({ length: 41 }, (_, index) => ({ ...AGENDA, id: `block-${index}` }));
 
-    const result = await service.setLayout(PARENT, blocks);
+    const result = await service.setLayout(PARENT, { blocks, baseRevision: 0 });
 
     expect(result.getError().code).toBe("HOME_LAYOUT_INVALID");
   });
 
   it("given a block id outside the naming rule or longer than 80 characters, then the layout is refused", async () => {
-    const malformed = await service.setLayout(PARENT, [{ ...AGENDA, id: "Agenda" }]);
-    const tooLong = await service.setLayout(PARENT, [{ ...AGENDA, id: `child:${"a".repeat(80)}` }]);
+    const malformed = await service.setLayout(PARENT, {
+      blocks: [{ ...AGENDA, id: "Agenda" }],
+      baseRevision: 0,
+    });
+    const tooLong = await service.setLayout(PARENT, {
+      blocks: [{ ...AGENDA, id: `child:${"a".repeat(80)}` }],
+      baseRevision: 0,
+    });
 
     expect(malformed.getError().code).toBe("HOME_LAYOUT_INVALID");
     expect(tooLong.getError().code).toBe("HOME_LAYOUT_INVALID");

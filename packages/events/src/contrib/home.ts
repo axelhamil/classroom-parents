@@ -7,7 +7,11 @@ export const homeEvents = defineEventContribution({
     HOME_NOTE_CHANGED: "home.note.changed",
   },
   payloads: {
-    "home.layout.changed": z.object({ userId: z.string(), reset: z.boolean() }),
+    "home.layout.changed": z.object({
+      userId: z.string(),
+      reset: z.boolean(),
+      revision: z.number().int().positive(),
+    }),
     "home.note.changed": z.object({ userId: z.string(), cleared: z.boolean() }),
   },
   retention: {

@@ -10,6 +10,8 @@ export type HomeLayoutBody = InferRequestType<typeof $saveLayout>["json"];
 
 export const saveHomeLayoutMutationOptions = mutationOptions({
   mutationKey: ["home", "layout", "save"] as const,
+  scope: { id: "home-layout" },
+  networkMode: "online",
   mutationFn: async (body: HomeLayoutBody) => {
     const res = await $saveLayout({ json: body });
     if (!res.ok) await throwApiError(res, "saveHomeLayout");

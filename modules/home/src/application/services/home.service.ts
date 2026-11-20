@@ -4,9 +4,13 @@ import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { type HomeBlock, HomeLayout } from "../../domain/value-objects/home-layout.vo";
 import { HomeNote } from "../../domain/value-objects/home-note.vo";
-import type { HomeLayoutDto, HomeNoteDto } from "../dto/home.dto";
-import { type HomeError, layoutInvalid, noteInvalid } from "../errors/home-errors";
-import type { IHomeRepository, StoredHomeNote } from "../ports/home-repository.port";
+import type { HomeLayoutBody, HomeLayoutDto, HomeNoteDto } from "../dto/home.dto";
+import { type HomeError, layoutInvalid, layoutStale, noteInvalid } from "../errors/home-errors";
+import type {
+  IHomeRepository,
+  StoredHomeLayout,
+  StoredHomeNote,
+} from "../ports/home-repository.port";
 
 type Outcome<T> = Promise<Result<T, HomeError>>;
 
@@ -14,8 +18,8 @@ type LayoutChoice = Option<HomeLayout>;
 
 type NoteChoice = Option<HomeNote>;
 
-function layoutDtoOf(choice: LayoutChoice): HomeLayoutDto {
-  return { blocks: choice.map(({ value }) => [...value]).toNull() };
+function layoutDtoOf({ layout, revision }: StoredHomeLayout): HomeLayoutDto {
+  return { blocks: layout.map(({ value }) => [...value.blocks]).toNull(), revision };
 }
 
 function noteDtoOf(stored: Option<StoredHomeNote>): HomeNoteDto {
@@ -45,15 +49,19 @@ export class HomeService {
     return this.span("layout", async () => (await this.home.layoutOf(userId)).map(layoutDtoOf));
   }
 
-  async setLayout(userId: string, blocks: HomeBlock[] | null): Outcome<HomeLayoutDto> {
+  async setLayout(
+    userId: string,
+    { blocks, baseRevision }: HomeLayoutBody,
+  ): Outcome<HomeLayoutDto> {
     return this.span("setLayout", async () => {
       const choice = this.layoutChoiceOf(blocks);
       if (choice.isFailure) return Result.fail(choice.getError());
 
-      const saved = await this.transactions.run(() => this.storeLayout(userId, choice.getValue()));
-      if (saved.isFailure) return Result.fail(saved.getError());
+      const stored = await this.transactions.run(() =>
+        this.storeLayout(userId, choice.getValue(), baseRevision),
+      );
 
-      return Result.ok(layoutDtoOf(choice.getValue()));
+      return stored.map(layoutDtoOf);
     });
   }
 
@@ -75,7 +83,7 @@ export class HomeService {
   private layoutChoiceOf(blocks: HomeBlock[] | null): Result<LayoutChoice, HomeError> {
     if (blocks === null) return Result.ok(Option.none());
 
-    return HomeLayout.create(blocks)
+    return HomeLayout.of(blocks)
       .map((layout) => Option.some(layout))
       .mapError(layoutInvalid);
   }
@@ -88,21 +96,35 @@ export class HomeService {
       .mapError(noteInvalid);
   }
 
-  private async storeLayout(userId: string, choice: LayoutChoice): Outcome<void> {
+  private async storeLayout(
+    userId: string,
+    choice: LayoutChoice,
+    baseRevision: number,
+  ): Outcome<StoredHomeLayout> {
     const current = await this.home.layoutOf(userId);
     if (current.isFailure) return Result.fail(current.getError());
-    if (sameValue(current.getValue(), choice)) return Result.ok();
+    if (sameValue(current.getValue().layout, choice)) return Result.ok(current.getValue());
 
-    const written = choice.isSome()
-      ? await this.home.saveLayout(userId, choice.unwrap(), this.clock())
-      : await this.home.clearLayout(userId);
+    const written = await this.home.writeLayout(userId, choice, baseRevision, this.clock());
     if (written.isFailure) return Result.fail(written.getError());
 
+    const revision = written.getValue();
+    if (revision.isNone()) return Result.fail(layoutStale(baseRevision));
+
+    return Result.ok(await this.announceLayout(userId, choice, revision.unwrap()));
+  }
+
+  private async announceLayout(
+    userId: string,
+    layout: LayoutChoice,
+    revision: number,
+  ): Promise<StoredHomeLayout> {
     await emitEvent(this.outbox, EventTypes.HOME_LAYOUT_CHANGED, "user", userId, {
       userId,
-      reset: choice.isNone(),
+      reset: layout.isNone(),
+      revision,
     });
-    return Result.ok();
+    return { layout, revision };
   }
 
   private async storeNote(userId: string, choice: NoteChoice): Outcome<Option<StoredHomeNote>> {

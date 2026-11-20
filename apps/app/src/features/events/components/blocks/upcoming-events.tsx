@@ -23,7 +23,7 @@ function isDeadlineKind(id: string): id is DeadlineKind {
   return id in ICONS;
 }
 
-function UpcomingBlock({ blockId, family, childId, clock, title, rows }: HomeBlockProps) {
+function UpcomingBlock({ blockId, family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
   if (!isDeadlineKind(blockId)) return null;
@@ -41,7 +41,6 @@ function UpcomingBlock({ blockId, family, childId, clock, title, rows }: HomeBlo
         <EventRows
           events={due}
           family={family}
-          rows={rows}
           steps={blockId === "assessments" ? (event) => <EventSteps event={event} /> : undefined}
         />
       )}
@@ -57,8 +56,6 @@ export function upcomingBlock(id: DeadlineKind): HomeBlockDefinition {
     descriptionKey: `blocks.${id}.description`,
     windowDays: nextTwoWeeks.days,
     icon: ICONS[id],
-    sizes: { w: [3, 4, 6, 8], h: [1, 2, 3] },
-    defaultSize: { w: 4, h: 1 },
     Component: UpcomingBlock,
   };
 }

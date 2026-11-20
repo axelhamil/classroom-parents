@@ -3,14 +3,16 @@ import { ArrangeIcon, BackIcon, DoneIcon, FamilyIcon } from "@packages/ui/compon
 import { userStorageKey, useStoredValue } from "@packages/web-kit/storage/use-stored-value";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import type { SchoolClock } from "../../shared/agenda/school-clock";
 import { useSchoolClock } from "../../shared/agenda/school-clock-context";
 import { type ChildDto, childrenQueryOptions } from "../../shared/api/queries/children";
 import { redirectToOnboardingWithoutChild } from "../../shared/children/redirect-to-onboarding";
-import { DashboardGrid } from "../../shared/dashboard/dashboard-grid";
+import { HomeGrid } from "../../shared/dashboard/home-grid";
+import type { Draft } from "../../shared/dashboard/layout-commands";
+import { LayoutSyncNotice } from "../../shared/dashboard/layout-sync-notice";
 import { CategoryFilter } from "../../shared/events/category-filter";
 import { BoardEmpty, EventBoard, EventBoardSkeleton } from "../../shared/events/event-board";
 import { Screen } from "../../shared/layout/screen";
@@ -23,9 +25,10 @@ import { BlockedChildrenNotice } from "./components/blocked-children-notice";
 import { EventOverlay } from "./components/event-overlay";
 import { FamilyRow } from "./components/family-row";
 import { type HomeSearch, homeSearchSchema } from "./events.schema";
-import { useHomeRegistry } from "./home-blocks";
+import { type RegisteredBlock, useHomeRegistry } from "./home-blocks";
+import { useAdvisedHome } from "./hooks/use-advised-home";
 import { useCelebrateProgress } from "./hooks/use-celebrate-progress";
-import { useHomeLayout } from "./hooks/use-home-layout";
+import { ADVISED_LAYOUT, type HomeSync, useHomeSync } from "./hooks/use-home-sync";
 import { firstNameOf } from "./week";
 
 export const Route = createFileRoute("/_protected/_shell/")({
@@ -36,13 +39,26 @@ export const Route = createFileRoute("/_protected/_shell/")({
 
 const SELECTED_CHILD_SCHEMA = z.string().nullable();
 
+const NO_CHILDREN: readonly ChildDto[] = [];
+
+interface HomeArrangement {
+  sync: HomeSync;
+  registry: readonly RegisteredBlock[];
+  order: Draft;
+  advice: Draft;
+  editing: boolean;
+  edit: () => void;
+  done: () => void;
+  reset: () => void;
+}
+
 function HomePage() {
   const { t } = useTranslation("events");
   const { user } = Route.useRouteContext();
   const search = Route.useSearch();
   const router = useRouter();
   const clock = useSchoolClock();
-  const [editing, setEditing] = useState(false);
+  const home = useHomeArrangement(user.id);
   const name = firstNameOf(user.name);
   const greeting =
     clock.greeting === "evening"
@@ -55,16 +71,45 @@ function HomePage() {
       title={name ? greeting : t("list.title")}
       actions={
         search.tab !== "history" && (
-          <EditHomeButton editing={editing} onToggle={() => setEditing(!editing)} />
+          <EditHomeButton editing={home.editing} onToggle={home.editing ? home.done : home.edit} />
         )
       }
     >
-      <HomeBoard clock={clock} editing={editing} />
+      <HomeBoard clock={clock} home={home} />
       {search.event && (
         <EventOverlay eventId={search.event} onClose={() => router.history.back()} />
       )}
     </Screen>
   );
+}
+
+/**
+ * The layout of the home, kept by the edit machine, and the advised layout drawn while the parent
+ * arranged nothing. Entering and leaving the arranged home rearranges the page through `reflow`.
+ */
+function useHomeArrangement(userId: string): HomeArrangement {
+  const family = useQuery(childrenQueryOptions).data ?? NO_CHILDREN;
+  const registry = useHomeRegistry(family);
+  const ids = useMemo(() => registry.map(({ id }) => id), [registry]);
+  const sync = useHomeSync(userId, ids);
+  const advice = useAdvisedHome(ids);
+  const send = sync.send;
+  const main = () => document.querySelector("main");
+
+  return {
+    sync,
+    registry,
+    order: sync.order ?? advice,
+    advice,
+    editing: sync.editState !== "viewing",
+    edit: () =>
+      reflow(main(), () => send({ type: "EDIT", advice: sync.order ? undefined : advice })),
+    done: () => reflow(main(), () => send({ type: "DONE" })),
+    reset: () => {
+      send({ type: "RESET" });
+      send({ type: "CONFIRM_RESET", layout: ADVISED_LAYOUT, shown: advice });
+    },
+  };
 }
 
 interface EditHomeButtonProps {
@@ -91,17 +136,20 @@ function EditHomeButton({ editing, onToggle }: EditHomeButtonProps) {
 
 interface HomeBoardProps {
   clock: SchoolClock;
-  editing: boolean;
+  home: HomeArrangement;
 }
 
-function HomeBoard({ clock, editing }: HomeBoardProps) {
+function HomeBoard({ clock, home }: HomeBoardProps) {
   const { t } = useTranslation("events");
   const children = useQuery(childrenQueryOptions);
+  const skeleton = <EventBoardSkeleton label={t("calendar.loading")} />;
+
+  if (!home.sync.known && !children.isError) return skeleton;
 
   return (
     <QueryState
       query={children}
-      skeleton={<EventBoardSkeleton label={t("calendar.loading")} />}
+      skeleton={skeleton}
       empty={
         <BoardEmpty
           icon={FamilyIcon}
@@ -116,7 +164,7 @@ function HomeBoard({ clock, editing }: HomeBoardProps) {
       }
       isEmpty={(family) => family.length === 0}
     >
-      {(family) => <FamilyHome family={family} clock={clock} editing={editing} />}
+      {(family) => <FamilyHome family={family} clock={clock} home={home} />}
     </QueryState>
   );
 }
@@ -124,10 +172,10 @@ function HomeBoard({ clock, editing }: HomeBoardProps) {
 interface FamilyHomeProps {
   family: readonly ChildDto[];
   clock: SchoolClock;
-  editing: boolean;
+  home: HomeArrangement;
 }
 
-function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
+function FamilyHome({ family, clock, home }: FamilyHomeProps) {
   const { t } = useTranslation("events");
   const { user } = Route.useRouteContext();
   const search = Route.useSearch();
@@ -141,10 +189,13 @@ function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
   const childId = family.some((child) => child.id === requested) ? requested : null;
   const { period } = placePeriod(search, clock);
   const loaded = useQuery(calendarEventsQueryOptions(period)).data ?? [];
-  const registry = useHomeRegistry(family);
-  const home = useHomeLayout(registry.blocks, registry.defaults);
-  const shown = (blockId: string) =>
-    home.layout.some(({ id, hidden }) => id === blockId && !hidden);
+  const shown = (blockId: string) => home.order.some(({ id }) => id === blockId);
+  const briefingShown = shown("today");
+  const overdueShown = shown("overdue");
+  const context = useMemo(
+    () => ({ family, childId, clock, briefingShown, overdueShown }),
+    [family, childId, clock, briefingShown, overdueShown],
+  );
   useCelebrateProgress(clock);
 
   const setSearch = (next: Partial<HomeSearch>) =>
@@ -183,18 +234,14 @@ function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
   return (
     <div className="flex flex-col gap-6">
       <BlockedChildrenNotice childrenList={family} />
-      <DashboardGrid
-        layout={home.layout}
-        blocks={registry.blocks}
-        context={{
-          family,
-          childId,
-          clock,
-          briefingShown: shown("today"),
-          overdueShown: shown("overdue"),
-        }}
-        editing={editing}
-        onChange={home.change}
+      <LayoutSyncNotice actor={home.sync.actor} />
+      <HomeGrid
+        order={home.order}
+        advised={home.sync.order === null}
+        blocks={home.registry}
+        context={context}
+        actor={home.sync.actor}
+        onEdit={home.edit}
         onReset={home.reset}
         header={
           family.length > 1 && (
@@ -207,7 +254,7 @@ function FamilyHome({ family, clock, editing }: FamilyHomeProps) {
           )
         }
       />
-      {!editing && !search.event && <ScreenTour screen="home" userId={user.id} />}
+      {!home.editing && !search.event && <ScreenTour screen="home" userId={user.id} />}
     </div>
   );
 }

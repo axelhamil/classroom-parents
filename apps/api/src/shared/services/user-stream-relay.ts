@@ -36,6 +36,14 @@ const NOTIFICATIONS_READ_TYPES: ReadonlySet<string> = new Set([
   EventTypes.NOTIFICATIONS_READ_ALL,
 ]);
 
+const HomeLayoutRevision = z.object({ revision: z.number().int() });
+
+function homeMessagesFor(payload: unknown): UserStreamMessage[] {
+  const home = HomeLayoutRevision.safeParse(payload);
+
+  return home.success ? [{ type: "home.changed", revision: home.data.revision }] : [];
+}
+
 const StreamRecipient = z.object({
   userId: z.string(),
   childId: z.string().optional(),
@@ -58,6 +66,7 @@ function notificationMessagesFor(
 function streamMessagesFor(event: DeliveredEvent, recipient: Recipient): UserStreamMessage[] {
   const { childId } = recipient;
   if (AGENDA_TYPES.has(event.eventType)) return [{ type: "events.changed" }];
+  if (event.eventType === EventTypes.HOME_LAYOUT_CHANGED) return homeMessagesFor(event.payload);
   if (CHILDREN_TYPES.has(event.eventType)) return [{ type: "children.changed" }];
   if (event.eventType !== EventTypes.ANNOUNCEMENT_SYNCED || childId === undefined)
     return notificationMessagesFor(event, recipient);

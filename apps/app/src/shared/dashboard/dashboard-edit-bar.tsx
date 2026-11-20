@@ -1,6 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { DestructiveActionDialog } from "@packages/ui/components/ui/destructive-action-dialog";
-import { AddIcon, RetryIcon } from "@packages/ui/components/ui/icons";
+import { AddIcon, RetryIcon, UndoIcon } from "@packages/ui/components/ui/icons";
 import {
   Item,
   ItemActions,
@@ -20,9 +20,16 @@ export interface DashboardEditBarProps {
   hidden: readonly Pick<DashboardBlock<unknown>, "id" | "title" | "description" | "icon">[];
   onShow: (id: string) => void;
   onReset: () => void;
+  onUndo: () => void;
 }
 
-export function DashboardEditBar({ addButton, hidden, onShow, onReset }: DashboardEditBarProps) {
+export function DashboardEditBar({
+  addButton,
+  hidden,
+  onShow,
+  onReset,
+  onUndo,
+}: DashboardEditBarProps) {
   const { t } = useTranslation("home");
   const [adding, setAdding] = useState(false);
 
@@ -42,6 +49,10 @@ export function DashboardEditBar({ addButton, hidden, onShow, onReset }: Dashboa
       >
         <AddIcon aria-hidden />
         {t("edit.add")}
+      </Button>
+      <Button type="button" variant="ghost" onClick={onUndo}>
+        <UndoIcon aria-hidden />
+        {t("edit.undo")}
       </Button>
       <DestructiveActionDialog
         trigger={

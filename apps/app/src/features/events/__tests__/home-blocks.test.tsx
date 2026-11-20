@@ -16,8 +16,8 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 
 const THURSDAY_MORNING = "2026-11-12T09:00:00.000Z";
 
-function block(name: string): HTMLElement {
-  return screen.getByRole("region", { name });
+function block(name: string): Promise<HTMLElement> {
+  return screen.findByRole("region", { name });
 }
 
 describe("Accueil blocks keep to what they have to say", () => {
@@ -27,41 +27,40 @@ describe("Accueil blocks keep to what they have to say", () => {
     localStorage.clear();
   });
 
-  it("given nothing late, the block folds into one line, and opens up once a deadline is late", async () => {
+  it("given nothing late, the block says so at its size, and lists the late deadlines once there are some", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
     const overdue = await screen.findByText("Rien en retard");
-    expect(overdue.closest("[data-slot=dashboard-panel]")?.getAttribute("data-shape")).toBe("line");
+    expect(overdue.closest("[data-slot=dashboard-empty]")).not.toBeNull();
+    expect(overdue.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
     cleanup();
     resetApp();
+    localStorage.clear();
 
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
     await renderAppAt("/");
 
-    const late = await within(block("En retard")).findByText("Cahier de liaison à signer");
-    expect(late.closest("[data-slot=dashboard-panel]")?.getAttribute("data-shape")).toBe("box");
+    const late = await within(await block("En retard")).findByText("Cahier de liaison à signer");
+    expect(late.closest("[data-slot=dashboard-empty]")).toBeNull();
+    expect(late.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
   });
 
-  it("given nothing late, the block keeps its cell of the grid, the one it has while the home is arranged", async () => {
+  it("given nothing late, the block keeps its size while the home is arranged", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
-    const line = (await screen.findByText("Rien en retard")).closest("[data-block=overdue]");
-    expect(line?.closest("[data-slot=dashboard]")).not.toBeNull();
-    expect(line?.getAttribute("data-h")).toBe("1");
-    expect(line?.getAttribute("data-w")).toBe("4");
-
+    await screen.findByText("Rien en retard");
     fireEvent.click(screen.getByRole("button", { name: "Modifier l'accueil" }));
 
-    const tile = document.querySelector("[data-block=overdue]");
-    expect(tile?.closest("[data-slot=dashboard]")).not.toBeNull();
-    expect(tile?.getAttribute("data-w")).toBe("4");
+    expect(screen.getByRole("group", { name: "Disposition de En retard" })).toBeDefined();
+    const sizes = [...document.querySelectorAll<HTMLElement>("[data-block=overdue][data-size]")];
+    expect(sizes.map((tile) => tile.dataset.size)).toEqual(["m"]);
   });
 
-  it("given more late deadlines than the block holds, it shows the first ones and a button for the others", async () => {
+  it("given more late deadlines than the block shows at once, it lists them all in a region that scrolls", async () => {
     at(THURSDAY_MORNING);
     givenCalendar(
       [CHILD],
@@ -69,10 +68,12 @@ describe("Accueil blocks keep to what they have to say", () => {
     );
     await renderAppAt("/");
 
-    const overdue = block("En retard");
-    expect(await within(overdue).findAllByRole("link")).toHaveLength(2);
-    fireEvent.click(within(overdue).getByRole("button", { name: "Voir les 2 autres" }));
-    expect(within(overdue).getAllByRole("link")).toHaveLength(4);
+    const list = await screen.findByRole("group", { name: "En retard" });
+    expect(await within(list).findAllByRole("link")).toHaveLength(4);
+    expect(list.tabIndex).toBe(0);
+    const tile = list.closest<HTMLElement>("[data-block=overdue]");
+    if (!tile) throw new Error("the list is outside the En retard tile");
+    expect(within(tile).queryByRole("button", { name: /^Voir / })).toBeNull();
   });
 
   it("while the block En retard is on the home, the Agenda drops its own line of late deadlines", async () => {
@@ -80,8 +81,10 @@ describe("Accueil blocks keep to what they have to say", () => {
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
     await renderAppAt("/");
 
-    expect(await within(block("En retard")).findByText("Cahier de liaison à signer")).toBeDefined();
-    expect(within(block("Agenda")).queryByRole("button", { name: /^En retard/ })).toBeNull();
+    expect(
+      await within(await block("En retard")).findByText("Cahier de liaison à signer"),
+    ).toBeDefined();
+    expect(within(await block("Agenda")).queryByRole("button", { name: /^En retard/ })).toBeNull();
   });
 
   it("lists each coming assessment with its child, its day written once and its revision steps", async () => {
@@ -98,7 +101,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     );
     await renderAppAt("/");
 
-    const assessments = block("Contrôles à réviser");
+    const assessments = await block("Contrôles à réviser");
     const links = await within(assessments).findAllByRole("link");
     const [hugo, lea] = links.map((link) => link.closest("li"));
     expect(hugo?.textContent).toContain("Interrogation de géographie");
@@ -195,13 +198,14 @@ describe("Accueil blocks keep to what they have to say", () => {
     );
     await renderAppAt("/");
 
-    const overdue = block("En retard");
+    const overdue = await block("En retard");
     expect(await within(overdue).findByText("Et 1 plus ancienne, dans l'historique")).toBeDefined();
     expect(
       within(overdue).getAllByRole("link", { name: "Cahier de liaison à signer" }),
     ).toHaveLength(1);
     cleanup();
     resetApp();
+    localStorage.clear();
 
     givenCalendar(
       [CHILD],

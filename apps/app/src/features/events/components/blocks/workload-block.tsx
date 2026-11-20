@@ -80,7 +80,5 @@ export const workloadBlock: HomeBlockDefinition = {
   descriptionKey: "blocks.workload.description",
   windowDays: nextSevenDays.days,
   icon: WorkloadIcon,
-  sizes: { w: [6, 8, 12], h: [1, 2] },
-  defaultSize: { w: 6, h: 1 },
   Component: WorkloadBlock,
 };

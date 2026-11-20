@@ -25,8 +25,8 @@ function pool() {
 
 const MUSEUM_ID = museum().id;
 
-function reviewBlock(): HTMLElement {
-  return screen.getByRole("region", { name: "À vérifier" });
+function reviewBlock(): Promise<HTMLElement> {
+  return screen.findByRole("region", { name: "À vérifier" });
 }
 
 function confirmCalls(calls: readonly ApiCall[]): string[] {
@@ -39,7 +39,7 @@ const CONFIRMED = `POST /events/${MUSEUM_ID}/confirm keepalive`;
 const UNCONFIRMED = `DELETE /events/${MUSEUM_ID}/confirm keepalive`;
 
 async function confirmMuseum(): Promise<void> {
-  const button = await within(reviewBlock()).findByRole("button", {
+  const button = await within(await reviewBlock()).findByRole("button", {
     name: "C'est bon : Sortie au musée",
   });
 
@@ -58,14 +58,16 @@ describe("the block À vérifier", () => {
     givenCalendar([CHILD], [museum(), pool()]);
     await renderAppAt("/");
 
-    const list = await within(reviewBlock()).findByRole("region", { name: "Dates à vérifier" });
+    const list = await within(await reviewBlock()).findByRole("region", {
+      name: "Dates à vérifier",
+    });
     const [line] = within(list).getAllByRole("listitem");
     expect(line?.textContent).toContain("Sortie au musée");
     expect(line?.textContent).toContain("Date lue : jeudi 19 novembre");
     expect(line?.textContent).toContain("Le jour de la semaine écrit ne tombe pas à cette date.");
     expect(line?.textContent).toContain("« Sortie au musée jeudi 18 novembre »");
     expect(line && within(line).getByRole("img", { name: CHILD.label })).toBeDefined();
-    expect(within(reviewBlock()).getByText("dates à vérifier")).toBeDefined();
+    expect(within(await reviewBlock()).getByText("dates à vérifier")).toBeDefined();
   });
 
   it("given a date confirmed on its line, then the line leaves at once and the confirmation is sent right away", async () => {
@@ -75,8 +77,9 @@ describe("the block À vérifier", () => {
 
     await confirmMuseum();
 
+    const block = await reviewBlock();
     await waitFor(() =>
-      expect(within(reviewBlock()).queryByRole("button", { name: /Sortie au musée/ })).toBeNull(),
+      expect(within(block).queryByRole("button", { name: /Sortie au musée/ })).toBeNull(),
     );
     expect(await screen.findByText("Sortie au musée : date confirmée")).toBeDefined();
     await waitFor(() => expect(confirmCalls(stub.calls)).toEqual([CONFIRMED]));
@@ -103,7 +106,9 @@ describe("the block À vérifier", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Annuler" }));
 
     expect(
-      await within(reviewBlock()).findByRole("button", { name: "C'est bon : Sortie au musée" }),
+      await within(await reviewBlock()).findByRole("button", {
+        name: "C'est bon : Sortie au musée",
+      }),
     ).toBeDefined();
     await waitFor(() => expect(confirmCalls(stub.calls)).toEqual([CONFIRMED, UNCONFIRMED]));
     expect(stub.events.find((event) => event.id === MUSEUM_ID)?.status).toBe("needs_review");
@@ -114,7 +119,7 @@ describe("the block À vérifier", () => {
     givenCalendar([CHILD], [museum()]);
     await renderAppAt("/");
 
-    const fix = await within(reviewBlock()).findByRole("link", {
+    const fix = await within(await reviewBlock()).findByRole("link", {
       name: "Corriger : Sortie au musée",
     });
 
@@ -128,7 +133,7 @@ describe("the block À vérifier", () => {
 
     await confirmMuseum();
 
-    const allClear = await within(reviewBlock()).findByText("Tout est vérifié");
+    const allClear = await within(await reviewBlock()).findByText("Tout est vérifié");
     await waitFor(() => expect(document.activeElement).toBe(allClear.parentElement));
   });
 
@@ -138,7 +143,7 @@ describe("the block À vérifier", () => {
     const router = await renderAppAt("/");
 
     await confirmMuseum();
-    await within(reviewBlock()).findByText("Tout est vérifié");
+    await within(await reviewBlock()).findByText("Tout est vérifié");
     expect(screen.getByRole("button", { name: "Annuler" })).toBeDefined();
 
     void router.navigate({ to: "/history" });
@@ -151,10 +156,10 @@ describe("the block À vérifier", () => {
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
-    expect(await within(reviewBlock()).findByText("Tout est vérifié")).toBeDefined();
+    expect(await within(await reviewBlock()).findByText("Tout est vérifié")).toBeDefined();
     expect(
-      within(reviewBlock()).getByText("Une date lue avec un doute arrivera ici."),
+      within(await reviewBlock()).getByText("Une date lue avec un doute arrivera ici."),
     ).toBeDefined();
-    expect(within(reviewBlock()).queryByRole("button")).toBeNull();
+    expect(within(await reviewBlock()).queryByRole("button")).toBeNull();
   });
 });

@@ -113,7 +113,7 @@ describe("Accueil briefs the next school moment", () => {
     expect(within(tomorrow).getByText("Encore 2 échéances à boucler")).toBeDefined();
   });
 
-  it("lists what is due on the page itself, a long day folded behind a button that shows the rest", async () => {
+  it("lists the whole day inside the block, with no button folding part of it", async () => {
     at(THURSDAY_EVENING);
     givenCalendar(
       [CHILD, HUGO],
@@ -127,16 +127,9 @@ describe("Accueil briefs the next school moment", () => {
     const tomorrow = await briefing("Pour demain");
     const lea = await within(tomorrow).findByRole("region", { name: "Léa" });
     expect(within(tomorrow).queryByRole("region", { name: /^Échéances à préparer/ })).toBeNull();
-    expect(within(lea).getAllByRole("link")).toHaveLength(4);
-    expect(within(tomorrow).getByRole("region", { name: "Hugo" })).toBeDefined();
-
-    const more = within(lea).getByRole("button", { name: "Voir les 2 autres" });
-    expect(more.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(more);
-
     expect(within(lea).getAllByRole("link")).toHaveLength(6);
-    expect(more.getAttribute("aria-expanded")).toBe("true");
-    expect(more.textContent).toBe("Voir moins");
+    expect(within(tomorrow).getByRole("region", { name: "Hugo" })).toBeDefined();
+    expect(within(tomorrow).queryByRole("button", { name: /^Voir / })).toBeNull();
   });
 
   it("ticks done at once and rolls back when the server refuses", async () => {
