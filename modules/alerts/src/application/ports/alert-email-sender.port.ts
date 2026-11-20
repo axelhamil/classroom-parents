@@ -1,17 +1,18 @@
 import type { AppError, Result } from "@packages/ddd-kit";
+import type { AlertDeadline } from "./alert-context-reader.port";
 
 export interface AlertEmailContent {
   alertId: string;
   version: number;
   eventTitle: string;
   childLabel: string;
-  deadlineLabel: string;
+  deadline: AlertDeadline;
   eventUrl: string;
 }
 
 export interface AlertGroupEmailContent {
   groupKey: string;
-  items: Pick<AlertEmailContent, "eventTitle" | "childLabel" | "deadlineLabel">[];
+  items: Pick<AlertEmailContent, "eventTitle" | "childLabel" | "deadline">[];
   appUrl: string;
 }
 

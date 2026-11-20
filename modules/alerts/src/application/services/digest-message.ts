@@ -1,16 +1,18 @@
 import type { DigestDeadline } from "../ports/digest-audience.port";
+import type { DigestChildCount, DigestSummary } from "../ports/push-copy.port";
 
-export const DIGEST_TITLE = "Votre semaine";
+export type DigestDeadlines = [DigestDeadline, ...DigestDeadline[]];
 
-const weekday = new Intl.DateTimeFormat("fr-FR", { weekday: "long", timeZone: "UTC" });
-
-interface ChildCount {
-  label: string;
-  count: number;
+export function hasDeadline(deadlines: DigestDeadline[]): deadlines is DigestDeadlines {
+  return deadlines.length > 0;
 }
 
-function countsByChild(deadlines: DigestDeadline[]): ChildCount[] {
-  const counts = new Map<string, ChildCount>();
+function bySoonest(left: DigestDeadline, right: DigestDeadline): number {
+  return left.deadlineAt.getTime() - right.deadlineAt.getTime();
+}
+
+function countsByChild(deadlines: DigestDeadline[]): DigestChildCount[] {
+  const counts = new Map<string, DigestChildCount>();
   for (const { childId, childLabel } of deadlines) {
     const counted = counts.get(childId) ?? { label: childLabel, count: 0 };
     counts.set(childId, { ...counted, count: counted.count + 1 });
@@ -19,22 +21,14 @@ function countsByChild(deadlines: DigestDeadline[]): ChildCount[] {
   return [...counts.values()];
 }
 
-function plural(count: number): string {
-  return count > 1 ? "s" : "";
-}
+export function digestSummaryOf(deadlines: DigestDeadlines, today: string): DigestSummary {
+  const sorted = deadlines.toSorted(bySoonest);
+  const next = sorted[0] ?? deadlines[0];
 
-export function digestSummary(deadlines: DigestDeadline[]): string {
-  const sorted = deadlines.toSorted((a, b) => a.deadlineAt.getTime() - b.deadlineAt.getTime());
-  const next = sorted[0];
-  if (!next) return "";
-
-  const children = countsByChild(sorted);
-  const total = `${sorted.length} échéance${plural(sorted.length)} cette semaine`;
-  const split =
-    children.length === 1
-      ? ` pour ${next.childLabel}.`
-      : ` : ${children.map(({ label, count }) => `${count} pour ${label}`).join(", ")}.`;
-  const day = weekday.format(new Date(`${next.deadlineDate}T00:00:00Z`));
-
-  return `${total}${split} Prochaine : ${next.title} ${day}.`;
+  return {
+    total: deadlines.length,
+    children: countsByChild(sorted),
+    next: { title: next.title, date: next.deadlineDate },
+    today,
+  };
 }

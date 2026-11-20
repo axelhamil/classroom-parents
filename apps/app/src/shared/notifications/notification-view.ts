@@ -1,4 +1,4 @@
-import type { frCatalog } from "@packages/i18n";
+import { deadlineLine, type frCatalog } from "@packages/i18n";
 import {
   AlarmClockIcon,
   CalendarClockIcon,
@@ -44,10 +44,22 @@ function eventTarget(eventId: string): NotificationTarget {
   return { to: "/events/$eventId", params: { eventId } };
 }
 
-function titled(title: string | undefined, key: ItemKey, untitledKey: ItemKey): NotificationCopy {
+interface NamedDeadline {
+  title: string | undefined;
+  child: string | null;
+}
+
+function titled(
+  { title, child }: NamedDeadline,
+  key: ItemKey,
+  untitledKey: ItemKey,
+): NotificationCopy {
   if (title === undefined) return { key: `items.${untitledKey}`, values: {} };
 
-  return { key: `items.${key}`, values: { title } };
+  return {
+    key: `items.${key}`,
+    values: { line: deadlineLine({ child: child ?? undefined, title }) },
+  };
 }
 
 function named(
@@ -61,13 +73,13 @@ function named(
   return { key: `items.${key}`, values: { ...values, child } };
 }
 
-function amended(content: ContentOf<"deadline_amended">, title: string | undefined) {
+function amended(content: ContentOf<"deadline_amended">, deadline: NamedDeadline) {
   const cancelled = content.reason === "cancelled";
 
   return {
     copy: cancelled
-      ? titled(title, "deadlineCancelled", "deadlineCancelledUntitled")
-      : titled(title, "deadlineMoved", "deadlineMovedUntitled"),
+      ? titled(deadline, "deadlineCancelled", "deadlineCancelledUntitled")
+      : titled(deadline, "deadlineMoved", "deadlineMovedUntitled"),
     target: eventTarget(content.eventId),
     icon: cancelled ? CalendarXIcon : CalendarClockIcon,
   };
@@ -88,12 +100,12 @@ export function notificationView(
   { content, event }: Pick<NotificationItem, "content" | "event">,
   child: string | null,
 ): NotificationView {
-  const title = event?.title;
+  const deadline = { title: event?.title, child };
 
   switch (content.kind) {
     case "deadline_reminder":
       return {
-        copy: titled(title, "deadlineReminder", "deadlineReminderUntitled"),
+        copy: titled(deadline, "deadlineReminder", "deadlineReminderUntitled"),
         target: eventTarget(content.eventId),
         icon: AlarmClockIcon,
       };
@@ -128,7 +140,7 @@ export function notificationView(
         icon: CalendarPlusIcon,
       };
     case "deadline_amended":
-      return amended(content, title);
+      return amended(content, deadline);
     case "dates_to_check":
       return datesToCheck(content, child);
   }

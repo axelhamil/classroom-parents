@@ -2,6 +2,7 @@ import { type IInstrumentation, type ILogger, Option, Result } from "@packages/d
 import type { EmailTemplates, IEmailService, TemplateVariables } from "@packages/email/email.port";
 import type { BatchSender } from "@packages/email/email-delivery-worker";
 import { type RenderedEmail, renderTemplate } from "@packages/emails";
+import { datedDeadlineLabel } from "@packages/i18n";
 import type {
   AccessLossEmailContent,
   AlertEmailContent,
@@ -16,7 +17,7 @@ function alertEmail(content: AlertEmailContent) {
   return renderTemplate("alert_reminder", {
     childLabel: content.childLabel,
     eventTitle: content.eventTitle,
-    deadlineLabel: content.deadlineLabel,
+    deadlineLabel: datedDeadlineLabel(content.deadline),
     eventUrl: content.eventUrl,
   });
 }
@@ -57,7 +58,7 @@ export class ResendAlertEmailSender implements IAlertEmailSender {
     return this.instrumentation.startSpan(
       { name: "ResendAlertEmailSender > sendGroup" },
       async () => {
-        const lines = await alertLines(items, { withChild: true });
+        const lines = alertLines(items, { withChild: true, dated: true });
         return this.enqueue(
           "alert_group",
           to,

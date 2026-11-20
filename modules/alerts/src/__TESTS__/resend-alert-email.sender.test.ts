@@ -13,9 +13,11 @@ const content: AlertEmailContent = {
   version: 2,
   eventTitle: "<img src=x onerror=alert(1)> Contrôle",
   childLabel: "Léa",
-  deadlineLabel: "jeudi 19 novembre",
+  deadline: { date: "2026-11-20", time: "08:30", today: "2026-11-19" },
   eventUrl: "https://app.example.com/events/1",
 };
+
+const MONDAY_EIGHT = { date: "2026-11-16", time: "08:00", today: "2026-11-15" };
 
 type BatchAnswer = Awaited<ReturnType<ResendBatchClient["batch"]["send"]>>;
 type ProviderError = Extract<BatchAnswer, { data: null }>["error"];
@@ -84,6 +86,11 @@ describe("ResendAlertEmailSender", () => {
         subject: "Rappel : <img src=x onerror=alert(1)> Contrôle (Léa)",
         html: expect.stringContaining('href="https://app.example.com/events/1"'),
         text: expect.stringContaining("Si vous n'attendiez pas cet e-mail"),
+      }),
+    ]);
+    expect(entries).toEqual([
+      expect.objectContaining({
+        text: expect.stringContaining("Léa a une échéance demain, vendredi 20 novembre, 8 h 30."),
       }),
     ]);
   });
@@ -191,7 +198,7 @@ describe("ResendAlertEmailSender", () => {
 });
 
 describe("grouped email", () => {
-  it("given deadlines of two children, then each line of the email reads like the line of the grouped push", async () => {
+  it("given deadlines of two children, then each line names child and title like the grouped push and keeps the date next to a relative day, the email being read later", async () => {
     const queue = mockPort<IEmailService>();
     queue.sendTemplate.mockResolvedValue(Result.ok());
     const sender = new ResendAlertEmailSender(
@@ -202,8 +209,8 @@ describe("grouped email", () => {
       queue,
     );
     const items = [
-      { eventTitle: "Devoir 1", childLabel: "Léa", deadlineLabel: "lundi 16 novembre, 8 h" },
-      { eventTitle: "Devoir 2", childLabel: "Hugo", deadlineLabel: "lundi 16 novembre, 8 h" },
+      { eventTitle: "Devoir 1", childLabel: "Léa", deadline: MONDAY_EIGHT },
+      { eventTitle: "Devoir 2", childLabel: "Hugo", deadline: MONDAY_EIGHT },
     ];
 
     await sender.sendGroup("parent@example.com", {
@@ -216,6 +223,9 @@ describe("grouped email", () => {
       items.map((item, n) => ({ ...item, alertId: `a${n}`, email: "", eventUrl: "" })),
       { details: true },
     );
-    expect(queue.sendTemplate.mock.calls[0]?.[2].items).toBe(pushed.body);
+    expect(pushed.body).toBe("Léa : Devoir 1, demain, 8 h\nHugo : Devoir 2, demain, 8 h");
+    expect(queue.sendTemplate.mock.calls[0]?.[2].items).toBe(
+      "Léa : Devoir 1, demain, lundi 16 novembre, 8 h\nHugo : Devoir 2, demain, lundi 16 novembre, 8 h",
+    );
   });
 });

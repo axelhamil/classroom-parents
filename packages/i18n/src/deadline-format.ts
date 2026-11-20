@@ -68,8 +68,8 @@ export function withWallTime(day: string, time: string | undefined): string {
 }
 
 /**
- * The one label of a deadline's day as a parent reads it relative to `today` (both `YYYY-MM-DD`
- * wall dates of the school zone): "Aujourd'hui", "Demain", else the weekday and date with the year
+ * The one label of a deadline's day as a parent reads it relative to `today` (`YYYY-MM-DD` wall
+ * dates: the deadline's in the school zone, `today` in the reader's): "Aujourd'hui", "Demain", else the weekday and date with the year
  * only when it differs ("Jeudi 17 janvier", "Mardi 5 janvier 2027"). Capitalized to start a line;
  * a caller lowers it inside a sentence. Every surface that names a deadline's day goes through it,
  * so the same day reads the same everywhere for a same `today`.
@@ -82,18 +82,53 @@ export function relativeDayLabel(date: string, today: string): string {
   return capitalize(wallDateLabel(date, today));
 }
 
-/** When a deadline falls, relative to `today`; see {@link deadlineLine}. */
-interface DeadlineLineWhen {
+/** When a deadline falls (its school wall date and time) and the reader's `today`, all wall values. */
+export interface DeadlineWhen {
   date: string;
   time?: string | undefined;
   today: string;
 }
 
-/** What names a deadline on one line; an empty or missing `child` leaves the title alone. */
+/**
+ * The relative day and time of a deadline as said inside a sentence, lower case: "demain, 8 h 30",
+ * "aujourd'hui", "jeudi 17 janvier". The same words {@link deadlineLine} appends to a line, so a
+ * message sentence and a listed line name the same day alike for a same `today`.
+ */
+export function relativeDeadlineLabel({ date, time, today }: DeadlineWhen): string {
+  return inSentence(withWallTime(relativeDayLabel(date, today), time));
+}
+
+/**
+ * {@link relativeDeadlineLabel} that also keeps the absolute date when the day is relative:
+ * "demain, vendredi 20 novembre, 8 h 30". For a text that may be read hours after it was written
+ * (an email retried later), so a frozen "demain" is still checkable. A day already written as its
+ * date is never written twice: "lundi 23 novembre, 8 h 30".
+ */
+export function datedDeadlineLabel({ date, time, today }: DeadlineWhen): string {
+  const day = relativeDayLabel(date, today);
+  const absolute = wallDateLabel(date, today);
+  const dated = isRelative(date, today)
+    ? fill(copy.relativeWithDate, { day, date: absolute })
+    : day;
+
+  return inSentence(withWallTime(dated, time));
+}
+
+function isRelative(date: string, today: string): boolean {
+  const daysAhead = daysFrom(today, date);
+
+  return daysAhead === 0 || daysAhead === 1;
+}
+
+/**
+ * What names a deadline on one line; an empty or missing `child` leaves the title alone. `dated`
+ * keeps the absolute date next to a relative day, see {@link datedDeadlineLabel}.
+ */
 interface DeadlineLineInput {
   child?: string | undefined;
   title: string;
-  when?: DeadlineLineWhen | undefined;
+  when?: DeadlineWhen | undefined;
+  dated?: boolean | undefined;
 }
 
 /**
@@ -103,11 +138,11 @@ interface DeadlineLineInput {
  * read on later days (a calendar file) omits `when`: a relative word would lie the next day.
  * Markers proper to one surface (a calendar's done mark) stay with that surface.
  */
-export function deadlineLine({ child, title, when }: DeadlineLineInput): string {
+export function deadlineLine({ child, title, when, dated }: DeadlineLineInput): string {
   const line = child ? fill(copy.childTitle, { child, title }) : title;
   if (!when) return line;
 
-  const day = withWallTime(relativeDayLabel(when.date, when.today), when.time);
+  const label = dated ? datedDeadlineLabel(when) : relativeDeadlineLabel(when);
 
-  return fill(copy.lineWithWhen, { line, when: inSentence(day) });
+  return fill(copy.lineWithWhen, { line, when: label });
 }

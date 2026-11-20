@@ -10,8 +10,18 @@ export default {
   discreet: {
     body_one: "{{count}} échéance {{deadline}}",
     body_other: "{{count}} échéances à venir",
-    week_one: "{{count}} échéance cette semaine.",
-    week_other: "{{count}} échéances cette semaine.",
+  },
+  digest: {
+    title: "Votre semaine",
+    discreet_one: "{{count}} échéance cette semaine.",
+    discreet_other: "{{count}} échéances cette semaine.",
+    oneChild_one: "{{count}} échéance cette semaine pour {{childLabel}}.",
+    oneChild_other: "{{count}} échéances cette semaine pour {{childLabel}}.",
+    children_one: "{{count}} échéance cette semaine : {{perChild}}.",
+    children_other: "{{count}} échéances cette semaine : {{perChild}}.",
+    childCount: "{{count}} pour {{childLabel}}",
+    next: "Prochaine : {{line}}.",
+    summary: "{{counts}} {{next}}",
   },
   group: {
     titleChild_one: "{{count}} échéance pour {{childLabel}}",

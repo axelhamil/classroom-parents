@@ -92,7 +92,7 @@ const countingCopy: IPushCopy = {
       pushedAlerts.set(alertId, (pushedAlerts.get(alertId) ?? 0) + 1);
     return i18nCopy.forAlerts(shown, options);
   },
-  forWeek: (count) => i18nCopy.forWeek(count),
+  forDigest: (summary, options) => i18nCopy.forDigest(summary, options),
   forAccessLoss: (childLabel, options) => i18nCopy.forAccessLoss(childLabel, options),
 };
 const silentLogger: ILogger = {
@@ -170,7 +170,7 @@ const contexts: IAlertContextReader = {
         email: `${probe}@example.com`,
         eventTitle: "Contrôle",
         childLabel: "Mia",
-        deadlineLabel: "lundi",
+        deadline: { date: "2030-01-21", today: "2030-01-15" },
         eventUrl: "https://app.example/events/x",
       })),
     ),
@@ -712,7 +712,7 @@ run(async () => {
         title: "",
         body: shown.map(({ alertId }) => alertId).join(","),
       }),
-      forWeek: async (count) => String(count),
+      forDigest: async (summary) => ({ title: "", body: String(summary.total) }),
       forAccessLoss: async (childLabel) => ({ title: "", body: childLabel }),
     },
     deadlines,
@@ -872,7 +872,7 @@ run(async () => {
         );
       return countingCopy.forAlerts(shown, options);
     },
-    forWeek: (count) => countingCopy.forWeek(count),
+    forDigest: (summary, options) => countingCopy.forDigest(summary, options),
     forAccessLoss: (childLabel, options) => countingCopy.forAccessLoss(childLabel, options),
   };
   const outrun = new AlertDispatchService(

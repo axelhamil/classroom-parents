@@ -185,3 +185,15 @@ export function utcToZonedWall(instant: Date, timeZone: string): Result<ZonedWal
     time: `${parts.hour}:${parts.minute}`,
   });
 }
+
+/**
+ * The wall date of `now` for a reader in `timeZone`, the "today" a relative label reads from. An
+ * unknown zone reads as Paris, the product's default, so a stale or foreign zone name never stops
+ * a message; only an invalid instant falls back to its UTC date.
+ */
+export function todayIn(now: Date, timeZone: string): string {
+  const inZone = utcToZonedWall(now, timeZone);
+  const wall = inZone.isSuccess ? inZone : utcToZonedWall(now, PARIS_TIME_ZONE);
+
+  return wall.map(({ date }) => date).unwrapOr(now.toISOString().slice(0, 10));
+}
