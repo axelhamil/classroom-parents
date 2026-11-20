@@ -1,4 +1,5 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
+import type { ZonedWall } from "@packages/ddd-kit/zoned-time";
 import { z } from "zod";
 import { AlertTime, WALL_TIME } from "./alert-time.vo";
 
@@ -31,34 +32,46 @@ export class QuietHours extends ValueObject<QuietHoursValue> {
     return wallTime > start && wallTime < end;
   }
 
-  ringAfter(time: AlertTime): Result<AlertTime> {
-    if (!this.silences(time.value.time)) return Result.ok(time);
-
-    return this.endAfter(time);
+  silencesAt(time: AlertTime, timeZone: string): Result<boolean> {
+    return time.wallIn(timeZone).map((wall) => this.silences(wall.time));
   }
 
-  shift(time: AlertTime, deadlineAt: Date, now: Date): Result<AlertTime> {
-    const { date, time: wall } = time.value;
-    if (!this.silences(wall)) return Result.ok(time);
+  ringAfter(time: AlertTime, timeZone: string): Result<AlertTime> {
+    const wall = time.wallIn(timeZone);
+    if (wall.isFailure) return Result.fail(wall.getError());
+    if (!this.silences(wall.getValue().time)) return Result.ok(time);
 
-    const { start, end } = this.value;
-    const overnight = start > end;
-    const after = this.endAfter(time);
+    return this.endAfter(wall.getValue(), timeZone);
+  }
+
+  shift(time: AlertTime, deadlineAt: Date, now: Date, timeZone: string): Result<AlertTime> {
+    const wall = time.wallIn(timeZone);
+    if (wall.isFailure) return Result.fail(wall.getError());
+    if (!this.silences(wall.getValue().time)) return Result.ok(time);
+
+    const after = this.endAfter(wall.getValue(), timeZone);
     if (after.isFailure) return after;
     if (after.getValue().value.at.getTime() < deadlineAt.getTime()) return after;
 
-    const before = AlertTime.before(date, overnight && wall < end ? 1 : 0, start);
+    const before = this.startBefore(wall.getValue(), timeZone);
     if (before.isFailure) return before;
     if (before.getValue().isAfter(now)) return before;
 
     return Result.ok(time);
   }
 
-  private endAfter({ value: { date, time } }: AlertTime): Result<AlertTime> {
+  private endAfter({ date, time }: ZonedWall, timeZone: string): Result<AlertTime> {
     const { start, end } = this.value;
     const overnight = start > end;
 
-    return AlertTime.before(date, overnight && time > start ? -1 : 0, end);
+    return AlertTime.before(date, overnight && time > start ? -1 : 0, end, timeZone);
+  }
+
+  private startBefore({ date, time }: ZonedWall, timeZone: string): Result<AlertTime> {
+    const { start, end } = this.value;
+    const overnight = start > end;
+
+    return AlertTime.before(date, overnight && time < end ? 1 : 0, start, timeZone);
   }
 
   protected validate(value: QuietHoursValue): Result<QuietHoursValue> {

@@ -7,12 +7,10 @@ import { defineModule } from "inwire";
 import { AccessLossContextQuery } from "../queries/access-loss-context.query";
 import { AlertContextQuery } from "../queries/alert-context.query";
 import { DigestAudienceQuery } from "../queries/digest-audience.query";
-import { parentTimeZoneFor, type TimeZonePreference } from "./bindings";
 
-export const alertQueriesModule = (appOrigin: string, preferences: () => TimeZonePreference) =>
-  defineModule<{ IInstrumentation: IInstrumentation }>()((b) =>
+export const alertQueriesModule = (appOrigin: string) =>
+  defineModule<{ IInstrumentation: IInstrumentation; IParentTimeZone: IParentTimeZone }>()((b) =>
     b
-      .add("IParentTimeZone", (): IParentTimeZone => parentTimeZoneFor(preferences))
       .add(
         "IAlertContextReader",
         (c): IAlertContextReader =>

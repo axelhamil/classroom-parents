@@ -25,6 +25,11 @@ export interface AlertDeadline {
   date: string;
 }
 
+export interface ParentClock {
+  now: Date;
+  timeZone: string;
+}
+
 export interface AlertPlan {
   time: AlertTime;
   origin: AlertOrigin;
@@ -81,10 +86,11 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     return this._props.status.value === "pending";
   }
 
-  follow(plan: AlertPlan, deadline: AlertDeadline, quiet: QuietHours, now: Date): void {
+  follow(plan: AlertPlan, deadline: AlertDeadline, quiet: QuietHours, clock: ParentClock): void {
+    const { now } = clock;
     const before = this.occurrence();
     this._props.origin = plan.origin;
-    if (this._props.status.value === "sent" && !this.rearms(plan.time, deadline, quiet, now)) {
+    if (this._props.status.value === "sent" && !this.rearms(plan.time, deadline, quiet, clock)) {
       this._props.deadlineAt = deadline.at;
       return;
     }
@@ -139,11 +145,17 @@ export class Alert extends Aggregate<AlertProps, AlertId> {
     this._props.version += 1;
   }
 
-  private rearms(time: AlertTime, deadline: AlertDeadline, quiet: QuietHours, now: Date): boolean {
+  private rearms(
+    time: AlertTime,
+    deadline: AlertDeadline,
+    quiet: QuietHours,
+    { now, timeZone }: ParentClock,
+  ): boolean {
     const deadlineMoved = deadline.at.getTime() !== this._props.deadlineAt.getTime();
     const movedAhead = !time.equals(this._props.time) && time.isAfter(now);
+    const silenced = quiet.silencesAt(time, timeZone).unwrapOr(true);
 
-    return deadlineMoved && movedAhead && !quiet.silences(time.value.time);
+    return deadlineMoved && movedAhead && !silenced;
   }
 
   private settleStatus(now: Date, keepOverdue: boolean): void {

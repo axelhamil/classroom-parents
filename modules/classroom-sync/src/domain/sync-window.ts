@@ -1,6 +1,6 @@
 import { Option } from "@packages/ddd-kit";
 import { DAY_MS, isWeekday, shiftDate } from "@packages/ddd-kit/days";
-import { PARIS_TIME_ZONE, utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
+import { utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 
 const MINUTE_MS = 60_000;
 
@@ -19,6 +19,7 @@ const WEEK_DAYS = 7;
 export interface SyncPlan {
   jitterMs: number;
   nextAlertAt: Option<Date>;
+  timeZone: string;
 }
 
 export function windowStart(now: Date): Date {
@@ -30,7 +31,7 @@ export function isWithinWindow(publishedAt: Date, now: Date): boolean {
 }
 
 export function nextSyncAt(now: Date, plan: SyncPlan): Date {
-  const slot = cadenceSlot(now, plan.jitterMs);
+  const slot = cadenceSlot(now, plan);
   const lead = plan.nextAlertAt
     .map((alertAt) => new Date(alertAt.getTime() - ALERT_LEAD_MS))
     .filter((leadAt) => !isServedBy(now, leadAt));
@@ -56,16 +57,16 @@ export function isDayWithinWindow(day: string, now: Date): boolean {
   return day >= firstSyncedDay(now);
 }
 
-function cadenceSlot(now: Date, jitterMs: number): Date {
+function cadenceSlot(now: Date, { jitterMs, timeZone }: SyncPlan): Date {
   const offHours = new Date(now.getTime() + OFF_HOURS_INTERVAL_MS + jitterMs);
-  const wall = utcToZonedWall(now, PARIS_TIME_ZONE);
+  const wall = utcToZonedWall(now, timeZone);
   if (wall.isFailure) return offHours;
 
   const { date, time } = wall.getValue();
   if (isWeekday(date) && time >= SCHOOL_DAY_OPENS && time < SCHOOL_DAY_CLOSES)
     return new Date(now.getTime() + SCHOOL_DAY_INTERVAL_MS + jitterMs);
 
-  return nextOpening(date, time)
+  return nextOpening(date, time, timeZone)
     .map((opening) =>
       isServedBy(now, opening)
         ? new Date(opening.getTime() + SCHOOL_DAY_INTERVAL_MS + jitterMs)
@@ -83,13 +84,13 @@ function spreadBefore(deadline: Date, jitterMs: number, now: Date): Date {
   return spread > now ? spread : deadline;
 }
 
-function nextOpening(date: string, time: string): Option<Date> {
+function nextOpening(date: string, time: string, timeZone: string): Option<Date> {
   const first = isWeekday(date) && time < SCHOOL_DAY_OPENS ? 0 : 1;
   for (let offset = first; offset < first + WEEK_DAYS; offset++) {
     const day = shiftDate(date, offset);
     if (!isWeekday(day)) continue;
 
-    const opening = zonedWallTimeToUtc(day, SCHOOL_DAY_OPENS, PARIS_TIME_ZONE);
+    const opening = zonedWallTimeToUtc(day, SCHOOL_DAY_OPENS, timeZone);
     return opening.isSuccess ? Option.some(opening.getValue()) : Option.none();
   }
 

@@ -2,7 +2,9 @@
  * Proves the Sunday digest against a real Postgres, with FAKE_PROVIDERS standing in for web push.
  * On the Sunday the clocks go back, four instances racing over the same parents send each
  * eligible parent exactly one digest (the unique parent and week key plus FOR UPDATE SKIP LOCKED
- * and the lease), a second pass sends nothing more, nothing is planned before 18:00 Paris, the
+ * and the lease), a second pass sends nothing more, nothing reaches a Paris parent before 18:00 Paris
+ * (the digest is planned once the first zone of the world reaches 18:00, due at the parent's own
+ * 18:00), the
  * audience query leaves out a parent who opted out and one whose only deadlines are to review,
  * done, outside the Monday to Sunday week, on a child being disconnected or hidden behind the
  * coursework of the same work (the agenda's own alertable rule), and deleting the account removes its
@@ -164,11 +166,19 @@ run(async () => {
   ineligible.push(leaving);
 
   await drainAsOneInstance(BEFORE_SIX);
-  const [early] = await db
-    .select({ total: count() })
+  const early = await db
+    .select({ status: alertWeeklyDigest.status, dueAt: alertWeeklyDigest.nextAttemptAt })
     .from(alertWeeklyDigest)
     .where(like(alertWeeklyDigest.userId, `${probe}%`));
-  await step("nothing is planned on Sunday before 18:00 Paris", early?.total === 0, early);
+  await step(
+    "on Sunday before 18:00 Paris nothing is sent, the planned digests wait for 18:00 Paris",
+    eligible.every((userId) => pushesTo(userId) === 0) &&
+      early.every(
+        ({ status, dueAt }) =>
+          status === "pending" && dueAt?.getTime() === paris(SUNDAY, "18:00").getTime(),
+      ),
+    early.length,
+  );
 
   await Promise.all(Array.from({ length: INSTANCES }, () => drainAsOneInstance(EVENING)));
 
@@ -190,9 +200,9 @@ run(async () => {
     .from(alertWeeklyDigest)
     .where(like(alertWeeklyDigest.userId, `${probe}%`));
   await step(
-    "one sent digest row per eligible parent for the week, none for the others",
-    rows.length === ELIGIBLE && rows.every(({ status }) => status === "sent"),
-    rows.length,
+    "one sent digest per eligible parent for the week, none sent to the others",
+    rows.filter(({ status }) => status === "sent").length === ELIGIBLE,
+    rows.map(({ status }) => status),
   );
 
   const [sentEvents] = await db

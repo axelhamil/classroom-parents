@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Option, Result } from "@packages/ddd-kit";
 import { mondayOf, shiftDate } from "@packages/ddd-kit/days";
-import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
+import { PARIS_TIME_ZONE, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork } from "@packages/test/bun/unit-of-work";
-import { MAX_EMAIL_FAILURES } from "../application/config/dispatch-budget";
+import {
+  DISPATCH_BATCH,
+  DISPATCH_LEASE_SECONDS,
+  MAX_EMAIL_FAILURES,
+} from "../application/config/dispatch-budget";
 import type { IAlertEmailSender } from "../application/ports/alert-email-sender.port";
 import type { AlertsError } from "../application/ports/alert-repository.port";
 import type {
@@ -134,56 +138,123 @@ beforeEach(() => {
   );
 });
 
+const inZone = (timeZone: string) => (date: string, time: string) =>
+  zonedWallTimeToUtc(date, time, timeZone).unwrapOr(new Date(Number.NaN));
+
 describe("planning the Sunday digest", () => {
-  it("given Sunday before 18:00 in Paris, then no parent is planned", async () => {
-    await service.runOnce(paris("2026-11-15", "17:59"));
+  it("given a Sunday before 18:00 in every zone of the world, then no parent is planned", async () => {
+    await service.runOnce(new Date("2026-11-15T03:59:00.000Z"));
 
     expect(audience.awaiting).not.toHaveBeenCalled();
     expect(digests.plan).not.toHaveBeenCalled();
   });
 
-  it("given a weekday evening, then no parent is planned", async () => {
-    await service.runOnce(paris("2026-11-16", "18:30"));
+  it("given a Monday once midnight has passed in every zone, then no parent is planned", async () => {
+    await service.runOnce(new Date("2026-11-16T12:00:00.000Z"));
 
     expect(audience.awaiting).not.toHaveBeenCalled();
   });
 
-  it("given Sunday 18:00 in Paris, then the parents awaiting the coming Monday to Sunday week are planned once, expiring when the week starts", async () => {
+  it("given Sunday 18:00 in Paris, then a Paris parent is planned once, due at 18:00 and expiring when the Paris week starts", async () => {
     audience.awaiting.mockResolvedValue(Result.ok([PARENT]));
 
     await service.runOnce(SUNDAY_EVENING);
 
     expect(audience.awaiting).toHaveBeenCalledWith(
-      { weekStart: WEEK, from: MONDAY, to: paris("2026-11-23", "00:00") },
+      {
+        weekStart: WEEK,
+        from: new Date("2026-11-15T10:00:00.000Z"),
+        to: new Date("2026-11-23T12:00:00.000Z"),
+      },
       DIGEST_PLAN_BATCH,
     );
-    expect(digests.plan).toHaveBeenCalledWith([PARENT], WEEK, MONDAY);
+    expect(digests.plan).toHaveBeenCalledWith(
+      [{ userId: PARENT, dueAt: SUNDAY_EVENING, expiresAt: MONDAY }],
+      WEEK,
+    );
+    expect(digests.claimDue).toHaveBeenCalledWith(
+      SUNDAY_EVENING,
+      DISPATCH_BATCH,
+      DISPATCH_LEASE_SECONDS,
+    );
   });
 
-  it("given the Sunday clocks go back, then the week starts at Paris midnight in winter time", async () => {
+  it.each([
+    ["Montreal", "America/Toronto"],
+    ["Casablanca", "Africa/Casablanca"],
+  ])(
+    "given a parent in %s, then the digest is due on Sunday at 18:00 there and expires at Monday midnight there",
+    async (_city, timeZone) => {
+      const local = inZone(timeZone);
+      timeZones.of.mockResolvedValue(timeZone);
+      audience.awaiting.mockResolvedValue(Result.ok([PARENT]));
+
+      await service.runOnce(new Date("2026-11-15T12:00:00.000Z"));
+
+      expect(digests.plan).toHaveBeenCalledWith(
+        [
+          {
+            userId: PARENT,
+            dueAt: local("2026-11-15", "18:00"),
+            expiresAt: local("2026-11-16", "00:00"),
+          },
+        ],
+        WEEK,
+      );
+    },
+  );
+
+  it("given the Sunday clocks go back, then a Paris parent is due at 18:00 winter time and the week starts at Paris midnight", async () => {
+    audience.awaiting.mockResolvedValue(Result.ok([PARENT]));
+
     await service.runOnce(new Date("2026-10-25T17:00:00.000Z"));
 
-    expect(audience.awaiting.mock.calls[0]?.[0]).toEqual({
-      weekStart: "2026-10-26",
-      from: new Date("2026-10-25T23:00:00.000Z"),
-      to: new Date("2026-11-01T23:00:00.000Z"),
-    });
+    expect(digests.plan.mock.calls[0]?.[0]).toEqual([
+      {
+        userId: PARENT,
+        dueAt: new Date("2026-10-25T17:00:00.000Z"),
+        expiresAt: new Date("2026-10-25T23:00:00.000Z"),
+      },
+    ]);
   });
 
-  it("given the Sunday clocks go forward, then 18:00 is read in summer time and the week starts at Paris midnight", async () => {
-    await service.runOnce(new Date("2026-03-29T15:59:00.000Z"));
-    expect(audience.awaiting).not.toHaveBeenCalled();
+  it("given the Sunday clocks go forward, then a Paris parent is due at 18:00 summer time and the week starts at Paris midnight", async () => {
+    audience.awaiting.mockResolvedValue(Result.ok([PARENT]));
 
     await service.runOnce(new Date("2026-03-29T16:00:00.000Z"));
-    expect(audience.awaiting.mock.calls[0]?.[0]).toEqual({
-      weekStart: "2026-03-30",
-      from: new Date("2026-03-29T22:00:00.000Z"),
-      to: new Date("2026-04-05T22:00:00.000Z"),
-    });
+
+    expect(digests.plan.mock.calls[0]?.[0]).toEqual([
+      {
+        userId: PARENT,
+        dueAt: new Date("2026-03-29T16:00:00.000Z"),
+        expiresAt: new Date("2026-03-29T22:00:00.000Z"),
+      },
+    ]);
   });
 });
 
 describe("sending a planned digest", () => {
+  it.each([
+    ["Montreal", "America/Toronto"],
+    ["Casablanca", "Africa/Casablanca"],
+  ])(
+    "given a parent in %s, then the digest reads the parent's Monday to Monday week and counts from the parent's today",
+    async (_city, timeZone) => {
+      const local = inZone(timeZone);
+      timeZones.of.mockResolvedValue(timeZone);
+      givenClaimed({ expiresAt: local("2026-11-16", "00:00") });
+
+      await service.runOnce(local("2026-11-15", "18:00"));
+
+      expect(deadlines.within).toHaveBeenCalledWith(
+        PARENT,
+        local("2026-11-16", "00:00"),
+        local("2026-11-23", "00:00"),
+      );
+      expect(push.send.mock.calls[0]?.[1].body).toContain("Prochaine : Piscine, demain.");
+    },
+  );
+
   it("given deadlines for two children, then one push titled Votre semaine counts them per child and names the next one", async () => {
     givenClaimed();
 

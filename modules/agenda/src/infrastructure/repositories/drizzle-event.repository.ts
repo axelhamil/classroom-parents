@@ -94,9 +94,10 @@ function toDomain(row: EventRow): Result<AgendaEvent, string> {
   const title = EventTitle.create(row.title);
   const description = EventDescription.create(row.description);
   const category = EventCategory.create(row.category);
-  const deadline = EventDeadline.fromComputedParisWallTime(
+  const deadline = EventDeadline.fromComputedWallTime(
     row.deadlineDate,
     row.deadlineTime?.slice(0, 5),
+    row.schoolTimeZone,
   );
   const status = EventStatus.create(row.status);
   const reviewReasons = ReviewReasons.create(row.reviewReasons);
@@ -169,6 +170,7 @@ function mutableColumns(event: AgendaEvent) {
     deadlineDate: deadline.date,
     deadlineTime: deadline.time ?? null,
     deadlineAt: deadline.at,
+    schoolTimeZone: deadline.schoolTimeZone,
     status: event.get("status").value,
     reviewReasons: event.get("reviewReasons").value,
     ...evidenceColumns(event.get("evidence")),

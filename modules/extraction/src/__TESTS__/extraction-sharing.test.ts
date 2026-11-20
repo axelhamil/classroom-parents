@@ -52,6 +52,11 @@ function answer(events: ExtractedCandidate[], injectionSuspected = false): void 
   );
 }
 
+function answerBothReadings(events: ExtractedCandidate[]): void {
+  answer(events);
+  answer(events);
+}
+
 function extract(text: string, announcementId = "announcement-1", userId = "parent-a") {
   return service.extract({
     userId,
@@ -284,7 +289,7 @@ describe("ExtractionService, what the parent has to do", () => {
     "Sortie au zoo le vendredi 27 novembre. Merci de rendre l'autorisation signée et un chèque de 8,50 € avant le lundi 23 novembre. Prévoir un pique-nique.";
 
   it("keeps the sum the announcement writes, read by code in the quoted passage", async () => {
-    answer([
+    answerBothReadings([
       candidate({
         category: "document_due",
         deadlineDate: "2026-11-23",
@@ -338,7 +343,7 @@ describe("ExtractionService, what the parent has to do", () => {
   });
 
   it("drops an action or an object the announcement does not write", async () => {
-    answer([
+    answerBothReadings([
       candidate({
         category: "school_trip",
         deadlineDate: "2026-11-27",

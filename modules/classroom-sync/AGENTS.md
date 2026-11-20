@@ -13,3 +13,8 @@ Reads each linked child's Classroom (courses, announcements, coursework) and han
 1. **Dry run by default, and it spends nothing**: it reads through the extraction cache only (`cacheOnly`), counts a miss as a skipped model call and writes nothing. `--with-model` reads misses with the model (quota spent, cache filled, nothing written); `--apply` reads them and writes. **Why**: a cache keyed on the prompt version misses every result read before the current version, so a careless run would bill each family's whole window.
 2. **It goes through the bound `IAnnouncementExtractor`**, so the AI opposition and the family quotas apply exactly as in a sync; it never touches the ledger nor the sync lease.
 3. **It only enriches, through `IEventIngest.applyReread`** (agenda invariant 5): a deadline is never created, moved nor deleted by a reread. Coursework is not reread: the model never reads it.
+
+## The parent's day
+
+1. **Every day and hour of a sync is the parent's**, read once per sync through `IParentTimeZone`: the 07:00 opening of the cadence, the wall date of a Classroom UTC due date, and the day a paused announcement is compared with. **Why**: a Montreal parent's 26 November ends five hours after Paris's, so a Paris clock rereads too little and opens the day in the middle of the night.
+2. **The dates an announcement writes out come from extraction's `writtenDates`, through `IWrittenDates`**, never from a local list of month names. **Why**: extraction owns the five school languages; a second list here would forget the next language and keep paused announcements asleep. A numeric date gives both its readings, so a US "11/26" still wakes the announcement.

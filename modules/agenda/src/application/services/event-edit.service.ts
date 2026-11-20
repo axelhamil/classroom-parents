@@ -26,6 +26,7 @@ import {
   eventNotFound,
   type IEventRepository,
 } from "../ports/event-repository.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
 import type { IVisibleChildren } from "../ports/visible-children.port";
 import { type AnnouncementReconciler, courseDayOf } from "./announcement-reconciler";
 import { parseCategory, parseDeadline, parseDescription, parseTitle } from "./event-fields";
@@ -51,19 +52,22 @@ export class EventEditService {
     private readonly outbox: IOutboxRepository,
     private readonly presenter: EventPresenter,
     private readonly reconciler: AnnouncementReconciler,
+    private readonly timeZones: IParentTimeZone,
     private readonly instrumentation: IInstrumentation,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
   async add(userId: string, body: NewEventBody): Promise<Result<EventDto, EditError>> {
-    return traced(this.instrumentation, "EventEditService > add", async () =>
-      this.presented(
+    return traced(this.instrumentation, "EventEditService > add", async () => {
+      const timeZone = await this.timeZones.of(userId);
+
+      return this.presented(
         await this.transactions.run(async (): Edited => {
           const visible = await this.children.idsOf(userId);
           if (visible.isFailure) return Result.fail(visible.getError());
           if (!visible.getValue().includes(body.childId)) return Result.fail(childNotFound);
 
-          const fields = this.manualFrom(userId, body);
+          const fields = this.manualFrom(userId, body, timeZone);
           if (fields.isFailure) return Result.fail(fields.getError());
 
           const event = AgendaEvent.addByParent(fields.getValue());
@@ -81,8 +85,8 @@ export class EventEditService {
           });
           return Result.ok(event);
         }),
-      ),
-    );
+      );
+    });
   }
 
   async edit(
@@ -90,14 +94,16 @@ export class EventEditService {
     eventId: string,
     patch: EventPatch,
   ): Promise<Result<EventDto, EditError>> {
-    return traced(this.instrumentation, "EventEditService > edit", async () =>
-      this.presented(
+    return traced(this.instrumentation, "EventEditService > edit", async () => {
+      const timeZone = await this.timeZones.of(userId);
+
+      return this.presented(
         await this.transactions.run(async (): Edited => {
           const found = await this.owned(userId, eventId);
           if (found.isFailure) return Result.fail(found.getError());
           const event = found.getValue();
 
-          const changes = this.changesFrom(event, patch);
+          const changes = this.changesFrom(event, patch, timeZone);
           if (changes.isFailure) return Result.fail(changes.getError());
 
           const fields = event.changedFields(changes.getValue());
@@ -119,8 +125,8 @@ export class EventEditService {
           await this.emitUpdated(event, fields);
           return Result.ok(event);
         }),
-      ),
-    );
+      );
+    });
   }
 
   async confirm(userId: string, eventId: string): Promise<Result<EventDto, EditError>> {
@@ -288,14 +294,18 @@ export class EventEditService {
     return visible.getValue().toResult(eventNotFound);
   }
 
-  private manualFrom(userId: string, body: NewEventBody): Result<ManualEvent, AgendaError> {
+  private manualFrom(
+    userId: string,
+    body: NewEventBody,
+    timeZone: string,
+  ): Result<ManualEvent, AgendaError> {
     const title = parseTitle(body.title);
     if (title.isFailure) return Result.fail(title.getError());
     const description = parseDescription(body.description ?? "");
     if (description.isFailure) return Result.fail(description.getError());
     const category = parseCategory(body.category);
     if (category.isFailure) return Result.fail(category.getError());
-    const deadline = parseDeadline(body.deadlineDate, body.deadlineTime);
+    const deadline = parseDeadline(body.deadlineDate, body.deadlineTime, timeZone);
     if (deadline.isFailure) return Result.fail(deadline.getError());
 
     return Result.ok({
@@ -309,7 +319,11 @@ export class EventEditService {
     });
   }
 
-  private changesFrom(event: AgendaEvent, patch: EventPatch): Result<EventChanges, AgendaError> {
+  private changesFrom(
+    event: AgendaEvent,
+    patch: EventPatch,
+    timeZone: string,
+  ): Result<EventChanges, AgendaError> {
     const changes: EventChanges = {};
     if (patch.title !== undefined) {
       const title = parseTitle(patch.title);
@@ -332,7 +346,7 @@ export class EventEditService {
     const current = event.get("deadline").value;
     const time =
       patch.deadlineTime === CLEAR_TIME ? undefined : (patch.deadlineTime ?? current.time);
-    const deadline = parseDeadline(patch.deadlineDate ?? current.date, time);
+    const deadline = parseDeadline(patch.deadlineDate ?? current.date, time, timeZone);
     if (deadline.isFailure) return Result.fail(deadline.getError());
     changes.deadline = deadline.getValue();
     return Result.ok(changes);

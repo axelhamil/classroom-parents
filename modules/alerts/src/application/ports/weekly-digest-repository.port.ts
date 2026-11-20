@@ -14,14 +14,24 @@ export interface ClaimedDigest {
   failures: number;
 }
 
+export interface PlannedDigest {
+  userId: string;
+  dueAt: Date;
+  expiresAt: Date;
+}
+
 export type DigestSettlement =
   | { status: "sent"; channel: DeliveryChannel; at: Date }
   | { status: "skipped" | "missed" };
 
 export interface IWeeklyDigestRepository {
-  plan(userIds: string[], weekStart: string, expiresAt: Date): Promise<Result<number, AlertsError>>;
+  plan(digests: PlannedDigest[], weekStart: string): Promise<Result<number, AlertsError>>;
 
-  claimDue(limit: number, leaseSeconds: number): Promise<Result<ClaimedDigest[], AlertsError>>;
+  claimDue(
+    now: Date,
+    limit: number,
+    leaseSeconds: number,
+  ): Promise<Result<ClaimedDigest[], AlertsError>>;
 
   settle(lease: DigestLease, settlement: DigestSettlement): Promise<Result<boolean, AlertsError>>;
 

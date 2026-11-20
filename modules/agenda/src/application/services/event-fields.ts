@@ -47,8 +47,12 @@ const invalidRange: AgendaError = {
   message: `Choisissez une période de ${CALENDAR_RANGE_MAX_DAYS} jours au plus, dont la date de début précède la date de fin.`,
 };
 
-export function parseRange(from: string, to: string): Result<CalendarRange, AgendaError> {
-  return CalendarRange.between(from, to).mapError(() => invalidRange);
+export function parseRange(
+  from: string,
+  to: string,
+  timeZone: string,
+): Result<CalendarRange, AgendaError> {
+  return CalendarRange.between(from, to, timeZone).mapError(() => invalidRange);
 }
 
 export function parseTitle(raw: string): Result<EventTitle, AgendaError> {
@@ -72,15 +76,20 @@ export function parseClassroomCategory(raw: string): Result<EventCategory, Agend
   return parseCategory(raw);
 }
 
-export function parseDeadline(date: string, time?: string): Result<EventDeadline, AgendaError> {
-  return EventDeadline.fromParisWallTime(date, time).mapError(() => invalidDeadline);
+export function parseDeadline(
+  date: string,
+  time: string | undefined,
+  timeZone: string,
+): Result<EventDeadline, AgendaError> {
+  return EventDeadline.fromWallTime(date, time, timeZone).mapError(() => invalidDeadline);
 }
 
 export function parseComputedDeadline(
   date: string,
-  time?: string,
+  time: string | undefined,
+  timeZone: string,
 ): Result<EventDeadline, AgendaError> {
-  return EventDeadline.fromComputedParisWallTime(date, time).mapError(() => invalidDeadline);
+  return EventDeadline.fromComputedWallTime(date, time, timeZone).mapError(() => invalidDeadline);
 }
 
 export function parseReviewReasons(raw: string[]): Result<ReviewReasons, string> {

@@ -6,6 +6,7 @@ import {
   Result,
 } from "@packages/ddd-kit";
 import { shiftInstant } from "@packages/ddd-kit/days";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
@@ -27,12 +28,14 @@ import type {
 } from "../application/ports/classroom-client.port";
 import type { ICourseRepository } from "../application/ports/course-repository.port";
 import type { IEventIngest } from "../application/ports/event-ingest.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import type {
   ISeenAnnouncementRepository,
   LedgerEntry,
   SeenAnnouncement,
 } from "../application/ports/seen-announcement-repository.port";
 import type { IUpcomingAlerts } from "../application/ports/upcoming-alerts.port";
+import type { IWrittenDates } from "../application/ports/written-dates.port";
 import { ClassroomReader } from "../application/services/classroom-reader.service";
 import { SyncChildService } from "../application/services/sync-child.service";
 import type { SyncError } from "../application/sync-error";
@@ -96,6 +99,8 @@ export interface SyncHarness {
   state: PortMock<IChildSyncState>;
   ledger: PortMock<ISeenAnnouncementRepository>;
   courses: PortMock<ICourseRepository>;
+  writtenDates: PortMock<IWrittenDates>;
+  timeZones: PortMock<IParentTimeZone>;
   outbox: PortMock<IOutboxRepository>;
   logger: PortMock<ILogger>;
   instrumentation: PortMock<IInstrumentation>;
@@ -116,6 +121,8 @@ export function syncHarness(): SyncHarness {
   const state = mockPort<IChildSyncState>();
   const ledger = mockPort<ISeenAnnouncementRepository>();
   const courses = mockPort<ICourseRepository>();
+  const writtenDates = mockPort<IWrittenDates>();
+  const timeZones = mockPort<IParentTimeZone>();
   const outbox = mockPort<IOutboxRepository>();
   const logger = mockPort<ILogger>();
   const instrumentation = mockInstrumentation();
@@ -150,8 +157,10 @@ export function syncHarness(): SyncHarness {
   courses.recordListed.mockResolvedValue(Result.ok<SyncError>());
   courses.withdrawOutside.mockResolvedValue(Result.ok<SyncError>());
   outbox.enqueue.mockResolvedValue(undefined);
+  writtenDates.in.mockReturnValue([]);
+  timeZones.of.mockResolvedValue(PARIS_TIME_ZONE);
 
-  const reader = new ClassroomReader(client, ledger, instrumentation, async (ms) => {
+  const reader = new ClassroomReader(client, ledger, writtenDates, instrumentation, async (ms) => {
     sleeps.push(ms);
   });
   const service = new SyncChildService(
@@ -163,6 +172,7 @@ export function syncHarness(): SyncHarness {
     state,
     ledger,
     courses,
+    timeZones,
     uow.unitOfWork,
     outbox,
     instrumentation,
@@ -178,6 +188,8 @@ export function syncHarness(): SyncHarness {
     state,
     ledger,
     courses,
+    writtenDates,
+    timeZones,
     outbox,
     logger,
     instrumentation,

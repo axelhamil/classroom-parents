@@ -3,7 +3,8 @@
  * handlers racing on the losses of one child (a redelivered event, a cause switching from a revoked
  * token to a school block) open one warning, four dispatchers racing over the due warnings push each
  * exactly once, a later failed sync opens nothing while the warning stays open, a reconnection
- * closes it and the next loss warns again, a loss at night waits for the end of the quiet hours, a
+ * closes it and the next loss warns again, a loss at night waits for the end of the quiet hours in
+ * the parent's zone (Paris, Montreal), a
  * parent without push gets one queued email even when the warning is dispatched twice, a family
  * never closes another family's warning, a disconnected child takes its warning with it, and the
  * claim query reads alert_access_loss_pending_due_idx among thousands of settled warnings. The
@@ -17,6 +18,7 @@ exitUnlessLocalDatabase("check-access-loss-db", process.env.DATABASE_URL);
 import { childAccount } from "@modules/children/schemas/child.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { type ILogger, Option, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import {
   and,
   authSchema,
@@ -37,6 +39,7 @@ import { DrizzleOutboxRepository } from "@packages/outbox/drizzle-outbox.reposit
 import { alertAccessLoss } from "../schemas/access-loss.schema";
 import { DISPATCH_BATCH, DISPATCH_LEASE_SECONDS } from "../src/application/config/dispatch-budget";
 import type { IAccessLossContextReader } from "../src/application/ports/access-loss-context.port";
+import type { IParentTimeZone } from "../src/application/ports/parent-time-zone.port";
 import type { IPushSender } from "../src/application/ports/push-sender.port";
 import { AccessLossAlertService } from "../src/application/services/access-loss-alert.service";
 import { I18nPushCopy } from "../src/infrastructure/adapters/i18n-push.copy";
@@ -100,10 +103,14 @@ const emailSender = new ResendAlertEmailSender(
   new QueuedEmailService(new DrizzleEmailQueue(instrumentation, silentLogger), instrumentation),
 );
 
+const zoneOf = new Map<string, string>();
+const timeZones: IParentTimeZone = { of: async (userId) => zoneOf.get(userId) ?? PARIS_TIME_ZONE };
+
 function serviceFor(): AccessLossAlertService {
   return new AccessLossAlertService(
     new DrizzleAccessLossRepository(instrumentation, like(alertAccessLoss.userId, `${probe}-%`)),
     new DrizzleReminderSettingsRepository(instrumentation),
+    timeZones,
     stillLostReader,
     subscriptions,
     recordingPush,
@@ -277,6 +284,16 @@ run(async () => {
     "a loss at 23:30 in Paris waits for 07:00, the end of the default quiet hours",
     nightWarning?.dueAt.toISOString() === "2026-11-20T06:00:00.000Z",
     nightWarning?.dueAt,
+  );
+
+  const montreal = await seedFamily("montreal");
+  zoneOf.set(montreal.userId, "America/Toronto");
+  await service.warn(montreal, new Date("2026-11-20T04:30:00Z"));
+  const [montrealWarning] = await warningsOf(montreal);
+  await step(
+    "a loss at 23:30 in Montreal waits for 07:00 in Montreal",
+    montrealWarning?.dueAt.toISOString() === "2026-11-20T12:00:00.000Z",
+    montrealWarning?.dueAt,
   );
 
   const offline = await seedFamily("offline", false);

@@ -7,8 +7,10 @@ import { calendarFeedModule } from "@modules/calendar-feed/calendar-feed.module"
 import type { ChildConnectionService } from "@modules/children/application/services/child-connection.service";
 import type { ChildSyncService } from "@modules/children/application/services/child-sync.service";
 import { childrenModule } from "@modules/children/children.module";
+import type { IWrittenDates } from "@modules/classroom-sync/application/ports/written-dates.port";
 import type { CourseNamesService } from "@modules/classroom-sync/application/services/course-names.service";
 import { classroomSyncModule } from "@modules/classroom-sync/classroom-sync.module";
+import { writtenDates } from "@modules/extraction/application/services/written-dates";
 import { extractionModule } from "@modules/extraction/extraction.module";
 import type { IBackgroundWork, IInstrumentation, IUnitOfWork } from "@packages/ddd-kit";
 import {
@@ -52,6 +54,7 @@ import {
   feedEntriesFor,
   manualSyncGateFor,
   parentChildrenFor,
+  parentTimeZoneFor,
   visibleChildrenFor,
   withExtractionConsent,
 } from "./composition/bindings";
@@ -133,6 +136,7 @@ const agendaPorts = defineModule<{
   b
     .add("IChildOwnership", (c) => childOwnershipFor(c.ChildSyncService))
     .add("IVisibleChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
+    .add("IParentTimeZone", () => parentTimeZoneFor(() => assistant.PreferenceService))
     .add(
       "IAlertPlanner",
       (): IAlertPlanner => alertPlannerFor((): AlertPlanner => di.AlertPlanningService),
@@ -215,7 +219,7 @@ export const di = container()
   .addModule(agendaPorts)
   .addModule(agendaModule)
   .add("IEventDeadlines", (c) => eventDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
-  .addModule(alertQueriesModule(env.APP_ORIGIN, () => assistant.PreferenceService))
+  .addModule(alertQueriesModule(env.APP_ORIGIN))
   .add("IDigestDeadlines", (c) => digestDeadlinesFor(c.EventQueryService, c.ChildConnectionService))
   .addModule(alertsModule)
   .add("IFeedChildren", (c) => visibleChildrenFor(c.ChildConnectionService))
@@ -239,6 +243,7 @@ export const di = container()
   .add("IManualSyncGate", (c) => manualSyncGateFor(c.ChildConnectionService, c.ChildSyncService))
   .add("IParentChildren", (c) => parentChildrenFor(c.ChildConnectionService))
   .add("IUpcomingAlerts", (c) => new UpcomingAlertsQuery(c.IInstrumentation))
+  .add("IWrittenDates", (): IWrittenDates => ({ in: writtenDates }))
   .addModule(classroomSyncModule)
   .add("IChildConnections", (c) => childConnectionsFor(c.ChildConnectionService))
   .add("IUserDataReader", (c): IUserDataReader => new UserDataQuery(c.IInstrumentation))

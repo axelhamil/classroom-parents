@@ -13,6 +13,8 @@ import { ExtractionCategory } from "../../domain/value-objects/extraction-catego
 import type { SanitizedAnnouncement } from "./announcement-sanitizer";
 import type { ReadingFrame } from "./extraction.service";
 import {
+  keepsTheWrittenDate,
+  leavesAWrittenDateOut,
   locateQuote,
   reviewReasonsFor,
   type Span,
@@ -132,10 +134,48 @@ function writtenFields(
   };
 }
 
+const NOT_SETTLED_BY_A_SECOND_READING: readonly ReviewReason[] = [
+  "relative_holiday",
+  "date_ambiguous",
+  "title_missing",
+  "time_unreadable",
+  "injection_suspected",
+];
+
+function secondReadingMayHelp(
+  candidate: ExtractedCandidate,
+  reasons: readonly ReviewReason[],
+  reading: Reading,
+): boolean {
+  const lowBecauseOfHolidays = reasons.includes("relative_holiday");
+  const teachersSlip = keepsTheWrittenDate(candidate, checkContextOf(reading));
+
+  return reasons.some((reason) => {
+    if (NOT_SETTLED_BY_A_SECOND_READING.includes(reason)) return false;
+    if (reason === "low_confidence") return !lowBecauseOfHolidays;
+    if (reason === "weekday_mismatch") return !teachersSlip;
+
+    return true;
+  });
+}
+
+function checkContextOf(reading: Reading) {
+  return {
+    source: reading.source.text,
+    publishedOn: reading.frame.publishedOn,
+    dateOrder: reading.frame.dateOrder,
+  };
+}
+
+interface ReadEvent {
+  event: ExtractedEvent;
+  secondReadingMayHelp: boolean;
+}
+
 function toEvent(
   candidate: ExtractedCandidate,
   reading: Reading,
-): Result<ExtractedEvent, ExtractionError> {
+): Result<ReadEvent, ExtractionError> {
   const category = ExtractionCategory.create(candidate.category);
   if (category.isFailure)
     return Result.fail({
@@ -146,29 +186,37 @@ function toEvent(
   const { modelTitle, title, description } = writtenFields(candidate, category.getValue(), reading);
   const time = normalizedTime(candidate.deadlineTime);
   const reviewReasons = [
-    ...reviewReasonsFor(candidate, {
-      source: reading.source.text,
-      publishedOn: reading.frame.publishedOn,
-      dateOrder: reading.frame.dateOrder,
-    }),
+    ...reviewReasonsFor(candidate, checkContextOf(reading)),
     ...fieldReasons(modelTitle, time.isFailure, reading.suspected),
   ];
   const deadlineTime = time.unwrapOr(Option.none());
   const evidence = evidenceOf(candidate.evidenceQuote, reading);
 
   return Result.ok({
-    title,
-    description,
-    category: category.getValue().value,
-    deadlineDate: candidate.deadlineDate,
-    ...(deadlineTime.isSome() ? { deadlineTime: deadlineTime.unwrap() } : {}),
-    confidence: cappedConfidence(candidate.confidence, reviewReasons.includes("relative_holiday")),
-    needsReview: reviewReasons.length > 0,
-    reviewReasons,
-    ...(evidence.isSome() ? { evidence: evidence.unwrap() } : {}),
-    parentActions: parentActionsFrom(candidate.parentActions, trustedQuotes(reading)),
-    toBring: itemsToBringFrom(candidate.toBring, trustedQuotes(reading)),
+    secondReadingMayHelp: secondReadingMayHelp(candidate, reviewReasons, reading),
+    event: {
+      title,
+      description,
+      category: category.getValue().value,
+      deadlineDate: candidate.deadlineDate,
+      ...(deadlineTime.isSome() ? { deadlineTime: deadlineTime.unwrap() } : {}),
+      confidence: cappedConfidence(
+        candidate.confidence,
+        reviewReasons.includes("relative_holiday"),
+      ),
+      needsReview: reviewReasons.length > 0,
+      reviewReasons,
+      ...(evidence.isSome() ? { evidence: evidence.unwrap() } : {}),
+      parentActions: parentActionsFrom(candidate.parentActions, trustedQuotes(reading)),
+      toBring: itemsToBringFrom(candidate.toBring, trustedQuotes(reading)),
+    },
   });
+}
+
+/** A checked answer, and whether a stronger model could settle what the checks doubt. */
+export interface CheckedAnswer {
+  result: ExtractionResult;
+  secondReadingMayHelp: boolean;
 }
 
 /**
@@ -177,11 +225,22 @@ function toEvent(
  * dropped, and the rest sent to review under its category label when the announcement looks
  * like an injection, to the heuristic or to the model itself.
  */
+function leftADateOut(output: ExtractionOutput, reading: Reading): boolean {
+  if (reading.suspected) return false;
+
+  const readDates = [
+    ...output.events.map((event) => event.deadlineDate),
+    ...output.amends.flatMap((amendment) => amendment.referenceDate ?? []),
+  ];
+
+  return leavesAWrittenDateOut(reading.source.text, readDates, reading.frame.dateOrder);
+}
+
 export function readOutput(
   output: ExtractionOutput,
   source: SanitizedAnnouncement,
   frame: ReadingFrame,
-): Result<ExtractionResult, ExtractionError> {
+): Result<CheckedAnswer, ExtractionError> {
   const suspects = suspectedInjections(source.text);
   const reading: Reading = {
     source,
@@ -190,13 +249,20 @@ export function readOutput(
     suspected: output.injectionSuspected || suspects.length > 0,
   };
 
-  const events: ExtractedEvent[] = [];
+  const read: ReadEvent[] = [];
   for (const candidate of output.events.filter((event) => !readFromSuspect(event, reading))) {
     const event = toEvent(candidate, reading);
     if (event.isFailure) return Result.fail(event.getError());
 
-    events.push(event.getValue());
+    read.push(event.getValue());
   }
 
-  return Result.ok({ events, amendments: output.amends.flatMap(toAmendment) });
+  return Result.ok({
+    result: {
+      events: read.map(({ event }) => event),
+      amendments: output.amends.flatMap(toAmendment),
+    },
+    secondReadingMayHelp:
+      read.some((item) => item.secondReadingMayHelp) || leftADateOut(output, reading),
+  });
 }
