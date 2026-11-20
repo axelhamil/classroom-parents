@@ -1,6 +1,8 @@
 import { createECDH, randomBytes, randomUUID } from "node:crypto";
+import { shiftDate } from "@packages/ddd-kit/days";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
+import { lateWindow } from "../src/shared/agenda/windows";
 import { expect, test } from "./csp";
 import { JOURNEY_API_URL, JOURNEY_CONTROL_URL } from "./journey.config";
 import { TOUR_SELECTOR } from "./tour";
@@ -31,6 +33,9 @@ const Event = z.object({
   source: z.string(),
 });
 const EventPage = z.object({ items: z.array(Event) });
+const CalendarDeadlines = z.object({
+  items: z.array(z.object({ deadlineDate: z.string(), done: z.boolean() })),
+});
 const Child = z.object({ id: z.string(), label: z.string(), googleEmail: z.string() });
 const Reminders = z.object({
   reminders: z.array(
@@ -53,6 +58,10 @@ const Push = z.object({
 
 function parisDate(at: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(at);
+}
+
+function lateLabel(count: number): string {
+  return count === 0 ? "En retard" : `En retard, ${count} échéance${count > 1 ? "s" : ""}`;
 }
 
 function monthIndex(date: string): number {
@@ -312,19 +321,21 @@ test("a parent links two children, follows their deadlines and alerts, then eras
     await page.goto("/?tab=history");
     await expect(page.getByText(editedTitle)).toBeVisible();
 
+    // The home first paints the agenda restored from the offline cache: the count to wait for is the server's.
+    const today = parisDate(Date.now());
+    const lateFrom = shiftDate(today, -lateWindow.days);
+    const lateRange = `from=${lateFrom}&to=${shiftDate(today, -1)}`;
+    const { items } = await body(page, `/events/calendar?${lateRange}`, CalendarDeadlines);
+    const before = items.filter((event) => !event.done).length;
     await page.goto("/");
     await expect(page.getByRole("tablist", { name: "Vue des échéances" })).toBeVisible();
     const late = page.getByRole("region", { name: /^En retard/ });
-    await expect(late).toHaveAccessibleName(/^En retard, \d+ échéances?$/);
-    const before = Number((await late.getAttribute("aria-label"))?.match(/\d+/)?.[0]);
+    await expect(late).toHaveAccessibleName(lateLabel(before));
     await expect(late.getByRole("link", { name: editedTitle })).toBeVisible();
     await expect(page.getByText(editedTitle)).toHaveCount(1);
 
     await late.getByRole("checkbox", { name: `Marquer comme fait : ${editedTitle}` }).click();
-    const after = before - 1;
-    await expect(late).toHaveAccessibleName(
-      after === 0 ? "En retard" : `En retard, ${after} échéance${after > 1 ? "s" : ""}`,
-    );
+    await expect(late).toHaveAccessibleName(lateLabel(before - 1));
     await expect(late.getByRole("link", { name: editedTitle })).toHaveCount(0);
   });
 

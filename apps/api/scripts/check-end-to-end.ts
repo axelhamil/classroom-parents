@@ -211,6 +211,7 @@ const { step, run } = stepRunner("check-end-to-end", async () => {
 });
 
 run(async () => {
+  const beforeAnySync = Date.now();
   const family = await seedDemoFamily(parentEmail, probe);
   const call = client(await sessionCookie(family.userId));
   const now = Date.now();
@@ -343,10 +344,12 @@ run(async () => {
   if (!due) throw new Error("no pending alert to dispatch");
   await db
     .update(alert)
-    .set({ dueAt: new Date(Date.now() - 60_000) })
+    .set({ dueAt: new Date(beforeAnySync - 60_000) })
     .where(eq(alert.id, due.id));
-  const firstRun = await di.AlertDispatchService.runOnce(new Date());
-  const secondRun = await di.AlertDispatchService.runOnce(new Date());
+  // Dispatched before any sync ran: a late alert a sync planned for its next real minute is never due yet.
+  const dispatchAt = new Date(beforeAnySync);
+  const firstRun = await di.AlertDispatchService.runOnce(dispatchAt);
+  const secondRun = await di.AlertDispatchService.runOnce(dispatchAt);
   const topic = due.eventId.replaceAll("-", "");
   const [dispatched] = await db
     .select({ status: alert.status })
@@ -437,7 +440,10 @@ run(async () => {
 
   const childrenChanged = nextMessage(family.userId, "children.changed");
   fakes.blockSchool("hugo");
+  // Stopped for the tick: a handler still draining the backlog requests manual syncs that lock the children, which the tick would skip.
+  await di.OutboxDispatcher.stop();
   const blockedSync = await syncDue(new Date(now + 3 * HOUR_MS));
+  await di.OutboxDispatcher.start(eventHandlers());
   const afterBlock = await childrenOf(call);
   await step(
     "a school block turns the child to blocked_by_school, the other child stays connected",
