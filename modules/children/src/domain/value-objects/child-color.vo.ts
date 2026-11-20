@@ -1,13 +1,13 @@
 import { Result, ValueObject } from "@packages/ddd-kit";
 import { z } from "zod";
 
-export const CHILD_COLORS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+export const CHILD_COLORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 
 export type ChildColorValue = (typeof CHILD_COLORS)[number];
 
 export const childColorSchema = z.literal(CHILD_COLORS);
 
-const INVALID_HUE = "a child color is one of the hues 1 to 8";
+const INVALID_HUE = "a child color is one of the hues 1 to 16";
 
 export class ChildColor extends ValueObject<ChildColorValue> {
   static fromHue(hue: number): Result<ChildColor> {

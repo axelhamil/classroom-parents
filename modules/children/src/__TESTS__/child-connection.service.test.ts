@@ -147,8 +147,19 @@ describe("register", () => {
     expect(repo.create.mock.calls[0]?.[0]?.get("color").value).toBe(4);
   });
 
+  it("given no color and eight siblings on the first hues, then the ninth child gets hue 9", async () => {
+    const siblings = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+    repo.listForUser.mockResolvedValue(
+      ok(siblings.map((color, index) => child({ linkedAccountId: `sibling-${index}`, color }))),
+    );
+
+    const result = await connection.register(PARENT, { linkedAccountId: LINKED });
+
+    expect(result.getValue().color).toBe(9);
+  });
+
   it("given no color and every hue taken, then the hues cycle from the least used", async () => {
-    const siblings = [1, 2, 3, 4, 5, 6, 7, 8, 1] as const;
+    const siblings = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1] as const;
     repo.listForUser.mockResolvedValue(
       ok(siblings.map((color, index) => child({ linkedAccountId: `sibling-${index}`, color }))),
     );
@@ -460,18 +471,28 @@ describe("edit", () => {
     const result = await connection.edit(PARENT, owned.id.value, { label: "Lili", color: 2 });
 
     expect(result.getValue()).toMatchObject({ label: "Lili", color: 2 });
-    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(repo.save).toHaveBeenCalledWith(owned);
     expect(enqueuedEvents(outbox).map((event) => event.eventType)).toEqual([
       EventTypes.CHILD_RENAMED,
       EventTypes.CHILD_COLOR_CHANGED,
     ]);
   });
 
-  it("given a hue outside the 8 colors, then CHILD_COLOR_INVALID and nothing is saved", async () => {
+  it("given the last of the 16 hues, then the color is saved", async () => {
     const owned = child({ color: 1 });
     repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
 
-    const result = await connection.edit(PARENT, owned.id.value, { color: 9 });
+    const result = await connection.edit(PARENT, owned.id.value, { color: 16 });
+
+    expect(result.getValue()).toMatchObject({ color: 16 });
+    expect(repo.save).toHaveBeenCalledWith(owned);
+  });
+
+  it("given a hue outside the 16 colors, then CHILD_COLOR_INVALID and nothing is saved", async () => {
+    const owned = child({ color: 1 });
+    repo.findOwned.mockResolvedValue(ok(Option.some(owned)));
+
+    const result = await connection.edit(PARENT, owned.id.value, { color: 17 });
 
     expect(result.getError().code).toBe("CHILD_COLOR_INVALID");
     expect(repo.save).not.toHaveBeenCalled();

@@ -1,10 +1,9 @@
 import { cva } from "class-variance-authority";
 
+import { type ChildTone, childHueFill } from "../../libs/child-hue-classes";
 import { initialsOf } from "../../libs/initials";
 import { cn } from "../../libs/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
-
-export type ChildTone = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 const childAvatarVariants = cva("ring-offset-background", {
   variants: {
@@ -17,6 +16,14 @@ const childAvatarVariants = cva("ring-offset-background", {
       6: "ring-child-6",
       7: "ring-child-7",
       8: "ring-child-8",
+      9: "ring-child-9",
+      10: "ring-child-10",
+      11: "ring-child-11",
+      12: "ring-child-12",
+      13: "ring-child-13",
+      14: "ring-child-14",
+      15: "ring-child-15",
+      16: "ring-child-16",
     },
     size: {
       xs: "size-5 ring-1",
@@ -30,16 +37,7 @@ const childAvatarVariants = cva("ring-offset-background", {
 
 const childInitialsVariants = cva("font-semibold text-child-foreground", {
   variants: {
-    tone: {
-      1: "bg-child-1",
-      2: "bg-child-2",
-      3: "bg-child-3",
-      4: "bg-child-4",
-      5: "bg-child-5",
-      6: "bg-child-6",
-      7: "bg-child-7",
-      8: "bg-child-8",
-    },
+    tone: childHueFill,
     size: {
       xs: "text-2xs",
       sm: "text-xs",

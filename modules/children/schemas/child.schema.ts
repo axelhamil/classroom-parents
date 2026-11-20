@@ -45,6 +45,6 @@ export const childAccount = pgTable(
     index("child_account_disconnecting_idx")
       .on(table.nextSyncAt)
       .where(sql`${table.status} = 'disconnecting'`),
-    check("child_account_color_hue", sql`${table.color} BETWEEN 1 AND 8`),
+    check("child_account_color_hue", sql`${table.color} BETWEEN 1 AND 16`),
   ],
 );

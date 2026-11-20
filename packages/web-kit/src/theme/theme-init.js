@@ -1,9 +1,17 @@
 (() => {
   const BACKGROUNDS = {
     paper: ["#f5f5f1", "#13161d"],
-    slate: ["#ecf1f4", "#151e1e"],
-    sage: ["#eef5ee", "#131a15"],
-    ink: ["#f5f4f8", "#16151f"],
+    slate: ["#dde5ef", "#111c1b"],
+    contrast: ["#ffffff", "#000000"],
+    ocean: ["#d9f5ff", "#041525"],
+    forest: ["#e0f6db", "#08180e"],
+    coral: ["#ffe4d8", "#20120e"],
+    mustard: ["#fbedb8", "#1b1508"],
+    rose: ["#ffe9ec", "#1e1216"],
+    mint: ["#dbfcec", "#091a15"],
+    sand: ["#fbe7ce", "#1c140c"],
+    night: ["#e6e9ff", "#090c21"],
+    abyss: ["#cbfcfb", "#001419"],
   };
 
   const read = (key) => {

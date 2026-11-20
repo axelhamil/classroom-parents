@@ -67,10 +67,10 @@ describe("theme-init script", () => {
   });
 
   it("sets the stored palette before paint and falls back to paper on an unknown one", () => {
-    const chosen = runThemeInit({ palette: "sage" }, false);
+    const chosen = runThemeInit({ palette: "forest" }, false);
     const unknown = runThemeInit({ palette: "toString" }, false);
 
-    expect(chosen.setRootAttribute).toHaveBeenCalledWith("data-palette", "sage");
+    expect(chosen.setRootAttribute).toHaveBeenCalledWith("data-palette", "forest");
     expect(unknown.setRootAttribute).toHaveBeenCalledWith("data-palette", "paper");
   });
 

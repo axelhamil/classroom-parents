@@ -44,6 +44,7 @@ function TonightBlock({ family, childId, clock, title, rows }: HomeBlockProps) {
       title={title}
       icon={BackpackIcon}
       note={query.isSuccess && tonightNote(plan, day, t)}
+      hero
     >
       {plan.toPrepare.length > 0 && (
         <BriefingGroups>

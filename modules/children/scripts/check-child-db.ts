@@ -275,8 +275,8 @@ run(async () => {
   );
   await step(
     "A recolors its own child, the row keeps the hue",
-    (await service.edit(a, aChild, { color: 6 })).isSuccess &&
-      (await childRow(aChild))?.color === 6,
+    (await service.edit(a, aChild, { color: 16 })).isSuccess &&
+      (await childRow(aChild))?.color === 16,
   );
   await step(
     "A linked child shows its initial until the parent picks the Google photo, and the row keeps that choice",

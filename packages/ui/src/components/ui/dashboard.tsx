@@ -95,7 +95,7 @@ function DashboardTileContent({ className, ...props }: React.ComponentProps<"div
 }
 
 const dashboardPanelVariants = cva(
-  "group/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card p-4 text-card-foreground shadow-rest",
+  "group/panel relative flex min-w-0 flex-1 rounded-2xl border bg-card [--focus-surface:var(--color-card)] p-4 text-card-foreground shadow-rest",
   {
     variants: {
       shape: {
@@ -107,8 +107,12 @@ const dashboardPanelVariants = cva(
         natural:
           "max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none",
       },
+      tone: {
+        default: "",
+        hero: "border-primary/30 bg-primary-container [--focus-surface:var(--color-primary-container)] text-foreground",
+      },
     },
-    defaultVariants: { shape: "box", fit: "card" },
+    defaultVariants: { shape: "box", fit: "card", tone: "default" },
   },
 );
 
@@ -121,14 +125,15 @@ interface DashboardPanelProps
  * title. `line` draws it as one row (title, a short sentence, an action),
  * centred in the size its tile keeps: an empty block reads calm at its size. `natural` is for a block made of cards of its own (the
  * week): a phone shows it at full width on the page, without a card around
- * the cards.
+ * the cards. `hero` tints the block with the action: only the block that
+ * answers "what is next" wears it, so the palette signs the home once.
  */
-function DashboardPanel({ className, shape, fit, ...props }: DashboardPanelProps) {
+function DashboardPanel({ className, shape, fit, tone, ...props }: DashboardPanelProps) {
   return (
     <section
       data-slot="dashboard-panel"
       data-shape={shape ?? "box"}
-      className={cn(dashboardPanelVariants({ shape, fit }), className)}
+      className={cn(dashboardPanelVariants({ shape, fit, tone }), className)}
       {...props}
     />
   );
@@ -139,7 +144,7 @@ function DashboardPanelHeader({ className, ...props }: React.ComponentProps<"hea
     <header
       data-slot="dashboard-panel-header"
       className={cn(
-        "flex min-w-0 items-center gap-2 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground",
+        "flex min-w-0 items-center gap-2 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-primary",
         className,
       )}
       {...props}
