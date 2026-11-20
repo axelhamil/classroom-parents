@@ -3,14 +3,15 @@ import { todayAt } from "./events-fixtures";
 
 export interface GateOptions {
   /**
-   * Pins what every page's school clock reads: the gate's school day at 9:00 (a spec may still set
-   * its own instant), Paris as the parent's zone and no school zone, so no holiday. Those two reads
-   * run on every page, so leaving them to the live API also spends the seeded parent's rate limit.
+   * Pins what every page of the shell reads: the gate's school day at 9:00 (a spec may still set
+   * its own instant), Paris as the parent's zone, no school zone so no holiday, and no unread
+   * notification. Those reads run on every page, so leaving them to the live API also spends the
+   * seeded parent's rate limit; a spec that routes one of them itself wins over this default.
    */
-  pinSchoolClock: boolean;
+  pinShell: boolean;
 }
 
-const CLOCK_READS: Record<string, unknown> = {
+const SHELL_READS: Record<string, unknown> = {
   "/assistant/preferences": {
     locale: null,
     timeZone: null,
@@ -18,18 +19,19 @@ const CLOCK_READS: Record<string, unknown> = {
     extractionEnabled: true,
   },
   "/school-calendar": { zone: null, holidays: [], bankHolidays: [] },
+  "/notifications/unread-count": { count: 0 },
 };
 
-export const test = base.extend<GateOptions & { cspViolations: string[]; schoolClock: undefined }>({
-  pinSchoolClock: [true, { option: true }],
-  schoolClock: [
-    async ({ context, pinSchoolClock }, use) => {
-      if (pinSchoolClock) {
+export const test = base.extend<GateOptions & { cspViolations: string[]; pinnedShell: undefined }>({
+  pinShell: [true, { option: true }],
+  pinnedShell: [
+    async ({ context, pinShell }, use) => {
+      if (pinShell) {
         await context.clock.setFixedTime(todayAt("09:00"));
         await context.route(
-          (url) => url.pathname in CLOCK_READS,
+          (url) => url.pathname in SHELL_READS,
           (route) => {
-            const json = CLOCK_READS[new URL(route.request().url()).pathname];
+            const json = SHELL_READS[new URL(route.request().url()).pathname];
             const isApiRead = route.request().resourceType() === "fetch" && json !== undefined;
 
             return isApiRead ? route.fulfill({ json }) : route.fallback();
