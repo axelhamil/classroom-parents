@@ -4,6 +4,12 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { HourglassIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  agendaCoursesView,
+  agendaDaysView,
+  filterAgenda,
+  periodSummaryView,
+} from "../../../../shared/agenda/calendar-days";
 import { useSchoolClock } from "../../../../shared/agenda/school-clock-context";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import {
@@ -90,8 +96,12 @@ export function CalendarBoard({
   const [subscribing, setSubscribing] = useState(false);
   const shareDays = useShareDays(family, now);
   const loaded = query.data ?? [];
-  const shown = childId ? loaded.filter((event) => event.childId === childId) : loaded;
+  const filter = { childId, courseId: place.courseId ?? null };
+  const shown = filterAgenda(loaded, filter);
   const days = daysOf(period, shown);
+  const visibleDays = period.days.filter((date) => periodHolds(view, anchor, date));
+  const summary = periodSummaryView(agendaDaysView(visibleDays, loaded, clock, filter));
+  const courses = agendaCoursesView(filterAgenda(loaded, { childId, courseId: null }));
 
   const select = (date: string) => onPlaceChange({ date: date === today ? undefined : date });
 
@@ -138,6 +148,11 @@ export function CalendarBoard({
           anchor={anchor}
           period={period}
           todayInView={periodHolds(view, anchor, today)}
+          summary={summary}
+          settled={query.isSuccess && !query.isPlaceholderData}
+          courses={courses}
+          courseId={filter.courseId}
+          onCourseChange={(courseId) => onPlaceChange({ courseId: courseId ?? undefined })}
           onStep={step}
           onToday={() => turnTo(today)}
           onAdd={() => setAdding(anchor)}
