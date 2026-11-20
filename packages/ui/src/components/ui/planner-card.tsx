@@ -5,8 +5,10 @@ import type * as React from "react";
 import { CHILD_TONES, childHueEdge } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 
+const PAPERS: ("paper" | "urgent" | "overdue")[] = ["paper", "urgent", "overdue"];
+
 const plannerCardVariants = cva(
-  "@container/planner-card flex w-full min-w-0 items-start gap-3 rounded-inner p-block outline-none hover:bg-accent focus-visible:ring focus-visible:ring-ring",
+  "@container/planner-card flex w-full min-w-0 items-start gap-3 rounded-inner border p-block outline-none hover:bg-accent focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       muted: {
@@ -34,13 +36,19 @@ const plannerCardVariants = cva(
       surface: {
         tint: "",
         paper: "",
+        urgent: "",
+        overdue: "",
       },
     },
-    compoundVariants: CHILD_TONES.map((hue) => ({
-      surface: "paper" as const,
-      hue,
-      className: `bg-surface-container hover:bg-accent ${childHueEdge[hue]}`,
-    })),
+    compoundVariants: [
+      ...CHILD_TONES.map((hue) => ({
+        surface: PAPERS,
+        hue,
+        className: `bg-surface-container hover:bg-accent ${childHueEdge[hue]}`,
+      })),
+      { surface: "urgent" as const, className: "bg-paper-urgent" },
+      { surface: "overdue" as const, className: "bg-paper-overdue" },
+    ],
     defaultVariants: { muted: false, surface: "tint" },
   },
 );

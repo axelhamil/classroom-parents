@@ -10,10 +10,18 @@ export function childHue(children: readonly ChildDto[], childId: string): ChildH
   return HUES.find((hue) => hue === color) ?? 1;
 }
 
-export type DeadlineSurface = "tint" | "paper";
+export type DeadlineSurface = "tint" | "paper" | "urgent" | "overdue";
 
-export function deadlineSurface(children: readonly ChildDto[]): DeadlineSurface {
-  return children.length > 1 ? "tint" : "paper";
+type DeadlineState = "open" | "urgent" | "overdue" | "done";
+
+export function deadlineSurface(
+  children: readonly ChildDto[],
+  state: DeadlineState = "open",
+): DeadlineSurface {
+  if (children.length > 1) return "tint";
+  if (state === "urgent" || state === "overdue") return state;
+
+  return "paper";
 }
 
 export function childLabelOf(children: readonly ChildDto[], childId: string): string {

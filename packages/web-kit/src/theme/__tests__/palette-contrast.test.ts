@@ -35,6 +35,9 @@ const AGENDA_PAPERS = [
   "primary at 6% over card",
 ] as const;
 
+// The paper of a one child family's deadline due soon or late: its badge's colour mixed into the paper, read from the tokens.
+const STATE_PAPERS = ["paper-urgent", "paper-overdue"] as const;
+
 const TEXT = 4.5;
 const GRAPHIC = 3;
 // The old amber edge read 1.57:1 in light and 9.76:1 in dark: one shouts while the other vanishes. Capping it keeps them alike.
@@ -126,6 +129,12 @@ function previewTokens(palette: Palette, pagePalette: Palette, mode: ResolvedThe
 }
 
 function linearRgb(color: string): LinearRgb {
+  const mix = color.match(/^color-mix\(in srgb, (oklch\([^)]*\)) (\d+)%, (oklch\([^)]*\))\)$/);
+  if (mix) {
+    const [, top = "", amount = "", base = ""] = mix;
+    return composite(linearRgb(top), Number(amount) / 100, linearRgb(base));
+  }
+
   const match = color.match(/^oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)$/);
   if (!match) throw new Error(`not a measurable oklch colour: ${color}`);
 
@@ -284,14 +293,13 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
     // A field inside a block: the block is filled, not bordered, so the field edge carries the control alone.
     ["input", "surface-container", GRAPHIC],
     ["ring", "surface-container", GRAPHIC],
-    // Urgency is a 2 px edge and nothing else: it must read on every paper an entry can sit on.
+    // Today's column head and a date tab draw urgency as a 2 px edge, on the papers they sit on.
     ["warning-edge", "card", GRAPHIC],
     ["warning-edge", "background", GRAPHIC],
     ["warning-edge", "surface-container", GRAPHIC],
     ...CHILDREN.flatMap((child): Pair[] => [
       ["input", `child-${child}-container`, GRAPHIC],
       ["ring", `child-${child}-container`, GRAPHIC],
-      ["warning-edge", `child-${child}-container`, GRAPHIC],
       ["destructive", `child-${child}-container`, GRAPHIC],
     ]),
     // The double focus ring: the ring against the gap, the gap against a control filled with the action or the alert red.
@@ -316,6 +324,14 @@ function criticalPairs(mode: ResolvedTheme): Pair[] {
     ...AGENDA_PAPERS.flatMap((paper): Pair[] => [
       ["foreground", paper, TEXT],
       ["muted-foreground", paper, TEXT],
+    ]),
+    // A deadline due soon or late keeps every word, its category and its checkbox legible on its tinted paper.
+    ...STATE_PAPERS.flatMap((paper): Pair[] => [
+      ["foreground", paper, TEXT],
+      ["muted-foreground", paper, TEXT],
+      ...CATEGORIES.map((category): Pair => [`category-${category}`, paper, TEXT]),
+      ["input", paper, GRAPHIC],
+      ["ring", paper, GRAPHIC],
     ]),
     // The hero block and the active navigation item sit on the action-tinted surface.
     ...["foreground", "muted-foreground", "primary", "destructive"].map(

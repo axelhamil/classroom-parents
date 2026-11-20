@@ -6,16 +6,11 @@ import { childHueContainer } from "../../libs/child-hue-classes";
 import { cn } from "../../libs/utils";
 
 const plannerStickerVariants = cva(
-  "flex w-full min-w-0 flex-col gap-1.5 rounded-inner border-2 border-transparent p-block text-small text-foreground outline-none hover:shadow-raised focus-visible:ring focus-visible:ring-ring",
+  "flex w-full min-w-0 flex-col gap-1.5 rounded-inner border p-block text-small text-foreground outline-none hover:shadow-raised focus-visible:ring focus-visible:ring-ring",
   {
     variants: {
       hue: childHueContainer,
-      urgent: {
-        true: "border-warning-edge",
-        false: "",
-      },
     },
-    defaultVariants: { urgent: false },
   },
 );
 
@@ -25,18 +20,12 @@ interface PlannerStickerProps
   asChild?: boolean;
 }
 
-function PlannerSticker({
-  className,
-  hue,
-  urgent,
-  asChild = false,
-  ...props
-}: PlannerStickerProps) {
+function PlannerSticker({ className, hue, asChild = false, ...props }: PlannerStickerProps) {
   const Comp = asChild ? Slot.Root : "div";
 
   return (
     <Comp
-      className={cn(plannerStickerVariants({ hue, urgent }), className)}
+      className={cn(plannerStickerVariants({ hue }), className)}
       {...props}
       data-slot="planner-sticker"
     />

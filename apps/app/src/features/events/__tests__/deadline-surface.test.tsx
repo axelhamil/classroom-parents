@@ -10,8 +10,8 @@ const THURSDAY_MORNING = "2026-11-12T09:00:00.000Z";
 
 const DOCUMENTS = [{ id: "documents", w: 4, h: 1, hidden: false }];
 
-function permission(childId: string) {
-  return deadline(1, "2026-11-16", "Autorisation de sortie", { category: "document_due", childId });
+function permission(childId: string, date = "2026-11-16") {
+  return deadline(1, date, "Autorisation de sortie", { category: "document_due", childId });
 }
 
 async function cardSurface(): Promise<string | null> {
@@ -33,6 +33,14 @@ describe("a deadline card of the home wears its child's color only when it tells
     await renderAppAt("/");
 
     expect(await cardSurface()).toBe("paper");
+  });
+
+  it("given one child and a deadline due today, then its paper breathes the badge's amber, never a contour", async () => {
+    at(THURSDAY_MORNING);
+    givenCalendar([CHILD], [permission(CHILD.id, "2026-11-12")], { homeLayout: DOCUMENTS });
+    await renderAppAt("/");
+
+    expect(await cardSurface()).toBe("urgent");
   });
 
   it("given two children, then the card takes its child's tint back", async () => {

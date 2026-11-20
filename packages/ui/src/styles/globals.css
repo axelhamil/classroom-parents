@@ -32,6 +32,9 @@
   --warning: oklch(0.85 0.14 80);
   --warning-foreground: oklch(0.3 0.07 55);
   --highlight: oklch(0.93 0.07 88);
+  /* The paper of a one child family's deadline due soon or late, a breath of its badge's colour. Lighter than surface-container, so every word, category and checkbox edge on it holds AA on every palette (palette-contrast.test.ts). */
+  --paper-urgent: color-mix(in srgb, var(--warning) 25%, var(--card));
+  --paper-overdue: color-mix(in srgb, var(--destructive) 6%, var(--card));
   --highlight-foreground: oklch(0.28 0.06 55);
   --success: oklch(0.5 0.12 150);
   --success-foreground: oklch(1 0 0);
@@ -84,7 +87,7 @@
   --icon-md: 1rem;
   --icon-lg: 1.25rem;
   --icon-stroke: 1.75;
-  /* The urgency edge, the same in both themes: 3.10 to 4.28:1 in light and 3.01 to 4.90:1 in dark on every palette surface and child container, at most 4.5:1 on any card. */
+  /* The urgency edge of today's column and of a date tab, the same in both themes: 3.10 to 4.28:1 in light and 3.01 to 4.90:1 in dark on every palette surface, at most 4.5:1 on any card. A deadline card never wears it: its urgency is its badge and its paper. */
   --warning-edge: oklch(0.585 0.12 75);
   --stripe-width: 0.1875rem;
   /*
@@ -264,6 +267,9 @@
   --destructive-foreground: oklch(0.22 0.05 25);
   --warning: oklch(0.83 0.13 80);
   --warning-foreground: oklch(0.26 0.06 55);
+  /* On dark paper a light amber or red would lift the card towards its light ink, so the tint is a dark amber or red; 25% is the most the checkbox edge allows. */
+  --paper-urgent: color-mix(in srgb, var(--highlight) 25%, var(--surface-container));
+  --paper-overdue: color-mix(in srgb, var(--destructive-foreground) 50%, var(--surface-container));
   --warning-edge: oklch(0.585 0.12 75);
   --highlight: oklch(0.44 0.08 75);
   --highlight-foreground: oklch(0.96 0.02 88);
@@ -1005,6 +1011,8 @@
   --color-surface-weekend: color-mix(in oklch, var(--surface-container) 55%, var(--card));
   /* Today's column of the planner: a breath of ink on the card, opaque so its sticky date hides what scrolls under it. */
   --color-today-column: color-mix(in oklch, var(--primary) 6%, var(--card));
+  --color-paper-urgent: var(--paper-urgent);
+  --color-paper-overdue: var(--paper-overdue);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-container: var(--primary-container);
