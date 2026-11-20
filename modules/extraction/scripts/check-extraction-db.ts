@@ -2,7 +2,9 @@
  * Proves against a real Postgres what the shared extraction cache promises: a result stored by
  * one family's sync is served to another family only when that family's sync read the very
  * same text (the same post, or the same text posted elsewhere the same day); a family holding
- * an edited text, or nothing but an id or a hash, gets nothing and pays its own call. The table
+ * an edited text, or nothing but an id or a hash, gets nothing and pays its own call; a family
+ * reading in another language, or whose school writes dates in the other order, pays its own call
+ * and shares it with the families like it. The table
  * names no family, refuses free text where the hash belongs, and a hit renews its retention.
  */
 
@@ -19,6 +21,7 @@ import type { LlmError } from "@packages/llm/contract/llm-error";
 import { extractionResult } from "../schemas/extraction-result.schema";
 import { ExtractionService } from "../src/application/services/extraction.service";
 import type { ExtractionOutput } from "../src/application/services/extraction-output.schema";
+import type { Reader } from "../src/domain/reader";
 import { DrizzleExtractionCache } from "../src/infrastructure/repositories/drizzle-extraction-cache";
 
 const probe = `check-extraction-db-${crypto.randomUUID()}`;
@@ -26,6 +29,9 @@ const PUBLISHED_AT = new Date("2030-01-14T08:00:00.000Z");
 const TEXT = `Évaluation de maths jeudi 17 janvier. ${probe}`;
 const EDITED = `Évaluation de maths vendredi 18 janvier. ${probe}`;
 const { instrumentation } = spanRecorder();
+const FRENCH_READER: Reader = { locale: "fr", timeZone: "Europe/Paris", country: "FR" };
+const PORTUGUESE_READER: Reader = { locale: "pt", timeZone: "Europe/Paris", country: "FR" };
+const AMERICAN_READER: Reader = { locale: "fr", timeZone: "Europe/Paris", country: "US" };
 
 const calls: string[] = [];
 const model: ILanguageModel = {
@@ -69,6 +75,7 @@ async function syncOf(
   announcementId: string,
   text: string,
   publishedAt = PUBLISHED_AT,
+  reader = FRENCH_READER,
 ) {
   const before = calls.length;
   const result = await service.extract({
@@ -76,6 +83,7 @@ async function syncOf(
     announcementId: `${probe}-${announcementId}`,
     text,
     publishedAt,
+    reader,
     childNames: [`Enfant${family}`],
   });
 
@@ -142,6 +150,21 @@ run(async () => {
     !otherCourse.called && otherCourse.result.isSuccess,
   );
 
+  const portuguese = await syncOf("e", "post", TEXT, PUBLISHED_AT, PORTUGUESE_READER);
+  const secondPortuguese = await syncOf("f", "post", TEXT, PUBLISHED_AT, PORTUGUESE_READER);
+  await step(
+    "a family reading in another language pays its own call, then shares it with that language",
+    portuguese.called && !secondPortuguese.called && secondPortuguese.result.isSuccess,
+    { portuguese, secondPortuguese },
+  );
+
+  const american = await syncOf("g", "post", TEXT, PUBLISHED_AT, AMERICAN_READER);
+  await step(
+    "a family whose school writes the month first is not served the day-first reading",
+    american.called && american.result.isSuccess,
+    american,
+  );
+
   const edited = await syncOf("d", "post", EDITED);
   await step(
     "a family whose sync read an edited text of that post is not served the first reading",
@@ -154,7 +177,9 @@ run(async () => {
     text: createHash("sha256").update(TEXT).digest("hex"),
     publishedOn: "2030-01-14",
     timeZone: "Europe/Paris",
-    promptVersion: "extraction-3",
+    outputLocale: "fr",
+    dateOrder: "day-month",
+    promptVersion: "extraction-4",
   });
   await step(
     "holding the post id or its hash, without the text, reads nothing",

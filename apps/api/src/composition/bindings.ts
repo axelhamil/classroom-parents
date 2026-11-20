@@ -26,7 +26,10 @@ import type { IManualSyncGate } from "@modules/classroom-sync/application/ports/
 import type { IParentChildren } from "@modules/classroom-sync/application/ports/parent-children.port";
 import type { CourseNamesService } from "@modules/classroom-sync/application/services/course-names.service";
 import type { SyncError } from "@modules/classroom-sync/application/sync-error";
-import type { ExtractionService } from "@modules/extraction/application/services/extraction.service";
+import type {
+  ExtractInput,
+  ExtractionService,
+} from "@modules/extraction/application/services/extraction.service";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
 import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { frCatalog } from "@packages/i18n";
@@ -177,34 +180,61 @@ export interface ExtractionConsent {
   extractionEnabled(userId: string): Promise<Result<boolean, AppError>>;
 }
 
+type Reader = ExtractInput["reader"];
+
+export interface ParentReading {
+  locale: Reader["locale"] | null;
+  timeZone: string | null;
+  country: string | null;
+  extractionEnabled: boolean;
+}
+
+export interface ReadingPreferences {
+  preferences(userId: string): Promise<Result<ParentReading, AppError>>;
+}
+
+/**
+ * Who reads the extraction: the language, zone and country the parent chose. A family that chose
+ * nothing reads the app as it ships, in French, in Paris, with French dates; a family that chose
+ * a zone but no country has no date order, so a date like 11/12 goes to review.
+ */
+export function readerOf(choice: ParentReading): Reader {
+  return {
+    locale: choice.locale ?? "fr",
+    timeZone: choice.timeZone ?? PARIS_TIME_ZONE,
+    country: choice.country ?? (choice.timeZone === null ? "FR" : null),
+  };
+}
+
 export function announcementExtractorFor(
   extraction: Pick<ExtractionService, "extract">,
-  preferences: () => ExtractionConsent,
+  preferences: () => ReadingPreferences,
 ): IAnnouncementExtractor {
-  return withExtractionConsent(
-    {
-      extract: async (request) => {
-        const extracted = await extraction.extract(request);
+  return {
+    extract: async (request) => {
+      const read = await preferences().preferences(request.userId);
+      if (read.isFailure) return Result.fail(read.getError());
+      if (!read.getValue().extractionEnabled) return Result.fail(READING_PAUSED);
 
-        return extracted.map(({ events, amendments }) => ({
-          deadlines: events.map((event) => ({
-            title: event.title,
-            description: event.description,
-            category: event.category,
-            deadlineDate: event.deadlineDate,
-            ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
-            needsReview: event.needsReview,
-            reviewReasons: event.reviewReasons,
-            ...(event.evidence === undefined ? {} : { evidence: event.evidence }),
-            parentActions: event.parentActions,
-            toBring: event.toBring,
-          })),
-          amendments,
-        }));
-      },
+      const extracted = await extraction.extract({ ...request, reader: readerOf(read.getValue()) });
+
+      return extracted.map(({ events, amendments }) => ({
+        deadlines: events.map((event) => ({
+          title: event.title,
+          description: event.description,
+          category: event.category,
+          deadlineDate: event.deadlineDate,
+          ...(event.deadlineTime === undefined ? {} : { deadlineTime: event.deadlineTime }),
+          needsReview: event.needsReview,
+          reviewReasons: event.reviewReasons,
+          ...(event.evidence === undefined ? {} : { evidence: event.evidence }),
+          parentActions: event.parentActions,
+          toBring: event.toBring,
+        })),
+        amendments,
+      }));
     },
-    preferences,
-  );
+  };
 }
 
 export function withExtractionConsent(

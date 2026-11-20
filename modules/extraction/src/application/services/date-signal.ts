@@ -1,34 +1,4 @@
-import { withoutMarks } from "./french-calendar";
-
-const SCHOOL_LOCALES = ["fr", "en", "es", "pt", "ar", "ar-MA", "ar-DZ"] as const;
-const A_SUNDAY = Date.UTC(2026, 10, 1);
-const DAY_MS = 86_400_000;
-
-function folded(text: string): string {
-  return withoutMarks(text.normalize("NFKC").toLowerCase());
-}
-
-function namesFrom(locale: string, option: "weekday" | "month", dates: readonly Date[]): string[] {
-  const format = new Intl.DateTimeFormat(locale, { [option]: "long", timeZone: "UTC" });
-
-  return dates.map((date) => format.format(date));
-}
-
-function shortestWrittenForm(name: string): string {
-  const [head = name] = folded(name).split("-");
-
-  return head.startsWith("ال") ? head.slice(2) : head;
-}
-
-function calendarNames(): string[] {
-  const week = Array.from({ length: 7 }, (_, day) => new Date(A_SUNDAY + day * DAY_MS));
-  const year = Array.from({ length: 12 }, (_, month) => new Date(Date.UTC(2026, month, 15)));
-
-  return SCHOOL_LOCALES.flatMap((locale) => [
-    ...namesFrom(locale, "weekday", week),
-    ...namesFrom(locale, "month", year),
-  ]).map(shortestWrittenForm);
-}
+import { FULL_CALENDAR_NAMES, foldedCalendarText as folded } from "./calendar-words";
 
 const WHOLE_WORDS = [
   ...["demain", "jour", "mois", "soir", "tomorrow", "today", "tonight", "next", "week"],
@@ -53,18 +23,18 @@ function alternation(words: readonly string[]): string {
   return [...new Set(words.map(folded))].join("|");
 }
 
-const CALENDAR_NAMES = calendarNames();
-
 const LATIN_SIGNAL = new RegExp(
   [
-    `(?<![\\p{L}\\p{N}])(?:${alternation([...CALENDAR_NAMES.filter((name) => LATIN.test(name)), ...WHOLE_WORDS])})s?(?![\\p{L}\\p{N}])`,
+    `(?<![\\p{L}\\p{N}])(?:${alternation([...FULL_CALENDAR_NAMES.filter((name) => LATIN.test(name)), ...WHOLE_WORDS])})s?(?![\\p{L}\\p{N}])`,
     `(?<![\\p{L}\\p{N}])(?:${alternation(WORD_STARTS)})`,
   ].join("|"),
   "u",
 );
 
 const OTHER_SCRIPT_SIGNALS = [
-  ...new Set([...CALENDAR_NAMES.filter((name) => !LATIN.test(name)), ...ARABIC_WORDS].map(folded)),
+  ...new Set(
+    [...FULL_CALENDAR_NAMES.filter((name) => !LATIN.test(name)), ...ARABIC_WORDS].map(folded),
+  ),
 ];
 
 const ANY_DIGIT = /\p{Nd}/u;

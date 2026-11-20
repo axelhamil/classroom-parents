@@ -29,6 +29,51 @@
     },
     "inventedItems": {
       "max": 0
+    },
+    "reasonsFlagged": {
+      "min": 1
+    },
+    "wrongScriptTitles": {
+      "max": 0
+    },
+    "familyMonthUsd": {
+      "max": 0.02
+    },
+    "precision_fr": {
+      "min": 0.94
+    },
+    "recall_fr": {
+      "min": 0.94
+    },
+    "precision_ar": {
+      "min": 0.94
+    },
+    "recall_ar": {
+      "min": 0.94
+    },
+    "precision_pt": {
+      "min": 0.94
+    },
+    "recall_pt": {
+      "min": 0.94
+    },
+    "precision_en": {
+      "min": 0.94
+    },
+    "recall_en": {
+      "min": 0.94
+    },
+    "precision_es": {
+      "min": 0.94
+    },
+    "recall_es": {
+      "min": 0.94
+    },
+    "precision_mixed": {
+      "min": 0.94
+    },
+    "recall_mixed": {
+      "min": 0.94
     }
   },
   "announcement_extraction_adversarial": {

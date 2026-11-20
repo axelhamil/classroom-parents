@@ -1,5 +1,5 @@
+import { withoutMarks } from "./calendar-words";
 import type { Span } from "./extraction-checks";
-import { withoutMarks } from "./french-calendar";
 
 const CONFUSABLES: Record<string, string> = {
   а: "a",
@@ -46,12 +46,20 @@ const INJECTION_MARKERS = [
   String.raw`\b(?:you are now|tu es (?:maintenant|desormais)|ahora eres|agora voce e)\b`,
   String.raw`\bnote (?:to|for) the (?:assistant|ai|model)\b|\bnote (?:a|pour) l'(?:assistant|ia)\b`,
   String.raw`\b(?:recopie|copie|ecris|mets|insere|copy|write|put|include|copia|escribe|pon|escreva|coloque)\w*\b.{0,60}\b(?:la description|le titre|the description|the title|la descripcion|el titulo|a descricao|o titulo|json)\b`,
+  String.raw`\b(?:ajout|add|anad|agreg|adicion|acrescent|inclu)\w*\b.{0,60}\b(?:dans|in|into|en|no|na)\s+(?:(?:le|la|the|el|o|a)\s+)?(?:titre|title|titulo|description|descripcion|descricao)\b`,
+  String.raw`\b(?:chang|modifi|cambi|alter|mud)\w*\b.{0,20}\b(?:every|all|toutes|todas|todos)\b.{0,12}\b(?:dates?|fechas|datas)\b`,
+  String.raw`(?<=(?:^|[.!?])\s*)(?:assistant|asistente|assistente)\s*[,:]`,
   String.raw`<\s*/?\s*(?:system|assistant|context|instructions?|data-[\w-]*)\s*>`,
   String.raw`"(?:events|amends)"\s*:`,
   String.raw`\[code\]`,
 ];
 
-const ARABIC_MARKERS = ["تجاهل", "انس التعليمات", "التعليمات السابقة", "تعليمات جديدة"];
+const ARABIC_MARKERS = [
+  ...["تجاهل", "انس التعليمات", "التعليمات السابقة", "تعليمات جديدة", "تعليمات النظام"],
+  ...["ايها المساعد", "نسخ التعليمات", "انسخ التعليمات", "التعليمات ديالك"],
+  ...["غير كل التواريخ", "غير جميع التواريخ", "زيد فالعنوان", "حط فالعنوان", "فالوصف"],
+  ...["اكتب في العنوان", "ضع في العنوان", "اضف في العنوان", "اكتب في الوصف"],
+];
 
 const INJECTION = new RegExp(INJECTION_MARKERS.join("|"), "giu");
 

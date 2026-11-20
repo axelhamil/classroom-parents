@@ -65,12 +65,20 @@ function contentHashOf(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+const UNKNOWN_ORDER = "unknown";
+
+function storedDateOrder(key: ExtractionCacheKey): string {
+  return key.dateOrder ?? UNKNOWN_ORDER;
+}
+
 function sameText(key: ExtractionCacheKey) {
   return and(
     eq(extractionResult.contentHash, contentHashOf(key.text)),
     eq(extractionResult.publishedOn, key.publishedOn),
     eq(extractionResult.timeZone, key.timeZone),
     eq(extractionResult.promptVersion, key.promptVersion),
+    eq(extractionResult.outputLocale, key.outputLocale),
+    eq(extractionResult.dateOrder, storedDateOrder(key)),
   );
 }
 
@@ -132,6 +140,8 @@ export class DrizzleExtractionCache implements IExtractionCache {
             contentHash: contentHashOf(key.text),
             publishedOn: key.publishedOn,
             timeZone: key.timeZone,
+            outputLocale: key.outputLocale,
+            dateOrder: storedDateOrder(key),
             promptVersion: key.promptVersion,
             result,
           })

@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import { Result } from "@packages/ddd-kit";
-import { ACTION_CURRENCIES, PARENT_ACTION_KINDS } from "@packages/events/agenda-contract";
+import {
+  ACTION_CURRENCIES,
+  PARENT_ACTION_KINDS,
+  REVIEW_REASONS,
+} from "@packages/events/agenda-contract";
 import type { ILanguageModel, ModelTier } from "@packages/llm/contract/language-model.port";
 import { llmError } from "@packages/llm/contract/llm-error";
 import {
@@ -15,12 +19,14 @@ import {
 } from "@packages/llm/eval/harness";
 import { z } from "zod";
 import { sanitizeAnnouncement } from "../src/application/services/announcement-sanitizer";
+import { withoutMarks } from "../src/application/services/calendar-words";
 import { mayHoldADeadline } from "../src/application/services/date-signal";
 import { ExtractionService } from "../src/application/services/extraction.service";
-import { withoutMarks } from "../src/application/services/french-calendar";
 import { AMENDMENT_KINDS, type ExtractedEvent } from "../src/domain/extracted-event";
+import { READER_LOCALES } from "../src/domain/reader";
 import { extractionCategorySchema } from "../src/domain/value-objects/extraction-category.vo";
 import { DATASET_ANNOUNCEMENTS } from "./classroom-dataset";
+import { MULTILINGUAL_CASES } from "./multilingual-dataset";
 import { NO_SHARED_CACHE } from "./no-shared-cache";
 import {
   DATASET_PREPARATION,
@@ -32,12 +38,25 @@ const SUITE = "announcement_extraction";
 const EVAL_USER_ID = "eval";
 const CONCURRENCY = 4;
 
+const LANGUAGES = ["fr", "ar", "pt", "en", "es", "mixed"] as const;
+
 const caseSchema = z.object({
   id: z.string(),
+  language: z.enum(LANGUAGES).default("fr"),
   publishedAt: z.iso.datetime({ offset: true }),
+  timeZone: z.string().default("Europe/Paris"),
+  country: z.string().nullable().default("FR"),
+  outputLocale: z.enum(READER_LOCALES).default("fr"),
   text: z.string(),
   childName: z.string().optional(),
-  expected: z.array(z.object({ category: extractionCategorySchema, deadlineDate: z.iso.date() })),
+  expected: z.array(
+    z.object({
+      category: extractionCategorySchema,
+      deadlineDate: z.iso.date(),
+      alsoAccepted: z.iso.date().optional(),
+    }),
+  ),
+  expectedReasons: z.array(z.enum(REVIEW_REASONS)).default([]),
   expectedAmends: z
     .array(z.object({ kind: z.enum(AMENDMENT_KINDS), referenceDate: z.iso.date().optional() }))
     .default([]),
@@ -58,7 +77,8 @@ const caseSchema = z.object({
 type EvalCase = z.infer<typeof caseSchema>;
 
 interface CaseOutcome {
-  expected: string[];
+  language: EvalCase["language"];
+  expected: string[][];
   predicted: string[];
   review: number;
   expectedAmends: string[];
@@ -66,6 +86,9 @@ interface CaseOutcome {
   failed: boolean;
   sent: boolean;
   preparation: PreparationOutcome;
+  reasonsExpected: number;
+  reasonsFound: number;
+  wrongScriptTitles: number;
 }
 
 interface PreparationOutcome {
@@ -103,12 +126,20 @@ function defaultCases(): EvalCase[] {
       preparation: DATASET_PREPARATION[item.id],
     })),
     ...PREPARATION_CASES,
+    ...MULTILINGUAL_CASES,
   ].map((item) => caseSchema.parse(item));
+}
+
+function selectedLanguages(cases: EvalCase[]): EvalCase[] {
+  const wanted = process.env.EVAL_LANGUAGES?.split(",");
+  if (wanted === undefined) return cases;
+
+  return cases.filter((evalCase) => wanted.includes(evalCase.language));
 }
 
 function loadCases(): EvalCase[] {
   const path = process.env.EVAL_SET;
-  if (path === undefined) return defaultCases();
+  if (path === undefined) return selectedLanguages(defaultCases());
 
   return readFileSync(path, "utf8")
     .split("\n")
@@ -116,16 +147,35 @@ function loadCases(): EvalCase[] {
     .map((line) => caseSchema.parse(JSON.parse(line)));
 }
 
-function matches(expected: readonly string[], predicted: readonly string[]): number {
+function matches(expected: readonly string[][], predicted: readonly string[]): number {
   const remaining = [...expected];
 
   return predicted.filter((key) => {
-    const index = remaining.indexOf(key);
+    const index = remaining.findIndex((accepted) => accepted.includes(key));
     if (index === -1) return false;
 
     remaining.splice(index, 1);
     return true;
   }).length;
+}
+
+const ARABIC_LETTER = /\p{Script=Arabic}/u;
+
+function wrongScriptTitles(events: readonly ExtractedEvent[], locale: EvalCase["outputLocale"]) {
+  return events.filter(({ title }) => ARABIC_LETTER.test(title) !== (locale === "ar")).length;
+}
+
+function expectedKeys(evalCase: EvalCase): string[][] {
+  return evalCase.expected.map(({ category, deadlineDate, alsoAccepted }) => [
+    `${category} ${deadlineDate}`,
+    ...(alsoAccepted === undefined ? [] : [`${category} ${alsoAccepted}`]),
+  ]);
+}
+
+function reasonsFoundIn(events: readonly ExtractedEvent[], evalCase: EvalCase): number {
+  return evalCase.expectedReasons.filter((reason) =>
+    events.some((event) => event.reviewReasons.includes(reason)),
+  ).length;
 }
 
 const amendKey = (amend: { kind: string; referenceDate?: string }) =>
@@ -145,13 +195,16 @@ const NO_PREPARATION: PreparationOutcome = {
 };
 
 function preparationOutcome(
-  text: string,
+  evalCase: EvalCase,
   events: readonly ExtractedEvent[],
   expected: ExpectedPreparation | undefined,
 ): PreparationOutcome {
   const actions = events.flatMap((event) => event.parentActions);
   const items = events.flatMap((event) => event.toBring).map(({ item }) => folded(item));
-  const inventedItems = items.filter((item) => !folded(text).includes(item)).length;
+  const writtenInTheParentsLanguage = evalCase.language === evalCase.outputLocale;
+  const inventedItems = writtenInTheParentsLanguage
+    ? items.filter((item) => !folded(evalCase.text).includes(item)).length
+    : 0;
   if (expected === undefined) return { ...NO_PREPARATION, inventedItems };
 
   const amounts = expected.actions.flatMap(({ amountCents }) => amountCents ?? []);
@@ -184,21 +237,33 @@ async function runCase(service: ExtractionService, evalCase: EvalCase): Promise<
     announcementId: evalCase.id,
     text: evalCase.text,
     publishedAt: new Date(evalCase.publishedAt),
-    childNames: evalCase.childName === undefined ? [] : [evalCase.childName],
+    reader: {
+      locale: evalCase.outputLocale,
+      timeZone: evalCase.timeZone,
+      country: evalCase.country,
+    },
+    childNames,
   });
-  const expected = evalCase.expected.map((event) => `${event.category} ${event.deadlineDate}`);
+  const expected = expectedKeys(evalCase);
   const expectedAmends = evalCase.expectedAmends.map(amendKey);
+  const outcome = {
+    language: evalCase.language,
+    expected,
+    expectedAmends,
+    sent,
+    reasonsExpected: evalCase.expectedReasons.length,
+  };
   if (result.isFailure) {
     console.log(`  ${evalCase.id}: ${result.getError().code}`);
     return {
-      expected,
+      ...outcome,
       predicted: [],
       review: 0,
-      expectedAmends,
       predictedAmends: [],
       failed: true,
-      sent,
-      preparation: preparationOutcome(evalCase.text, [], evalCase.preparation),
+      preparation: preparationOutcome(evalCase, [], evalCase.preparation),
+      reasonsFound: 0,
+      wrongScriptTitles: 0,
     };
   }
 
@@ -208,14 +273,14 @@ async function runCase(service: ExtractionService, evalCase: EvalCase): Promise<
     console.log(`  ${evalCase.id}: expected [${expected}] got [${predicted}]`);
 
   return {
-    expected,
+    ...outcome,
     predicted,
     review: events.filter((event) => event.needsReview).length,
-    expectedAmends,
     predictedAmends: amendments.map(amendKey),
     failed: false,
-    sent,
-    preparation: preparationOutcome(evalCase.text, events, evalCase.preparation),
+    preparation: preparationOutcome(evalCase, events, evalCase.preparation),
+    reasonsFound: reasonsFoundIn(events, evalCase),
+    wrongScriptTitles: wrongScriptTitles(events, evalCase.outputLocale),
   };
 }
 
@@ -225,6 +290,7 @@ function scoresOf(outcomes: readonly CaseOutcome[], log: RecordingCallLog): Scor
   const correct = sum((o) => matches(o.expected, o.predicted));
   const predicted = sum((o) => o.predicted.length);
   const amendsExpected = sum((o) => o.expectedAmends.length);
+  const sent = sum((o) => (o.sent ? 1 : 0));
   const prepared = (count: (outcome: PreparationOutcome) => number) =>
     sum((o) => count(o.preparation));
 
@@ -239,7 +305,12 @@ function scoresOf(outcomes: readonly CaseOutcome[], log: RecordingCallLog): Scor
       predicted,
     ),
     amendsRecall: ratio(
-      sum((o) => matches(o.expectedAmends, o.predictedAmends)),
+      sum((o) =>
+        matches(
+          o.expectedAmends.map((key) => [key]),
+          o.predictedAmends,
+        ),
+      ),
       amendsExpected,
     ),
     spuriousAmends: sum((o) =>
@@ -267,22 +338,86 @@ function scoresOf(outcomes: readonly CaseOutcome[], log: RecordingCallLog): Scor
       prepared((p) => p.itemsExpected),
     ),
     inventedItems: prepared((p) => p.inventedItems),
+    reasonsFlagged: ratio(
+      sum((o) => o.reasonsFound),
+      sum((o) => o.reasonsExpected),
+    ),
+    wrongScriptTitles: sum((o) => o.wrongScriptTitles),
+    ...costPerFamily(log, sent),
   };
+}
+
+const SENT_ANNOUNCEMENTS_PER_FAMILY_MONTH = 36;
+
+function costPerFamily(log: RecordingCallLog, sent: number): Scores {
+  const calls = log.entries.length;
+  const tokens = (count: (entry: RecordingCallLog["entries"][number]) => number) =>
+    ratio(
+      log.entries.reduce((total, entry) => total + count(entry), 0),
+      calls,
+    );
+  const costPerSent = ratio(log.costUsd(), sent);
+
+  return {
+    inputTokensPerCall: tokens((entry) => entry.inputTokens),
+    cacheReadTokensPerCall: tokens((entry) => entry.cacheReadTokens),
+    outputTokensPerCall: tokens((entry) => entry.outputTokens),
+    costPerSentAnnouncementUsd: costPerSent,
+    familyMonthUsd: costPerSent * SENT_ANNOUNCEMENTS_PER_FAMILY_MONTH,
+  };
+}
+
+function byLanguage(outcomes: readonly CaseOutcome[], logs: Map<string, RecordingCallLog>) {
+  return LANGUAGES.flatMap((language) => {
+    const own = outcomes.filter((outcome) => outcome.language === language);
+    const log = logs.get(language);
+    if (own.length === 0 || log === undefined) return [];
+
+    const scores = scoresOf(own, log);
+    const kept = [
+      "precision",
+      "recall",
+      "toReview",
+      "failedCalls",
+      "prefilterMissed",
+      "wrongScriptTitles",
+      "costUsd",
+      "familyMonthUsd",
+    ];
+
+    return kept.map((name) => [`${name}_${language}`, scores[name] ?? Number.NaN] as const);
+  });
+}
+
+function mergedLog(logs: Iterable<RecordingCallLog>): RecordingCallLog {
+  const merged = new RecordingCallLog();
+  for (const log of logs) merged.entries.push(...log.entries);
+
+  return merged;
 }
 
 async function runOnce(configuration: string, cases: readonly EvalCase[]): Promise<Scores> {
   const wrap = CONFIGURATIONS[configuration];
   if (wrap === undefined) throw new Error(`unknown configuration ${configuration}`);
 
-  const log = new RecordingCallLog();
-  const service = new ExtractionService(
-    wrap(evalModel(log)),
-    NO_SHARED_CACHE,
-    new EvalInstrumentation(),
+  const logs = new Map(LANGUAGES.map((language) => [language, new RecordingCallLog()]));
+  const services = new Map(
+    [...logs].map(([language, log]) => [
+      language,
+      new ExtractionService(wrap(evalModel(log)), NO_SHARED_CACHE, new EvalInstrumentation()),
+    ]),
   );
-  const outcomes = await mapBounded(cases, CONCURRENCY, (evalCase) => runCase(service, evalCase));
+  const outcomes = await mapBounded(cases, CONCURRENCY, (evalCase) => {
+    const service = services.get(evalCase.language);
+    if (service === undefined) throw new Error(`no service for ${evalCase.language}`);
 
-  return scoresOf(outcomes, log);
+    return runCase(service, evalCase);
+  });
+
+  return {
+    ...scoresOf(outcomes, mergedLog(logs.values())),
+    ...Object.fromEntries(byLanguage(outcomes, logs)),
+  };
 }
 
 const configuration = process.env.EVAL_CONFIG ?? "production";

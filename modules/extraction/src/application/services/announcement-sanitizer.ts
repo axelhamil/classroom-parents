@@ -1,10 +1,20 @@
-import { FRENCH_MONTHS, FRENCH_WEEKDAYS, withoutMarks } from "./french-calendar";
+import { FULL_CALENDAR_NAMES, withoutMarks } from "./calendar-words";
 
 const URL_PATTERN =
   /(?:\bhttps?:\/\/|\bwww\.|\b(?:[a-z0-9-]+\.)+[a-z]{2,}\/)[^\s<>"]*[^\s<>".,;:!?)]/giu;
 const EMAIL_PATTERN = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}/gu;
-const PHONE_PATTERN = /(?<![\d+])(?:(?:\+|00)33[\s.-]?|0)[1-9](?:[\s.-]?\d{2}){4}(?!\d)/gu;
-const LONG_DIGIT_RUN_PATTERN = /\d{6,}/gu;
+const PHONE_PATTERN = new RegExp(
+  [
+    String.raw`(?:(?:\+|00)33[\s.-]?|0)[1-9](?:[\s.-]?\p{Nd}{2}){4}`,
+    String.raw`(?:\+|00)[1-9]\p{Nd}{0,2}(?:[\s.-]?\(?\p{Nd}{1,4}\)?){2,5}`,
+    String.raw`(?:\(\p{Nd}{2,3}\)\s?|\p{Nd}{3}[\s.-])\p{Nd}{3,5}[\s.-]\p{Nd}{2,4}(?:[\s.-]\p{Nd}{2})?`,
+    String.raw`[6-9]\p{Nd}{2}(?:[\s.-]\p{Nd}{2}){3}`,
+  ]
+    .map((format) => `(?<![\\p{Nd}+])${format}(?!\\p{Nd})`)
+    .join("|"),
+  "gu",
+);
+const LONG_DIGIT_RUN_PATTERN = /\p{Nd}{6,}/gu;
 const ENCODED_BLOB_PATTERN = /(?<![\p{L}\p{N}+/])[A-Za-z0-9+/]{40,}={0,2}(?![\p{L}\p{N}+/=])/gu;
 const HIDDEN_RUN_PATTERN = /[\u{E0000}-\u{E007F}]+|[‭‮][^‬⁩\n]*[‬⁩]?/gu;
 const INVISIBLE_PATTERN = /[​-‏‪-‮⁠-⁤⁦-⁩؜﻿]+/gu;
@@ -46,8 +56,7 @@ const NEVER_A_FIRST_NAME = new Set([
     "sa",
     "son",
   ],
-  ...FRENCH_WEEKDAYS,
-  ...FRENCH_MONTHS,
+  ...FULL_CALENDAR_NAMES,
 ]);
 
 function escapeRegExp(text: string): string {

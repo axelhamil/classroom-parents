@@ -17,8 +17,10 @@ import {
   type ExtractionOutput,
   extractionOutputSchema,
 } from "../application/services/extraction-output.schema";
+import type { Reader } from "../domain/reader";
 
 const MONDAY_9_NOVEMBER_10H_PARIS = new Date("2026-11-09T09:00:00Z");
+const FRENCH_READER: Reader = { locale: "fr", timeZone: "Europe/Paris", country: "FR" };
 const MATHS_TEST = "Évaluation de maths jeudi 19 novembre à 8h30";
 
 type ModelAnswer = Omit<ExtractionOutput, "injectionSuspected"> &
@@ -71,6 +73,7 @@ async function extract(text: string, childNames?: string[]) {
     announcementId: "announcement-1",
     text,
     publishedAt: MONDAY_9_NOVEMBER_10H_PARIS,
+    reader: FRENCH_READER,
     childNames,
   });
 }
@@ -90,6 +93,7 @@ describe("ExtractionService.extract", () => {
       announcementId: "announcement-1",
       text: MATHS_TEST,
       publishedAt: MONDAY_9_NOVEMBER_10H_PARIS,
+      reader: FRENCH_READER,
       cacheOnly: true,
     });
 
@@ -122,7 +126,12 @@ describe("ExtractionService.extract", () => {
       scope: { userId: "parent-a" },
       feature: "announcement_extraction",
       promptVersion: EXTRACTION_PROMPT_VERSION,
-      context: ["published_at: lundi 2026-11-09 10:00", "timezone: Europe/Paris"],
+      context: [
+        "published_at: Monday 2026-11-09 10:00",
+        "timezone: Europe/Paris",
+        "output_language: French (fr)",
+        "date_order: day-month",
+      ],
       data: MATHS_TEST,
     });
   });
@@ -498,8 +507,8 @@ describe("ExtractionService.extract", () => {
       version: EXTRACTION_PROMPT_VERSION,
       fingerprint: promptFingerprint(EXTRACTION_SYSTEM_PROMPT, extractionOutputSchema),
     }).toEqual({
-      version: "extraction-3",
-      fingerprint: "6bd526570343559eafb610e0492d7b13f173ba1ebdf6b27d1d2f87be2117e7b4",
+      version: "extraction-4",
+      fingerprint: "4bf49c26fe0c2f79d405140aa490d6e7a094585938062a509cd27b0056b2fd38",
     });
   });
 });

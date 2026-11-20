@@ -5,6 +5,7 @@ import { type LlmError, llmError } from "@packages/llm/contract/llm-error";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { DATASET_ANNOUNCEMENTS } from "../../eval/classroom-dataset";
+import { MULTILINGUAL_CASES } from "../../eval/multilingual-dataset";
 import { PREPARATION_CASES } from "../../eval/preparation-dataset";
 import type { IExtractionCache } from "../application/ports/extraction-cache.port";
 import { sanitizeAnnouncement } from "../application/services/announcement-sanitizer";
@@ -19,8 +20,10 @@ import type {
 } from "../application/services/extraction-output.schema";
 import { suspectedInjections } from "../application/services/injection-signals";
 import type { ExtractionResult } from "../domain/extracted-event";
+import type { Reader } from "../domain/reader";
 
 const MONDAY_9_NOVEMBER_10H_PARIS = new Date("2026-11-09T09:00:00Z");
+const FRENCH_READER: Reader = { locale: "fr", timeZone: "Europe/Paris", country: "FR" };
 const MATHS_TEST = "Évaluation de maths jeudi 19 novembre.";
 
 let model: PortMock<ILanguageModel>;
@@ -55,6 +58,7 @@ function extract(text: string, announcementId = "announcement-1", userId = "pare
     announcementId,
     text,
     publishedAt: MONDAY_9_NOVEMBER_10H_PARIS,
+    reader: FRENCH_READER,
   });
 }
 
@@ -84,6 +88,8 @@ describe("ExtractionService, one model call per announcement text", () => {
       text: MATHS_TEST,
       publishedOn: "2026-11-09",
       timeZone: "Europe/Paris",
+      outputLocale: "fr",
+      dateOrder: "day-month",
       promptVersion: EXTRACTION_PROMPT_VERSION,
     });
   });
@@ -99,6 +105,8 @@ describe("ExtractionService, one model call per announcement text", () => {
       text: MATHS_TEST,
       publishedOn: "2026-11-09",
       timeZone: "Europe/Paris",
+      outputLocale: "fr",
+      dateOrder: "day-month",
       promptVersion: EXTRACTION_PROMPT_VERSION,
     });
     expect(stored).toEqual(result.getValue());
@@ -145,9 +153,11 @@ describe("ExtractionService, one model call per announcement text", () => {
   });
 
   it("lets through every announcement of the evaluation sets that holds a deadline", () => {
-    const withDeadline = [...DATASET_ANNOUNCEMENTS, ...PREPARATION_CASES].filter(
-      (item) => item.expected.length > 0,
-    );
+    const withDeadline = [
+      ...DATASET_ANNOUNCEMENTS,
+      ...PREPARATION_CASES,
+      ...MULTILINGUAL_CASES,
+    ].filter((item) => item.expected.length > 0);
 
     const missed = withDeadline.filter(
       (item) => !mayHoldADeadline(sanitizeAnnouncement(item.text)),
@@ -261,7 +271,7 @@ describe("ExtractionService, hidden text and injections", () => {
   });
 
   it("finds no injection in the teachers' announcements of the evaluation sets", () => {
-    const flagged = [...DATASET_ANNOUNCEMENTS, ...PREPARATION_CASES].filter(
+    const flagged = [...DATASET_ANNOUNCEMENTS, ...PREPARATION_CASES, ...MULTILINGUAL_CASES].filter(
       (item) => suspectedInjections(sanitizeAnnouncement(item.text)).length > 0,
     );
 

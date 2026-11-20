@@ -11,6 +11,7 @@ import {
 } from "../../domain/extracted-event";
 import { ExtractionCategory } from "../../domain/value-objects/extraction-category.vo";
 import type { SanitizedAnnouncement } from "./announcement-sanitizer";
+import type { ReadingFrame } from "./extraction.service";
 import {
   locateQuote,
   reviewReasonsFor,
@@ -29,7 +30,7 @@ import { itemsToBringFrom, parentActionsFrom, type QuotedSource } from "./parent
 
 interface Reading {
   source: SanitizedAnnouncement;
-  publishedOn: string;
+  frame: ReadingFrame;
   suspects: Span[];
   suspected: boolean;
 }
@@ -121,11 +122,12 @@ function writtenFields(
   reading: Reading,
 ) {
   const title = truncateOnWord(withoutLinks(candidate.title), EXTRACTED_TITLE_MAX);
-  if (reading.suspected) return { modelTitle: title, title: category.label(), description: "" };
+  const label = category.label(reading.frame.locale);
+  if (reading.suspected) return { modelTitle: title, title: label, description: "" };
 
   return {
     modelTitle: title,
-    title: title || category.label(),
+    title: title || label,
     description: truncate(withoutLinks(candidate.description), EXTRACTED_DESCRIPTION_MAX),
   };
 }
@@ -146,7 +148,8 @@ function toEvent(
   const reviewReasons = [
     ...reviewReasonsFor(candidate, {
       source: reading.source.text,
-      publishedOn: reading.publishedOn,
+      publishedOn: reading.frame.publishedOn,
+      dateOrder: reading.frame.dateOrder,
     }),
     ...fieldReasons(modelTitle, time.isFailure, reading.suspected),
   ];
@@ -177,12 +180,12 @@ function toEvent(
 export function readOutput(
   output: ExtractionOutput,
   source: SanitizedAnnouncement,
-  publishedOn: string,
+  frame: ReadingFrame,
 ): Result<ExtractionResult, ExtractionError> {
   const suspects = suspectedInjections(source.text);
   const reading: Reading = {
     source,
-    publishedOn,
+    frame,
     suspects,
     suspected: output.injectionSuspected || suspects.length > 0,
   };

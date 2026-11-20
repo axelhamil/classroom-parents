@@ -6,6 +6,7 @@ type AmendReason = NonNullable<EventItem["amendReason"]>;
 const REVIEW_REASON_KEYS = {
   low_confidence: "review.reasons.low_confidence",
   weekday_mismatch: "review.reasons.weekday_mismatch",
+  date_ambiguous: "review.reasons.date_ambiguous",
   date_before_publication: "review.reasons.date_before_publication",
   date_too_far: "review.reasons.date_too_far",
   quote_not_in_text: "review.reasons.quote_not_in_text",
