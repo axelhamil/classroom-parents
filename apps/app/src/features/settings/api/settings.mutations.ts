@@ -32,19 +32,6 @@ export const setDigestMutationOptions = mutationOptions({
   },
 });
 
-const $setSchoolZone = api["school-calendar"].zone.$put;
-
-export type SchoolZoneChoice = InferRequestType<typeof $setSchoolZone>["json"];
-
-export const setSchoolZoneMutationOptions = mutationOptions({
-  mutationKey: ["school-calendar", "zone", "set"] as const,
-  mutationFn: async (choice: SchoolZoneChoice) => {
-    const res = await $setSchoolZone({ json: choice });
-    if (!res.ok) await throwApiError(res, "setSchoolZone");
-    return res.json();
-  },
-});
-
 const $setLanguageAndRegion = api.assistant.preferences["language-and-region"].$put;
 
 export type LanguageAndRegionChoice = InferRequestType<typeof $setLanguageAndRegion>["json"];

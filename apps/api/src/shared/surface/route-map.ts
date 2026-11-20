@@ -24,11 +24,26 @@ export const ROUTE_MAP: Record<RouteKey, SurfaceEntry> = {
   "DELETE /calendar-feed": { consumer: "apps/app/src/features/events/api/events.mutations.ts" },
   "GET /calendar/:file": { uiLess: "external-client" },
   "GET /school-calendar": { consumer: "apps/app/src/shared/api/queries/school-calendar.ts" },
-  "GET /school-calendar/zone": {
-    consumer: "apps/app/src/features/settings/api/settings.queries.ts",
+  "GET /school-calendar/settings": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.queries.ts",
   },
-  "PUT /school-calendar/zone": {
-    consumer: "apps/app/src/features/settings/api/settings.mutations.ts",
+  "GET /school-calendar/regions": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.queries.ts",
+  },
+  "GET /school-calendar/preview": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.queries.ts",
+  },
+  "PUT /school-calendar/choice": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
+  },
+  "POST /school-calendar/periods": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
+  },
+  "DELETE /school-calendar/periods/:id": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
+  },
+  "POST /school-calendar/periods/import": {
+    consumer: "apps/app/src/features/settings/api/school-calendar.mutations.ts",
   },
   "GET /assistant/preferences": {
     consumer: "apps/app/src/features/settings/api/settings.queries.ts",

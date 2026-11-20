@@ -20,7 +20,7 @@ export function closedDaysOf(calendar: SchoolCalendarDays): ReadonlySet<string> 
 }
 
 /**
- * The school clock of this minute for the signed-in parent: their zone's holidays and bank holidays
+ * The school clock of this minute for the signed-in parent: the holidays and bank holidays of their school calendar
  * are days off. Until the calendar answers (offline, or in a shape it does not know), weekends are the
  * only days off.
  */

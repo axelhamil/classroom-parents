@@ -38,3 +38,15 @@ export const ACADEMIES: readonly Academy[] = [
   { id: "toulouse", name: "Toulouse", zone: "zone-c" },
   { id: "versailles", name: "Versailles", zone: "zone-c" },
 ];
+
+export const FRENCH_ZONE_NAMES: Record<SchoolZoneValue, string> = {
+  "zone-a": "Zone A",
+  "zone-b": "Zone B",
+  "zone-c": "Zone C",
+  corse: "Corse",
+  guadeloupe: "Guadeloupe",
+  guyane: "Guyane",
+  martinique: "Martinique",
+  mayotte: "Mayotte",
+  reunion: "La Réunion",
+};
