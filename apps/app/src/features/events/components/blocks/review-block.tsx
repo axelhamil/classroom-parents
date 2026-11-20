@@ -1,10 +1,9 @@
-import { DashboardPanelEmpty, DashboardPanelFigure } from "@packages/ui/components/ui/dashboard";
-import { IconTile } from "@packages/ui/components/ui/icon-tile";
+import { DashboardPanelFigure } from "@packages/ui/components/ui/dashboard";
 import { AllDoneIcon, ConfirmDateIcon } from "@packages/ui/components/ui/icons";
 import { RollingCount } from "@packages/ui/components/ui/rolling-count";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, type Ref, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { reviewView } from "../../../../shared/agenda/views";
 import type { ChildDto } from "../../../../shared/api/queries/children";
@@ -16,6 +15,7 @@ import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useReviewConfirmation } from "../../hooks/use-review-confirmation";
 import { mainReviewSentenceKey } from "../../review-labels";
 import { ReviewLine } from "../review-line";
+import { BlockEmpty } from "./block-empty";
 import { BlockPanel } from "./block-panel";
 import { ReviewRows } from "./review-rows";
 
@@ -33,16 +33,20 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
     setHandOver(false);
   }, []);
 
-  const pastNote = past.length > 0 && (
-    <TypographyMuted className="line-clamp-2">
-      {t("blocks.review.past", { count: past.length })}
-    </TypographyMuted>
-  );
+  const pastNote =
+    past.length > 0
+      ? t("blocks.review.past", { count: past.length })
+      : t("blocks.review.emptyHint");
 
   return (
     <BlockPanel title={title} icon={ConfirmDateIcon}>
       {coming.isSuccess && upcoming.length === 0 && (
-        <AllClear ref={handOver ? takeFocus : undefined} pastNote={pastNote} />
+        <BlockEmpty
+          ref={handOver ? takeFocus : undefined}
+          icon={AllDoneIcon}
+          title={t("blocks.review.empty")}
+          hint={pastNote}
+        />
       )}
       {upcoming.length > 0 && (
         <>
@@ -55,29 +59,12 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
             confirm={confirm}
             onLastLeft={() => setHandOver(true)}
           />
-          {pastNote}
+          {past.length > 0 && (
+            <TypographyMuted className="line-clamp-2">{pastNote}</TypographyMuted>
+          )}
         </>
       )}
     </BlockPanel>
-  );
-}
-
-interface AllClearProps {
-  ref?: Ref<HTMLDivElement>;
-  pastNote: ReactNode;
-}
-
-function AllClear({ ref, pastNote }: AllClearProps) {
-  const { t } = useTranslation("home");
-
-  return (
-    <DashboardPanelEmpty ref={ref} tabIndex={-1}>
-      <IconTile>
-        <AllDoneIcon aria-hidden />
-      </IconTile>
-      <p>{t("blocks.review.empty")}</p>
-      {pastNote || <p>{t("blocks.review.emptyHint")}</p>}
-    </DashboardPanelEmpty>
   );
 }
 

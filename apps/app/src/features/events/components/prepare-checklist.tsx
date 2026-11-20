@@ -7,7 +7,7 @@ import {
 } from "@packages/ui/components/ui/checklist";
 import { DeadlineQuote } from "@packages/ui/components/ui/deadline-sheet";
 import { IconButton } from "@packages/ui/components/ui/icon-button";
-import { AllDoneIcon, CloseIcon } from "@packages/ui/components/ui/icons";
+import { AllDoneIcon, CloseIcon, SuggestionIcon } from "@packages/ui/components/ui/icons";
 import { Label } from "@packages/ui/components/ui/label";
 import { Separator } from "@packages/ui/components/ui/separator";
 import { TypographyH2, TypographyMuted } from "@packages/ui/components/ui/typography";
@@ -24,6 +24,7 @@ import {
 interface ChecklistRowsProps {
   checklist: ChecklistState;
   entries: ChecklistEntry[];
+  suggested?: boolean;
   removable?: boolean;
   density?: ChecklistDensity;
   labelledBy?: string;
@@ -32,6 +33,7 @@ interface ChecklistRowsProps {
 function ChecklistRows({
   checklist,
   entries,
+  suggested = false,
   removable = false,
   density,
   labelledBy,
@@ -49,8 +51,10 @@ function ChecklistRows({
             <Checkbox
               id={id}
               checked={item.done}
+              aria-description={suggested ? t("prepare.suggestion") : undefined}
               onCheckedChange={(checked) => checklist.toggle(item.id, checked === true)}
             />
+            {suggested && <SuggestionIcon aria-hidden />}
             <Label htmlFor={id}>{item.label}</Label>
             {removable && item.removable && (
               <IconButton
@@ -77,21 +81,16 @@ interface SuggestedStepsProps {
 }
 
 function SuggestedSteps({ checklist, removable, density }: SuggestedStepsProps) {
-  const { t } = useTranslation("events");
-  const titleId = useId();
   if (checklist.suggested.length === 0) return null;
 
   return (
-    <>
-      <TypographyMuted id={titleId}>{t("prepare.suggestions")}</TypographyMuted>
-      <ChecklistRows
-        checklist={checklist}
-        entries={checklist.suggested}
-        removable={removable}
-        density={density}
-        labelledBy={titleId}
-      />
-    </>
+    <ChecklistRows
+      checklist={checklist}
+      entries={checklist.suggested}
+      suggested
+      removable={removable}
+      density={density}
+    />
   );
 }
 

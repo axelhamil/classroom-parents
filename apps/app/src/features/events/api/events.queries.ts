@@ -8,6 +8,7 @@ import {
   type EventItem,
   eventFilterQuery,
 } from "../../../shared/api/queries/events";
+import type { EventCategory } from "../../../shared/events/event-labels";
 
 const $list = api.events.$get;
 const $get = api.events[":id"].$get;
@@ -39,6 +40,32 @@ export function reviewEventsQueryOptions(filters: EventFilters) {
       );
       if (!res.ok) await throwApiError(res, "loadEvents");
       return (await res.json()).items;
+    },
+  });
+}
+
+/** The first open deadline of some categories, whatever its distance: what an empty block can still announce. */
+export function nextOfCategoriesQueryOptions(
+  categories: readonly EventCategory[],
+  childId: string | null,
+) {
+  return queryOptions({
+    queryKey: ["events", "next-of", categories, childId] as const,
+    queryFn: async ({ signal }) => {
+      const res = await $list(
+        {
+          query: {
+            scope: "upcoming",
+            done: "false",
+            category: [...categories],
+            limit: "1",
+            ...eventFilterQuery({ category: null, childId }),
+          },
+        },
+        { init: { signal } },
+      );
+      if (!res.ok) await throwApiError(res, "loadEvents");
+      return (await res.json()).items[0] ?? null;
     },
   });
 }

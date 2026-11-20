@@ -284,7 +284,7 @@ test.describe("the calendar on a phone", () => {
       });
       await page.goto("/");
 
-      await expect(page.getByText(/analyse en cours/)).toBeVisible();
+      await expect(page.getByText(/analyse en cours/).first()).toBeVisible();
       await expectOnePageWithoutOverflow(page);
       expect(await blockingViolations(page)).toEqual([]);
     });
@@ -417,7 +417,7 @@ test.describe("event overlay focus", () => {
         page.locator("[data-slot=calendar-week] a[href^='/events/']").first(),
       ).toBeVisible();
 
-      const card = page.locator("main a[href^='/events/']").last();
+      const card = page.locator("[data-slot=calendar-week] a[href^='/events/']").last();
       await card.scrollIntoViewIfNeeded();
       const scrolled = await page.evaluate(() => window.scrollY);
       expect(scrolled).toBeGreaterThan(0);

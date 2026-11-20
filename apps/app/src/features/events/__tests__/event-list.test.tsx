@@ -80,7 +80,7 @@ describe("Accueil around the calendar", () => {
     givenFamily([{ ...CHILD, lastSyncedAt: undefined, syncing: true }], []);
     await renderAppAt("/");
 
-    expect(await screen.findByText(/analyse en cours/)).toBeDefined();
+    expect(await screen.findAllByText(/analyse en cours/)).not.toHaveLength(0);
   });
 
   it("given a child blocked by the school, then the notice points the parent to the request for the school", async () => {

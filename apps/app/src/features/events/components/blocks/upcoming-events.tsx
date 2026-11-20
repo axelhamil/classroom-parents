@@ -4,12 +4,15 @@ import {
   type Icon,
   SchoolTripIcon,
 } from "@packages/ui/components/ui/icons";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { type DeadlineKind, upcomingByKind } from "../../../../shared/agenda/views";
+import { DEADLINE_KINDS, type DeadlineKind, upcomingByKind } from "../../../../shared/agenda/views";
 import { nextTwoWeeks } from "../../../../shared/agenda/windows";
+import { nextOfCategoriesQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { EventSteps } from "../prepare-checklist";
+import { BlockEmpty, NextDeadlineLink } from "./block-empty";
 import { BlockPanel } from "./block-panel";
 import { EventRows } from "./event-rows";
 
@@ -24,19 +27,16 @@ function isDeadlineKind(id: string): id is DeadlineKind {
 }
 
 function UpcomingBlock({ blockId, family, childId, clock, title }: HomeBlockProps) {
-  const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
   if (!isDeadlineKind(blockId)) return null;
 
   const due = upcomingByKind(query.data ?? [], clock, blockId, childId);
-  const empty = t(`blocks.${blockId}.empty`, { days: nextTwoWeeks.days });
 
   return (
-    <BlockPanel
-      title={title}
-      icon={ICONS[blockId]}
-      note={query.isSuccess && due.length === 0 && empty}
-    >
+    <BlockPanel title={title} icon={ICONS[blockId]}>
+      {query.isSuccess && due.length === 0 && (
+        <NothingOfKind kind={blockId} childId={childId} today={clock.today} />
+      )}
       {due.length > 0 && (
         <EventRows
           events={due}
@@ -45,6 +45,35 @@ function UpcomingBlock({ blockId, family, childId, clock, title }: HomeBlockProp
         />
       )}
     </BlockPanel>
+  );
+}
+
+interface NothingOfKindProps {
+  kind: DeadlineKind;
+  childId: string | null;
+  today: string;
+}
+
+function NothingOfKind({ kind, childId, today }: NothingOfKindProps) {
+  const { t } = useTranslation("home");
+  const next = useQuery(nextOfCategoriesQueryOptions(DEADLINE_KINDS[kind], childId)).data;
+
+  return (
+    <BlockEmpty
+      icon={ICONS[kind]}
+      title={t(`blocks.${kind}.empty`, { days: nextTwoWeeks.days })}
+      hint={
+        next ? (
+          <NextDeadlineLink
+            event={next}
+            today={today}
+            sentence={(fields) => t(`blocks.${kind}.next`, fields)}
+          />
+        ) : (
+          t(`blocks.${kind}.emptyHint`)
+        )
+      }
+    />
   );
 }
 

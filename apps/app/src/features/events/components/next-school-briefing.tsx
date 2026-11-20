@@ -11,7 +11,12 @@ import {
 } from "@packages/ui/components/ui/briefing";
 import { CelebrationStamp } from "@packages/ui/components/ui/celebration-stamp";
 import { ChildAvatar } from "@packages/ui/components/ui/child-avatar";
-import { AllDoneIcon, TodayIcon } from "@packages/ui/components/ui/icons";
+import {
+  AllDoneIcon,
+  NothingDueIcon,
+  SyncingIcon,
+  TodayIcon,
+} from "@packages/ui/components/ui/icons";
 import { Progress, ProgressLegend, ProgressRow } from "@packages/ui/components/ui/progress";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -24,12 +29,12 @@ import type { ChildDto } from "../../../shared/api/queries/children";
 import type { EventItem } from "../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import { isFirstSyncRunning } from "../../../shared/events/event-board";
-import { EventCard } from "../../../shared/events/event-card";
-import { childHue, childLabelOf } from "../../../shared/format/child-hue";
+import { childHue } from "../../../shared/format/child-hue";
 import { inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { nextEventQueryOptions } from "../api/events.queries";
 import { useHomeEvents } from "../hooks/use-home-events";
+import { BlockEmpty, NextDeadlineLink } from "./blocks/block-empty";
 import { BlockPanel } from "./blocks/block-panel";
 import { CalendarEventRow } from "./calendar/calendar-event-row";
 import { EventSteps } from "./prepare-checklist";
@@ -141,16 +146,24 @@ function BriefingBody({ events: loaded, family, childId, clock, day }: BriefingB
   const leftToday = plan.leftToday.filter(isOpen).length;
   const groups = <DayGroups events={listed} family={family} clock={clock} />;
 
+  if (events.length === 0 && isFirstSyncRunning(family))
+    return (
+      <BlockEmpty
+        icon={SyncingIcon}
+        title={t("empty.syncing.title")}
+        hint={t("empty.syncing.description")}
+      />
+    );
+
+  if (listed.length === 0)
+    return <NothingDue events={loaded} childId={childId} clock={clock} day={day} />;
+
   if (events.length === 0)
-    return isFirstSyncRunning(family) ? (
-      <BriefingSummary>{t("empty.syncing.title")}</BriefingSummary>
-    ) : (
+    return (
       <>
-        <NothingDue events={loaded} family={family} childId={childId} clock={clock} day={day} />
-        {leftToday > 0 && (
-          <BriefingSummary>{t("briefing.leftToday", { count: leftToday })}</BriefingSummary>
-        )}
-        {listed.length > 0 && groups}
+        <BriefingSummary>{t("briefing.empty", { day })}</BriefingSummary>
+        <BriefingSummary>{t("briefing.leftToday", { count: leftToday })}</BriefingSummary>
+        {groups}
       </>
     );
 
@@ -238,33 +251,33 @@ function ChildBriefing({ child, events, family, clock }: ChildBriefingProps) {
 
 interface NothingDueProps {
   events: readonly EventItem[];
-  family: readonly ChildDto[];
   childId: string | null;
   clock: SchoolClock;
   day: string;
 }
 
-function NothingDue({ events, family, childId, clock, day }: NothingDueProps) {
-  const { t } = useTranslation("events");
-  const nextId = useId();
+function NothingDue({ events, childId, clock, day }: NothingDueProps) {
+  const { t } = useTranslation(["events", "home"]);
   const loadedNext = nextAfterFocus(events, clock, childId);
   const serverNext = useQuery(nextEventQueryOptions(childId)).data;
   const later = serverNext && serverNext.deadlineDate > clock.focus ? serverNext : null;
   const upcoming = loadedNext ?? later;
 
   return (
-    <>
-      <BriefingSummary>{t("briefing.empty", { day })}</BriefingSummary>
-      {upcoming && (
-        <BriefingGroup aria-labelledby={nextId}>
-          <BriefingGroupTitle id={nextId}>{t("briefing.next")}</BriefingGroupTitle>
-          <EventCard
+    <BlockEmpty
+      icon={NothingDueIcon}
+      title={t("briefing.empty", { day })}
+      hint={
+        upcoming ? (
+          <NextDeadlineLink
             event={upcoming}
-            childLabel={family.length > 1 ? childLabelOf(family, upcoming.childId) : ""}
-            hue={childHue(family, upcoming.childId)}
+            today={clock.today}
+            sentence={(fields) => t("blocks.next", { ...fields, ns: "home" })}
           />
-        </BriefingGroup>
-      )}
-    </>
+        ) : (
+          t("briefing.emptyHint")
+        )
+      }
+    />
   );
 }

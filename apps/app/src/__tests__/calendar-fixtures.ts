@@ -67,6 +67,17 @@ export function givenCalendar(
             .sort((left, right) => right.deadlineDate.localeCompare(left.deadlineDate))
             .slice(0, Number(url.searchParams.get("limit") ?? stub.events.length)),
         });
+      const categories = url.searchParams.getAll("category");
+      if (categories.length > 0)
+        return json({
+          items: stub.events
+            .filter(
+              (event) =>
+                categories.includes(event.category) && !event.done && event.deadlineDate >= today,
+            )
+            .sort((left, right) => left.deadlineDate.localeCompare(right.deadlineDate))
+            .slice(0, Number(url.searchParams.get("limit") ?? stub.events.length)),
+        });
       if (url.searchParams.get("status") === "needs_review")
         return json({
           items: stub.events.filter(

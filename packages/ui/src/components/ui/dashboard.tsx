@@ -105,6 +105,7 @@ function DashboardPanel({ className, fit, tone, ...props }: DashboardPanelProps)
   return (
     <section
       data-slot="dashboard-panel"
+      data-tone={tone ?? "default"}
       className={cn(dashboardPanelVariants({ fit, tone }), className)}
       {...props}
     />
@@ -183,23 +184,6 @@ function DashboardPanelNote({ className, ...props }: React.ComponentProps<"p">) 
   );
 }
 
-/**
- * A block with nothing to show, at its size: its icon and one sentence, centred in the body, like
- * a widget saying there is no event. Pass the icon as the first child and the sentence after it.
- */
-function DashboardEmpty({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dashboard-empty"
-      className={cn(
-        "flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden text-center text-small text-pretty text-muted-foreground [&>svg]:size-icon-lg [&>svg]:shrink-0",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 /** What stays under the body: the way to the full view of the block. */
 function DashboardPanelFooter({ className, ...props }: React.ComponentProps<"footer">) {
   return (
@@ -231,17 +215,20 @@ function DashboardPanelFigure({ className, ...props }: React.ComponentProps<"p">
 
 /**
  * What a block says when it has nothing to show, composed at the size its tile keeps: an
- * `IconTile` tinted with the action, a short title and one sentence, centred in the room left under the header.
+ * `IconTile` tinted with the action (on paper inside the hero block or a briefing, already
+ * tinted), a short title and one sentence, each held to two lines since the sentence may quote
+ * a deadline's title, centred in the room left under the header.
  * Focusable from code (`tabIndex={-1}`) so the focus has a place to land when the last row
- * leaves. From `md` it adds no height of its own: it fills the tile, so an empty block never
- * pushes its row, reading or arranging.
+ * leaves. It adds no height of its own and fills the body of its tile, which the grid sizes: in a
+ * short tile it drops the icon tile, then holds the sentence to one line, so the title is never
+ * cut.
  */
 function DashboardPanelEmpty({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dashboard-panel-empty"
       className={cn(
-        "flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-inner md:contain-size text-center text-small text-balance text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring [&>p:first-of-type]:font-display [&>p:first-of-type]:text-heading [&>p:first-of-type]:text-foreground [&>[data-slot=icon-tile]]:bg-primary-container [&>[data-slot=icon-tile]]:text-primary motion-safe:[&>[data-slot=icon-tile]]:animate-pop-in",
+        "flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden rounded-inner [container-type:size] text-center text-small text-balance text-muted-foreground outline-none focus-visible:ring focus-visible:ring-ring [&>p:first-of-type]:font-display [&>p:first-of-type]:text-heading [&>p:first-of-type]:text-foreground [&>p]:line-clamp-2 [@container(max-height:6rem)]:[&>[data-slot=icon-tile]]:hidden [@container(max-height:8rem)_and_(max-width:15rem)]:[&>[data-slot=icon-tile]]:hidden [@container(max-height:4.5rem)]:[&>p:last-of-type]:line-clamp-1 [&>[data-slot=icon-tile]]:bg-primary-container [&>[data-slot=icon-tile]]:text-primary group-data-[tone=hero]/panel:[&>[data-slot=icon-tile]]:bg-card in-data-[slot=briefing]:[&>[data-slot=icon-tile]]:bg-card motion-safe:[&>[data-slot=icon-tile]]:animate-pop-in",
         className,
       )}
       {...props}
@@ -251,7 +238,6 @@ function DashboardPanelEmpty({ className, ...props }: React.ComponentProps<"div"
 
 export {
   Dashboard,
-  DashboardEmpty,
   DashboardPanel,
   DashboardPanelBody,
   DashboardPanelEmpty,

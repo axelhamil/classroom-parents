@@ -27,13 +27,18 @@ describe("Accueil blocks keep to what they have to say", () => {
     localStorage.clear();
   });
 
-  it("given nothing late, the block says so at its size, and lists the late deadlines once there are some", async () => {
+  it("given nothing late, the block says so with a useful sentence, and lists once a deadline is late", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
-    const overdue = await screen.findByText("Rien en retard");
-    expect(overdue.closest("[data-slot=dashboard-empty]")).not.toBeNull();
+    const overdue = await within(await block("En retard")).findByText("Rien en retard, bravo");
+    expect(
+      within(await block("En retard")).getByText(
+        "Un devoir resté non coché après sa date arrivera ici.",
+      ),
+    ).toBeDefined();
+    expect(overdue.closest("[data-slot=dashboard-panel-empty]")).not.toBeNull();
     expect(overdue.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
     cleanup();
     resetApp();
@@ -43,7 +48,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     await renderAppAt("/");
 
     const late = await within(await block("En retard")).findByText("Cahier de liaison à signer");
-    expect(late.closest("[data-slot=dashboard-empty]")).toBeNull();
+    expect(late.closest("[data-slot=dashboard-panel-empty]")).toBeNull();
     expect(late.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
   });
 
@@ -52,7 +57,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
-    await screen.findByText("Rien en retard");
+    await screen.findByText("Rien en retard, bravo");
     fireEvent.click(screen.getByRole("button", { name: "Modifier l'accueil" }));
 
     expect(screen.getByRole("group", { name: "Disposition de En retard" })).toBeDefined();
