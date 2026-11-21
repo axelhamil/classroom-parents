@@ -21,7 +21,7 @@ function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
           {title}
         </TypographyH1>
         {typeof description === "string" ? (
-          <TypographyMuted className="max-w-prose">{description}</TypographyMuted>
+          <TypographyMuted className="max-w-measure">{description}</TypographyMuted>
         ) : (
           description
         )}

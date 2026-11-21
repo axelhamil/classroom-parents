@@ -2,30 +2,30 @@ import { DashboardPanelFigure } from "@packages/ui/components/ui/dashboard";
 import { AllDoneIcon, ConfirmDateIcon } from "@packages/ui/components/ui/icons";
 import { RollingCount } from "@packages/ui/components/ui/rolling-count";
 import { TypographyMuted } from "@packages/ui/components/ui/typography";
-import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { reviewView } from "../../../../shared/agenda/views";
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
-import { useTileFrame } from "../../../../shared/dashboard/tile-frame";
+import { useTileSizeClass } from "../../../../shared/dashboard/tile-size-class";
 import { childHue, childLabelOf, deadlineSurface } from "../../../../shared/format/child-hue";
 import { deadlineLabel, inSentence } from "../../../../shared/format/deadline-label";
-import { lateBacklogQueryOptions, reviewEventsQueryOptions } from "../../api/events.queries";
+import { blockIsEmpty } from "../../block-emptiness";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useReviewConfirmation } from "../../hooks/use-review-confirmation";
+import { useReviewEvents } from "../../hooks/use-review-events";
 import { mainReviewSentenceKey } from "../../review-labels";
 import { ReviewLine } from "../review-line";
 import { BlockEmpty } from "./block-empty";
 import { BlockPanel } from "./block-panel";
 import { ReviewRows } from "./review-rows";
 
-function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
+function ReviewBlock({ blockId, family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
-  const coming = useQuery(reviewEventsQueryOptions({ category: null, childId }));
-  const backlog = useQuery(lateBacklogQueryOptions(childId));
+  const { coming, events } = useReviewEvents(childId);
   const confirm = useReviewConfirmation();
-  const { upcoming, past } = reviewView([...(coming.data ?? []), ...(backlog.data ?? [])], clock);
+  const { upcoming, past } = reviewView(events, clock);
+  const empty = coming.isSuccess && blockIsEmpty(blockId, { events, clock, childId });
   const [handOver, setHandOver] = useState(false);
   const takeFocus = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
@@ -34,9 +34,9 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
     setHandOver(false);
   }, []);
 
-  const { size } = useTileFrame();
-  const glance = size === "s";
-  const listed = size === "l" || size === "xl";
+  const content = useTileSizeClass();
+  const glance = content === "glance";
+  const listed = content === "full";
   const pastNote =
     past.length > 0
       ? t("blocks.review.past", { count: past.length })
@@ -44,7 +44,7 @@ function ReviewBlock({ family, childId, clock, title }: HomeBlockProps) {
 
   return (
     <BlockPanel title={title} icon={ConfirmDateIcon} fits={!listed}>
-      {coming.isSuccess && upcoming.length === 0 && (
+      {empty && (
         <BlockEmpty
           ref={handOver ? takeFocus : undefined}
           icon={AllDoneIcon}

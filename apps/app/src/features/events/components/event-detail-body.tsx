@@ -12,6 +12,7 @@ import {
   EditIcon,
   ExternalLinkIcon,
 } from "@packages/ui/components/ui/icons";
+import { SectionColumn, SectionGrid } from "@packages/ui/components/ui/section-grid";
 import { Skeleton, SkeletonGroup } from "@packages/ui/components/ui/skeleton";
 import { TypographyH2 } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
@@ -60,18 +61,24 @@ export function EventDetailBody({ event, onDeleted }: EventDetailBodyProps) {
 
   return (
     <>
-      <EventWhen event={event} hue={child ? childHue(family, child.id) : 1} />
-      {event.status === "needs_review" && <EventReview event={event} />}
-      <EventActions event={event} child={child} />
-      {event.description && <EventDescription description={event.description} />}
-      <PrepareChecklist event={event} />
-      {!event.done && (
-        <EventReminders
-          eventId={event.id}
-          timed={event.deadlineTime !== undefined}
-          needsReview={event.status === "needs_review"}
-        />
-      )}
+      <SectionGrid>
+        <SectionColumn>
+          <EventWhen event={event} hue={child ? childHue(family, child.id) : 1} />
+          {event.status === "needs_review" && <EventReview event={event} />}
+          <EventActions event={event} child={child} />
+        </SectionColumn>
+        <SectionColumn>
+          {event.description && <EventDescription description={event.description} />}
+          <PrepareChecklist event={event} />
+          {!event.done && (
+            <EventReminders
+              eventId={event.id}
+              timed={event.deadlineTime !== undefined}
+              needsReview={event.status === "needs_review"}
+            />
+          )}
+        </SectionColumn>
+      </SectionGrid>
       <DeadlineFooter>
         <Button asChild variant="ghost" size="sm">
           <Link to="/events/$eventId/edit" params={{ eventId: event.id }} viewTransition>

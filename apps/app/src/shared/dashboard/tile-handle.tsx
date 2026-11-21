@@ -3,13 +3,13 @@ import { DragHandleIcon } from "@packages/ui/components/ui/icons";
 import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { KeyMove } from "./home-edit.machine";
-import type { Step } from "./layout-commands";
+import type { SizeStep } from "./layout-commands";
 
 /** What a key on the handle of a tile asks of the edit mode. */
 export type HandleKey =
   | { kind: "toggle" }
   | { kind: "move"; move: KeyMove }
-  | { kind: "size"; step: Step }
+  | { kind: "size"; change: SizeStep }
   | { kind: "cancel" };
 
 const MOVES: Readonly<Record<string, KeyMove>> = {
@@ -21,11 +21,22 @@ const MOVES: Readonly<Record<string, KeyMove>> = {
   End: { kind: "edge", edge: "end" },
 };
 
-const SIZE_STEPS: Readonly<Record<string, Step>> = {
-  "+": 1,
-  "=": 1,
-  "-": -1,
-  _: -1,
+const WIDER: SizeStep = { axis: "w", step: 1 };
+
+const NARROWER: SizeStep = { axis: "w", step: -1 };
+
+const SIZE_KEYS: Readonly<Record<string, SizeStep>> = {
+  "+": WIDER,
+  "=": WIDER,
+  "-": NARROWER,
+  _: NARROWER,
+};
+
+const SIZE_ARROWS: Readonly<Record<string, SizeStep>> = {
+  ArrowRight: WIDER,
+  ArrowLeft: NARROWER,
+  ArrowDown: { axis: "h", step: 1 },
+  ArrowUp: { axis: "h", step: -1 },
 };
 
 export interface TileHandleProps {
@@ -38,14 +49,15 @@ export interface TileHandleProps {
 
 /**
  * The grip of a tile: where a finger or the mouse grabs it, and the one control the keyboard moves
- * it with. Space or Enter takes and lays it, the arrows move it, plus and minus change its size and
- * Escape puts it back; a key the handle does not use while the tile rests goes on its way.
+ * it with. Space or Enter takes and lays it, the arrows move it, Shift and an arrow widen, narrow,
+ * grow or shorten it like the edge it points to, plus and minus widen or narrow it, and Escape puts
+ * it back; a key the handle does not use while the tile rests goes on its way.
  */
 export function TileHandle({ blockId, title, lifted, instructionsId, onKey }: TileHandleProps) {
   const { t } = useTranslation("home");
 
   const press = (event: KeyboardEvent<HTMLButtonElement>) => {
-    const key = keyOf(event.key, lifted);
+    const key = keyOf(event, lifted);
     if (!key) return;
 
     event.preventDefault();
@@ -70,16 +82,16 @@ export function TileHandle({ blockId, title, lifted, instructionsId, onKey }: Ti
   );
 }
 
-function keyOf(key: string, lifted: boolean): HandleKey | null {
+function keyOf({ key, shiftKey }: KeyboardEvent, lifted: boolean): HandleKey | null {
   if (key === " " || key === "Enter") return { kind: "toggle" };
   if (!lifted) return null;
 
   if (key === "Escape") return { kind: "cancel" };
 
+  const size = (shiftKey ? SIZE_ARROWS[key] : undefined) ?? SIZE_KEYS[key];
+  if (size) return { kind: "size", change: size };
+
   const move = MOVES[key];
-  if (move) return { kind: "move", move };
 
-  const step = SIZE_STEPS[key];
-
-  return step ? { kind: "size", step } : null;
+  return move ? { kind: "move", move } : null;
 }

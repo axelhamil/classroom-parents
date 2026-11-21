@@ -1,5 +1,6 @@
 import { Button } from "@packages/ui/components/ui/button";
 import { RetryIcon } from "@packages/ui/components/ui/icons";
+import { ReadingText } from "@packages/ui/components/ui/typography";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ADD_CHILD } from "../../shared/children/child-link.mutations";
@@ -21,8 +22,10 @@ function LinkErrorPage() {
     start.mutate(search.reconnect ? { reconnectChildId: search.reconnect } : ADD_CHILD);
 
   return (
-    <Screen title={t("linkError.title")} width="reading">
-      <LinkRefusal error={search.error} errorDescription={search.error_description} />
+    <Screen title={t("linkError.title")} width="full">
+      <ReadingText>
+        <LinkRefusal error={search.error} errorDescription={search.error_description} />
+      </ReadingText>
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button disabled={start.isPending} onClick={retry}>

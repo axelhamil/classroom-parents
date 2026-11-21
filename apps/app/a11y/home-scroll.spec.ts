@@ -3,17 +3,21 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./csp";
 import { inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily, todayAt } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
+import type { Block } from "./served-layout";
 
-const ARRANGED = [
-  { id: "today", size: "l" },
-  { id: "overdue", size: "m" },
-  { id: "assessments", size: "m" },
-  { id: "calendar", size: "xl" },
-  { id: "review", size: "s" },
-  { id: "progress", size: "s" },
-  { id: "documents", size: "s" },
-  { id: "outings", size: "s" },
+const ARRANGED: Block[] = [
+  { id: "today", size: { w: 2, h: 2 } },
+  { id: "overdue", size: { w: 2, h: 1 } },
+  { id: "assessments", size: { w: 2, h: 1 } },
+  { id: "calendar", size: { w: 4, h: 2 } },
+  { id: "review", size: { w: 1, h: 1 } },
+  { id: "progress", size: { w: 1, h: 1 } },
+  { id: "documents", size: { w: 1, h: 1 } },
+  { id: "outings", size: { w: 1, h: 1 } },
 ];
+
+/** No layout saved: the home the advice composes, where a block to act on keeps two rows on a phone. */
+const ADVISED = null;
 
 const LATE = Array.from({ length: 9 }, (_, index) => ({
   ...REVIEW_EVENT,
@@ -28,9 +32,13 @@ const LATE = Array.from({ length: 9 }, (_, index) => ({
 
 const TRANSPARENT = "rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)";
 
-async function openHome(page: Page): Promise<void> {
+async function openHome(page: Page, layout: Block[] | null = ARRANGED): Promise<void> {
   await page.clock.setFixedTime(todayAt("09:00"));
-  await serveFamily(page, { children: [LEA, MAXIMILIEN], events: LATE, homeLayout: ARRANGED });
+  await serveFamily(page, {
+    children: [LEA, MAXIMILIEN],
+    events: LATE,
+    homeLayout: layout ?? undefined,
+  });
   await page.goto("/");
   await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
 }
@@ -93,6 +101,7 @@ test.describe("a home tile scrolls inside itself", () => {
     ]);
     expect(veils).toEqual(["none", "none"]);
 
+    await region.scrollIntoViewIfNeeded();
     const reached = await region.evaluate((el) => {
       const box = el.getBoundingClientRect();
       const hit = document.elementFromPoint(box.left + box.width / 2, box.bottom - 2);
@@ -201,10 +210,10 @@ test.describe("a home tile scrolls inside itself", () => {
     await expect(page.locator("[data-slot=dashboard]").getByText(/^Voir (les|moins)/)).toHaveCount(
       0,
     );
-    await expect(page.locator("[data-size=s]")).toHaveCount(4);
-    await expect(page.locator("[data-size=s] [data-slot=scroll-region]")).toHaveCount(0);
+    await expect(page.locator("[data-size='1x1']")).toHaveCount(4);
+    await expect(page.locator("[data-size='1x1'] [data-slot=scroll-region]")).toHaveCount(0);
     const clipped = await page
-      .locator("[data-size=s] [data-slot=dashboard-panel-body]")
+      .locator("[data-size='1x1'] [data-slot=dashboard-panel-body]")
       .evaluateAll((bodies) => bodies.filter((el) => el.scrollHeight > el.clientHeight + 1).length);
     expect(clipped).toBe(0);
   });
@@ -252,29 +261,35 @@ test.describe("a home tile on a phone", () => {
     hasTouch: true,
   });
 
-  test("hands a touch drag over to the page once the region reaches its end", async ({ page }) => {
-    await openHome(page);
-    const region = await overflowingLateRegion(page);
-    await scrollToEnd(region);
-    await region.scrollIntoViewIfNeeded();
-    const box = await region.boundingBox();
-    if (!box) throw new Error("the late region has no box");
-    const x = box.x + box.width / 2;
-    const from = box.y + box.height * 0.7;
-    const before = await page.evaluate(() => window.scrollY);
+  for (const [name, layout] of [
+    ["arranged", ARRANGED],
+    ["advised", ADVISED],
+  ] as const)
+    test(`hands a touch drag over to the page once the region reaches its end, ${name}`, async ({
+      page,
+    }) => {
+      await openHome(page, layout);
+      const region = await overflowingLateRegion(page);
+      await scrollToEnd(region);
+      await region.scrollIntoViewIfNeeded();
+      const box = await region.boundingBox();
+      if (!box) throw new Error("the late region has no box");
+      const x = box.x + box.width / 2;
+      const from = box.y + box.height * 0.7;
+      const before = await page.evaluate(() => window.scrollY);
 
-    const cdp = await page.context().newCDPSession(page);
-    const touch = (type: "touchStart" | "touchMove" | "touchEnd", y: number) =>
-      cdp.send("Input.dispatchTouchEvent", {
-        type,
-        touchPoints: type === "touchEnd" ? [] : [{ x, y }],
-      });
-    await touch("touchStart", from);
-    for (let step = 1; step <= 10; step++) await touch("touchMove", from - step * 12);
-    await touch("touchEnd", from - 120);
+      const cdp = await page.context().newCDPSession(page);
+      const touch = (type: "touchStart" | "touchMove" | "touchEnd", y: number) =>
+        cdp.send("Input.dispatchTouchEvent", {
+          type,
+          touchPoints: type === "touchEnd" ? [] : [{ x, y }],
+        });
+      await touch("touchStart", from);
+      for (let step = 1; step <= 10; step++) await touch("touchMove", from - step * 12);
+      await touch("touchEnd", from - 120);
 
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
-  });
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    });
 
   test("lets the Agenda take the height of its week and scroll with the page", async ({ page }) => {
     await openHome(page);

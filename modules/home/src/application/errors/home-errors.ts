@@ -7,7 +7,7 @@ export type HomeError = AppError<
 export const layoutInvalid = (reason: string): HomeError => ({
   code: "HOME_LAYOUT_INVALID",
   message:
-    "Cette disposition de l'accueil n'est pas valide : 40 blocs au plus, chacun une seule fois.",
+    "Cette disposition de l'accueil n'est pas valide : 40 blocs au plus, chacun une seule fois, de 1 à 4 colonnes de large et de 1 à 8 rangées de haut.",
   metadata: { reason },
 });
 

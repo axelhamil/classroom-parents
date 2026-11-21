@@ -1,5 +1,10 @@
-import { StepperActions, StepperIntro, StepperMedia } from "@packages/ui/components/ui/stepper";
-import { TypographyH1, TypographyLead } from "@packages/ui/components/ui/typography";
+import {
+  StepperActions,
+  StepperBody,
+  StepperIntro,
+  StepperMedia,
+} from "@packages/ui/components/ui/stepper";
+import { ReadingText, TypographyH1, TypographyLead } from "@packages/ui/components/ui/typography";
 import type { ComponentProps, ReactNode } from "react";
 
 export interface StepFrameProps {
@@ -20,7 +25,7 @@ export function StepFrame({
   children,
 }: StepFrameProps) {
   return (
-    <>
+    <ReadingText>
       <StepperIntro>
         {media && <StepperMedia tone={mediaTone}>{media}</StepperMedia>}
         <TypographyH1 variant="page" tabIndex={-1}>
@@ -28,8 +33,12 @@ export function StepFrame({
         </TypographyH1>
         {description && <TypographyLead>{description}</TypographyLead>}
       </StepperIntro>
-      {children}
-      {actions && <StepperActions>{actions}</StepperActions>}
-    </>
+      {(children || actions) && (
+        <StepperBody>
+          {children}
+          {actions && <StepperActions>{actions}</StepperActions>}
+        </StepperBody>
+      )}
+    </ReadingText>
   );
 }

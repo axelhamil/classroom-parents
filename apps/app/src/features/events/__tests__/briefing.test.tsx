@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, renderAppAt, resetApp } from "../../../__tests__/app-harness";
-import { givenCalendar } from "../../../__tests__/calendar-fixtures";
+import { givenBriefingHome } from "../../../__tests__/calendar-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
 import { at, deadline, HUGO } from "../../../__tests__/week-fixtures";
 
@@ -38,7 +38,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("before 16:00 it is about today", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-12", "Fiche de sortie signée"),
@@ -53,7 +53,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("after 16:00 it is about the next school day, with tonight's leftovers still open", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-12", "Exercice en ligne"),
@@ -73,7 +73,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("on Friday evening it is about Monday, a weekend outing included", async () => {
     at(FRIDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-14", "Match de hand"),
@@ -91,7 +91,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("groups what is due per child, in the family order", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD, HUGO],
       [
         deadline(1, "2026-11-13", "Fiche à signer", { childId: HUGO.id }),
@@ -115,7 +115,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("lists the whole day inside the block, with no button folding part of it", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD, HUGO],
       [
         deadline(1, "2026-11-13", "Fiche à signer", { childId: HUGO.id }),
@@ -135,7 +135,7 @@ describe("Accueil briefs the next school moment", () => {
   it("ticks done at once and rolls back when the server refuses", async () => {
     at(THURSDAY_EVENING);
     let refuse: (response: Response) => void = () => undefined;
-    givenCalendar([CHILD], [deadline(1, "2026-11-13", "Fiche à signer")], {
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-13", "Fiche à signer")], {
       failDone: new Promise<Response>((resolve) => {
         refuse = resolve;
       }),
@@ -156,7 +156,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("a leftover ticked in the evening stays, keeps the focus and can be unticked", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-12", "Exercice en ligne"),
@@ -183,7 +183,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("the last tick leaves the ready line still, the toast being the one celebration", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [deadline(1, "2026-11-13", "Fiche à signer"), deadline(2, "2026-11-14", "Exposé")],
     );
@@ -204,7 +204,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("lists what to prepare inside the card of its deadline, ticked without opening the deadline", async () => {
     at(THURSDAY_EVENING);
-    const stub = givenCalendar(
+    const stub = givenBriefingHome(
       [CHILD],
       [deadline(1, "2026-11-13", "Sac de piscine", { category: "swimming" })],
     );
@@ -231,7 +231,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("shows how much of what is due is already ready, and moves with each tick", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-13", "Fiche à signer", { done: true }),
@@ -261,7 +261,7 @@ describe("Accueil briefs the next school moment", () => {
   it("nothing due reads calm and links to the next deadline", async () => {
     at(THURSDAY_EVENING);
     const museum = deadline(1, "2026-11-20", "Sortie au musée");
-    givenCalendar([CHILD], [museum]);
+    givenBriefingHome([CHILD], [museum]);
     await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
@@ -274,7 +274,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("counts what the day it covers holds, assessments named, and reads its bar as done out of all", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-13", "Sac de piscine", { category: "swimming" }),
@@ -296,7 +296,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("names no assessment when the day has none, and says today in the morning", async () => {
     at("2026-11-12T07:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-11-12", "Mot signé")]);
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-12", "Mot signé")]);
     await renderAppAt("/");
 
     const today = await briefing("Pour aujourd'hui");
@@ -305,7 +305,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("while the first sync runs it says so instead of nothing to prepare", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar([{ ...CHILD, lastSyncedAt: null, syncing: true }], []);
+    givenBriefingHome([{ ...CHILD, lastSyncedAt: null, syncing: true }], []);
     await renderAppAt("/");
 
     const tomorrow = await briefing("Pour demain");
@@ -315,7 +315,7 @@ describe("Accueil briefs the next school moment", () => {
 
   it("all done reads ready without a celebration of its own", async () => {
     at(THURSDAY_EVENING);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-13", "Fiche à signer", { done: true }),

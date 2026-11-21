@@ -113,7 +113,7 @@ export function AddEventForm({
                 <FormLabel>{t("calendar.addDialog.child")}</FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder={t("calendar.addDialog.childPlaceholder")} />
                     </SelectTrigger>
                   </FormControl>

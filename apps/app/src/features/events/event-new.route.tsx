@@ -28,7 +28,7 @@ function NewEventPage() {
     <Screen
       title={t("calendar.addDialog.title")}
       description={t("calendar.addDialog.description")}
-      width="reading"
+      width="full"
     >
       <QueryState
         query={children}

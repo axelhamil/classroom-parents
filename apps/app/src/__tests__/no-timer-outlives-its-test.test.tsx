@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderAppAt, resetApp } from "./app-harness";
 import { givenCalendar } from "./calendar-fixtures";
 import { CHILD } from "./family-fixtures";
+import { givenWideScreen } from "./match-media";
 import { at, deadline } from "./week-fixtures";
 
 const SONNER_EXIT_MS = 200;
@@ -30,6 +31,8 @@ async function withoutWindow(during: number): Promise<void> {
 }
 
 describe("a timer started during a test", () => {
+  beforeEach(givenWideScreen);
+
   afterEach(() => {
     cleanup();
     resetApp();
@@ -40,6 +43,7 @@ describe("a timer started during a test", () => {
     givenCalendar(
       [CHILD],
       [deadline(1, "2026-11-19", "Sortie au musée", { status: "needs_review" })],
+      { homeLayout: [{ id: "review", w: 2, h: 1 }] },
     );
     await renderAppAt("/");
 

@@ -29,4 +29,4 @@ One line per task of the V1 implementation plan, ticked in the commit that deliv
 Home layout v2, one PR for its tasks T1 to T8.
 
 - [x] Home layout v2: revisioned layout on the server, advised layout per moment, read grid drawn by cells, arranging on the grid engine with menus, keyboard and touch, gates on rectangles, touch and frame rate
-- [ ] Home layout v2, T9: tile visual system (screenshots and wiring wait for the visual system)
+- [x] Home layout v2, T9: tile visual system (screenshots and wiring wait for the visual system)

@@ -11,6 +11,16 @@ export function ensureMatchMedia(): void {
   }));
 }
 
+/** A screen as wide as four columns of cards: every `min-width` query matches, nothing else does. */
+export function givenWideScreen(): void {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query.includes("min-width"),
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+}
+
 export function ensureGetAnimations(): void {
   if (typeof Document.prototype.getAnimations === "function") return;
 

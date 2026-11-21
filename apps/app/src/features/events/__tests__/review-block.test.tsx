@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type ApiCall, renderAppAt, resetApp } from "../../../__tests__/app-harness";
 import { givenCalendar } from "../../../__tests__/calendar-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
+import { givenWideScreen } from "../../../__tests__/match-media";
 import { at, deadline } from "../../../__tests__/week-fixtures";
 
 const THURSDAY_MORNING = "2026-11-12T09:00:00.000Z";
@@ -25,8 +26,8 @@ function pool() {
 
 const MUSEUM_ID = museum().id;
 
-function tile(width: 3 | 4 | 6) {
-  return [{ id: "review", w: width, h: 1, hidden: false }];
+function tile(w: number, h: number) {
+  return [{ id: "review", w, h }];
 }
 
 function reviewBlock(): Promise<HTMLElement> {
@@ -51,6 +52,8 @@ async function confirmMuseum(): Promise<void> {
 }
 
 describe("the block À vérifier", () => {
+  beforeEach(givenWideScreen);
+
   afterEach(() => {
     cleanup();
     resetApp();
@@ -59,7 +62,7 @@ describe("the block À vérifier", () => {
 
   it("given a large tile, then each line names the child, the date read, why it is in doubt and the source passage", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(6) });
+    givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(2, 2) });
     await renderAppAt("/");
 
     const list = await within(await reviewBlock()).findByRole("list", {
@@ -77,7 +80,7 @@ describe("the block À vérifier", () => {
   it("given a medium tile, then it shows the count, the main reason and the two nearest lines with their actions, in no scroller of its own", async () => {
     at(THURSDAY_MORNING);
     const later = deadline(3, "2026-11-25", "Kermesse", { status: "needs_review" });
-    givenCalendar([CHILD], [museum(), pool(), later], { homeLayout: tile(4) });
+    givenCalendar([CHILD], [museum(), pool(), later], { homeLayout: tile(2, 1) });
     await renderAppAt("/");
 
     const block = await reviewBlock();
@@ -95,7 +98,7 @@ describe("the block À vérifier", () => {
 
   it("given a small tile, then it shows the count and the nearest date, without lines", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(3) });
+    givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(1, 1) });
     await renderAppAt("/");
 
     const block = await reviewBlock();
@@ -106,7 +109,7 @@ describe("the block À vérifier", () => {
 
   it("given a date confirmed on its line, then the line leaves at once and the confirmation is sent right away", async () => {
     at(THURSDAY_MORNING);
-    const stub = givenCalendar([CHILD], [museum(), pool()]);
+    const stub = givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(2, 1) });
     await renderAppAt("/");
 
     await confirmMuseum();
@@ -121,7 +124,7 @@ describe("the block À vérifier", () => {
 
   it("given the page closed right after C'est bon, then the confirmation is kept", async () => {
     at(THURSDAY_MORNING);
-    const stub = givenCalendar([CHILD], [museum(), pool()]);
+    const stub = givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(2, 1) });
     await renderAppAt("/");
 
     await confirmMuseum();
@@ -133,7 +136,7 @@ describe("the block À vérifier", () => {
 
   it("given a confirmation undone from its toast, then the line comes back and the date goes back to review", async () => {
     at(THURSDAY_MORNING);
-    const stub = givenCalendar([CHILD], [museum(), pool()]);
+    const stub = givenCalendar([CHILD], [museum(), pool()], { homeLayout: tile(2, 1) });
     await renderAppAt("/");
 
     await confirmMuseum();
@@ -150,7 +153,7 @@ describe("the block À vérifier", () => {
 
   it("given a date to correct, then its line leads to the edit form of that date", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar([CHILD], [museum()]);
+    givenCalendar([CHILD], [museum()], { homeLayout: tile(2, 1) });
     await renderAppAt("/");
 
     const fix = await within(await reviewBlock()).findByRole("link", {
@@ -162,7 +165,7 @@ describe("the block À vérifier", () => {
 
   it("given the last date confirmed, then the block says everything is checked and takes the focus", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar([CHILD], [museum()]);
+    givenCalendar([CHILD], [museum()], { homeLayout: tile(2, 1) });
     await renderAppAt("/");
 
     await confirmMuseum();
@@ -173,7 +176,7 @@ describe("the block À vérifier", () => {
 
   it("given the last date confirmed, then its undo stays offered until the parent leaves the home", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar([CHILD], [museum()]);
+    givenCalendar([CHILD], [museum()], { homeLayout: tile(2, 1) });
     const router = await renderAppAt("/");
 
     await confirmMuseum();
@@ -187,7 +190,7 @@ describe("the block À vérifier", () => {
 
   it("given nothing to check, then the block says so at its size instead of an empty card", async () => {
     at(THURSDAY_MORNING);
-    givenCalendar([CHILD], []);
+    givenCalendar([CHILD], [], { homeLayout: tile(2, 1) });
     await renderAppAt("/");
 
     expect(await within(await reviewBlock()).findByText("Tout est vérifié")).toBeDefined();

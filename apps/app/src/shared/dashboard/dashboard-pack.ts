@@ -1,22 +1,18 @@
-export const BLOCK_SIZES = ["s", "m", "l", "xl"] as const;
+import type { BlockSize, GridColumns } from "./block-size";
 
-export type BlockSize = (typeof BLOCK_SIZES)[number];
+/** A block to place, in the order the layout reads it. */
+export interface PackEntry {
+  id: string;
+  size: BlockSize;
+}
 
-/** Width of the home grid in units: 2 on a phone, 4 from a tablet up. */
-export type GridUnits = 2 | 4;
-
-export interface PackedItem {
+/** A block placed on the columns of cards, maybe larger than its size where it closes a hole. */
+export interface Placed {
   id: string;
   x: number;
   y: number;
   w: number;
   h: number;
-  grown: boolean;
-  pulled: boolean;
-}
-
-export interface PackedLayout {
-  items: PackedItem[];
 }
 
 /** One tile placed on the grid columns, the shape a grid library positions. */
@@ -28,308 +24,188 @@ export interface GridItem {
   h: number;
 }
 
-interface Span {
+interface Cell {
+  x: number;
+  y: number;
+}
+
+interface Rect extends Cell {
   w: number;
   h: number;
 }
 
-interface Entry {
+interface Block extends Rect {
   id: string;
-  size: BlockSize;
-}
-
-interface Placement {
-  id: string;
-  size: BlockSize;
-  cell: number;
-  dx: number;
-  dy: number;
-  w: number;
-  h: number;
-  pulled: boolean;
-}
-
-const SPANS: Record<BlockSize, Span> = {
-  s: { w: 1, h: 1 },
-  m: { w: 2, h: 1 },
-  l: { w: 2, h: 2 },
-  xl: { w: 4, h: 2 },
-};
-
-const CELL_SIDE = 2;
-
-const QUARTERS = CELL_SIDE * CELL_SIDE;
-
-const QUARTERS_TAKEN: Record<BlockSize, number> = { s: 1, m: 2, l: 4, xl: 4 };
-
-const PHONE_UNITS = 2;
-
-const PHONE_COLUMNS = 4;
-
-function spanOf(size: BlockSize, units: GridUnits): Span {
-  if (size === "xl" && units === PHONE_UNITS) return SPANS.l;
-
-  return SPANS[size];
-}
-
-function fitsAt(size: BlockSize, fill: number): boolean {
-  if (size === "s") return fill < QUARTERS;
-  if (size === "m") return fill === 0 || fill === CELL_SIDE;
-
-  return fill === 0;
-}
-
-function quarterOffset(quarter: number): { dx: number; dy: number } {
-  return { dx: quarter % CELL_SIDE, dy: Math.floor(quarter / CELL_SIDE) };
-}
-
-function emptyQuarters(placements: readonly Placement[]): Set<number> {
-  const empty = new Set([0, 1, 2, 3]);
-
-  for (const { dx, dy, w, h } of placements)
-    for (let row = dy; row < dy + h; row++)
-      for (let col = dx; col < dx + w; col++) empty.delete(row * CELL_SIDE + col);
-
-  return empty;
-}
-
-function growDown(placements: Placement[]): void {
-  for (const placement of placements) {
-    if (placement.dy !== 0 || placement.h !== 1) continue;
-
-    const empty = emptyQuarters(placements);
-    const below = Array.from({ length: placement.w }, (_, col) => CELL_SIDE + placement.dx + col);
-    if (below.every((quarter) => empty.has(quarter))) placement.h = CELL_SIDE;
-  }
-}
-
-function growLastRight(placements: Placement[]): void {
-  const last = placements.at(-1);
-  if (!last || emptyQuarters(placements).size === 0) return;
-
-  last.w = CELL_SIDE;
 }
 
 /**
- * Lays blocks out by cells of 2 x 2 units: a cell takes one L, two M, four S or
- * a mix read top left to bottom right, and an XL takes a whole row of cells.
- * A cell left incomplete first pulls the next block that fits, then grows its
- * own blocks so no row keeps a hole. Positions depend only on the order, the
- * sizes and the width, never on what the blocks show. A block `tallOf` names takes one more
- * row, with the row of cells it sits in: the size table asks it where a row is too short for
- * what the block must show.
+ * Lays blocks out as free rectangles on `columns` columns of cards, in the order given: each block
+ * takes the first place, read row by row from where the block before it stands, that it fits in.
+ * A place it skips is a hole: the next blocks that fit are pulled into it, and when none does, the
+ * block on its left grows right or the block above it grows down. A width is held to the columns.
+ * Positions depend only on the order, the sizes and the columns, never on what the blocks show.
  */
-export function pack(
-  order: readonly string[],
-  sizeOf: (id: string) => BlockSize,
-  units: GridUnits,
-  tallOf: (id: string) => boolean = () => false,
-): PackedLayout {
-  const entries = order.map((id) => ({ id, size: sizeOf(id) }));
-  const items = new CellPacker(units).run(entries);
-
-  for (const id of order.filter(tallOf)) stretchRow(items, id);
-
-  return { items };
-}
-
-/**
- * Gives a tall block one more row: its row of cells grows by one, the blocks that end with it
- * grow with it so the row keeps no hole, and every block below moves down by one.
- */
-function stretchRow(items: PackedItem[], id: string): void {
-  const tall = items.find((item) => item.id === id);
-  if (!tall) return;
-
-  const bottom = tall.y + tall.h;
-
-  for (const item of items) {
-    if (item.y >= bottom) item.y += 1;
-    else if (item.y + item.h === bottom) {
-      item.h += 1;
-      item.grown ||= item !== tall;
-    }
-  }
-}
-
-class CellPacker {
-  private readonly cellsPerRow: number;
-  private readonly placements: Placement[] = [];
-  private queue: Entry[] = [];
-  private cell = 0;
-
-  constructor(private readonly units: GridUnits) {
-    this.cellsPerRow = units / CELL_SIDE;
-  }
-
-  run(entries: readonly Entry[]): PackedItem[] {
-    this.queue = [...entries];
-
-    for (let entry = this.queue.shift(); entry; entry = this.queue.shift()) this.take(entry);
-
-    this.closeRow();
-
-    return this.toItems();
-  }
-
-  private take(entry: Entry): void {
-    if (this.spansRow(entry.size)) {
-      this.placeRow(entry);
-      return;
-    }
-
-    if (!fitsAt(entry.size, this.fill(this.cell))) {
-      this.closeCell();
-      this.cell++;
-    }
-
-    this.place(entry, this.cell, false);
-    if (this.fill(this.cell) === QUARTERS) this.cell++;
-  }
-
-  private spansRow(size: BlockSize): boolean {
-    return size === "xl" && this.units !== PHONE_UNITS;
-  }
-
-  private placeRow(entry: Entry): void {
-    this.closeRow();
-    this.cell = this.rowStart(this.cell) + (this.isRowStart(this.cell) ? 0 : this.cellsPerRow);
-
-    this.place(entry, this.cell, false);
-    this.cell += this.cellsPerRow;
-  }
-
-  private closeRow(): void {
-    if (this.isRowStart(this.cell) && this.fill(this.cell) === 0) return;
-
-    this.closeCell();
-    if (this.cellsPerRow === 1) return;
-
-    if (this.isRowStart(this.cell)) this.cell++;
-
-    this.fillEmptyRightCell();
-  }
-
-  private fillEmptyRightCell(): void {
-    if (this.fill(this.cell) > 0) return;
-
-    this.pullInto(this.cell);
-
-    if (this.fill(this.cell) > 0) this.growCell(this.cell);
-    else this.doubleWidth(this.cell - 1);
-  }
-
-  private closeCell(): void {
-    const fill = this.fill(this.cell);
-    if (fill === 0 || fill === QUARTERS) return;
-
-    this.pullInto(this.cell);
-    this.growCell(this.cell);
-  }
-
-  private pullInto(cell: number): void {
-    for (let next = this.nextFitting(cell); next; next = this.nextFitting(cell)) {
-      this.queue = this.queue.filter((entry) => entry !== next);
-      this.place(next, cell, true);
-    }
-  }
-
-  private nextFitting(cell: number): Entry | undefined {
-    const fill = this.fill(cell);
-    if (fill === QUARTERS) return undefined;
-
-    return this.queue.find((entry) => !this.spansRow(entry.size) && fitsAt(entry.size, fill));
-  }
-
-  private place(entry: Entry, cell: number, pulled: boolean): void {
-    const span = spanOf(entry.size, this.units);
-    const offset = quarterOffset(this.fill(cell));
-
-    this.placements.push({ ...entry, ...span, ...offset, cell, pulled });
-  }
-
-  private growCell(cell: number): void {
-    const placements = this.inCell(cell);
-
-    growDown(placements);
-    growLastRight(placements);
-  }
-
-  private doubleWidth(cell: number): void {
-    for (const placement of this.inCell(cell)) {
-      placement.dx *= CELL_SIDE;
-      placement.w *= CELL_SIDE;
-    }
-  }
-
-  private fill(cell: number): number {
-    return this.inCell(cell).reduce((taken, { size }) => taken + QUARTERS_TAKEN[size], 0);
-  }
-
-  private inCell(cell: number): Placement[] {
-    return this.placements.filter((placement) => placement.cell === cell);
-  }
-
-  private isRowStart(cell: number): boolean {
-    return cell % this.cellsPerRow === 0;
-  }
-
-  private rowStart(cell: number): number {
-    return cell - (cell % this.cellsPerRow);
-  }
-
-  private toItems(): PackedItem[] {
-    return [...this.placements]
-      .sort((a, b) => a.cell - b.cell || a.dy - b.dy || a.dx - b.dx)
-      .map((placement) => this.toItem(placement));
-  }
-
-  private toItem({ id, size, cell, dx, dy, w, h, pulled }: Placement): PackedItem {
-    const span = spanOf(size, this.units);
-    const row = Math.floor(cell / this.cellsPerRow);
-    const col = cell % this.cellsPerRow;
-
-    return {
-      id,
-      x: col * CELL_SIDE + dx,
-      y: row * CELL_SIDE + dy,
-      w,
-      h,
-      grown: w !== span.w || h !== span.h,
-      pulled,
-    };
-  }
-}
-
-/** The column count of a tablet's home, where a row is at its shortest beside a phone's. */
-export const TABLET_COLUMNS = 8;
-
-/**
- * Which blocks take one more row at a column count: on a tablet, those whose size is among the
- * sizes their table makes tall. Read and edit both ask it, so a tile keeps one rectangle.
- */
-export function tallOnTablet(
-  tallSizesOf: (id: string) => readonly BlockSize[],
-  sizeOf: (id: string) => BlockSize,
-  cols: number,
-): (id: string) => boolean {
-  return (id) => cols === TABLET_COLUMNS && tallSizesOf(id).includes(sizeOf(id));
-}
-
-/** The grid width in units for a column count: 4 columns is the phone. */
-export function unitsFor(cols: number): GridUnits {
-  return cols <= PHONE_COLUMNS ? PHONE_UNITS : 4;
-}
-
-/** Converts packed units to grid columns; one unit is one row high. */
-export function toGrid(items: readonly PackedItem[], cols: number): GridItem[] {
-  const columnsPerUnit = cols / unitsFor(cols);
-
-  return items.map(({ id, x, y, w, h }) => ({
-    i: id,
-    x: x * columnsPerUnit,
-    y,
-    w: w * columnsPerUnit,
-    h,
+export function pack(blocks: readonly PackEntry[], columns: GridColumns): Placed[] {
+  const entries = blocks.map(({ id, size }) => ({
+    id,
+    size: { ...size, w: Math.min(size.w, columns) },
   }));
+
+  return new FreePacker(columns, entries).run();
+}
+
+/** Converts placed blocks to the items a grid library positions, one column of cards per column. */
+export function toGrid(items: readonly Placed[]): GridItem[] {
+  return items.map(({ id, x, y, w, h }) => ({ i: id, x, y, w, h }));
+}
+
+class FreePacker {
+  private readonly sheet: Sheet;
+  private queue: PackEntry[];
+  private cursor: Cell = { x: 0, y: 0 };
+
+  constructor(columns: GridColumns, entries: readonly PackEntry[]) {
+    this.sheet = new Sheet(columns);
+    this.queue = [...entries];
+  }
+
+  run(): Placed[] {
+    for (let head = this.queue.shift(); head; head = this.queue.shift()) this.take(head);
+
+    return this.sheet.blocks.map(toPlaced).sort((a, b) => a.y - b.y || a.x - b.x);
+  }
+
+  private take(head: PackEntry): void {
+    const slot = this.slotFor(head.size);
+
+    this.fillHoles(slot);
+    this.sheet.add(head, slot);
+    this.cursor = slot;
+  }
+
+  /** The first place from the cursor where the block fits and every hole it leaves can be closed. */
+  private slotFor(size: BlockSize): Rect {
+    const bottom = this.sheet.bottom();
+
+    for (let y = this.cursor.y; y < bottom; y++)
+      for (let x = y === this.cursor.y ? this.cursor.x : 0; x + size.w <= this.sheet.columns; x++) {
+        const slot = { x, y, ...size };
+
+        if (this.sheet.fits(slot) && this.sheet.copy().closeHoles(this.cursor, slot)) return slot;
+      }
+
+    return { x: 0, y: bottom, ...size };
+  }
+
+  private fillHoles(slot: Rect): void {
+    for (
+      let hole = this.sheet.firstHole(this.cursor, slot);
+      hole;
+      hole = this.sheet.firstHole(this.cursor, slot)
+    ) {
+      const closed = this.pullInto(hole, slot) || this.sheet.grow(hole, slot);
+      if (!closed) return;
+    }
+  }
+
+  private pullInto(hole: Cell, slot: Rect): boolean {
+    const entry = this.queue.find((candidate) => this.canPull(candidate, hole, slot));
+    if (!entry) return false;
+
+    this.queue = this.queue.filter((candidate) => candidate !== entry);
+    this.sheet.add(entry, hole);
+
+    return true;
+  }
+
+  private canPull(entry: PackEntry, hole: Cell, slot: Rect): boolean {
+    const rect = { ...hole, ...entry.size };
+    if (!this.sheet.fits(rect) || overlaps(rect, slot)) return false;
+
+    const trial = this.sheet.copy();
+    trial.add(entry, hole);
+
+    return trial.closeHoles(this.cursor, slot);
+  }
+}
+
+/** The cases taken so far, read and grown while the blocks are placed. */
+class Sheet {
+  constructor(
+    readonly columns: number,
+    readonly blocks: Block[] = [],
+  ) {}
+
+  copy(): Sheet {
+    return new Sheet(
+      this.columns,
+      this.blocks.map((block) => ({ ...block })),
+    );
+  }
+
+  add({ id, size }: PackEntry, { x, y }: Cell): void {
+    this.blocks.push({ id, x, y, w: size.w, h: size.h });
+  }
+
+  bottom(): number {
+    return Math.max(0, ...this.blocks.map(({ y, h }) => y + h));
+  }
+
+  fits(rect: Rect): boolean {
+    if (rect.x < 0 || rect.y < 0 || rect.x + rect.w > this.columns) return false;
+
+    return !this.blocks.some((block) => overlaps(block, rect));
+  }
+
+  /** The first free case read from `from` up to, not including, the place `slot` starts at. */
+  firstHole(from: Cell, slot: Cell): Cell | undefined {
+    for (let y = from.y; y <= slot.y; y++)
+      for (let x = y === from.y ? from.x : 0; x < this.columns; x++) {
+        if (y === slot.y && x >= slot.x) return undefined;
+        if (this.fits({ x, y, w: 1, h: 1 })) return { x, y };
+      }
+
+    return undefined;
+  }
+
+  /** Closes every hole before `slot` by growing the blocks around it, false when one cannot be. */
+  closeHoles(from: Cell, slot: Rect): boolean {
+    for (let hole = this.firstHole(from, slot); hole; hole = this.firstHole(from, slot))
+      if (!this.grow(hole, slot)) return false;
+
+    return true;
+  }
+
+  /** Covers a hole with the block on its left grown right, else the block above it grown down. */
+  grow(hole: Cell, slot: Rect): boolean {
+    const left = this.at(hole.x - 1, hole.y);
+    if (left?.y === hole.y && this.isClear({ x: hole.x, y: hole.y, w: 1, h: left.h }, slot)) {
+      left.w += 1;
+      return true;
+    }
+
+    const above = this.at(hole.x, hole.y - 1);
+    if (above?.x === hole.x && this.isClear({ x: hole.x, y: hole.y, w: above.w, h: 1 }, slot)) {
+      above.h += 1;
+      return true;
+    }
+
+    return false;
+  }
+
+  private isClear(rect: Rect, slot: Rect): boolean {
+    return this.fits(rect) && !overlaps(rect, slot);
+  }
+
+  private at(x: number, y: number): Block | undefined {
+    return this.blocks.find((block) => overlaps(block, { x, y, w: 1, h: 1 }));
+  }
+}
+
+function overlaps(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+function toPlaced({ id, x, y, w, h }: Block): Placed {
+  return { id, x, y, w, h };
 }

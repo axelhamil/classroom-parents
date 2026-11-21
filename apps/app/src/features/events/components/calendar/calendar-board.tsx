@@ -51,6 +51,8 @@ export interface CalendarBoardProps {
   onPlaceChange: (place: CalendarPlace) => void;
   briefingShown: boolean;
   overdueShown: boolean;
+  /** The day the board opens on when no place names one: the hero Agenda's day of return. */
+  opensOn?: string;
 }
 
 type Direction = "none" | "forward" | "back";
@@ -84,12 +86,18 @@ export function CalendarBoard({
   onPlaceChange,
   briefingShown,
   overdueShown,
+  opensOn,
 }: CalendarBoardProps) {
   const { t } = useTranslation("events");
   const clock = useSchoolClock();
   const [blockRef, board] = useContainerAtLeast<HTMLDivElement>(BOARD_FROM_REM);
   const weekStart: WeekStart = board ? "monday" : "anchor";
-  const { view, today, reference, anchor, period } = placePeriod(place, clock, weekStart);
+  const { view, today, reference, home, anchor, period } = placePeriod(
+    place,
+    clock,
+    weekStart,
+    opensOn,
+  );
   const query = useQuery({
     ...calendarEventsQueryOptions(period),
     placeholderData: keepPreviousData,
@@ -114,7 +122,7 @@ export function CalendarBoard({
   );
   const courses = agendaCoursesView(filterAgenda(loaded, { childId, courseId: null }));
 
-  const select = (date: string) => onPlaceChange({ date: date === reference ? undefined : date });
+  const select = (date: string) => onPlaceChange({ date: date === home ? undefined : date });
 
   const turnTo = (date: string) => {
     setMotion((current) => ({

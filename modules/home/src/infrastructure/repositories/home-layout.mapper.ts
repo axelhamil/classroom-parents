@@ -1,36 +1,48 @@
 import { Option, Result } from "@packages/ddd-kit";
 import { z } from "zod";
 import {
-  type BlockSize,
-  type HomeBlock,
+  FIXED_BLOCK_SIZES,
+  type FixedBlockSize,
+  type FixedSizeBlock,
   HomeLayout,
   homeLayoutSchema,
 } from "../../domain/value-objects/home-layout.vo";
 
-const SIZE_OF_LEGACY_WIDTH = { 3: "s", 4: "m", 6: "l", 8: "l", 12: "xl" } as const satisfies Record<
-  number,
-  BlockSize
->;
+const FIXED_SIZE_OF_FIRST_WIDTH = {
+  3: "s",
+  4: "m",
+  6: "l",
+  8: "l",
+  12: "xl",
+} as const satisfies Record<number, FixedBlockSize>;
 
-const legacyBlockSchema = z.object({
-  id: z.string(),
-  w: z.literal([3, 4, 6, 8, 12]),
-  hidden: z.boolean(),
+const firstFormatSchema = z.array(
+  z.object({
+    id: z.string(),
+    w: z.literal([3, 4, 6, 8, 12]),
+    hidden: z.boolean(),
+  }),
+);
+
+const fixedSizesFormatSchema = z.object({
+  v: z.literal(2),
+  blocks: z.array(z.object({ id: z.string(), size: z.enum(FIXED_BLOCK_SIZES) })),
 });
 
-const legacyLayoutSchema = z.array(legacyBlockSchema);
+type FirstFormat = z.infer<typeof firstFormatSchema>;
 
-type LegacyBlock = z.infer<typeof legacyBlockSchema>;
-
-function shownBlocksOf(legacy: LegacyBlock[]): HomeBlock[] {
-  return legacy
+function shownBlocksOf(first: FirstFormat): FixedSizeBlock[] {
+  return first
     .filter(({ hidden }) => !hidden)
-    .map(({ id, w }) => ({ id, size: SIZE_OF_LEGACY_WIDTH[w] }));
+    .map(({ id, w }) => ({ id, size: FIXED_SIZE_OF_FIRST_WIDTH[w] }));
 }
 
 function layoutOf(stored: unknown): Result<HomeLayout> {
-  const legacy = legacyLayoutSchema.safeParse(stored);
-  if (legacy.success) return HomeLayout.of(shownBlocksOf(legacy.data));
+  const first = firstFormatSchema.safeParse(stored);
+  if (first.success) return HomeLayout.fromFixedSizes(shownBlocksOf(first.data));
+
+  const fixedSizes = fixedSizesFormatSchema.safeParse(stored);
+  if (fixedSizes.success) return HomeLayout.fromFixedSizes(fixedSizes.data.blocks);
 
   const current = homeLayoutSchema.safeParse(stored);
   if (!current.success) return Result.fail(z.prettifyError(current.error));

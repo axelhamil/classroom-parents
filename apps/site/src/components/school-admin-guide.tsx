@@ -5,6 +5,7 @@ import { NeverIcon } from "@packages/ui/components/ui/icons";
 import { Item, ItemContent, ItemMedia } from "@packages/ui/components/ui/item";
 import { PageHeader } from "@packages/ui/components/ui/page-header";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { SectionGrid } from "@packages/ui/components/ui/section-grid";
 import { TextLink } from "@packages/ui/components/ui/text-link";
 import {
   TypographyInline,
@@ -52,71 +53,73 @@ export function SchoolAdminGuide({
         description={copy.lead}
       />
 
-      <SectionCard title={copy.steps.title}>
-        <ol className="flex flex-col gap-2">
-          {ADMIN_STEPS.map((step, index) => (
-            <li key={step}>
-              <Item variant="muted">
-                <ItemMedia>
-                  <Badge variant="secondary">{index + 1}</Badge>
-                </ItemMedia>
-                <ItemContent>
-                  <TypographyP>{copy.steps[step]}</TypographyP>
-                </ItemContent>
-              </Item>
-            </li>
-          ))}
-        </ol>
-      </SectionCard>
+      <SectionGrid>
+        <SectionCard title={copy.steps.title}>
+          <ol className="flex flex-col gap-2">
+            {ADMIN_STEPS.map((step, index) => (
+              <li key={step}>
+                <Item variant="muted">
+                  <ItemMedia>
+                    <Badge variant="secondary">{index + 1}</Badge>
+                  </ItemMedia>
+                  <ItemContent>
+                    <TypographyP>{copy.steps[step]}</TypographyP>
+                  </ItemContent>
+                </Item>
+              </li>
+            ))}
+          </ol>
+        </SectionCard>
 
-      <SectionCard title={copy.clientId.label}>{children}</SectionCard>
+        <SectionCard title={copy.clientId.label}>{children}</SectionCard>
 
-      <SectionCard title={copy.scopes.title}>
-        <TypographyList>
-          {CLASSROOM_SCOPES.map((scope) => (
-            <li key={scope} className="flex flex-col gap-1">
-              {copy.scopes[SCOPE_LABELS[scope]]}
-              <TypographyInline font="mono" size="xs" className="wrap-anywhere">
-                {scope}
-              </TypographyInline>
-            </li>
-          ))}
-        </TypographyList>
-      </SectionCard>
+        <SectionCard title={copy.scopes.title}>
+          <TypographyList>
+            {CLASSROOM_SCOPES.map((scope) => (
+              <li key={scope} className="flex flex-col gap-1">
+                {copy.scopes[SCOPE_LABELS[scope]]}
+                <TypographyInline font="mono" size="xs" className="wrap-anywhere">
+                  {scope}
+                </TypographyInline>
+              </li>
+            ))}
+          </TypographyList>
+        </SectionCard>
 
-      <SectionCard title={copy.delay.title}>
-        <TypographyP>{copy.delay.body}</TypographyP>
-        <TypographyMuted>{copy.delay.classroom}</TypographyMuted>
-      </SectionCard>
+        <SectionCard title={copy.delay.title}>
+          <TypographyP>{copy.delay.body}</TypographyP>
+          <TypographyMuted>{copy.delay.classroom}</TypographyMuted>
+        </SectionCard>
 
-      <SectionCard title={copy.reads.title}>
-        <TypographyP>{copy.reads.body}</TypographyP>
-      </SectionCard>
+        <SectionCard title={copy.reads.title}>
+          <TypographyP>{copy.reads.body}</TypographyP>
+        </SectionCard>
 
-      <SectionCard title={copy.never.title}>
-        <TypographyList>
-          {NEVER.map((key) => (
-            <li key={key} className="flex items-start gap-2">
-              <NeverIcon aria-hidden />
-              {copy.never[key]}
-            </li>
-          ))}
-        </TypographyList>
-      </SectionCard>
+        <SectionCard title={copy.never.title}>
+          <TypographyList>
+            {NEVER.map((key) => (
+              <li key={key} className="flex items-start gap-2">
+                <NeverIcon aria-hidden />
+                {copy.never[key]}
+              </li>
+            ))}
+          </TypographyList>
+        </SectionCard>
 
-      <SectionCard title={copy.data.title}>
-        <TypographyP>{copy.data.body}</TypographyP>
-        <div className="flex flex-wrap gap-4">
-          <TextLink href={subProcessorsUrl}>{copy.data.subProcessors}</TextLink>
-          <TextLink href={privacyUrl}>{copy.data.privacy}</TextLink>
-        </div>
-      </SectionCard>
+        <SectionCard title={copy.data.title}>
+          <TypographyP>{copy.data.body}</TypographyP>
+          <div className="flex flex-wrap gap-4">
+            <TextLink href={subProcessorsUrl}>{copy.data.subProcessors}</TextLink>
+            <TextLink href={privacyUrl}>{copy.data.privacy}</TextLink>
+          </div>
+        </SectionCard>
 
-      <SectionCard title={copy.contact.title}>
-        <TypographyP>
-          {copy.contact.body} <TextLink href={`mailto:${contactEmail}`}>{contactEmail}</TextLink>
-        </TypographyP>
-      </SectionCard>
+        <SectionCard title={copy.contact.title}>
+          <TypographyP>
+            {copy.contact.body} <TextLink href={`mailto:${contactEmail}`}>{contactEmail}</TextLink>
+          </TypographyP>
+        </SectionCard>
+      </SectionGrid>
     </>
   );
 }

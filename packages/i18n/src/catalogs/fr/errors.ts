@@ -49,7 +49,7 @@ export default {
     ASSISTANT_PREFERENCE_INVALID:
       "Cette langue, ce fuseau horaire ou ce pays n'est pas reconnu. Choisissez une valeur de la liste.",
     HOME_LAYOUT_INVALID:
-      "Cette disposition de l'accueil n'est pas valide : 40 blocs au plus, chacun une seule fois. Rétablissez la disposition par défaut.",
+      "Cette disposition de l'accueil n'est pas valide : 40 blocs au plus, chacun une seule fois, de 1 à 4 colonnes de large et de 1 à 8 rangées de haut. Rétablissez la disposition par défaut.",
     HOME_LAYOUT_STALE:
       "L'accueil a changé sur un autre appareil. Reprenez la dernière version, puis refaites votre changement.",
     HOME_NOTE_INVALID:

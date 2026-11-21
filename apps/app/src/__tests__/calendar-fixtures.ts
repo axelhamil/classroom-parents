@@ -1,4 +1,4 @@
-import { readStoredLayout } from "../shared/dashboard/layout-migration";
+import type { StoredLayout } from "../shared/dashboard/layout-migration";
 import { type ApiCall, json, stubApi } from "./app-harness";
 import { CHILD } from "./family-fixtures";
 import { deadline, HUGO } from "./week-fixtures";
@@ -14,7 +14,7 @@ export interface CalendarStubOptions {
   failDone?: Promise<Response>;
   refuseFirstDone?: boolean;
   detail?: Fixture;
-  homeLayout?: unknown[];
+  homeLayout?: StoredLayout["blocks"];
   unread?: number;
 }
 
@@ -55,7 +55,7 @@ export function givenCalendar(
     if (url.pathname === "/children") return json(children);
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     if (url.pathname === "/home/layout" && method === "GET")
-      return json({ blocks: homeLayout ? readStoredLayout(homeLayout) : null, revision: 0 });
+      return json({ v: 3, blocks: homeLayout ?? null, revision: 0 });
     if (url.pathname === "/notifications/unread-count") return json({ count: unread });
     if (url.pathname === "/calendar-feed" && method === "GET") return json({ exists: false });
     if (url.pathname === "/events" && method === "GET") {
@@ -146,6 +146,23 @@ export function givenCalendar(
   });
 
   return stub;
+}
+
+export const BRIEFING_ABOVE_AGENDA = [
+  { id: "today", w: 2, h: 2 },
+  { id: "calendar", w: 4, h: 2 },
+];
+
+/**
+ * A family whose parent keeps the briefing above the agenda: a test of either block reads them
+ * whatever the hour would advise.
+ */
+export function givenBriefingHome(
+  children: unknown[],
+  events: Fixture[],
+  options: CalendarStubOptions = {},
+): CalendarStub {
+  return givenCalendar(children, events, { homeLayout: BRIEFING_ABOVE_AGENDA, ...options });
 }
 
 export function calendarRequests(calls: readonly ApiCall[]): { from: string; to: string }[] {

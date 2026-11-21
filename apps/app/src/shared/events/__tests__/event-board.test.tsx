@@ -16,6 +16,7 @@ function givenNoEvents(): void {
   stubApi(({ method, url }) => {
     if (url.pathname === "/children") return json([CHILD]);
     if (url.pathname === "/events" && method === "GET") return json({ items: [] });
+    if (url.pathname === "/events/calendar") return json({ items: [] });
     if (url.pathname === "/sync") return json({ status: "requested" }, 202);
     return undefined;
   });

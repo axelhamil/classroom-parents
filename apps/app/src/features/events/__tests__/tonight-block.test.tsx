@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderAppAt, resetApp } from "../../../__tests__/app-harness";
 import { givenCalendar } from "../../../__tests__/calendar-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
+import { givenWideScreen } from "../../../__tests__/match-media";
 import { at, deadline, HUGO } from "../../../__tests__/week-fixtures";
 import { askedStepsOf } from "../../../shared/agenda/checklist-template";
 
@@ -20,9 +21,9 @@ const THURSDAY_EVENING = "2026-11-12T17:00:00.000Z";
 
 const WITH_TONIGHT = {
   homeLayout: [
-    { id: "today", w: 8, h: 2, hidden: false },
-    { id: "tonight", w: 4, h: 1, hidden: false },
-    { id: "calendar", w: 12, h: 3, hidden: false },
+    { id: "today", w: 2, h: 2 },
+    { id: "tonight", w: 2, h: 1 },
+    { id: "calendar", w: 4, h: 2 },
   ],
 };
 
@@ -56,6 +57,8 @@ function stepsIn(region: HTMLElement, only?: "suggested"): string[] {
 }
 
 describe("Pour ce soir lists what to do tonight for the next school day", () => {
+  beforeEach(givenWideScreen);
+
   afterEach(() => {
     cleanup();
     resetApp();
@@ -262,6 +265,7 @@ describe("Pour ce soir lists what to do tonight for the next school day", () => 
     const ticked = stub.events[0]?.checklist.done ?? [];
     cleanup();
     resetApp();
+    givenWideScreen();
 
     givenCalendar([CHILD], [outing([giveBack, sign], [...ticked])], WITH_TONIGHT);
     await renderAppAt("/");

@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { wordlessCategories } from "./agenda-board";
+import { clippingFrames, drawnWithin } from "./clipping";
 import { expect, test } from "./csp";
 import {
   BUSY_WEEK,
@@ -13,16 +14,20 @@ import {
   todayAt,
 } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
+import type { Block } from "./served-layout";
 
-/** The width where the Agenda measured 1200 × 436 on the home: an XL tile beside nothing. */
-const TILE_VIEWPORT = { width: 1277, height: 900 };
+/**
+ * The narrowest computer width, where the Agenda takes a whole row of 3 columns on 2 rows and its
+ * week scrolls inside: below it, on 2 columns, the Agenda is 3 rows high and a busy week fits.
+ */
+const TILE_VIEWPORT = { width: 1280, height: 900 };
 
 test.use({ storageState: STORAGE_STATE, viewport: TILE_VIEWPORT });
 
 async function openAgenda(
   page: Page,
   events: readonly unknown[],
-  homeLayout?: unknown[],
+  homeLayout?: Block[],
 ): Promise<Locator> {
   await page.clock.setFixedTime(todayAt("09:00"));
   await serveFamily(page, { children: [LEA, MAXIMILIEN], events: [...events], homeLayout });
@@ -52,17 +57,13 @@ async function inside(inner: Locator, outer: Locator): Promise<boolean> {
 
 /** Whether a control is drawn whole in the part of the tile the parent sees, not clipped by its scroll. */
 async function inSight(control: Locator, agenda: Locator): Promise<boolean> {
-  const clipped = await control.evaluate((element) => {
-    const box = element.getBoundingClientRect();
-    let scroller = element.parentElement;
-    while (scroller && getComputedStyle(scroller).overflowY === "visible")
-      scroller = scroller.parentElement;
-    if (!scroller) return false;
+  const [nearest] = await clippingFrames(control);
+  const box = await control.evaluate((element) => {
+    const { top, bottom } = element.getBoundingClientRect();
 
-    const frame = scroller.getBoundingClientRect();
-
-    return box.top < frame.top - 1 || box.bottom > frame.bottom + 1;
+    return { top, bottom };
   });
+  const clipped = nearest !== undefined && !drawnWithin(box, nearest);
 
   return !clipped && (await inside(control, agenda));
 }
@@ -83,7 +84,7 @@ test.describe("the Agenda tile on load", () => {
     });
 
   test("opens a medium tile on its toolbar, the whole body scrolling once", async ({ page }) => {
-    const agenda = await openAgenda(page, BUSY_WEEK, [{ id: "calendar", size: "m" }]);
+    const agenda = await openAgenda(page, BUSY_WEEK, [{ id: "calendar", size: { w: 2, h: 1 } }]);
 
     await expect
       .poll(() => inSight(agenda.getByRole("tab", { name: "Semaine" }), agenda))

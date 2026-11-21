@@ -5,12 +5,14 @@ import { useTranslation } from "react-i18next";
 import { watchedForReminders } from "../../../../shared/agenda/views";
 import { nextSevenDays } from "../../../../shared/agenda/windows";
 import type { EventItem } from "../../../../shared/api/queries/events";
+import { useTileSizeClass } from "../../../../shared/dashboard/tile-size-class";
 import { EventLink } from "../../../../shared/events/event-link";
 import { instantLabel } from "../../../../shared/format/deadline-label";
 import { type EventReminders, eventRemindersQueryOptions } from "../../api/events.queries";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { BlockEmpty } from "./block-empty";
+import { BlockGlance } from "./block-glance";
 import { BlockPanel } from "./block-panel";
 
 interface Ringing {
@@ -39,9 +41,11 @@ function RemindersBlock({ childId, clock, title }: HomeBlockProps) {
   const ringing = watched
     .flatMap((event, index) => ringingOf(event, replies[index]?.data, now))
     .sort((left, right) => left.dueAt.localeCompare(right.dueAt));
+  const [nearest] = ringing;
+  const glance = useTileSizeClass() === "glance";
 
   return (
-    <BlockPanel title={title} icon={AlertsOnIcon}>
+    <BlockPanel title={title} icon={AlertsOnIcon} fits={glance}>
       {settled && ringing.length === 0 && (
         <BlockEmpty
           icon={AlertsOffIcon}
@@ -49,7 +53,15 @@ function RemindersBlock({ childId, clock, title }: HomeBlockProps) {
           hint={t("blocks.reminders.emptyHint")}
         />
       )}
-      {ringing.length > 0 && (
+      {nearest && glance && (
+        <BlockGlance
+          events={ringing.map(({ event }) => event)}
+          label={(count) => t("blocks.reminders.count", { count })}
+          today={clock.today}
+          when={instantLabel(nearest.dueAt, clock)}
+        />
+      )}
+      {ringing.length > 0 && !glance && (
         <ul className="flex flex-col gap-2">
           {ringing.map(({ key, event, dueAt }) => (
             <Item key={key} asChild variant="outline" size="sm">

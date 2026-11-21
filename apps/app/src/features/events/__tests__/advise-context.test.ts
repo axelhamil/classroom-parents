@@ -1,11 +1,13 @@
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { describe, expect, it } from "vitest";
 import { type AdviceFacts, adviseContext } from "../advise-context";
 
-const CHRISTMAS = { startsOn: "2026-12-19", endsOn: "2027-01-03" };
+const CHRISTMAS = { name: "Vacances de Noël", startsOn: "2026-12-19", endsOn: "2027-01-03" };
 
 function factsAt(at: string, overrides: Partial<AdviceFacts> = {}): AdviceFacts {
   return {
     now: new Date(at),
+    timeZone: PARIS_TIME_ZONE,
     childIds: ["jade", "leo"],
     deadlinesWithinWeek: 5,
     assessmentsWithinWeek: 1,

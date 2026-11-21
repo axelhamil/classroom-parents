@@ -16,32 +16,36 @@ import { type DayPlan, nextOpenAfter, tonightView } from "../../../../shared/age
 import type { ChildDto } from "../../../../shared/api/queries/children";
 import type { EventItem } from "../../../../shared/api/queries/events";
 import { childAvatarSrc } from "../../../../shared/children/child-avatar-src";
-import { useTileFrame } from "../../../../shared/dashboard/tile-frame";
+import { useTileSizeClass } from "../../../../shared/dashboard/tile-size-class";
 import { childHue } from "../../../../shared/format/child-hue";
 import { inSentence } from "../../../../shared/format/deadline-label";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useChecklist } from "../../hooks/use-checklist";
+import { useHeroSummary } from "../../hooks/use-hero-summary";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { StepLists } from "../prepare-checklist";
 import { BlockEmpty, NextDeadlineLink } from "./block-empty";
 import { BlockGlance } from "./block-glance";
-import { BlockPanel } from "./block-panel";
+import { BlockPanel, heroDateOf } from "./block-panel";
 
-function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
+function TonightBlock({ family, childId, clock, advice, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
   const plan = tonightView(query.data ?? [], clock, childId);
   const day = inSentence(relativeDayLabel(plan.day, clock.today));
   const withSteps = [...plan.toPrepare, ...plan.suggested];
   const note = plan.toPrepare.length > 0 ? "blocks.tonight.day" : "blocks.tonight.suggested";
-  const glance = useTileFrame().size === "s";
+  const glance = useTileSizeClass() === "glance";
+  const summary = useHeroSummary({ advice, family, clock, childId }, query.data ?? [], plan.open);
 
   return (
     <BlockPanel
       title={title}
       icon={PackBagIcon}
       note={query.isSuccess && withSteps.length > 0 && !glance && t(note, { day })}
-      hero
+      heroDate={heroDateOf(plan.day)}
+      summary={summary}
+      fits={glance}
     >
       {query.isSuccess && withSteps.length === 0 && (
         <NothingToPack

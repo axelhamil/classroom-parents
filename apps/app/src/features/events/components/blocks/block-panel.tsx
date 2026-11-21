@@ -4,9 +4,13 @@ import {
   DashboardPanelBody,
   DashboardPanelFooter,
   DashboardPanelHeader,
+  DashboardPanelHeroBody,
+  DashboardPanelHeroDate,
   DashboardPanelNote,
+  DashboardPanelSummary,
   DashboardPanelTitle,
   DashboardTileToolbar,
+  type HeroDate,
 } from "@packages/ui/components/ui/dashboard";
 import type { Icon } from "@packages/ui/components/ui/icons";
 import { ScrollRegion } from "@packages/ui/components/ui/scroll-region";
@@ -21,6 +25,8 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { type TileFrame, useTileFrame } from "../../../../shared/dashboard/tile-frame";
+import { keepsControlsStill } from "../../../../shared/dashboard/tile-size-class";
+import { wallDateParts } from "../../../../shared/format/deadline-label";
 
 export interface BlockPanelProps {
   title: string;
@@ -31,7 +37,10 @@ export interface BlockPanelProps {
   fit?: "card" | "natural";
   startAt?: string;
   jump?: string;
-  hero?: boolean;
+  /** The day the block answers for, shown large when the advice makes it the hero. */
+  heroDate?: HeroDate;
+  /** The sentence under the hero that sums up its answer. */
+  summary?: ReactNode;
   fits?: boolean;
   /** The block keeps its own controls still and scrolls only the part it wraps in `BlockScrollArea`. */
   scrollsInside?: boolean;
@@ -39,12 +48,6 @@ export interface BlockPanelProps {
 }
 
 type ScrollWrap = (children: ReactNode) => ReactNode;
-
-/**
- * The size whose body is too short to keep a block's controls still: under them only a slit
- * would scroll. There the whole body scrolls once and opens on the controls, not on `startAt`.
- */
-const ROOMLESS_SIZE = "m";
 
 const BlockScrollContext = createContext<ScrollWrap | null>(null);
 
@@ -58,6 +61,12 @@ export function BlockScrollArea({ children }: { children: ReactNode }) {
   return wrap ? wrap(children) : children;
 }
 
+export function heroDateOf(date: string): HeroDate {
+  const { day, month, weekday } = wallDateParts(date);
+
+  return { dateTime: date, day, month, weekday };
+}
+
 export function BlockPanel({
   title,
   label,
@@ -67,7 +76,8 @@ export function BlockPanel({
   fit,
   startAt,
   jump,
-  hero,
+  heroDate,
+  summary,
   fits = false,
   scrollsInside = false,
   children,
@@ -76,35 +86,43 @@ export function BlockPanel({
   const titleId = useId();
   const frame = useTileFrame();
   const Header = frame.editing ? DashboardTileToolbar : DashboardPanelHeader;
+  const heroDay = frame.hero ? heroDate : undefined;
+  const body = (
+    <BlockBody
+      frame={frame}
+      titleId={titleId}
+      note={note}
+      startAt={startAt}
+      fits={fits}
+      scrollsInside={scrollsInside}
+    >
+      {children}
+    </BlockBody>
+  );
 
   return (
     <DashboardPanel
       aria-label={label}
       aria-labelledby={label ? undefined : titleId}
       fit={fit}
-      tone={hero ? "hero" : "default"}
+      tone={frame.hero ? "hero" : "default"}
       data-jump={jump}
       tabIndex={jump ? -1 : undefined}
     >
       {wrapped(
         frame,
         <Header aria-label={frame.editing ? t("edit.controls", { block: title }) : undefined}>
+          {heroDay && <DashboardPanelHeroDate date={heroDay} />}
           <Icon aria-hidden />
           <DashboardPanelTitle id={titleId}>{title}</DashboardPanelTitle>
           {count !== undefined && count > 0 && <Badge variant="destructive">{count}</Badge>}
           {frame.controls}
         </Header>,
       )}
-      <BlockBody
-        frame={frame}
-        titleId={titleId}
-        note={note}
-        startAt={startAt}
-        fits={fits}
-        scrollsInside={scrollsInside}
-      >
-        {children}
-      </BlockBody>
+      {heroDay ? <DashboardPanelHeroBody date={heroDay}>{body}</DashboardPanelHeroBody> : body}
+      {frame.hero && summary ? (
+        <DashboardPanelSummary inert={frame.editing}>{summary}</DashboardPanelSummary>
+      ) : null}
       {frame.footer && children ? (
         <DashboardPanelFooter inert={frame.editing}>{frame.footer}</DashboardPanelFooter>
       ) : null}
@@ -135,7 +153,7 @@ function BlockBody({
   scrollsInside,
   children,
 }: BlockBodyProps) {
-  const stillControls = scrollsInside && frame.size !== ROOMLESS_SIZE;
+  const stillControls = scrollsInside && keepsControlsStill(frame.size);
   const openAt = useOpenAt(scrollsInside && !stillControls ? undefined : startAt, frame);
 
   if (!children) return null;
@@ -147,7 +165,7 @@ function BlockBody({
     </>
   );
 
-  if (fits || frame.size === "s" || frame.flows)
+  if (fits || frame.flows)
     return <DashboardPanelBody inert={frame.editing}>{content}</DashboardPanelBody>;
 
   if (stillControls) {
@@ -179,7 +197,7 @@ function BlockBody({
 
 function useOpenAt(
   startAt: string | undefined,
-  { size, scroll }: TileFrame,
+  { size: { w, h }, scroll }: TileFrame,
 ): (region: HTMLDivElement | null) => void {
   const [region, setRegion] = useState<HTMLDivElement | null>(null);
   const [kept] = useState(() => scroll?.read());
@@ -201,7 +219,7 @@ function useOpenAt(
     observer.observe(region, { childList: true, subtree: true });
 
     return () => observer.disconnect();
-  }, [region, startAt, size, kept]);
+  }, [region, startAt, w, h, kept]);
 
   useEffect(() => {
     if (!region || !scroll) return;

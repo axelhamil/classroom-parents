@@ -46,7 +46,7 @@ export function OnboardingStepper(props: OnboardingStepperProps) {
 
   return (
     <Stepper asChild>
-      <main className={pageContainerVariants({ width: "reading" })}>
+      <main className={pageContainerVariants({ width: "full" })}>
         <QueryState
           query={children}
           skeleton={

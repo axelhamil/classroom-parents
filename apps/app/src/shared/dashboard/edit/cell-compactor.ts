@@ -1,22 +1,25 @@
 import type { RefObject } from "react";
 import type { Compactor, Layout, LayoutItem } from "react-grid-layout";
-import type { BlockSize, GridItem } from "../dashboard-pack";
+import { type BlockSize, sizeKey } from "../block-size";
+import type { GridItem } from "../dashboard-pack";
+import { keepPinned } from "../layout-commands";
 import {
   type EditSlot,
   editGeometry,
   editSlots,
+  type FlowingTile,
   type GridMetrics,
-  type TallOf,
 } from "./edit-geometry";
 
 export interface CellCompactorRefs {
   order: RefObject<readonly string[]>;
   active: RefObject<string | null>;
   metrics: RefObject<GridMetrics>;
-  agendaPx: RefObject<number | undefined>;
+  flow: RefObject<FlowingTile | undefined>;
   sizeOf: RefObject<(id: string) => BlockSize>;
-  tallOf: RefObject<TallOf>;
   onIndexChange: RefObject<(id: string, index: number) => void>;
+  /** Blocks that stay where they stand: never dragged, never resized, never displaced by a drop. */
+  pinned: RefObject<readonly string[]>;
 }
 
 export interface CellCompactor extends Compactor {
@@ -44,7 +47,7 @@ interface Placed {
   order: readonly string[];
   sizes: string;
   metrics: GridMetrics;
-  agendaPx: number | undefined;
+  flow: FlowingTile | undefined;
   geometry: Layout;
   slots: readonly EditSlot[];
 }
@@ -54,34 +57,27 @@ export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
   let placed: Placed | null = null;
 
   const geometryOf = (order: readonly string[]) =>
-    editGeometry(
-      order,
-      refs.sizeOf.current,
-      refs.metrics.current,
-      refs.agendaPx.current,
-      refs.tallOf.current,
-    );
+    editGeometry(order, refs.sizeOf.current, refs.metrics.current, refs.flow.current);
 
   const placedFor = (order: readonly string[]): Placed => {
     const sizeOf = refs.sizeOf.current;
     const metrics = refs.metrics.current;
-    const agendaPx = refs.agendaPx.current;
-    const tallOf = refs.tallOf.current;
-    const sizes = order.map(sizeOf).join();
+    const flow = refs.flow.current;
+    const sizes = order.map((id) => sizeKey(sizeOf(id))).join();
     const same =
       placed?.order === order &&
       placed.sizes === sizes &&
       placed.metrics === metrics &&
-      placed.agendaPx === agendaPx;
+      placed.flow === flow;
     if (placed && same) return placed;
 
     placed = {
       order,
       sizes,
       metrics,
-      agendaPx,
-      geometry: editGeometry(order, sizeOf, metrics, agendaPx, tallOf),
-      slots: editSlots(order, sizeOf, metrics, agendaPx, tallOf),
+      flow,
+      geometry: editGeometry(order, sizeOf, metrics, flow),
+      slots: editSlots(order, sizeOf, metrics, flow),
     };
 
     return placed;
@@ -90,12 +86,17 @@ export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
   const follow = (dragged: LayoutItem, current: Drag): Drag => {
     const order = current.order;
     const from = order.indexOf(dragged.i);
-    const to = targetIndex(order, placedFor(order).slots, dragged);
+    const pinned = refs.pinned.current;
+    const to = targetIndex(order, placedFor(order).slots, dragged, pinned);
     if (to === from) return current;
 
-    refs.onIndexChange.current(dragged.i, to);
+    const next = keepPinned(order, moved(order, dragged.i, to), pinned);
+    const index = next.indexOf(dragged.i);
+    if (index === from) return current;
 
-    return { id: current.id, order: moved(order, dragged.i, to) };
+    refs.onIndexChange.current(dragged.i, index);
+
+    return { id: current.id, order: next };
   };
 
   return {
@@ -106,27 +107,40 @@ export function createCellCompactor(refs: CellCompactorRefs): CellCompactor {
       if (active === null) {
         drag = null;
         placed = null;
-        return geometryOf(refs.order.current);
+        return heldStill(geometryOf(refs.order.current), refs.pinned.current);
       }
 
       const current = drag?.id === active ? drag : { id: active, order: refs.order.current };
       const dragged = layout.find(({ i }) => i === active);
       drag = dragged ? follow(dragged, current) : current;
 
-      return placedFor(drag.order).geometry.map((item) => ({ ...item }));
+      return heldStill(placedFor(drag.order).geometry, refs.pinned.current);
     },
     currentOrder: () => drag?.order ?? refs.order.current,
   };
 }
 
-function targetIndex(order: readonly string[], slots: readonly EditSlot[], dragged: LayoutItem) {
+/** The layout with each pinned tile neither draggable nor resizable, every item a fresh copy. */
+export function heldStill(layout: Layout, pinned: readonly string[]): Layout {
+  return layout.map((item) =>
+    pinned.includes(item.i) ? { ...item, isDraggable: false, isResizable: false } : { ...item },
+  );
+}
+
+function targetIndex(
+  order: readonly string[],
+  slots: readonly EditSlot[],
+  dragged: LayoutItem,
+  pinned: readonly string[],
+) {
   const from = order.indexOf(dragged.i);
   const own = slots.find(({ item }) => item.i === dragged.i)?.item;
   if (!own) return from;
 
   const center = centerOf(dragged);
   const hit = slots.find(({ item }) => item.i !== dragged.i && contains(item, center));
-  if (!hit || !crossedMiddle(center, own, unitAt(hit, center))) return from;
+  if (!hit || pinned.includes(hit.item.i)) return from;
+  if (!crossedMiddle(center, own, unitAt(hit, center))) return from;
 
   return order.indexOf(hit.item.i);
 }

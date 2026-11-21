@@ -1,5 +1,4 @@
 import { shiftDate, weekdayOf } from "@packages/ddd-kit/days";
-import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { wallOf } from "../../shared/agenda/school-clock";
 
 export const SCHOOL_AFTERNOON_FROM = "14:00";
@@ -37,12 +36,25 @@ export interface AdviceContext {
 }
 
 export interface HolidayRange {
+  name: string;
   startsOn: string;
   endsOn: string;
 }
 
+export interface AdviceHoliday {
+  name: string;
+  endsOn: string;
+}
+
+export interface AdviceSnapshot {
+  context: AdviceContext;
+  emptyBlocks: ReadonlySet<string>;
+  holiday: AdviceHoliday | null;
+}
+
 export interface AdviceFacts {
   now: Date;
+  timeZone: string;
   childIds: readonly string[];
   deadlinesWithinWeek: number;
   assessmentsWithinWeek: number;
@@ -52,11 +64,11 @@ export interface AdviceFacts {
 
 export function adviseContext(facts: AdviceFacts): AdviceContext {
   return {
-    moment: momentOf(facts.now),
+    moment: momentOf(facts.now, facts.timeZone),
     children: childrenCountOf(facts.childIds.length),
     childIds: facts.childIds,
     data: dataLoadOf(facts),
-    holiday: holidayPhaseOf(facts.now, facts.holidays),
+    holiday: holidayPhaseOf(facts),
   };
 }
 
@@ -67,8 +79,8 @@ export function childrenCountOf(count: number): ChildrenCount {
   return "4+";
 }
 
-function momentOf(now: Date): AdviceMoment {
-  const { date: today, time } = wallOf(now, PARIS_TIME_ZONE);
+function momentOf(now: Date, timeZone: string): AdviceMoment {
+  const { date: today, time } = wallOf(now, timeZone);
   const weekday = weekdayOf(today);
 
   if (weekday === SATURDAY) return "week";
@@ -89,12 +101,19 @@ function dataLoadOf(facts: AdviceFacts): DataLoad {
   return "normal";
 }
 
-function holidayPhaseOf(now: Date, holidays: readonly HolidayRange[]): HolidayPhase {
-  const today = wallOf(now, PARIS_TIME_ZONE).date;
-  const current = holidays.find(({ startsOn, endsOn }) => startsOn <= today && today <= endsOn);
+export function currentHolidayOf(
+  today: string,
+  holidays: readonly HolidayRange[],
+): HolidayRange | undefined {
+  return holidays.find(({ startsOn, endsOn }) => startsOn <= today && today <= endsOn);
+}
+
+function holidayPhaseOf({ now, timeZone, holidays }: AdviceFacts): HolidayPhase {
+  const { date: today, time } = wallOf(now, timeZone);
+  const current = currentHolidayOf(today, holidays);
   if (!current) return "none";
 
   const eveDay = today >= shiftDate(current.endsOn, 1 - EVE_DAYS);
 
-  return eveDay && wallOf(now, PARIS_TIME_ZONE).time >= OFF_DAY_EVENING_FROM ? "eve" : "during";
+  return eveDay && time >= OFF_DAY_EVENING_FROM ? "eve" : "during";
 }

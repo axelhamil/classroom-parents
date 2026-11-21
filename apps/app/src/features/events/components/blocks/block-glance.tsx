@@ -9,9 +9,11 @@ export interface BlockGlanceProps {
   events: readonly EventItem[];
   label: (count: number) => string;
   today: string;
+  /** When the nearest item is due, in place of its deadline: the moment a reminder rings. */
+  when?: string;
 }
 
-export function BlockGlance({ events, label, today }: BlockGlanceProps) {
+export function BlockGlance({ events, label, today, when }: BlockGlanceProps) {
   const [nearest] = events;
   if (!nearest) return null;
 
@@ -25,7 +27,7 @@ export function BlockGlance({ events, label, today }: BlockGlanceProps) {
         <EventLink eventId={nearest.id}>{nearest.title}</EventLink>
       </TypographyInline>
       <TypographyMuted className="line-clamp-1">
-        {deadlineLabel(nearest.deadlineDate, nearest.deadlineTime, today)}
+        {when ?? deadlineLabel(nearest.deadlineDate, nearest.deadlineTime, today)}
       </TypographyMuted>
     </div>
   );

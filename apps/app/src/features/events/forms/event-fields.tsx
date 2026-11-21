@@ -8,6 +8,7 @@ import {
   FormMessage,
 } from "@packages/ui/components/ui/form";
 import { FormTextField } from "@packages/ui/components/ui/form-text-field";
+import { SectionGrid } from "@packages/ui/components/ui/section-grid";
 import {
   Select,
   SelectContent,
@@ -56,7 +57,7 @@ export function EventFields({ control, note = noNote }: EventFieldsProps) {
   const { t: tEvents } = useTranslation("events");
 
   return (
-    <>
+    <SectionGrid>
       <FormTextField
         control={control}
         name="title"
@@ -85,7 +86,7 @@ export function EventFields({ control, note = noNote }: EventFieldsProps) {
             <FormLabel>{t("fields.category")}</FormLabel>
             <Select value={field.value ?? ""} onValueChange={field.onChange}>
               <FormControl>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t("fields.categoryPlaceholder")} />
                 </SelectTrigger>
               </FormControl>
@@ -123,6 +124,6 @@ export function EventFields({ control, note = noNote }: EventFieldsProps) {
           description={note("deadline")}
         />
       </div>
-    </>
+    </SectionGrid>
   );
 }

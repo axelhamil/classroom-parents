@@ -1,18 +1,10 @@
 import type { Icon } from "@packages/ui/components/ui/icons";
 import type { ComponentType } from "react";
-import type { BlockSize } from "./dashboard-pack";
+import type { BlockSizing } from "./block-size";
 
 export interface BlockIdentity {
   blockId: string;
   title: string;
-  size: BlockSize;
-}
-
-export interface BlockSizeChoice {
-  allowed: readonly BlockSize[];
-  defaultSize: BlockSize;
-  /** Sizes that take one more row on a tablet, whose rows are too short for what they must show. */
-  tallOnTablet?: readonly BlockSize[];
 }
 
 export interface FullViewProps {
@@ -22,14 +14,14 @@ export interface FullViewProps {
 }
 
 /**
- * A block as the grid draws it: the sizes it allows, its words already translated, and what it
+ * A block as the grid draws it: its bounds and the size it is shown at, its words already translated, and what it
  * renders. `fullView` opens what the tile cannot hold whole, behind "Tout voir". `flowsOnPhone`
  * lets the block take the height of its content on a phone, where it scrolls with the page.
  * `tour` names the guided-tour step anchored on its tile, so a hidden block takes its step along.
  */
 export interface DashboardBlock<Context> {
   id: string;
-  sizes: BlockSizeChoice;
+  sizing: BlockSizing;
   title: string;
   description: string;
   icon: Icon;
