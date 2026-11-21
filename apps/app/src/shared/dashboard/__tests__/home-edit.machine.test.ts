@@ -202,7 +202,23 @@ interface Deferred {
   resolve: (outcome: SaveOutcome) => void;
 }
 
-function startEditing() {
+const ADVISED: Draft = [];
+
+const ADVICE: Draft = [
+  { id: "welcome", size: "l" },
+  { id: "a", size: "s" },
+  { id: "b", size: "m" },
+  { id: "c", size: "l" },
+];
+
+const ADVISED_INPUT: HomeEditInput = {
+  ...INPUT,
+  layout: ADVISED,
+  adviceOnly: ["welcome"],
+  advisedLayout: ADVISED,
+};
+
+function startEditing(input: HomeEditInput = INPUT, edit: HomeEditEvent = { type: "EDIT" }) {
   const saves: Deferred[] = [];
   const rejected = vi.fn();
   const savedOffline = vi.fn();
@@ -213,13 +229,13 @@ function startEditing() {
       ),
     },
   });
-  const actor = createActor(machine, { input: INPUT });
+  const actor = createActor(machine, { input });
 
   actor.on("saveRejected", rejected);
   actor.on("savedOffline", savedOffline);
   actor.start();
 
-  actor.send({ type: "EDIT" });
+  actor.send(edit);
   actor.send({ type: "LOADED" });
 
   return { actor, saves, rejected, savedOffline };
@@ -326,6 +342,25 @@ describe("home edit machine sync", () => {
     expect(saves[1]?.input.baseRevision).toBe(4);
     expect(idsOf(saves[1]?.input.blocks ?? [])).toEqual(["b", "c"]);
   });
+
+  it.each([
+    ["the advised layout", ADVISED, ["welcome", "a", "b", "c"]],
+    ["a saved layout", REMOTE, ["c", "a"]],
+  ])(
+    "given an advised home arranged on two devices, when the parent takes theirs, %s, then the first steps stay only while the home is advised",
+    async (_, theirs, shown) => {
+      const { actor, saves } = startEditing(ADVISED_INPUT, { type: "EDIT", advice: ADVICE });
+
+      actor.send({ type: "HIDE", id: "b" });
+      saves[0]?.resolve({ kind: "conflict", remote: { blocks: theirs, revision: 4 } });
+      await waitFor(actor, (state) => state.matches({ sync: "conflict" }));
+      actor.send({ type: "TAKE_THEIRS" });
+
+      expect(actor.getSnapshot().matches({ mode: "editing" })).toBe(true);
+      expect(idsOf(actor.getSnapshot().context.draft)).toEqual(shown);
+      expect(actor.getSnapshot().context.committed).toBe(theirs);
+    },
+  );
 
   it("given the echo of its own save, when it arrives, then no conflict opens", async () => {
     const { actor, saves } = startEditing();

@@ -26,9 +26,9 @@ import { DashboardEditBar } from "./dashboard-edit-bar";
 import { type BlockSize, type GridItem, unitsFor } from "./dashboard-pack";
 import type { HomeEditEvent, homeEditMachine } from "./home-edit.machine";
 import { announceCanceled, announceDropped, announcePosition } from "./layout-announcements";
-import type { Draft } from "./layout-commands";
+import { type Draft, withoutPinned } from "./layout-commands";
 import type { LayoutBlock } from "./layout-migration";
-import { readGeometry } from "./read-geometry";
+import { type ReadGeometry, readGeometry } from "./read-geometry";
 import { type KeptScroll, type TileFrame, TileFrameContext } from "./tile-frame";
 import { type HandleKey, TileHandle } from "./tile-handle";
 import { TileContextMenu, TileEditMenu } from "./tile-menus";
@@ -51,7 +51,11 @@ const WIDE_SIZE: BlockSize = "xl";
 export interface HomeGridProps<Context> {
   order: Draft;
   advised: boolean;
+  /** The block the advice chose to answer the question of the moment; worn only while the home is `advised`. */
+  heroId: string | null;
   blocks: readonly DashboardBlock<Context>[];
+  /** Blocks only the advice places: drawn when it does, pinned while the home is arranged, never offered in the drawer. */
+  adviceOnly: readonly string[];
   context: Context;
   actor: HomeEditActor;
   onEdit: () => void;
@@ -77,7 +81,9 @@ interface Commands {
 export function HomeGrid<Context>({
   order,
   advised,
+  heroId,
   blocks,
+  adviceOnly,
   context,
   actor,
   onEdit,
@@ -93,21 +99,23 @@ export function HomeGrid<Context>({
   const [announcement, setAnnouncement] = useState("");
   const definitions = useMemo(() => new Map(blocks.map((block) => [block.id, block])), [blocks]);
   const placed = order.filter(({ id }) => definitions.has(id));
-  const hidden = blocks.filter((block) => !placed.some(({ id }) => id === block.id));
+  const hidden = withoutPinned(blocks, adviceOnly).filter(
+    (block) => !placed.some(({ id }) => id === block.id),
+  );
   const allowedOf = useAllowedSizes(definitions, units);
   const tallSizesOf = useMemo(() => tallSizesIn(definitions), [definitions]);
   const focus = useHandleFocus();
   const scrollOf = useKeptScrolls();
   usePrefetchWhenIdle(OPENED_ON_DEMAND);
 
-  const latest = useRef({ order, advised, definitions, allowedOf, editing, onEdit });
-  latest.current = { order, advised, definitions, allowedOf, editing, onEdit };
+  const latest = useRef({ order, advised, definitions, allowedOf, editing, onEdit, adviceOnly });
+  latest.current = { order, advised, definitions, allowedOf, editing, onEdit, adviceOnly };
 
   const [commands] = useState<Commands>(() => {
     const send = (event: HomeEditEvent) => actor.send(event);
     const from = () => (latest.current.advised ? latest.current.order : undefined);
     const titleOf = (id: string) => latest.current.definitions.get(id)?.title ?? id;
-    const draft = () => actor.getSnapshot().context.draft;
+    const draft = () => withoutPinned(actor.getSnapshot().context.draft, latest.current.adviceOnly);
     const announce = (text: string) => setAnnouncement(text);
 
     return {
@@ -171,7 +179,11 @@ export function HomeGrid<Context>({
     }
   };
 
-  const tile = (block: LayoutBlock, place?: GridItem, flows = false) => {
+  const flowing = flowingOnPhone(definitions);
+  const geometry = readGeometry(placed, cols, flowing, tallSizesOf);
+  const flows = (id: string) => geometry.tracks !== undefined && flowing.has(id);
+
+  const tile = (block: LayoutBlock, place?: GridItem) => {
     const definition = definitions.get(block.id);
     if (!definition) return null;
 
@@ -184,7 +196,9 @@ export function HomeGrid<Context>({
         allowed={allowedOf(block.id)}
         context={context}
         editing={editing}
-        flows={flows}
+        flows={flows(block.id)}
+        hero={advised && block.id === heroId}
+        pinned={adviceOnly.includes(block.id)}
         instructionsId={instructionsId}
         commands={commands}
         actor={actor}
@@ -193,15 +207,7 @@ export function HomeGrid<Context>({
     );
   };
 
-  const readGrid = (
-    <ReadGrid
-      placed={placed}
-      cols={cols}
-      definitions={definitions}
-      tallSizesOf={tallSizesOf}
-      tile={tile}
-    />
-  );
+  const readGrid = <ReadGrid placed={placed} geometry={geometry} tile={tile} />;
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape and Ctrl+Z bubble here from the controls of the arranged home
@@ -224,6 +230,7 @@ export function HomeGrid<Context>({
             cols={cols}
             allowedOf={allowedOf}
             tallSizesOf={tallSizesOf}
+            pinned={adviceOnly}
             tile={(block) => tile(block)}
             fallback={readGrid}
           />
@@ -241,36 +248,30 @@ export function HomeGrid<Context>({
   );
 }
 
-interface ReadGridProps<Context> {
+interface ReadGridProps {
   placed: Draft;
-  cols: number;
-  definitions: ReadonlyMap<string, DashboardBlock<Context>>;
-  tallSizesOf: (id: string) => readonly BlockSize[];
-  tile: (block: LayoutBlock, place: GridItem, flows: boolean) => ReactNode;
+  geometry: ReadGeometry;
+  tile: (block: LayoutBlock, place: GridItem) => ReactNode;
 }
 
-function ReadGrid<Context>({
-  placed,
-  cols,
-  definitions,
-  tallSizesOf,
-  tile,
-}: ReadGridProps<Context>) {
-  const flowing = new Set(
-    [...definitions.values()].filter((block) => block.flowsOnPhone).map(({ id }) => id),
-  );
-  const geometry = readGeometry(placed, cols, flowing, tallSizesOf);
-
+function ReadGrid({ placed, geometry, tile }: ReadGridProps) {
   return (
     <Dashboard tracks={geometry.tracks}>
       {geometry.tiles.map((place) => {
         const block = placed.find(({ id }) => id === place.i);
 
-        const flows = geometry.tracks !== undefined && flowing.has(place.i);
-
-        return block ? tile(block, place, flows) : null;
+        return block ? tile(block, place) : null;
       })}
     </Dashboard>
+  );
+}
+
+/** The blocks that flow with the page on a phone rather than scroll inside their tile. */
+function flowingOnPhone<Context>(
+  definitions: ReadonlyMap<string, DashboardBlock<Context>>,
+): ReadonlySet<string> {
+  return new Set(
+    [...definitions.values()].filter((block) => block.flowsOnPhone).map(({ id }) => id),
   );
 }
 
@@ -280,6 +281,7 @@ interface EditGridProps {
   cols: number;
   allowedOf: (id: string) => readonly BlockSize[];
   tallSizesOf: (id: string) => readonly BlockSize[];
+  pinned: readonly string[];
   tile: (block: LayoutBlock) => ReactNode;
   fallback: ReactNode;
 }
@@ -288,7 +290,16 @@ interface EditGridProps {
  * The arranged home once its chunk is there. During a pointer gesture the grid keeps the order it
  * started from, the library moving the tiles itself; the machine still hears each index change.
  */
-function EditGrid({ actor, order, cols, allowedOf, tallSizesOf, tile, fallback }: EditGridProps) {
+function EditGrid({
+  actor,
+  order,
+  cols,
+  allowedOf,
+  tallSizesOf,
+  pinned,
+  tile,
+  fallback,
+}: EditGridProps) {
   const start = useSelector(actor, gestureStartOf);
   const agendaPx = useAgendaHeight(cols);
   const resizable = useMediaQuery(FINE_POINTER) && cols > 4;
@@ -306,6 +317,7 @@ function EditGrid({ actor, order, cols, allowedOf, tallSizesOf, tile, fallback }
       resizable={resizable}
       allowedOf={allowedOf}
       tallSizesOf={tallSizesOf}
+      pinned={pinned}
       renderTile={tile}
       fallback={fallback}
       onLift={(id) => send({ type: "LIFT", id })}
@@ -333,6 +345,9 @@ interface HomeTileProps<Context> {
   context: Context;
   editing: boolean;
   flows: boolean;
+  hero: boolean;
+  /** Drawn where the advice put it and never arranged: no handle, no menu. */
+  pinned: boolean;
   instructionsId: string;
   commands: Commands;
   actor: HomeEditActor;
@@ -347,6 +362,8 @@ function HomeTile<Context>({
   context,
   editing,
   flows,
+  hero,
+  pinned,
   instructionsId,
   commands,
   actor,
@@ -358,8 +375,9 @@ function HomeTile<Context>({
       size,
       editing,
       flows,
+      hero,
       scroll,
-      controls: editing && (
+      controls: editing && !pinned && (
         <>
           <TileHandle
             blockId={block.id}
@@ -397,7 +415,20 @@ function HomeTile<Context>({
             />
           ),
     }),
-    [size, editing, flows, scroll, block, context, lifted, instructionsId, commands, allowed],
+    [
+      size,
+      editing,
+      flows,
+      hero,
+      pinned,
+      scroll,
+      block,
+      context,
+      lifted,
+      instructionsId,
+      commands,
+      allowed,
+    ],
   );
   const body = useMemo(
     () => <Body block={block} context={context} size={size} frame={frame} />,

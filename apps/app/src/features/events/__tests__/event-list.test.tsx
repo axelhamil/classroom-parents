@@ -108,6 +108,7 @@ describe("Accueil around the calendar", () => {
     };
     const calls = stubApi(({ method, url }) => {
       if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname === "/events/calendar") return json({ items: [] });
       if (url.pathname === "/events" && method === "GET")
         return url.searchParams.get("status") === "needs_review"
           ? json({ items: [{ ...late, status: "needs_review" }] })
@@ -128,6 +129,7 @@ describe("Accueil around the calendar", () => {
   it("given an event to review, when the parent confirms it, then the toast promises no reminder", async () => {
     stubApi(({ method, url }) => {
       if (url.pathname === "/children") return json([CHILD]);
+      if (url.pathname === "/events/calendar") return json({ items: [] });
       if (url.pathname === "/events" && method === "GET")
         return json({ items: [{ ...EVENT, status: "needs_review" }] });
       if (url.pathname === `/events/${EVENT.id}/confirm`) return json(EVENT);

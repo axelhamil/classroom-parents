@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { frCatalog } from "@packages/i18n";
 import { initI18n } from "@packages/web-kit/i18n/i18n";
+import { userStorageKey } from "@packages/web-kit/storage/use-stored-value";
 import { onlineManager } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -19,7 +20,7 @@ import type { HomeEditEvent } from "../../../shared/dashboard/home-edit.machine"
 import type { Draft } from "../../../shared/dashboard/layout-commands";
 import { LayoutSyncNotice } from "../../../shared/dashboard/layout-sync-notice";
 import { HOME_LAYOUT_KEY } from "../api/home.queries";
-import { type HomeSync, useHomeSync } from "../hooks/use-home-sync";
+import { ADVISED_LAYOUT, type HomeSync, useHomeSync } from "../hooks/use-home-sync";
 
 const REGISTRY = ["today", "notes", "calendar"];
 
@@ -54,8 +55,12 @@ type PutReply = (call: ApiCall, server: ServerLayout) => Response | Promise<Resp
 
 const latest: { sync?: HomeSync } = {};
 
-function Probe() {
-  const sync = useHomeSync("user-1", REGISTRY);
+interface ProbeProps {
+  registry?: readonly string[];
+}
+
+function Probe({ registry = REGISTRY }: ProbeProps) {
+  const sync = useHomeSync("user-1", registry);
   latest.sync = sync;
 
   return <LayoutSyncNotice actor={sync.actor} />;
@@ -241,5 +246,145 @@ describe("The home layout stays in step with the server", () => {
     await settle();
     expect(current().editState).toBe("kbLifted");
     expect(current().order).toEqual(SHRUNK);
+  });
+
+  describe("given the advice-only welcome block", () => {
+    const WITH_WELCOME = [...REGISTRY, "welcome"];
+
+    const ADVISED_FOR_NEWCOMER: Draft = [
+      { id: "welcome", size: "l" },
+      { id: "notes", size: "l" },
+      { id: "calendar", size: "xl" },
+    ];
+
+    const NEWCOMER_SAVED: Draft = [
+      { id: "notes", size: "m" },
+      { id: "calendar", size: "xl" },
+    ];
+
+    it("when the parent arranges the advised home that shows it, then the layout saved and drawn leaves it out", async () => {
+      const { server, puts } = givenServer();
+      server.blocks = null;
+      ensureMatchMedia();
+      await renderWithProviders(<Probe registry={WITH_WELCOME} />);
+      await waitFor(() => expect(current().known).toBe(true));
+
+      send(
+        { type: "EDIT", advice: ADVISED_FOR_NEWCOMER },
+        { type: "LOADED" },
+        { type: "SIZE", id: "notes", size: "m" },
+        { type: "DONE" },
+      );
+
+      await waitFor(() => expect(puts()).toHaveLength(1));
+      expect(putBodySchema.parse(puts()[0]?.body).blocks).toEqual(NEWCOMER_SAVED);
+      await waitFor(() => expect(current().editState).toBe("viewing"));
+      expect(current().order).toEqual(NEWCOMER_SAVED);
+    });
+
+    it("given no network, when the parent is done arranging the advised home that shows it, then the layout drawn already leaves it out", async () => {
+      const { server, puts } = givenServer();
+      server.blocks = null;
+      ensureMatchMedia();
+      await renderWithProviders(<Probe registry={WITH_WELCOME} />);
+      await waitFor(() => expect(current().known).toBe(true));
+
+      act(() => onlineManager.setOnline(false));
+      send(
+        { type: "EDIT", advice: ADVISED_FOR_NEWCOMER },
+        { type: "LOADED" },
+        { type: "SIZE", id: "notes", size: "m" },
+        { type: "DONE" },
+      );
+
+      await waitFor(() => expect(current().editState).toBe("viewing"));
+      expect(current().order).toEqual(NEWCOMER_SAVED);
+      expect(puts()).toHaveLength(0);
+    });
+
+    async function givenAdvisedHome() {
+      const { server, puts } = givenServer();
+      server.blocks = null;
+      ensureMatchMedia();
+      await renderWithProviders(<Probe registry={WITH_WELCOME} />);
+      await waitFor(() => expect(current().known).toBe(true));
+
+      return puts;
+    }
+
+    const draftIds = () =>
+      current()
+        .actor.getSnapshot()
+        .context.draft.map(({ id }) => id);
+
+    it("when the parent arranges the advised home that shows it, then it stays pinned first while the others move, and leaves with the edit", async () => {
+      await givenAdvisedHome();
+      act(() => onlineManager.setOnline(false));
+
+      send({ type: "EDIT", advice: ADVISED_FOR_NEWCOMER }, { type: "LOADED" });
+      expect(current().order).toEqual(ADVISED_FOR_NEWCOMER);
+
+      send(
+        { type: "KEY_LIFT", id: "calendar" },
+        { type: "KEY_MOVE", move: { kind: "edge", edge: "start" } },
+        { type: "KEY_DROP" },
+      );
+      expect(draftIds()).toEqual(["welcome", "calendar", "notes"]);
+
+      send({ type: "LIFT", id: "notes" }, { type: "DRAG_INDEX", index: 0 }, { type: "DROP" });
+      expect(draftIds()).toEqual(["welcome", "notes", "calendar"]);
+
+      send({ type: "SETTLED" }, { type: "SIZE", id: "notes", size: "m" }, { type: "DONE" });
+      await waitFor(() => expect(current().editState).toBe("viewing"));
+      expect(current().order).toEqual(NEWCOMER_SAVED);
+      send({ type: "EDIT" }, { type: "LOADED" });
+      expect(current().order).toEqual(NEWCOMER_SAVED);
+    });
+
+    it("when the parent goes back to the advised layout while arranging, then it is shown where the advice puts it and never saved", async () => {
+      const puts = await givenAdvisedHome();
+
+      send(
+        { type: "EDIT", advice: ADVISED_FOR_NEWCOMER },
+        { type: "LOADED" },
+        { type: "RESET" },
+        { type: "CONFIRM_RESET", layout: ADVISED_LAYOUT, shown: ADVISED_FOR_NEWCOMER },
+      );
+
+      expect(draftIds()).toEqual(["welcome", "notes", "calendar"]);
+      await waitFor(() => expect(puts()).toHaveLength(1));
+      expect(putBodySchema.parse(puts()[0]?.body).blocks).toBeNull();
+    });
+
+    it("when a block of the advised home is resized from its menu, then the draft made from it leaves it out", async () => {
+      const puts = await givenAdvisedHome();
+
+      send({ type: "SIZE", id: "notes", size: "m", from: ADVISED_FOR_NEWCOMER });
+
+      expect(draftIds()).toEqual(["notes", "calendar"]);
+      await waitFor(() => expect(puts()).toHaveLength(1));
+    });
+
+    it("when the server keeps it in a saved layout, then it is dropped without an error", async () => {
+      const { server } = givenServer();
+      server.blocks = [{ id: "welcome", size: "l" }, ...SAVED];
+      ensureMatchMedia();
+      await renderWithProviders(<Probe registry={WITH_WELCOME} />);
+
+      await waitFor(() => expect(current().order).toEqual(SAVED));
+      expect(screen.queryByText(frCatalog.errors.fallback.saveHomeLayout)).toBeNull();
+    });
+
+    it("when the device kept it in its copy of the layout, then it is dropped before the server answers", async () => {
+      stubApi(byRoute({ "GET /home/layout": () => new Promise<Response>(() => undefined) }));
+      localStorage.setItem(
+        userStorageKey("user-1", "home:layout:v2"),
+        JSON.stringify({ v: 2, blocks: [{ id: "welcome", size: "l" }, ...SAVED], revision: 2 }),
+      );
+      ensureMatchMedia();
+      await renderWithProviders(<Probe registry={WITH_WELCOME} />);
+
+      await waitFor(() => expect(current().order).toEqual(SAVED));
+    });
   });
 });

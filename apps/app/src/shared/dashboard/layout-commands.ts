@@ -31,6 +31,47 @@ export function moveToIndex(draft: Draft, id: string, index: number): Draft {
   return [...rest.slice(0, to), moved, ...rest.slice(to)];
 }
 
+/**
+ * The blocks (or ids) that are not pinned, the ones a saved layout may hold; `items` itself when it
+ * holds none, so a layout that only stands for "nothing arranged" keeps its identity.
+ */
+export function withoutPinned<Item extends string | { id: string }>(
+  items: readonly Item[],
+  pinnedIds: readonly string[],
+): readonly Item[] {
+  const pinned = (item: Item) => pinnedIds.includes(typeof item === "string" ? item : item.id);
+  if (!items.some(pinned)) return items;
+
+  return items.filter((item) => !pinned(item));
+}
+
+/**
+ * `next` with each pinned block (or id) of `previous` back at the index it held, so arranging the others
+ * never moves it; `next` itself when none moved, which keeps a no-op a no-op.
+ */
+export function keepPinned<Item extends string | { id: string }>(
+  previous: readonly Item[],
+  next: readonly Item[],
+  pinnedIds: readonly string[],
+): readonly Item[] {
+  const idOf = (item: Item) => (typeof item === "string" ? item : item.id);
+  const pinned = (item: Item) => pinnedIds.includes(idOf(item));
+  const held = previous.flatMap((item, index) =>
+    pinned(item) && next.some((other) => idOf(other) === idOf(item)) ? [{ item, index }] : [],
+  );
+  const inPlace = ({ item, index }: { item: Item; index: number }) => {
+    const there = next[index];
+
+    return there !== undefined && idOf(there) === idOf(item);
+  };
+  if (held.every(inPlace)) return next;
+
+  return held.reduce<readonly Item[]>(
+    (order, { item, index }) => [...order.slice(0, index), item, ...order.slice(index)],
+    next.filter((item) => !pinned(item)),
+  );
+}
+
 export function moveBy(draft: Draft, id: string, step: Step): Draft {
   const from = draft.findIndex((block) => block.id === id);
   if (from < 0) return draft;

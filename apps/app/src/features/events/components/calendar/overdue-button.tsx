@@ -46,8 +46,7 @@ export function OverdueButton({ family, childId, before }: OverdueButtonProps) {
           onClick={() => setOpened(late.map((event) => event.id))}
         >
           <OverdueIcon aria-hidden />
-          {t("calendar.overdue")}
-          <Badge variant="destructive">{late.length}</Badge>
+          {t("calendar.overdue")} <Badge variant="destructive">{late.length}</Badge>
           <OpenRowIcon aria-hidden className="ms-auto" />
         </Button>
       )}

@@ -1,15 +1,18 @@
 import type { Page } from "@playwright/test";
-import { HOME_BLOCK_SIZES } from "../src/features/events/home-block-sizes";
+import { ADVICE_ONLY_BLOCK_IDS, HOME_BLOCK_SIZES } from "../src/features/events/home-block-sizes";
+import { withoutPinned } from "../src/shared/dashboard/layout-commands";
 import { expect, test } from "./csp";
 import {
   EVENTS,
   inDays,
   LEA,
   MAXIMILIEN,
+  NEWCOMER,
   REVIEW_EVENT,
   serveFamily,
   todayAt,
 } from "./events-fixtures";
+import { settled } from "./home-board";
 import { STORAGE_STATE } from "./playwright.config";
 
 const SIZES = ["s", "m", "l", "xl"] as const;
@@ -58,9 +61,9 @@ const FULL_WEEK = [
 ];
 
 function layoutAt(size: (typeof SIZES)[number]) {
-  return Object.entries(HOME_BLOCK_SIZES)
-    .filter(([, sizes]) => sizes.allowed.includes(size))
-    .map(([id]) => ({ id: id.replace("*", LEA.id), size }));
+  return withoutPinned(Object.keys(HOME_BLOCK_SIZES), ADVICE_ONLY_BLOCK_IDS)
+    .filter((id) => HOME_BLOCK_SIZES[id]?.allowed.includes(size))
+    .map((id) => ({ id: id.replace("*", LEA.id), size }));
 }
 
 interface TileOffender {
@@ -94,21 +97,15 @@ function tileOffenders(page: Page): Promise<TileOffender[]> {
   }, SMALLEST_SCROLL_HEIGHT);
 }
 
-function settled(page: Page): Promise<void> {
-  return expect
-    .poll(() =>
-      page.evaluate(() =>
-        document
-          .getAnimations()
-          .every(
-            (animation) =>
-              animation.playState !== "running" ||
-              animation.timeline !== document.timeline ||
-              animation.effect?.getTiming().iterations === Number.POSITIVE_INFINITY,
-          ),
-      ),
-    )
-    .toBe(true);
+async function openHome(page: Page): Promise<void> {
+  const loaded = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.startsWith("/events"),
+  );
+  await page.goto("/");
+  await loaded;
+  await expect(page.locator("[data-block]").first()).toBeVisible();
+  await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
+  await settled(page);
 }
 
 test.describe("each home tile scrolls once, and never through a slit", () => {
@@ -124,15 +121,23 @@ test.describe("each home tile scrolls once, and never through a slit", () => {
           events: FULL_WEEK,
           homeLayout: layoutAt(size),
         });
-        const loaded = page.waitForResponse((response) =>
-          new URL(response.url()).pathname.startsWith("/events"),
-        );
-        await page.goto("/");
-        await loaded;
-        await expect(page.locator("[data-block]").first()).toBeVisible();
-        await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
-        await settled(page);
+        await openHome(page);
 
         expect(await tileOffenders(page)).toEqual([]);
       });
+
+  for (const viewport of VIEWPORTS)
+    test(`the first steps the advice leads a new parent with, ${viewport.width} px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.clock.setFixedTime(todayAt("08:00"));
+      await serveFamily(page, { children: [NEWCOMER], events: [] });
+      await openHome(page);
+
+      const welcome = page.locator("[data-block=welcome]");
+      await expect(welcome).toHaveAttribute("data-size", "l");
+      await expect(welcome.getByRole("listitem")).toHaveCount(3);
+      expect(await tileOffenders(page)).toEqual([]);
+    });
 });

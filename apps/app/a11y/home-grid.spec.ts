@@ -3,60 +3,24 @@ import type { CDPSession, Locator, Page } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
 import { expect, test } from "./csp";
 import { EVENTS, inDays, LEA, MAXIMILIEN, serveFamily, todayAt } from "./events-fixtures";
+import {
+  ARRANGED,
+  apart,
+  arrange,
+  type Block,
+  cards,
+  domOrder,
+  finish,
+  holes,
+  serveLayout,
+} from "./home-board";
 import { STORAGE_STATE } from "./playwright.config";
-
-interface Block {
-  id: string;
-  size: string;
-}
-
-interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-const ARRANGED: Block[] = [
-  { id: "today", size: "l" },
-  { id: "tonight", size: "m" },
-  { id: "review", size: "s" },
-  { id: "overdue", size: "s" },
-  { id: "calendar", size: "xl" },
-  { id: "assessments", size: "m" },
-  { id: "documents", size: "m" },
-  { id: "notes", size: "m" },
-];
 
 const WIDTHS = [390, 768, 1440] as const;
 
 const PHONE = { width: 390, height: 844 };
 
 const QUIET_EVENTS = EVENTS.filter((event) => event.deadlineDate !== inDays(1));
-
-/** The home served with a revision, every save kept and answered with the next revision. */
-async function serveLayout(page: Page, blocks: Block[] | null = ARRANGED): Promise<unknown[]> {
-  const saved: unknown[] = [];
-  let layout: unknown = blocks;
-  let revision = 1;
-
-  await page.route(
-    (url) => url.pathname === "/home/layout",
-    async (route) => {
-      const request = route.request();
-      if (request.method() === "PUT") {
-        const body: { blocks: unknown } = request.postDataJSON();
-        saved.push(body);
-        layout = body.blocks;
-        revision += 1;
-      }
-
-      return route.fulfill({ json: { blocks: layout, revision } });
-    },
-  );
-
-  return saved;
-}
 
 async function openHome(page: Page, blocks: Block[] | null = ARRANGED): Promise<unknown[]> {
   await page.clock.setFixedTime(todayAt("18:30"));
@@ -67,93 +31,6 @@ async function openHome(page: Page, blocks: Block[] | null = ARRANGED): Promise<
   await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
 
   return saved;
-}
-
-async function arrange(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Modifier l'accueil" }).click();
-  await expect(page.locator(".react-grid-layout")).toBeVisible();
-  await settled(page);
-}
-
-async function finish(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Terminé" }).click();
-  await expect(page.locator(".react-grid-layout")).toHaveCount(0);
-}
-
-function settled(page: Page): Promise<void> {
-  return expect
-    .poll(() =>
-      page.evaluate(() =>
-        document
-          .getAnimations()
-          .every(
-            (animation) =>
-              animation.timeline !== document.timeline || animation.playState !== "running",
-          ),
-      ),
-    )
-    .toBe(true);
-}
-
-/** The card of each block, from the corner of the grid that holds it, in reading order. */
-async function cards(page: Page): Promise<Record<string, Rect>> {
-  await settled(page);
-  const grid = page.locator(".react-grid-layout, [data-slot=dashboard]:not([aria-hidden])").first();
-
-  return grid.evaluate((el) => {
-    const origin = el.getBoundingClientRect();
-    const tiles = [...el.querySelectorAll<HTMLElement>("[data-block][data-size]")];
-
-    return Object.fromEntries(
-      tiles.map((tile) => {
-        const box = (
-          tile.querySelector("[data-slot=dashboard-panel]") ?? tile
-        ).getBoundingClientRect();
-
-        return [
-          tile.dataset.block ?? "",
-          { x: box.x - origin.x, y: box.y - origin.y, width: box.width, height: box.height },
-        ];
-      }),
-    );
-  });
-}
-
-function apart(reading: Record<string, Rect>, arranging: Record<string, Rect>): string[] {
-  return Object.entries(reading).flatMap(([block, rect]) => {
-    const other = arranging[block];
-    const sides = (["x", "y", "width", "height"] as const).filter(
-      (side) => !other || Math.abs(other[side] - rect[side]) > 1,
-    );
-
-    return sides.length > 0 ? [`${block}: ${sides.join(", ")}`] : [];
-  });
-}
-
-/** Every pair of horizontal neighbours and every column meets with one gap, never a hole. */
-function holes(rects: Record<string, Rect>): string[] {
-  const boxes = Object.entries(rects);
-  const gaps = boxes.flatMap(([block, box]) => {
-    const below = boxes.filter(
-      ([, other]) =>
-        other.y >= box.y + box.height - 1 &&
-        other.x < box.x + box.width - 1 &&
-        other.x + other.width > box.x + 1,
-    );
-    if (below.length === 0) return [];
-
-    const gap = Math.min(...below.map(([, other]) => other.y)) - (box.y + box.height);
-
-    return gap > 24 ? [`${block} ${Math.round(gap)}px`] : [];
-  });
-
-  return gaps;
-}
-
-function domOrder(page: Page): Promise<string[]> {
-  return page
-    .locator("[data-block][data-size]")
-    .evaluateAll((tiles) => tiles.map((tile) => (tile as HTMLElement).dataset.block ?? ""));
 }
 
 function announcement(page: Page): Locator {
@@ -286,8 +163,11 @@ test.describe("the home arranged from the keyboard", () => {
     await expect(drawer).toBeHidden();
     await expect.poll(async () => (await domOrder(page)).at(-1)).toBe("notes");
 
-    await page.getByRole("button", { name: "Rétablir l'accueil par défaut" }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Rétablir" }).click();
+    await page.getByRole("button", { name: "Revenir à la disposition conseillée" }).click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Revenir à la disposition conseillée" })
+      .click();
     await expect
       .poll(() => saved.at(-1))
       .toEqual({ blocks: null, baseRevision: expect.any(Number) });

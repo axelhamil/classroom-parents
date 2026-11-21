@@ -14,7 +14,7 @@ import { touchFeedback } from "../../motion/haptic";
 import { type BlockSize, tallOnTablet } from "../dashboard-pack";
 import type { Draft } from "../layout-commands";
 import type { LayoutBlock } from "../layout-migration";
-import { createCellCompactor } from "./cell-compactor";
+import { createCellCompactor, heldStill } from "./cell-compactor";
 import { editGeometry, editGridConfig, type GridMetrics } from "./edit-geometry";
 import { sizeConstraint, sizeOfSpan } from "./size-constraint";
 import { createWindowEdgeScroll, type Pointer, pointerOf } from "./window-edge-scroll";
@@ -37,6 +37,8 @@ export interface HomeEditGridProps extends EditGridEvents {
   resizable: boolean;
   allowedOf: (id: string) => readonly BlockSize[];
   tallSizesOf: (id: string) => readonly BlockSize[];
+  /** Blocks drawn where they stand while the others are arranged: no drag, no resize, never displaced. */
+  pinned: readonly string[];
   renderTile: (block: LayoutBlock) => ReactNode;
   /** Drawn until the grid knows its width and its row height: the read grid, in the same rectangles. */
   fallback: ReactNode;
@@ -87,6 +89,7 @@ function EditGrid({
   resizable,
   allowedOf,
   tallSizesOf,
+  pinned,
   renderTile,
   width,
   metrics,
@@ -95,20 +98,22 @@ function EditGrid({
 }: EditGridProps) {
   const ids = useMemo(() => order.map(({ id }) => id), [order]);
   const live = useRef<LiveResize | null>(null);
-  const refs = useCompactorRefs(ids, order, metrics, agendaPx, tallSizesOf, live, events.onIndex);
+  const refs = useCompactorRefs(
+    { ids, order, metrics, agendaPx, pinned },
+    tallSizesOf,
+    live,
+    events.onIndex,
+  );
   const [compactor] = useState(() => createCellCompactor(refs));
   const edge = useEdgeScroll();
   const layout = useMemo(() => {
     const sizeOf = (id: string) => sizeIn(order, id);
 
-    return editGeometry(
-      ids,
-      sizeOf,
-      metrics,
-      agendaPx,
-      tallOnTablet(tallSizesOf, sizeOf, metrics.cols),
+    return heldStill(
+      editGeometry(ids, sizeOf, metrics, agendaPx, tallOnTablet(tallSizesOf, sizeOf, metrics.cols)),
+      pinned,
     );
-  }, [ids, order, metrics, agendaPx, tallSizesOf]);
+  }, [ids, order, metrics, agendaPx, tallSizesOf, pinned]);
   const constraints = useMemo(
     () => [...defaultConstraints, sizeConstraint(allowedOf, metrics)],
     [allowedOf, metrics],
@@ -224,11 +229,16 @@ function useGridMetrics(
   return metrics;
 }
 
+interface CompactorInputs {
+  ids: readonly string[];
+  order: Draft;
+  metrics: GridMetrics;
+  agendaPx: number | undefined;
+  pinned: readonly string[];
+}
+
 function useCompactorRefs(
-  ids: readonly string[],
-  order: Draft,
-  metrics: GridMetrics,
-  agendaPx: number | undefined,
+  { ids, order, metrics, agendaPx, pinned }: CompactorInputs,
   tallSizesOf: (id: string) => readonly BlockSize[],
   live: RefObject<LiveResize | null>,
   onIndex: (index: number) => void,
@@ -247,6 +257,7 @@ function useCompactorRefs(
     sizeOf: useRef(sizeOf),
     tallOf: useRef(tallOnTablet(tallSizesOf, sizeOf, metrics.cols)),
     onIndexChange: useRef(reportIndex),
+    pinned: useRef(pinned),
   };
 
   refs.order.current = ids;
@@ -255,6 +266,7 @@ function useCompactorRefs(
   refs.sizeOf.current = sizeOf;
   refs.tallOf.current = tallOnTablet(tallSizesOf, sizeOf, metrics.cols);
   refs.onIndexChange.current = reportIndex;
+  refs.pinned.current = pinned;
 
   return refs;
 }

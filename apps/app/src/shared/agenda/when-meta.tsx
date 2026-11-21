@@ -38,7 +38,7 @@ export function WhenBadgeView({ badge }: WhenBadgeViewProps) {
   return (
     <Badge variant="urgent">
       <ReminderIcon aria-hidden />
-      {badgeText(badge)}
+      <span data-part="label">{badgeText(badge)}</span>
     </Badge>
   );
 }

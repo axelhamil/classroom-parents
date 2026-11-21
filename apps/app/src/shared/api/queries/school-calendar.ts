@@ -17,7 +17,9 @@ const wallDateSchema = z.iso.date();
  * shape fails the query (and reaches telemetry) instead of breaking every screen that needs a clock.
  */
 const schoolCalendarDaysSchema = z.object({
-  holidays: z.array(z.object({ startsOn: wallDateSchema, endsOn: wallDateSchema })),
+  holidays: z.array(
+    z.object({ name: z.string(), startsOn: wallDateSchema, endsOn: wallDateSchema }),
+  ),
   bankHolidays: z.array(z.object({ date: wallDateSchema })),
 });
 

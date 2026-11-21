@@ -21,13 +21,14 @@ import { childHue } from "../../../../shared/format/child-hue";
 import { inSentence } from "../../../../shared/format/deadline-label";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useChecklist } from "../../hooks/use-checklist";
+import { useHeroSummary } from "../../hooks/use-hero-summary";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { StepLists } from "../prepare-checklist";
 import { BlockEmpty, NextDeadlineLink } from "./block-empty";
 import { BlockGlance } from "./block-glance";
-import { BlockPanel } from "./block-panel";
+import { BlockPanel, heroDateOf } from "./block-panel";
 
-function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
+function TonightBlock({ family, childId, clock, advice, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
   const plan = tonightView(query.data ?? [], clock, childId);
@@ -35,13 +36,15 @@ function TonightBlock({ family, childId, clock, title }: HomeBlockProps) {
   const withSteps = [...plan.toPrepare, ...plan.suggested];
   const note = plan.toPrepare.length > 0 ? "blocks.tonight.day" : "blocks.tonight.suggested";
   const glance = useTileFrame().size === "s";
+  const summary = useHeroSummary({ advice, family, clock, childId }, query.data ?? [], plan.open);
 
   return (
     <BlockPanel
       title={title}
       icon={PackBagIcon}
       note={query.isSuccess && withSteps.length > 0 && !glance && t(note, { day })}
-      hero
+      heroDate={heroDateOf(plan.day)}
+      summary={summary}
     >
       {query.isSuccess && withSteps.length === 0 && (
         <NothingToPack

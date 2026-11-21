@@ -76,9 +76,15 @@ function comingFriday(): string {
  * On Friday evening the planner already shows the week Monday opens, the very day "Pour ce soir"
  * prepares: both read the school day of the shared clock, so they never speak of two days.
  */
-/** The advised home does not read the hour yet, so the evening's block is placed by hand. */
+/** The evening's block placed by hand beside the Agenda, whatever the advice crowns. */
 const TONIGHT_BESIDE_THE_AGENDA = [
   { id: "tonight", size: "m" },
+  { id: "calendar", size: "xl" },
+];
+
+/** The briefing kept on the home in the evening, when the advice leads with "Pour ce soir" instead. */
+const WITH_BRIEFING = [
+  { id: "today", size: "l" },
   { id: "calendar", size: "xl" },
 ];
 
@@ -267,7 +273,11 @@ test.describe("the calendar on a phone", () => {
         deadlineDate: inDays(1),
         deadlineAt: `${inDays(1)}T07:00:00.000Z`,
       };
-      await serveFamily(page, { children: [LEA, { ...LEA, ...TOM }], events: [tonight, swimming] });
+      await serveFamily(page, {
+        children: [LEA, { ...LEA, ...TOM }],
+        events: [tonight, swimming],
+        homeLayout: WITH_BRIEFING,
+      });
       await page.goto("/");
 
       const briefing = page.getByRole("region", { name: "Pour demain", exact: true });
@@ -304,7 +314,7 @@ test.describe("the calendar on a phone", () => {
       deadlineDate: inDays(1),
       deadlineAt: `${inDays(1)}T07:00:00.000Z`,
     }));
-    await serveFamily(page, { children: [LEA], events: due });
+    await serveFamily(page, { children: [LEA], events: due, homeLayout: WITH_BRIEFING });
     await page.goto("/");
 
     const briefing = page.locator("[data-block=today]");
@@ -317,25 +327,31 @@ test.describe("the calendar on a phone", () => {
     await expect(region).toBeFocused();
   });
 
-  test("the home clips neither an avatar ring nor a focus ring", async ({ page }) => {
-    await page.clock.setFixedTime(todayAt("19:00"));
-    const due = Array.from({ length: 6 }, (_, index) => ({
-      ...REVIEW_EVENT,
-      id: `7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c1${index}`,
-      title: `Piscine ${index + 1}`,
-      category: "swimming",
-      status: "confirmed",
-      deadlineDate: inDays(1),
-      deadlineAt: `${inDays(1)}T07:00:00.000Z`,
-    }));
-    await serveFamily(page, { children: [LEA], events: due });
-    await page.goto("/");
+  for (const { home, homeLayout } of [
+    { home: "the advised evening home", homeLayout: undefined },
+    { home: "a home that keeps the briefing", homeLayout: WITH_BRIEFING },
+  ])
+    test(`${home} clips neither an avatar ring nor a focus ring, nor the page`, async ({
+      page,
+    }) => {
+      await page.clock.setFixedTime(todayAt("19:00"));
+      const due = Array.from({ length: 6 }, (_, index) => ({
+        ...REVIEW_EVENT,
+        id: `7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c1${index}`,
+        title: `Piscine ${index + 1}`,
+        category: "swimming",
+        status: "confirmed",
+        deadlineDate: inDays(1),
+        deadlineAt: `${inDays(1)}T07:00:00.000Z`,
+      }));
+      await serveFamily(page, { children: [LEA], events: due, homeLayout });
+      await page.goto("/");
 
-    await expect(
-      page.locator("[data-block=today]").getByRole("link", { name: "Piscine 1" }),
-    ).toBeVisible();
-    expect(await clippedInScrollRegions(page)).toEqual([]);
-  });
+      const lead = homeLayout ? page.locator("[data-block=today]") : page.locator("[data-hero]");
+      await expect(lead.getByText("Piscine 1", { exact: true })).toBeVisible();
+      await expectOnePageWithoutOverflow(page);
+      expect(await clippedInScrollRegions(page)).toEqual([]);
+    });
 
   test("a category chip of the history filters through the url and the request", async ({
     page,
@@ -684,7 +700,7 @@ test.describe("the bar of the day", () => {
         deadlineDate: inDays(1),
         deadlineAt: `${inDays(1)}T07:00:00.000Z`,
       }));
-      await serveFamily(page, { children: [LEA], events: due });
+      await serveFamily(page, { children: [LEA], events: due, homeLayout: WITH_BRIEFING });
       await page.goto("/");
 
       const bar = page.locator("[data-block=today]").getByRole("progressbar");

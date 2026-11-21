@@ -148,6 +148,23 @@ export function givenCalendar(
   return stub;
 }
 
+export const BRIEFING_ABOVE_AGENDA = [
+  { id: "today", w: 8, h: 2, hidden: false },
+  { id: "calendar", w: 12, h: 3, hidden: false },
+];
+
+/**
+ * A family whose parent keeps the briefing above the agenda: a test of either block reads them
+ * whatever the hour would advise.
+ */
+export function givenBriefingHome(
+  children: unknown[],
+  events: Fixture[],
+  options: CalendarStubOptions = {},
+): CalendarStub {
+  return givenCalendar(children, events, { homeLayout: BRIEFING_ABOVE_AGENDA, ...options });
+}
+
 export function calendarRequests(calls: readonly ApiCall[]): { from: string; to: string }[] {
   return calls
     .filter((call) => call.method === "GET" && call.url.pathname === "/events/calendar")

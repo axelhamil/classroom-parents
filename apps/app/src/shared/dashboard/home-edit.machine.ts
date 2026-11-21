@@ -4,6 +4,7 @@ import {
   type Draft,
   type Edge,
   hide,
+  keepPinned,
   moveBy,
   moveToEdge,
   moveToIndex,
@@ -15,6 +16,7 @@ import {
   show,
   stepSize,
   undo,
+  withoutPinned,
 } from "./layout-commands";
 
 export type KeyMove =
@@ -45,6 +47,14 @@ export interface HomeEditInput {
   layout: Draft;
   revision: number;
   units: GridUnits;
+  /**
+   * Blocks only the advice shows: pinned where they stand while the home is arranged, so what is
+   * arranged is what was read, and dropped from the layout once the edit ends or a command leaves
+   * the advice.
+   */
+  adviceOnly?: readonly string[];
+  /** The layout that stands for "nothing arranged", by identity: taking it while arranging shows the advice again. */
+  advisedLayout?: Draft;
 }
 
 export interface HomeEditContext {
@@ -58,6 +68,9 @@ export interface HomeEditContext {
   unsaved: Draft | null;
   inFlight: Draft | null;
   remote: RemoteLayout | null;
+  adviceOnly: readonly string[];
+  advisedLayout: Draft | null;
+  shownAdvice: Draft | null;
 }
 
 export type HomeEditEvent =
@@ -161,18 +174,26 @@ export const homeEditMachine = setup({
       activeId: null,
       gestureStart: null,
       draft: event.type === "EDIT" && event.advice ? event.advice : context.draft,
+      shownAdvice: event.type === "EDIT" ? (event.advice ?? null) : null,
     })),
     showResetAdvice: assign(({ context, event }) => ({
       draft: event.type === "CONFIRM_RESET" && event.shown ? event.shown : context.draft,
     })),
     settleDraft: assign(({ context }) => ({
-      draft:
+      shownAdvice: null,
+      draft: kept(
+        context,
         context.unsaved === null && context.inFlight === null ? context.committed : context.draft,
+      ),
     })),
-    adoptRemote: assign(({ event }) => {
+    adoptRemote: assign(({ context, event }) => {
       if (event.type !== "REMOTE_CHANGED") return {};
 
-      return { committed: event.layout, draft: event.layout, baseRevision: event.revision };
+      return {
+        committed: event.layout,
+        draft: shownOf(context, event.layout),
+        baseRevision: event.revision,
+      };
     }),
     keepRemote: assign(({ event }) => {
       if (event.type !== "REMOTE_CHANGED") return {};
@@ -196,7 +217,7 @@ export const homeEditMachine = setup({
     dragTo: assign(({ context, event }) => {
       if (event.type !== "DRAG_INDEX" || !context.activeId) return {};
 
-      return { draft: moveToIndex(context.draft, context.activeId, event.index) };
+      return { draft: pinned(context, moveToIndex(context.draft, context.activeId, event.index)) };
     }),
     resizeActive: assign(({ context, event }) => {
       if (event.type !== "RESIZE" || !context.activeId) return {};
@@ -206,7 +227,7 @@ export const homeEditMachine = setup({
     keyMove: assign(({ context, event }) => {
       if (event.type !== "KEY_MOVE") return {};
 
-      return { draft: applyKeyMove(context, event.move) };
+      return { draft: pinned(context, applyKeyMove(context, event.move)) };
     }),
     keySize: assign(({ context, event }) => {
       if (event.type !== "KEY_SIZE" || !context.activeId) return {};
@@ -214,7 +235,12 @@ export const homeEditMachine = setup({
       return { draft: stepSize(context.draft, context.activeId, event.step, event.allowed) };
     }),
     applyCommand: assign(({ context, event }) => {
-      const base = commandBase(context.draft, event);
+      const base = commandBase(context, event);
+
+      return commitDraft(context, base, pinned(context, commandResult(base, event)));
+    }),
+    applyReadCommand: assign(({ context, event }) => {
+      const base = kept(context, commandBase(context, event));
 
       return commitDraft(context, base, commandResult(base, event));
     }),
@@ -257,7 +283,7 @@ export const homeEditMachine = setup({
 
       return {
         committed: remote.blocks,
-        draft: remote.blocks,
+        draft: shownOf(context, remote.blocks),
         past: [...context.past, context.draft],
         baseRevision: remote.revision,
         unsaved: null,
@@ -279,6 +305,9 @@ export const homeEditMachine = setup({
     unsaved: null,
     inFlight: null,
     remote: null,
+    adviceOnly: input.adviceOnly ?? [],
+    advisedLayout: input.advisedLayout ?? null,
+    shownAdvice: null,
   }),
   on: {
     BREAKPOINT_CHANGED: { actions: "setUnits" },
@@ -291,8 +320,8 @@ export const homeEditMachine = setup({
           entry: "settleDraft",
           on: {
             EDIT: { target: "editing", actions: "openSession" },
-            SIZE: { actions: "applyCommand" },
-            HIDE: { actions: "applyCommand" },
+            SIZE: { actions: "applyReadCommand" },
+            HIDE: { actions: "applyReadCommand" },
             UNDO: { guard: "canUndo", actions: "undoDraft" },
           },
         },
@@ -457,10 +486,25 @@ function sameDraft(left: Draft, right: Draft): boolean {
   );
 }
 
-function commandBase(draft: Draft, event: HomeEditEvent): Draft {
-  if (event.type === "SIZE" || event.type === "HIDE") return event.from ?? draft;
+function commandBase(context: HomeEditContext, event: HomeEditEvent): Draft {
+  if ((event.type === "SIZE" || event.type === "HIDE") && event.from) return event.from;
 
-  return draft;
+  return context.draft;
+}
+
+/** A move of the other blocks, the blocks only the advice shows back where they stood. */
+function pinned(context: HomeEditContext, next: Draft): Draft {
+  return keepPinned(context.draft, next, context.adviceOnly);
+}
+
+/** A layout taken from elsewhere while arranging: the advice shown at the start when it is the advised layout. */
+function shownOf({ advisedLayout, shownAdvice }: HomeEditContext, layout: Draft): Draft {
+  return layout === advisedLayout && shownAdvice ? shownAdvice : layout;
+}
+
+/** The layout without the blocks only the advice shows; the same layout when it holds none, so `ADVISED_LAYOUT` keeps its identity. */
+function kept({ adviceOnly }: HomeEditContext, layout: Draft): Draft {
+  return withoutPinned(layout, adviceOnly);
 }
 
 function commandResult(draft: Draft, event: HomeEditEvent): Draft {

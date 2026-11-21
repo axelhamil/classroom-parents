@@ -10,6 +10,7 @@ import { DEADLINE_KINDS, type DeadlineKind, upcomingByKind } from "../../../../s
 import { nextTwoWeeks } from "../../../../shared/agenda/windows";
 import { useTileFrame } from "../../../../shared/dashboard/tile-frame";
 import { nextOfCategoriesQueryOptions } from "../../api/events.queries";
+import { blockIsEmpty } from "../../block-emptiness";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { EventSteps } from "../prepare-checklist";
@@ -34,12 +35,13 @@ function UpcomingBlock({ blockId, family, childId, clock, title }: HomeBlockProp
   const { size } = useTileFrame();
   if (!isDeadlineKind(blockId)) return null;
 
-  const due = upcomingByKind(query.data ?? [], clock, blockId, childId);
+  const events = query.data ?? [];
+  const due = upcomingByKind(events, clock, blockId, childId);
   const glance = size === "s";
 
   return (
     <BlockPanel title={title} icon={ICONS[blockId]}>
-      {query.isSuccess && due.length === 0 && (
+      {query.isSuccess && blockIsEmpty(blockId, { events, clock, childId }) && (
         <NothingOfKind kind={blockId} childId={childId} today={clock.today} />
       )}
       {due.length > 0 && glance && (

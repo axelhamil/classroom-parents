@@ -25,13 +25,13 @@ import {
   type SaveInput,
   type SaveOutcome,
 } from "../../../shared/dashboard/home-edit.machine";
-import type { Draft } from "../../../shared/dashboard/layout-commands";
+import { type Draft, withoutPinned } from "../../../shared/dashboard/layout-commands";
 import { type LayoutBlock, snapSize } from "../../../shared/dashboard/layout-migration";
 import { TABLET_QUERY } from "../../../shared/layout/use-media-query";
 import { isConnectionFailure } from "../../../shared/offline/connection";
 import { saveHomeLayoutMutationOptions } from "../api/home.mutations";
 import { HOME_LAYOUT_KEY, type HomeLayoutReply, homeLayoutQueryOptions } from "../api/home.queries";
-import { blockSizesOf } from "../home-block-sizes";
+import { ADVICE_ONLY_BLOCK_IDS, blockSizesOf } from "../home-block-sizes";
 
 /**
  * The draft that stands for "no layout chosen": the home follows the advised
@@ -232,11 +232,16 @@ function seedOf(
   const units = window.matchMedia(TABLET_QUERY).matches ? 4 : 2;
   const known =
     queryClient.getQueryData(homeLayoutQueryOptions.queryKey) ?? storedLayout(storageKey);
-  if (!known) return { layout: ADVISED_LAYOUT, revision: UNKNOWN_REVISION, units };
+  const kit: Omit<HomeEditInput, "layout" | "revision"> = {
+    units,
+    adviceOnly: ADVICE_ONLY_BLOCK_IDS,
+    advisedLayout: ADVISED_LAYOUT,
+  };
+  if (!known) return { layout: ADVISED_LAYOUT, revision: UNKNOWN_REVISION, ...kit };
 
   const { blocks, revision } = remoteOf(known, registry);
 
-  return { layout: blocks, revision, units };
+  return { layout: blocks, revision, ...kit };
 }
 
 /** A reply with no revision is never adopted, so waiting for it would hold the home forever. */
@@ -253,7 +258,12 @@ function remoteOf(layout: ServerLayout, registry: readonly string[]) {
 }
 
 function draftOf(blocks: readonly LayoutBlock[] | null, registry: readonly string[]): Draft {
-  return blocks ? fitToRegistry(blocks, registry) : ADVISED_LAYOUT;
+  return blocks ? fitToRegistry(savable(blocks), registry) : ADVISED_LAYOUT;
+}
+
+/** A layout the parent keeps: the blocks only the advice places are left out, whoever wrote them. */
+function savable(blocks: readonly LayoutBlock[]): LayoutBlock[] {
+  return [...withoutPinned(blocks, ADVICE_ONLY_BLOCK_IDS)];
 }
 
 /** The blocks the home can draw, once each, at a size the block allows. */
@@ -272,7 +282,7 @@ export function fitToRegistry(blocks: readonly LayoutBlock[], registry: readonly
 }
 
 function blocksOf(draft: Draft): LayoutBlock[] | null {
-  return draft === ADVISED_LAYOUT ? null : [...draft];
+  return draft === ADVISED_LAYOUT ? null : savable(draft);
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   calendarRequests,
   crunchDay,
   FIVE_CHILDREN,
+  givenBriefingHome,
   givenCalendar,
   STRESS,
 } from "../../../__tests__/calendar-fixtures";
@@ -135,7 +136,7 @@ describe("Accueil, the family calendar", () => {
       removeEventListener: () => undefined,
     }));
     at("2026-11-13T16:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-11-16", "Cahier de liaison signé")]);
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-16", "Cahier de liaison signé")]);
     await renderAppAt("/?date=2026-11-16");
 
     await screen.findByRole("region", { name: "Pour lundi 16 novembre" });
@@ -161,7 +162,7 @@ describe("Accueil, the family calendar", () => {
 
   it("after 16:00 on a phone the briefing owns today and tomorrow, the week starts the day after", async () => {
     at("2026-11-12T17:00:00.000Z");
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-12", "Mot signé"),
@@ -187,7 +188,7 @@ describe("Accueil, the family calendar", () => {
 
   it("on a Saturday phone the briefing owns Sunday and Monday, the week starts on Tuesday", async () => {
     at("2026-11-14T09:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-11-15", "Exposé à finir")]);
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-15", "Exposé à finir")]);
     await renderAppAt("/");
 
     const briefing = await screen.findByRole("region", { name: "Pour lundi 16 novembre" });

@@ -2,6 +2,7 @@ import { AllDoneIcon, OverdueIcon } from "@packages/ui/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { lateWindow } from "../../../../shared/agenda/windows";
 import { useTileFrame } from "../../../../shared/dashboard/tile-frame";
+import { blockIsEmpty } from "../../block-emptiness";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useLate } from "../../hooks/use-late";
 import { OlderLateLink } from "../older-late-link";
@@ -10,11 +11,11 @@ import { BlockGlance } from "./block-glance";
 import { BlockPanel } from "./block-panel";
 import { EventRows } from "./event-rows";
 
-function OverdueBlock({ family, childId, clock, title }: HomeBlockProps) {
+function OverdueBlock({ blockId, family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const { t: tEvents } = useTranslation("events");
-  const { isSuccess, late, older } = useLate(clock, childId);
-  const settledEmpty = isSuccess && late.length === 0;
+  const { isSuccess, loaded, late, older } = useLate(clock, childId);
+  const settledEmpty = isSuccess && blockIsEmpty(blockId, { events: loaded, clock, childId });
   const glance = useTileFrame().size === "s";
 
   return (

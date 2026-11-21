@@ -12,20 +12,22 @@ import { useTranslation } from "react-i18next";
 import { weekLoadView } from "../../../../shared/agenda/views";
 import { nextSevenDays } from "../../../../shared/agenda/windows";
 import { wallDateParts } from "../../../../shared/format/deadline-label";
+import { blockIsEmpty } from "../../block-emptiness";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { BlockEmpty } from "./block-empty";
 import { BlockPanel } from "./block-panel";
 
-function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
+function WorkloadBlock({ blockId, family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
-  const { days, open, loadOf } = weekLoadView(query.data ?? [], clock, childId);
+  const events = query.data ?? [];
+  const { days, open, loadOf } = weekLoadView(events, clock, childId);
   const children = family.filter((child) => childId === null || child.id === childId);
 
   return (
     <BlockPanel title={title} icon={WorkloadIcon}>
-      {query.isSuccess && open.length === 0 && (
+      {query.isSuccess && blockIsEmpty(blockId, { events, clock, childId }) && (
         <BlockEmpty
           icon={NothingDueIcon}
           title={t("blocks.workload.empty", { days: nextSevenDays.days })}
