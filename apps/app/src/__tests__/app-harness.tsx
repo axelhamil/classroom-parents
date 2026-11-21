@@ -48,6 +48,21 @@ function readBody(body: BodyInit | null | undefined): unknown {
   return typeof body === "string" ? JSON.parse(body) : undefined;
 }
 
+/** What the api answers a parent who picked no school calendar: no holidays, nothing to wait on. */
+const NO_SCHOOL_CALENDAR = {
+  choice: null,
+  holidays: [],
+  bankHolidays: [],
+  schoolHolidaysCovered: false,
+};
+
+function unstubbedReply(call: ApiCall): Response {
+  if (call.method === "GET" && call.url.pathname === "/school-calendar")
+    return json(NO_SCHOOL_CALENDAR);
+
+  return json({ code: "NOT_FOUND" }, 404);
+}
+
 export function stubApi(handler: ApiHandler): ApiCall[] {
   const calls: ApiCall[] = [];
   vi.stubGlobal(
@@ -62,7 +77,7 @@ export function stubApi(handler: ApiHandler): ApiCall[] {
       calls.push(call);
       if (call.url.pathname === "/stream") return new Promise<Response>(() => undefined);
 
-      return handler(call) ?? json({ code: "NOT_FOUND" }, 404);
+      return handler(call) ?? unstubbedReply(call);
     }),
   );
 

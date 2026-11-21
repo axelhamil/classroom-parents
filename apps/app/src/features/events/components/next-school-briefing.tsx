@@ -33,26 +33,35 @@ import { childHue } from "../../../shared/format/child-hue";
 import { inSentence } from "../../../shared/format/deadline-label";
 import { QueryState } from "../../../shared/query/query-state";
 import { nextEventQueryOptions } from "../api/events.queries";
+import { type HeroSummarySource, useHeroSummary } from "../hooks/use-hero-summary";
 import { useHomeEvents } from "../hooks/use-home-events";
 import { BlockEmpty, NextDeadlineLink } from "./blocks/block-empty";
-import { BlockPanel } from "./blocks/block-panel";
+import { BlockPanel, heroDateOf } from "./blocks/block-panel";
 import { CalendarEventRow } from "./calendar/calendar-event-row";
 import { EventSteps } from "./prepare-checklist";
 
-export interface NextSchoolBriefingProps {
-  family: readonly ChildDto[];
-  childId: string | null;
-  clock: SchoolClock;
-}
+export type NextSchoolBriefingProps = HeroSummarySource;
 
-export function NextSchoolBriefing({ family, childId, clock }: NextSchoolBriefingProps) {
+export function NextSchoolBriefing({ family, childId, clock, advice }: NextSchoolBriefingProps) {
   const { t } = useTranslation("events");
   const day = inSentence(relativeDayLabel(clock.focus, clock.today));
   const query = useHomeEvents(clock);
   const watched = childId ? family.filter((child) => child.id === childId) : family;
+  const events = query.data ?? [];
+  const summary = useHeroSummary(
+    { advice, family, clock, childId },
+    events,
+    dayPlanView(events, clock, { childId }).open,
+  );
 
   return (
-    <BlockPanel title={t("briefing.title", { day })} icon={TodayIcon} jump={clock.focus}>
+    <BlockPanel
+      title={t("briefing.title", { day })}
+      icon={TodayIcon}
+      jump={clock.focus}
+      heroDate={heroDateOf(clock.focus)}
+      summary={summary}
+    >
       <QueryState
         query={query}
         skeleton={

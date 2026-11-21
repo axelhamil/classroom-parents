@@ -21,6 +21,19 @@ export const MAXIMILIEN = {
   syncing: false,
 };
 
+/** A third child, connected and read, for the homes that list a block per child. */
+export const JADE = {
+  id: "c3a9e1d2-7b4f-4a6e-8c1d-2e3f4a5b6c77",
+  label: "Jade",
+  googleEmail: "jade@example.com",
+  status: "connected",
+  lastSyncedAt: "2026-11-10T08:00:00.000Z",
+  syncing: false,
+};
+
+/** A parent whose only child is still being read, with no deadline yet: the advice leads with the first steps. */
+export const NEWCOMER = { ...LEA, lastSyncedAt: null, syncing: true };
+
 /**
  * A Thursday of school term: what the home shows depends on the day (evening, weekend, holidays),
  * so the gate pins its pages to one day instead of the day it happens to run on. `A11Y_TODAY` moves
@@ -120,6 +133,14 @@ interface ApiFixtures {
   detail?: unknown;
   reminders?: number;
   homeLayout?: unknown[];
+  /** The school calendar of the family's zone; left out, the gate's empty calendar stands (`csp.ts`). */
+  schoolCalendar?: SchoolCalendarFixture;
+}
+
+export interface SchoolCalendarFixture {
+  zone: string | null;
+  holidays: { name: string; startsOn: string; endsOn: string }[];
+  bankHolidays: { date: string }[];
 }
 
 /** The line of late deadlines lives in the Agenda only while the "En retard" block is hidden. */
@@ -153,6 +174,8 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
       return route.fulfill({ json: { blocks: fixtures.homeLayout ?? null, revision: 0 } });
     if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
     if (path === "/notifications/unread-count") return route.fulfill({ json: { count: 0 } });
+    if (path === "/school-calendar" && fixtures.schoolCalendar)
+      return route.fulfill({ json: fixtures.schoolCalendar });
     if (path === "/events") {
       eventRequests.push(request);
       const status = new URL(request.url()).searchParams.get("status");

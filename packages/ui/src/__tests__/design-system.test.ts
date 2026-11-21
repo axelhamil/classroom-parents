@@ -78,6 +78,10 @@ describe("visual system", () => {
     ).toEqual([]);
   });
 
+  it("pads only by role, the safe areas of the device being the one length the theme cannot name", () => {
+    expect(offenders(/(?<![\w-])p[trblxyse]?-\[(?!--)(?![^\]]*env\()/)).toEqual([]);
+  });
+
   it("rounds only by role: mark, inner, popover, surface or full", () => {
     expect(
       offenders(

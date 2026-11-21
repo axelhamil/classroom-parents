@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
 import { cn } from "../../libs/utils";
+import { DateTab } from "./date-tab";
 
 interface DashboardProps extends Omit<React.ComponentProps<"div">, "style"> {
   /**
@@ -81,7 +82,7 @@ const dashboardPanelVariants = cva(
       },
       tone: {
         default: "",
-        hero: "border-primary/30 bg-primary-container [--focus-surface:var(--color-primary-container)] text-foreground",
+        hero: "border-primary/30 bg-primary-container [--focus-surface:var(--color-primary-container)] text-foreground @max-md/panel:[&>[data-slot=dashboard-panel-header]]:h-auto @max-md/panel:[&>[data-slot=dashboard-panel-header]]:min-h-dashboard-header @max-md/panel:[&>[data-slot=dashboard-panel-header]]:pt-surface-header-inset @max-md/panel:[&>[data-slot=dashboard-panel-header]]:pb-1 @max-md/panel:[&>[data-slot=dashboard-panel-header]]:items-start @max-md/panel:[&>[data-slot=dashboard-panel-header]>[data-slot=dashboard-panel-title]]:-mt-surface-header-inset @max-md/panel:[&>[data-slot=dashboard-panel-header]>[data-slot=dashboard-panel-title]]:leading-(--dashboard-header-height) @max-md/panel:[&>[data-slot=dashboard-tile-toolbar]]:h-auto @max-md/panel:[&>[data-slot=dashboard-tile-toolbar]]:min-h-dashboard-header @max-md/panel:[&>[data-slot=dashboard-tile-toolbar]]:pt-surface-header-inset @max-md/panel:[&>[data-slot=dashboard-tile-toolbar]]:pb-1",
       },
     },
     defaultVariants: { fit: "card", tone: "default" },
@@ -99,14 +100,18 @@ interface DashboardPanelProps
  * height already sits below the title, as much as the room above it. `natural` is for a block made of cards of its own (the
  * week): a phone shows it on the page, without a card around the cards. The panel is a size
  * container (`@container/panel`): a block reads its own width, so the same block can be a glance
- * in a narrow tile and a list in a wide one. `hero` tints the block with the action: only the
- * block that answers "what is next" wears it, so the palette signs the home once.
+ * in a narrow tile and a list in a wide one. `hero` tints the block with the action and marks it
+ * `data-hero`: only the block that answers the question of the moment wears it, so the palette
+ * signs the home once. Below `@md/panel` its header grows to hold the hero's date, set as far
+ * from the top as the padding is from the side so the date's corner nests in the panel's; its
+ * title stays on the line of the other titles, so the titles of a row share their baseline.
  */
 function DashboardPanel({ className, fit, tone, ...props }: DashboardPanelProps) {
   return (
     <section
       data-slot="dashboard-panel"
       data-tone={tone ?? "default"}
+      data-hero={tone === "hero" ? "" : undefined}
       className={cn(dashboardPanelVariants({ fit, tone }), className)}
       {...props}
     />
@@ -114,7 +119,7 @@ function DashboardPanel({ className, fit, tone, ...props }: DashboardPanelProps)
 }
 
 const DASHBOARD_HEADER =
-  "flex h-dashboard-header min-w-0 shrink-0 items-center gap-2 [&>svg]:size-icon-lg [&>svg]:shrink-0 [&>svg]:text-primary";
+  "flex h-dashboard-header min-w-0 shrink-0 items-center gap-2 [&>svg]:size-icon-lg [&>svg]:shrink-0 [&>svg]:text-primary @max-md/panel:[&:has(>[data-hero-date])>svg]:hidden";
 
 /**
  * The title row of a block, one fixed height so the titles of a row share their line. Its slot is
@@ -237,6 +242,73 @@ function DashboardPanelEmpty({ className, ...props }: React.ComponentProps<"div"
   );
 }
 
+/** The day a hero block answers for, as its tear-off date reads it. */
+interface HeroDate {
+  dateTime: string;
+  day: string;
+  month: string;
+  weekday: string;
+}
+
+interface DashboardPanelHeroDateProps {
+  date: HeroDate;
+}
+
+/**
+ * The hero's tear-off date in its header, where a narrow panel (a phone) shows it in place of the
+ * block's icon; from `@md/panel` the date moves to the left of the body (`DashboardPanelHeroBody`)
+ * and this one hides.
+ */
+function DashboardPanelHeroDate({ date }: DashboardPanelHeroDateProps) {
+  return <DateTab {...date} data-hero-date="header" className="@md/panel:hidden" />;
+}
+
+interface DashboardPanelHeroBodyProps extends React.ComponentProps<"div"> {
+  date: HeroDate;
+}
+
+/**
+ * The body of the hero block from `@md/panel`: its large tear-off date on the left, the one
+ * audacity of the home, and the list on the right taking what is left. Narrower, it lays out the
+ * list alone, the date being in the header (`DashboardPanelHeroDate`).
+ */
+function DashboardPanelHeroBody({
+  className,
+  date,
+  children,
+  ...props
+}: DashboardPanelHeroBodyProps) {
+  return (
+    <div
+      data-slot="dashboard-panel-hero-body"
+      className={cn(
+        "flex min-h-0 min-w-0 flex-1 gap-surface [&>:last-child]:min-w-0 [&>:last-child]:flex-1",
+        className,
+      )}
+      {...props}
+    >
+      <DateTab
+        {...date}
+        size="lg"
+        data-hero-date="body"
+        className="hidden self-start @md/panel:inline-flex"
+      />
+      {children}
+    </div>
+  );
+}
+
+/** The one sentence at the foot of the hero that sums up its answer ("2 choses pour Jade, 1 pour Léo"). */
+function DashboardPanelSummary({ className, ...props }: React.ComponentProps<"p">) {
+  return (
+    <p
+      data-slot="dashboard-panel-summary"
+      className={cn("shrink-0 pt-2 text-small text-pretty line-clamp-2 tabular-nums", className)}
+      {...props}
+    />
+  );
+}
+
 export {
   Dashboard,
   DashboardPanel,
@@ -245,8 +317,12 @@ export {
   DashboardPanelFigure,
   DashboardPanelFooter,
   DashboardPanelHeader,
+  DashboardPanelHeroBody,
+  DashboardPanelHeroDate,
   DashboardPanelNote,
+  DashboardPanelSummary,
   DashboardPanelTitle,
   DashboardTile,
   DashboardTileToolbar,
+  type HeroDate,
 };

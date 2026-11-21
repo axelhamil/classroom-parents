@@ -4,13 +4,16 @@ import type { ComponentType } from "react";
 import type { SchoolClock } from "../../shared/agenda/school-clock";
 import type { ChildDto } from "../../shared/api/queries/children";
 import type { BlockIdentity, FullViewProps } from "../../shared/dashboard/dashboard-block";
+import type { AdviceSnapshot } from "./advise-context";
 
 export interface HomeBlockContext {
+  userId: string;
   family: readonly ChildDto[];
   childId: string | null;
   clock: SchoolClock;
   briefingShown: boolean;
   overdueShown: boolean;
+  advice: AdviceSnapshot | null;
 }
 
 export type HomeBlockProps = HomeBlockContext & BlockIdentity;

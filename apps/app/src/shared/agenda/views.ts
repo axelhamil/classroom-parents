@@ -1,4 +1,4 @@
-import { daysFrom, shiftDate } from "@packages/ddd-kit/days";
+import { daysFrom, mondayOf, shiftDate } from "@packages/ddd-kit/days";
 import type { EventItem } from "../api/queries/events";
 import type { EventCategory } from "../events/event-labels";
 import { hasOpenSteps, hasOpenStepsToPrepare } from "./checklist-template";
@@ -12,7 +12,7 @@ import {
   isOverdue,
   needsReview,
 } from "./deadline-facts";
-import type { SchoolClock } from "./school-clock";
+import { nextSchoolDay, type SchoolClock } from "./school-clock";
 import {
   type AgendaWindow,
   calendarWeek,
@@ -219,6 +219,21 @@ export function weekLoadView(events: Events, clock: SchoolClock, childId: string
   };
 }
 
+export interface WeekCounts {
+  deadlines: number;
+  assessments: number;
+}
+
+/** How much the whole family has open over the next seven days, assessments counted apart. */
+export function weekCountsView(events: Events, clock: SchoolClock): WeekCounts {
+  const { open } = weekLoadView(events, clock, null);
+
+  return {
+    deadlines: open.length,
+    assessments: open.filter((event) => isOfKind(event, DEADLINE_KINDS.assessments)).length,
+  };
+}
+
 export interface Progress {
   week: string;
   done: number;
@@ -260,4 +275,42 @@ export function nextOpenAfter(
     .sort(bySoonest);
 
   return after[0] ?? null;
+}
+
+export interface ChildCount {
+  label: string;
+  count: number;
+}
+
+/** The deadlines of `events` counted per child, in the family's order, a child with none at 0. */
+export function countByChild(
+  events: Events,
+  family: readonly { id: string; label: string }[],
+): ChildCount[] {
+  return family.map(({ id, label }) => ({
+    label,
+    count: events.filter((event) => isOfChild(event, id)).length,
+  }));
+}
+
+/**
+ * The day the week's hero shows: the first school day after the holidays ending on
+ * `holidayEndsOn` (past a weekend or a bank holiday), else the Monday of the week the home looks at.
+ */
+export function weekHeroDay(clock: SchoolClock, holidayEndsOn: string | null): string {
+  if (holidayEndsOn) return nextSchoolDay(holidayEndsOn, clock.closedDays);
+
+  return mondayOf(clock.focus);
+}
+
+/**
+ * The day the Agenda opens on when it is the hero: during the holidays ending on `holidayEndsOn`,
+ * the day school starts again, the day its tear-off date shows; otherwise none, and the Agenda
+ * opens where it always does.
+ */
+export function heroAgendaOpensOn(
+  clock: SchoolClock,
+  holidayEndsOn: string | null,
+): string | undefined {
+  return holidayEndsOn ? weekHeroDay(clock, holidayEndsOn) : undefined;
 }

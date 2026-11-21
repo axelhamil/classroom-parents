@@ -6,11 +6,10 @@ import {
   EmailIcon,
   LinkAccountIcon,
 } from "@packages/ui/components/ui/icons";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
-import { pushStatusQueryOptions } from "../../../shared/api/queries/push-status";
+import { usePushLive } from "../../../shared/api/queries/push-status";
 import { childAvatarSrc } from "../../../shared/children/child-avatar-src";
 import type { ChildHue } from "../../../shared/format/child-hue";
 import { StepFrame } from "./step-frame";
@@ -24,7 +23,7 @@ export interface DoneStepProps {
 
 export function DoneStep({ child, hue, userId }: DoneStepProps) {
   const { t } = useTranslation("onboarding");
-  const pushLive = (useQuery(pushStatusQueryOptions(userId)).data?.live ?? 0) > 0;
+  const pushLive = usePushLive(userId);
 
   return (
     <StepFrame

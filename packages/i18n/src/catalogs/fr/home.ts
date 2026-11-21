@@ -3,11 +3,11 @@ export default {
     start: "Modifier l'accueil",
     done: "Terminé",
     add: "Ajouter un bloc",
-    reset: "Rétablir l'accueil par défaut",
-    resetTitle: "Rétablir l'accueil par défaut ?",
+    reset: "Revenir à la disposition conseillée",
+    resetTitle: "Revenir à la disposition conseillée ?",
     resetDescription:
-      "Les blocs reprennent leur place et leur taille d'origine. Votre pense-bête est gardé.",
-    resetConfirm: "Rétablir",
+      "L'accueil s'adapte de nouveau au moment de la journée et à votre semaine. Votre pense-bête est gardé.",
+    resetConfirm: "Revenir à la disposition conseillée",
     cancel: "Annuler",
     undo: "Annuler",
     hidden: "{{block}} masqué",
@@ -56,6 +56,20 @@ export default {
     empty: "Tous les blocs sont déjà sur votre accueil.",
     add: "Ajouter {{block}}",
     addShort: "Ajouter",
+  },
+  hero: {
+    summary: {
+      firstChild_one: "{{count}} chose pour {{name}}",
+      firstChild_other: "{{count}} choses pour {{name}}",
+      nextChild: "{{count}} pour {{name}}",
+      separator: ", ",
+      family_one: "{{count}} chose au programme",
+      family_other: "{{count}} choses au programme",
+      calm_zero: "Semaine calme : aucun devoir d'ici {{day}}",
+      calm_one: "Semaine calme : {{count}} devoir d'ici {{day}}",
+      calm_other: "Semaine calme : {{count}} devoirs d'ici {{day}}",
+      holiday: "{{name}} jusqu'au {{date}}",
+    },
   },
   blocks: {
     today: {
@@ -176,6 +190,28 @@ export default {
         "Les alertes qui vont sonner pour les échéances des {{days}} prochains jours, et quand.",
       empty: "Aucun rappel prévu pour les {{days}} prochains jours",
       emptyHint: "Les rappels de vos échéances s'afficheront ici avant de sonner.",
+    },
+    welcome: {
+      title: "Premiers pas",
+      description: "Les trois étapes qui remplissent votre accueil.",
+      label: "Vos premiers pas",
+      steps: {
+        link: "Lier le compte d'un enfant",
+        read: "Lire sa classe Classroom",
+        reminders: "Activer les rappels",
+      },
+      state: {
+        done: "Fait",
+        todo: "À faire",
+        reading: "Lecture en cours : {{done}} sur {{total}}",
+        check: "À vérifier",
+        waiting: "Commence une fois un enfant lié",
+      },
+      actions: {
+        linkChild: "Lier un enfant",
+        seeChildren: "Voir les enfants",
+        openReminders: "Activer dans les réglages",
+      },
     },
     notes: {
       title: "Pense-bête",

@@ -21,6 +21,7 @@ function setup(order: readonly string[], metrics: GridMetrics, size: BlockSize =
     sizeOf: { current: (): BlockSize => size },
     tallOf: { current: () => false },
     onIndexChange: { current: onIndexChange },
+    pinned: { current: [] as readonly string[] },
   };
 
   return { compactor: createCellCompactor(refs), refs, onIndexChange };
@@ -59,6 +60,19 @@ describe("createCellCompactor", () => {
       ["a", 1],
       ["a", 4],
     ]);
+  });
+
+  it("given a pinned block, when another is dragged past it, then it holds its place all along", () => {
+    const harness = setup(EIGHT_SMALL, TABLET);
+    harness.refs.pinned.current = ["b"];
+
+    for (const x of [1, 2, 3, 4]) {
+      dragTo(harness, { i: "a", x, y: 0 }, SMALL_TABLET);
+      expect(harness.compactor.currentOrder()[1]).toBe("b");
+    }
+
+    expect(harness.compactor.currentOrder()).toEqual(["c", "b", "d", "e", "a", "f", "g", "h"]);
+    expect(harness.onIndexChange.mock.calls.at(-1)).toEqual(["a", 4]);
   });
 
   it("given a block just past a neighbour's edge, when the centre has not crossed its middle, then the order holds", () => {

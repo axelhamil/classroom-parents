@@ -15,6 +15,7 @@ import { remindersBlock } from "./components/blocks/reminders-block";
 import { reviewBlock } from "./components/blocks/review-block";
 import { todayBlock } from "./components/blocks/today-block";
 import { tonightBlock } from "./components/blocks/tonight-block";
+import { welcomeBlock } from "./components/blocks/welcome-block";
 import { workloadBlock } from "./components/blocks/workload-block";
 import type { HomeBlockContext, HomeBlockDefinition } from "./home-block";
 import { blockSizesOf } from "./home-block-sizes";
@@ -37,6 +38,7 @@ const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
   workloadBlock,
   progressBlock,
   remindersBlock,
+  welcomeBlock,
 ];
 
 function sized(block: UnsizedBlock): RegisteredBlock[] {

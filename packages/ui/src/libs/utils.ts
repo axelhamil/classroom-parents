@@ -9,6 +9,7 @@ const twMerge = extendTailwindMerge({
       shadow: ["rest", "raised", "float", "stripe"],
       spacing: [
         "surface",
+        "surface-header-inset",
         "popover",
         "block",
         "control-sm",

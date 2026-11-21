@@ -16,7 +16,9 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 
 const THURSDAY_MORNING = "2026-11-12T09:00:00.000Z";
 
-function block(name: string): Promise<HTMLElement> {
+const LATE = /^En retard/;
+
+function block(name: string | RegExp): Promise<HTMLElement> {
   return screen.findByRole("region", { name });
 }
 
@@ -27,19 +29,17 @@ describe("Accueil blocks keep to what they have to say", () => {
     localStorage.clear();
   });
 
-  it("given nothing late, the block says so with a useful sentence, and lists once a deadline is late", async () => {
+  it("given nothing late, the advised block says so at a glance, and lists once a deadline is late", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);
     await renderAppAt("/");
 
-    const overdue = await within(await block("En retard")).findByText("Rien en retard, bravo");
+    const overdue = await within(await block(LATE)).findByText("Rien en retard, bravo");
     expect(
-      within(await block("En retard")).getByText(
-        "Un devoir resté non coché après sa date arrivera ici.",
-      ),
+      within(await block(LATE)).getByText("Un devoir resté non coché après sa date arrivera ici."),
     ).toBeDefined();
     expect(overdue.closest("[data-slot=dashboard-panel-empty]")).not.toBeNull();
-    expect(overdue.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
+    expect(overdue.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("s");
     cleanup();
     resetApp();
     localStorage.clear();
@@ -47,12 +47,12 @@ describe("Accueil blocks keep to what they have to say", () => {
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
     await renderAppAt("/");
 
-    const late = await within(await block("En retard")).findByText("Cahier de liaison à signer");
+    const late = await within(await block(LATE)).findByText("Cahier de liaison à signer");
     expect(late.closest("[data-slot=dashboard-panel-empty]")).toBeNull();
     expect(late.closest("[data-block=overdue]")?.getAttribute("data-size")).toBe("m");
   });
 
-  it("given nothing late, the block keeps its size while the home is arranged", async () => {
+  it("given nothing late, the advised glance keeps its size while the home is arranged", async () => {
     at(THURSDAY_MORNING);
     givenCalendar([CHILD], []);
     await renderAppAt("/");
@@ -62,7 +62,7 @@ describe("Accueil blocks keep to what they have to say", () => {
 
     expect(screen.getByRole("group", { name: "Disposition de En retard" })).toBeDefined();
     const sizes = [...document.querySelectorAll<HTMLElement>("[data-block=overdue][data-size]")];
-    expect(sizes.map((tile) => tile.dataset.size)).toEqual(["m"]);
+    expect(sizes.map((tile) => tile.dataset.size)).toEqual(["s"]);
   });
 
   it("given more late deadlines than the block shows at once, it lists them all in a region that scrolls", async () => {
@@ -86,9 +86,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     givenCalendar([CHILD], [deadline(1, "2026-11-10", "Cahier de liaison à signer")]);
     await renderAppAt("/");
 
-    expect(
-      await within(await block("En retard")).findByText("Cahier de liaison à signer"),
-    ).toBeDefined();
+    expect(await within(await block(LATE)).findByText("Cahier de liaison à signer")).toBeDefined();
     expect(within(await block("Agenda")).queryByRole("button", { name: /^En retard/ })).toBeNull();
   });
 
@@ -203,7 +201,7 @@ describe("Accueil blocks keep to what they have to say", () => {
     );
     await renderAppAt("/");
 
-    const overdue = await block("En retard");
+    const overdue = await block(LATE);
     expect(await within(overdue).findByText("Et 1 plus ancienne, dans l'historique")).toBeDefined();
     expect(
       within(overdue).getAllByRole("link", { name: "Cahier de liaison à signer" }),

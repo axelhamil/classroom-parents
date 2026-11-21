@@ -76,6 +76,8 @@
   --corner-inner: 0.75rem;
   --radius: var(--corner-inner);
   --surface-padding: 1rem;
+  /* The room a header adds above itself in a panel that already pads its top by 0.25rem, so its top sits a surface padding from the edge. */
+  --surface-header-inset: calc(var(--surface-padding) - 0.25rem);
   --popover-padding: 0.25rem;
   --block-padding: 0.75rem;
   --block-padding-compact: 0.5rem;
@@ -1131,6 +1133,7 @@
   --spacing-print-item: var(--print-item-space);
 
   --spacing-surface: var(--surface-padding);
+  --spacing-surface-header-inset: var(--surface-header-inset);
   --spacing-popover: var(--popover-padding);
   --spacing-block: var(--block-padding);
   --spacing-block-compact: var(--block-padding-compact);

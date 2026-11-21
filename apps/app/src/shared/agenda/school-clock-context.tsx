@@ -7,6 +7,7 @@ import {
 } from "../api/queries/assistant-preferences";
 import {
   type SchoolCalendarDays,
+  type SchoolCalendarRange,
   schoolCalendarQueryOptions,
 } from "../api/queries/school-calendar";
 import { daysBetween } from "../format/deadline-label";
@@ -21,6 +22,11 @@ export function closedDaysOf(calendar: SchoolCalendarDays): ReadonlySet<string> 
   );
 
   return new Set([...holidays, ...calendar.bankHolidays.map(({ date }) => date)]);
+}
+
+/** The stretch of the school calendar every surface loads from today, so they all share one request. */
+export function schoolCalendarRangeFrom(today: string): SchoolCalendarRange {
+  return { from: today, to: shiftDate(today, CLOSED_DAYS_AHEAD) };
 }
 
 function useParentTimeZone(userId: string): string {
@@ -42,8 +48,7 @@ export function useLiveSchoolClock(userId: string): SchoolClock {
   const now = useNow();
   const timeZone = useParentTimeZone(userId);
   const today = schoolClock(now, { ...DEFAULT_CLOCK_SETTINGS, timeZone }).today;
-  const range = { from: today, to: shiftDate(today, CLOSED_DAYS_AHEAD) };
-  const { data } = useQuery(schoolCalendarQueryOptions(userId, range));
+  const { data } = useQuery(schoolCalendarQueryOptions(userId, schoolCalendarRangeFrom(today)));
 
   return useMemo(
     () =>

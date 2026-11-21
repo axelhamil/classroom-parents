@@ -3,7 +3,7 @@ import { onlineManager } from "@tanstack/react-query";
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { queryClient, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
-import { givenCalendar } from "../../../__tests__/calendar-fixtures";
+import { givenBriefingHome, givenCalendar } from "../../../__tests__/calendar-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
 import { deadline } from "../../../__tests__/week-fixtures";
 import { EVENTS_KEY } from "../../api/queries/events";
@@ -21,6 +21,21 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 const THURSDAY_AFTERNOON = new Date(2026, 10, 19, 15, 12);
 const THURSDAY_SCHOOL_AFTERNOON = new Date("2026-11-19T14:12:00.000Z");
 
+const THURSDAY_MORNING = new Date("2026-11-19T08:00:00.000Z");
+
+const KEPT_OFFLINE = [EVENTS_KEY[0], "children", "session"];
+
+function today(): HTMLElement {
+  const block = document.querySelector<HTMLElement>("[data-block=today]");
+  if (!block) throw new Error("the home shows no Pour aujourd'hui block");
+
+  return block;
+}
+
+function isKeptOffline(queryKey: readonly unknown[]): boolean {
+  return KEPT_OFFLINE.includes(String(queryKey[0]));
+}
+
 function nextSchoolMoment(): Promise<HTMLElement> {
   return screen.findByRole("region", { name: /^Pour (aujourd'hui|demain)$/ });
 }
@@ -36,7 +51,7 @@ describe("shell without network", () => {
   it("given the agenda was loaded, when the network drops, then a calm banner dates the data shown, and leaves once back online", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(THURSDAY_AFTERNOON);
-    givenCalendar([CHILD], [deadline(1, "2026-11-19", "Piscine")]);
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-19", "Piscine")]);
     await renderAppAt("/");
     const briefing = await nextSchoolMoment();
     await within(briefing).findByText("Piscine");
@@ -54,7 +69,7 @@ describe("shell without network", () => {
   it("given the agenda was loaded, when the server stops answering while the phone thinks it is online, then the agenda stays with a calm banner instead of an error", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(THURSDAY_AFTERNOON);
-    givenCalendar([CHILD], [deadline(1, "2026-11-19", "Piscine")]);
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-19", "Piscine")]);
     await renderAppAt("/");
     const briefing = await nextSchoolMoment();
     await within(briefing).findByText("Piscine");
@@ -67,6 +82,26 @@ describe("shell without network", () => {
     expect(await screen.findByText("Connexion instable, données du 19/11 à 15 h 12")).toBeDefined();
     expect(within(briefing).getByText("Piscine")).toBeDefined();
     expect(screen.queryByText(/Le chargement n'a pas abouti/)).toBeNull();
+  });
+
+  it("given the phone opens offline with the agenda kept and no layout arranged, then the advised home shows instead of a skeleton", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(THURSDAY_MORNING);
+    givenCalendar([CHILD], [deadline(1, "2026-11-19", "Piscine")]);
+    await renderAppAt("/");
+    await waitFor(() => expect(within(today()).getByText("Piscine")).toBeDefined());
+    cleanup();
+    for (const query of queryClient.getQueryCache().findAll())
+      if (!isKeptOffline(query.queryKey)) queryClient.removeQueries({ queryKey: query.queryKey });
+    stubApi(() => {
+      throw new TypeError("Failed to fetch");
+    });
+    act(() => onlineManager.setOnline(false));
+
+    await renderAppAt("/");
+
+    await waitFor(() => expect(document.querySelector("[data-block=today]")).not.toBeNull());
+    expect(within(today()).getByText("Piscine")).toBeDefined();
   });
 
   it("given the phone starts without network, then the route gates answer at once instead of waiting for the network forever", async () => {
@@ -107,7 +142,7 @@ describe("shell without network", () => {
     });
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(THURSDAY_SCHOOL_AFTERNOON);
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-19", "Piscine"),

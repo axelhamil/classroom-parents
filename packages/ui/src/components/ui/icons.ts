@@ -69,6 +69,7 @@ export {
   FileDown as ExportDataIcon,
   FileText as DocumentIcon,
   Flame as BusyDayIcon,
+  Footprints as FirstStepsIcon,
   Globe as BrowserIcon,
   Globe as RegionIcon,
   GripVertical as DragHandleIcon,

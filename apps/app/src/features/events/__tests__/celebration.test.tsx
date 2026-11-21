@@ -4,7 +4,7 @@ import { userStorageKey } from "@packages/web-kit/storage/use-stored-value";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderAppAt, resetApp } from "../../../__tests__/app-harness";
-import { givenCalendar } from "../../../__tests__/calendar-fixtures";
+import { givenBriefingHome } from "../../../__tests__/calendar-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
 import { at, deadline } from "../../../__tests__/week-fixtures";
 
@@ -29,7 +29,7 @@ describe("celebrating a day made ready", () => {
 
   it("fires once when the last deadline of the day is marked done", async () => {
     at("2026-11-12T17:30:00.000Z");
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-14", "Exposé")],
     );
@@ -56,7 +56,7 @@ describe("celebrating a day made ready", () => {
     at("2026-11-12T17:30:00.000Z");
     const homework = deadline(1, "2026-11-13", "Lire le chapitre 2");
     const path = `/events/${homework.id}`;
-    givenCalendar([CHILD], [homework, deadline(2, "2026-11-14", "Exposé")], {
+    givenBriefingHome([CHILD], [homework, deadline(2, "2026-11-14", "Exposé")], {
       detail: homework,
     });
     await renderAppAt(path);
@@ -71,7 +71,7 @@ describe("celebrating a day made ready", () => {
 
   it("waits for the server: a refused tick celebrates nothing and the next real one still does", async () => {
     at("2026-11-12T17:30:00.000Z");
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [deadline(1, "2026-11-13", "Lire le chapitre 2"), deadline(2, "2026-11-14", "Exposé")],
       { refuseFirstDone: true },
@@ -95,7 +95,7 @@ describe("celebrating a day made ready", () => {
   it("never fires when only the clock moves", async () => {
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
     vi.setSystemTime(new Date("2026-11-12T22:59:30.000Z"));
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-12", "Lire le chapitre 2"),
