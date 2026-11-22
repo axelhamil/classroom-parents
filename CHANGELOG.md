@@ -1,5 +1,72 @@
 # Changelog
 
+## [0.2.0](https://github.com/axelhamil/classroom-parents/compare/v0.1.0...v0.2.0) (2026-11-22)
+
+
+### Features
+
+* **agenda:** name the course each deadline comes from ([#19](https://github.com/axelhamil/classroom-parents/issues/19)) ([0e40b0f](https://github.com/axelhamil/classroom-parents/commit/0e40b0f3ecb7decf47096c3c0799b200149af309))
+* **alerts:** name a deadline in push, email, digest and notifications like the app ([#54](https://github.com/axelhamil/classroom-parents/issues/54)) ([a4d1c2d](https://github.com/axelhamil/classroom-parents/commit/a4d1c2ddc214555fc13be87b24344a587ed072b1))
+* **alerts:** warn parents when a child's classroom access is lost ([#21](https://github.com/axelhamil/classroom-parents/issues/21)) ([6ff4c96](https://github.com/axelhamil/classroom-parents/commit/6ff4c966f45154561cce7c91f860ac6567597cf4))
+* **app:** give every palette a character of its own and sixteen child colours ([#37](https://github.com/axelhamil/classroom-parents/issues/37)) ([817ecb7](https://github.com/axelhamil/classroom-parents/commit/817ecb7e2b3a737c8108f7c360cc232d0ab0ed35))
+* **app:** give overlays, the week and the tick a finished motion and paint the home in 1.5 s ([#30](https://github.com/axelhamil/classroom-parents/issues/30)) ([111b1f7](https://github.com/axelhamil/classroom-parents/commit/111b1f7d1eea042a391cd892a6797ce69685f3c2))
+* **app:** give the agenda one toolbar row from a tablet and a course filter ([#46](https://github.com/axelhamil/classroom-parents/issues/46)) ([d4436fe](https://github.com/axelhamil/classroom-parents/commit/d4436fec8b2e6daa3be6efc45a55bb0ebcc630f6))
+* **app:** let settings and card pages use the whole screen ([#35](https://github.com/axelhamil/classroom-parents/issues/35)) ([d172b96](https://github.com/axelhamil/classroom-parents/commit/d172b968238fc7bddbe9a528e66133ebfa8b7b55))
+* **app:** make the app a complete pwa that stays readable offline ([#28](https://github.com/axelhamil/classroom-parents/issues/28)) ([3b5d3af](https://github.com/axelhamil/classroom-parents/commit/3b5d3af356edb1323703a133a40a4811fcf7838c))
+* **app:** make the deadline detail and the home readable at a glance ([#17](https://github.com/axelhamil/classroom-parents/issues/17)) ([ce2eb0f](https://github.com/axelhamil/classroom-parents/commit/ce2eb0f1298557dc946c3ba651ef123f5a978d29))
+* **app:** name a deadline alike everywhere and show what its announcement asks ([#49](https://github.com/axelhamil/classroom-parents/issues/49)) ([9f054b6](https://github.com/axelhamil/classroom-parents/commit/9f054b6cae0bdb8dbf343d44520db5c42bf9ae0a))
+* **app:** open the week as a planner on wide blocks and a thread on phones ([#50](https://github.com/axelhamil/classroom-parents/issues/50)) ([a2ba6c2](https://github.com/axelhamil/classroom-parents/commit/a2ba6c264af1144adc988d19142d8119db03edc1))
+* **app:** read every day of the agenda from the shared clock ([#41](https://github.com/axelhamil/classroom-parents/issues/41)) ([a04a302](https://github.com/axelhamil/classroom-parents/commit/a04a302b4b546da40054c55ab23c03203de4727e))
+* **assistant:** add language, region and ai opposition with family quotas ([#31](https://github.com/axelhamil/classroom-parents/issues/31)) ([b64772e](https://github.com/axelhamil/classroom-parents/commit/b64772e5beb4af9f0018cd6d242baf66c9a8745b))
+* **children:** detect on its own that a school allowed the app ([#51](https://github.com/axelhamil/classroom-parents/issues/51)) ([ea9cc87](https://github.com/axelhamil/classroom-parents/commit/ea9cc87d59af10529e4f5b60f643e49345bf4728))
+* **children:** let parents pick a child's color and name in one place ([#18](https://github.com/axelhamil/classroom-parents/issues/18)) ([762adf8](https://github.com/axelhamil/classroom-parents/commit/762adf83c310f581185b8ee0f52891e46699a071))
+* **classroom-sync:** add an operator command to reread a parent's announcements ([#36](https://github.com/axelhamil/classroom-parents/issues/36)) ([b01232c](https://github.com/axelhamil/classroom-parents/commit/b01232cfa70c0c0964c4ac6cb6af573178a55aa1))
+* **extraction:** read announcements in five languages for each parent ([#62](https://github.com/axelhamil/classroom-parents/issues/62)) ([603218f](https://github.com/axelhamil/classroom-parents/commit/603218f6b464f348065d71f29a7e48242ca201ec))
+* **help:** guide parents and school admins to allow the app ([#42](https://github.com/axelhamil/classroom-parents/issues/42)) ([8d0b535](https://github.com/axelhamil/classroom-parents/commit/8d0b5356bdfde3c1fb51be224ea67a1d9fd32dd5))
+* **home:** advise a full-width home and let each block be sized freely ([#67](https://github.com/axelhamil/classroom-parents/issues/67)) ([9a31aae](https://github.com/axelhamil/classroom-parents/commit/9a31aaeb1d5ca5eb9bc6314e20da83abf9b29111))
+* **home:** arrange the home on a revisioned cell grid with keyboard and touch ([#53](https://github.com/axelhamil/classroom-parents/issues/53)) ([1dfe432](https://github.com/axelhamil/classroom-parents/commit/1dfe43228ee9031875cf40b451e0246898ca35e6))
+* **home:** give every empty block a titled state with a useful sentence ([#56](https://github.com/axelhamil/classroom-parents/issues/56)) ([9e50a92](https://github.com/axelhamil/classroom-parents/commit/9e50a92c2d4db91d772f3eceeba5dbd4e7536d0f))
+* **home:** let parents arrange their home in blocks they pick and size ([#29](https://github.com/axelhamil/classroom-parents/issues/29)) ([b3a66f2](https://github.com/axelhamil/classroom-parents/commit/b3a66f2f105a484c5ffe31f72a469cbac9f0622c))
+* **home:** let parents confirm or fix dates to check right in their block ([#45](https://github.com/axelhamil/classroom-parents/issues/45)) ([8bb96f4](https://github.com/axelhamil/classroom-parents/commit/8bb96f4c85eab155bd76ba1396ec8c1e118b50a4))
+* **notifications:** show parents what was sent and found in a bell ([#44](https://github.com/axelhamil/classroom-parents/issues/44)) ([b9fd821](https://github.com/axelhamil/classroom-parents/commit/b9fd8217995c3bae54e0906751336ea85e701690))
+* **review:** say why a deadline needs checking and quote its source ([#25](https://github.com/axelhamil/classroom-parents/issues/25)) ([da6d8cc](https://github.com/axelhamil/classroom-parents/commit/da6d8cc3ba96d4dfd873ddc0821438d79f38d8ff))
+* **school-calendar:** let families abroad pick their country's school calendar ([#47](https://github.com/axelhamil/classroom-parents/issues/47)) ([f1c14a8](https://github.com/axelhamil/classroom-parents/commit/f1c14a85653bd2d4988984b4aa3c78d5e69ea5e8))
+* **school-calendar:** show school holidays and bank holidays for the parent's zone ([#23](https://github.com/axelhamil/classroom-parents/issues/23)) ([484f98c](https://github.com/axelhamil/classroom-parents/commit/484f98cb475b26de07965d48e9e862a922eec423))
+* **settings:** let parents control the sunday digest and tidy defaults ([#16](https://github.com/axelhamil/classroom-parents/issues/16)) ([5d48059](https://github.com/axelhamil/classroom-parents/commit/5d48059ef852125c5807df608a9ead80a05e568a))
+* **settings:** split the settings into routed sections that save on change ([#59](https://github.com/axelhamil/classroom-parents/issues/59)) ([aa1cb70](https://github.com/axelhamil/classroom-parents/commit/aa1cb708796a3420211ef7f1fe6cd093f6e814fe))
+* **ui:** give the agenda a date rail, a week board and a paper card ([#38](https://github.com/axelhamil/classroom-parents/issues/38)) ([58edd63](https://github.com/axelhamil/classroom-parents/commit/58edd63ad314e72c6402fd887a9b8a35c00a2e7a))
+* **ui:** give the app a quiet paper finish and selectable palettes ([#24](https://github.com/axelhamil/classroom-parents/issues/24)) ([645ef31](https://github.com/axelhamil/classroom-parents/commit/645ef311d261ad089432f09ea2fc0a7a479fcfe0))
+
+
+### Bug Fixes
+
+* **agenda:** keep one deadline per piece of work and flag amended ones ([#22](https://github.com/axelhamil/classroom-parents/issues/22)) ([0e10492](https://github.com/axelhamil/classroom-parents/commit/0e1049284ae7d9af39dc6eb853ace8e5b7d517e1))
+* **alerts:** plan reminders, agenda days and syncs in the parent's time zone ([#66](https://github.com/axelhamil/classroom-parents/issues/66)) ([93d6b7f](https://github.com/axelhamil/classroom-parents/commit/93d6b7f7614894f08039909a9c1b409fe2c89569))
+* **app:** keep a folded agenda column down to its date ([#60](https://github.com/axelhamil/classroom-parents/issues/60)) ([6b9ae85](https://github.com/axelhamil/classroom-parents/commit/6b9ae854ceccccd13d7f05da8111399a5c97482e))
+* **app:** keep the a11y gate green on repeated sweeps and settings ([#61](https://github.com/axelhamil/classroom-parents/issues/61)) ([ad801e4](https://github.com/axelhamil/classroom-parents/commit/ad801e446454d134651e5cfcb4c480c667449019))
+* **app:** keep the agenda's toolbar and dates still while its week scrolls ([#57](https://github.com/axelhamil/classroom-parents/issues/57)) ([6396140](https://github.com/axelhamil/classroom-parents/commit/6396140c2ed179c3b0e544c4cc48cd711536e3cf))
+* **app:** keep the category word on the agenda card's one line of meta ([#65](https://github.com/axelhamil/classroom-parents/issues/65)) ([b7a5d14](https://github.com/axelhamil/classroom-parents/commit/b7a5d14bb1974e1800e09c99d785d28ace01e270))
+* **app:** show three deadlines of a day in the agenda without a scroll ([#64](https://github.com/axelhamil/classroom-parents/issues/64)) ([8c51fb3](https://github.com/axelhamil/classroom-parents/commit/8c51fb3aafa5718811fd1bb170c6f0e5f0a56a0b))
+* **children:** accept the classroom scope name google actually grants ([#13](https://github.com/axelhamil/classroom-parents/issues/13)) ([0492c5b](https://github.com/axelhamil/classroom-parents/commit/0492c5b1597b1fc7da2b56882faf6c2ead872b4f))
+* **home:** give every tile one scroller and content written for its size ([#58](https://github.com/axelhamil/classroom-parents/issues/58)) ([df4e815](https://github.com/axelhamil/classroom-parents/commit/df4e8156af5c3db5ef9fda3fa8c62572a9972e37))
+* **home:** keep the agenda scrolled where it was when a deadline opens ([#39](https://github.com/axelhamil/classroom-parents/issues/39)) ([b121784](https://github.com/axelhamil/classroom-parents/commit/b12178460803c56ea9de391bfa90d5a30627cef3))
+* **home:** make tonight match tomorrow and keep empty blocks in place ([#34](https://github.com/axelhamil/classroom-parents/issues/34)) ([8adab1e](https://github.com/axelhamil/classroom-parents/commit/8adab1e42c47e902e6bed3d6c7cbde3bac0f6d8e))
+* sharper manual add, calendar export and child link scopes ([#20](https://github.com/axelhamil/classroom-parents/issues/20)) ([960c7ef](https://github.com/axelhamil/classroom-parents/commit/960c7efefbfb6b42c8cbfc9f0916b274eeea14ad))
+* **ui:** give a deadline card one coloured edge, the child's ([#63](https://github.com/axelhamil/classroom-parents/issues/63)) ([87a2f5a](https://github.com/axelhamil/classroom-parents/commit/87a2f5a24eafbf1a2e98e3bfc8ed245978fc3c58))
+* **ui:** keep every child colour apart from the action and the urgent amber ([#27](https://github.com/axelhamil/classroom-parents/issues/27)) ([d4c1b8e](https://github.com/axelhamil/classroom-parents/commit/d4c1b8ec421e993e07ff384f5c5aaa1dca09d5d1))
+
+
+### Performance
+
+* **extraction:** read each text once and list what parents prepare ([#32](https://github.com/axelhamil/classroom-parents/issues/32)) ([115f3ed](https://github.com/axelhamil/classroom-parents/commit/115f3ed3279ae6e48187f3382dfb6535b32f9507))
+
+
+### Refactor
+
+* **app:** derive every agenda fact from one shared clock and view layer ([#40](https://github.com/axelhamil/classroom-parents/issues/40)) ([d5918ba](https://github.com/axelhamil/classroom-parents/commit/d5918ba6a72684d89361b926bc1fd0160766413b))
+* **llm:** move model calls into a metered and guarded kit ([#26](https://github.com/axelhamil/classroom-parents/issues/26)) ([61b1884](https://github.com/axelhamil/classroom-parents/commit/61b18845306d2fe50ca081c76b9d97c17a08599a))
+* **ui:** close the visual system on role tokens, icon concepts and guards ([#48](https://github.com/axelhamil/classroom-parents/issues/48)) ([b293eee](https://github.com/axelhamil/classroom-parents/commit/b293eeec56d055efa37cd1fe6e6c2a4c59b467f9))
+
 ## 0.1.0 (2026-11-14)
 
 
