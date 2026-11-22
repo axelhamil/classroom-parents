@@ -1,90 +1,168 @@
-import type { GridUnits } from "../../shared/dashboard/dashboard-pack";
-import type { LayoutBlock } from "../../shared/dashboard/layout-migration";
+import {
+  type BlockSize,
+  type GridColumns,
+  heldOnGrid,
+  sizeKey,
+} from "../../shared/dashboard/block-size";
 import type { AdviceContext } from "./advise-context";
-import { adviceRecipe, CALENDAR, type CellSize, type Secondary } from "./advise-recipe";
-import { allowsSize } from "./home-block-sizes";
+import { adviceRecipe, agendaAt, onGrid, type RecipeBlock, type Secondary } from "./advise-recipe";
+import { boundsOf } from "./home-block-bounds";
 
 export interface LayoutAdvice {
   heroId: string;
-  blocks: LayoutBlock[];
+  blocks: RecipeBlock[];
 }
 
-interface CellRule {
-  units: GridUnits;
-  besideHero: boolean;
+/**
+ * The room the secondaries fill: `band`, the cell beside the hero (or under it when the hero takes
+ * the whole row), then the rows under the Agenda. A band beside the hero must be filled whole.
+ */
+interface Page {
+  columns: GridColumns;
+  hero: RecipeBlock;
+  agenda: RecipeBlock[];
+  band: Area | null;
 }
 
-type Cell = readonly Secondary[];
+interface Area {
+  width: number;
+  height: number;
+  beside: boolean;
+}
 
-const QUARTERS: Record<CellSize, number> = { s: 1, m: 2, l: 4 };
+interface Composed {
+  band: RecipeBlock[];
+  under: RecipeBlock[];
+}
 
-const CELL_QUARTERS = 4;
+interface Cell {
+  x: number;
+  y: number;
+}
 
-const PHONE_UNITS = 2;
-
-const FILLERS: readonly Secondary[] = [
-  { id: "notes", size: "m", recipeSize: "m", empty: false },
-  { id: "progress", size: "s", recipeSize: "s", empty: false },
-  { id: "outings", size: "s", recipeSize: "s", empty: false },
-];
+const NOTHING_BESIDE: Composed = { band: [], under: [] };
 
 export function adviseLayout(
   context: AdviceContext,
-  units: GridUnits,
+  columns: GridColumns,
   emptyBlocks: ReadonlySet<string>,
 ): LayoutAdvice {
-  const { hero, secondaries } = adviceRecipe(context, emptyBlocks);
-  const rule = { units, besideHero: hero.size !== "xl" && units !== PHONE_UNITS };
-  const cells = toCells(fitRows(secondaries, rule));
+  const { hero, secondaries, fillers } = adviceRecipe(context, columns, emptyBlocks);
+  const fitOn = (page: Page) => new Fitter(page, fillers).fit(secondaries);
+  const page = pageOf(hero, columns);
+  const composed = fitOn(page);
+  if (composed) return adviceOn(page, composed);
 
-  return { heroId: hero.id, blocks: arrange(hero, cells) };
+  const wide = pageOf(widened(hero, columns), columns);
+
+  return adviceOn(wide, fitOn(wide) ?? NOTHING_BESIDE);
 }
 
-function fitRows(blocks: readonly Secondary[], rule: CellRule): Secondary[] {
-  const fitted = fitWithoutRemoval(blocks, rule) ?? fitByRemovingOne(blocks, rule);
-  if (fitted || blocks.length === 0) return fitted ?? [];
-
-  return fitRows(without(blocks, removalOrder(blocks)[0]), rule);
+function adviceOn({ hero, agenda }: Page, { band, under }: Composed): LayoutAdvice {
+  return { heroId: hero.id, blocks: [hero, ...band, ...agenda, ...under] };
 }
 
-function fitWithoutRemoval(blocks: readonly Secondary[], rule: CellRule): Secondary[] | null {
-  return fitByShrinking(blocks, rule) ?? fitByKeepingEmpties(blocks, rule);
+function pageOf(hero: RecipeBlock, columns: GridColumns): Page {
+  const agenda = agendaAt(columns);
+  if (hero.id === agenda.id) return { columns, hero, agenda: [], band: null };
+
+  const room = columns - hero.size.w;
+  const band =
+    room > 0
+      ? { width: room, height: hero.size.h, beside: true }
+      : { width: columns, height: hero.size.h, beside: false };
+
+  return { columns, hero, agenda: [agenda], band };
 }
 
-function fitByShrinking(blocks: readonly Secondary[], rule: CellRule): Secondary[] | null {
-  const shrinkable = [...blocks].reverse().filter(canShrink);
+/** The hero over the whole row, as far as its bounds let it: for when nothing can stand beside it. */
+function widened(hero: RecipeBlock, columns: GridColumns): RecipeBlock {
+  return onGrid({ id: hero.id, size: { ...hero.size, w: columns } }, columns);
+}
 
-  for (let count = 0; count <= shrinkable.length; count++) {
-    const shrunk = new Set(shrinkable.slice(0, count));
-    const sized = blocks.map((block) => (shrunk.has(block) ? asGlance(block) : block));
-    const completed = completeWithFillers(sized, rule);
-    if (completed) return completed;
+/**
+ * Fits the secondaries of a recipe in a page without a hole: first by shrinking the lowest to
+ * their glance, then by keeping empty blocks at their recipe size, then by leaving out the lowest,
+ * each try completed with fillers when the last row needs them.
+ */
+class Fitter {
+  constructor(
+    private readonly page: Page,
+    private readonly fillers: readonly Secondary[],
+  ) {}
+
+  fit(blocks: readonly Secondary[]): Composed | null {
+    const fitted = this.withoutRemoval(blocks) ?? this.byRemovingOne(blocks);
+    if (fitted || blocks.length === 0) return fitted;
+
+    return this.fit(without(blocks, removalOrder(blocks)[0]));
   }
 
-  return null;
-}
+  private withoutRemoval(blocks: readonly Secondary[]): Composed | null {
+    return this.byShrinking(blocks) ?? this.byKeepingEmpties(blocks);
+  }
 
-function asGlance(block: Secondary): Secondary {
-  return { ...block, size: "s" };
-}
+  private byShrinking(blocks: readonly Secondary[]): Composed | null {
+    const shrinkable = [...blocks].reverse().filter(canShrink);
 
-function canShrink(block: Secondary): boolean {
-  return block.size !== "s" && allowsSize(block.id, "s");
-}
-
-function fitByKeepingEmpties(blocks: readonly Secondary[], rule: CellRule): Secondary[] | null {
-  const keepable = [...blocks]
-    .reverse()
-    .filter(({ empty, size, recipeSize }) => empty && size !== recipeSize);
-
-  for (let count = 1; count <= keepable.length; count++)
-    for (const kept of combinations(keepable, count)) {
-      const sized = blocks.map((block) => (kept.includes(block) ? atRecipeSize(block) : block));
-      const completed = completeWithFillers(sized, rule);
+    for (let count = 0; count <= shrinkable.length; count++) {
+      const shrunk = new Set(shrinkable.slice(0, count));
+      const sized = blocks.map((block) => (shrunk.has(block) ? asGlance(block) : block));
+      const completed = this.withFillers(sized);
       if (completed) return completed;
     }
 
-  return null;
+    return null;
+  }
+
+  private byKeepingEmpties(blocks: readonly Secondary[]): Composed | null {
+    const keepable = [...blocks]
+      .reverse()
+      .filter(({ empty, size, recipeSize }) => empty && sizeKey(size) !== sizeKey(recipeSize));
+
+    for (let count = 1; count <= keepable.length; count++)
+      for (const kept of combinations(keepable, count)) {
+        const sized = blocks.map((block) => (kept.includes(block) ? atRecipeSize(block) : block));
+        const completed = this.withFillers(sized);
+        if (completed) return completed;
+      }
+
+    return null;
+  }
+
+  private byRemovingOne(blocks: readonly Secondary[]): Composed | null {
+    for (const removed of removalOrder(blocks)) {
+      const fitted = this.withoutRemoval(without(blocks, removed));
+      if (fitted) return fitted;
+    }
+
+    return null;
+  }
+
+  private withFillers(blocks: readonly Secondary[]): Composed | null {
+    const taken = new Set(blocks.map(({ id }) => id));
+    const free = this.fillers.filter(({ id }) => !taken.has(id));
+
+    for (let count = 0; count <= free.length; count++)
+      for (const added of combinations(free, count)) {
+        const composed = compose(this.page, [...blocks, ...added]);
+        if (composed) return composed;
+      }
+
+    return null;
+  }
+}
+
+function canShrink({ size, glance }: Secondary): boolean {
+  return glance !== null && sizeKey(size) !== sizeKey(glance);
+}
+
+function asGlance(block: Secondary): Secondary {
+  return block.glance ? { ...block, size: block.glance } : block;
+}
+
+function atRecipeSize(block: Secondary): Secondary {
+  return { ...block, size: block.recipeSize };
 }
 
 function combinations<T>(items: readonly T[], count: number): T[][] {
@@ -93,19 +171,6 @@ function combinations<T>(items: readonly T[], count: number): T[][] {
   return items.flatMap((item, index) =>
     combinations(items.slice(index + 1), count - 1).map((rest) => [item, ...rest]),
   );
-}
-
-function atRecipeSize(block: Secondary): Secondary {
-  return { ...block, size: block.recipeSize };
-}
-
-function fitByRemovingOne(blocks: readonly Secondary[], rule: CellRule): Secondary[] | null {
-  for (const removed of removalOrder(blocks)) {
-    const fitted = fitWithoutRemoval(without(blocks, removed), rule);
-    if (fitted) return fitted;
-  }
-
-  return null;
 }
 
 function removalOrder(blocks: readonly Secondary[]): Secondary[] {
@@ -121,81 +186,145 @@ function without(blocks: readonly Secondary[], removed: Secondary | undefined): 
   return blocks.filter((block) => block !== removed);
 }
 
-function completeWithFillers(blocks: readonly Secondary[], rule: CellRule): Secondary[] | null {
-  const missing = quartersMissing(quartersOf(blocks), rule);
-  const completed = [...blocks, ...fillersFor(blocks, missing)];
+/**
+ * Lays the blocks in the band, then under the Agenda, each case read row by row taking the widest
+ * block that fits there, the first by priority among equals, or a block narrowed to the room left.
+ * Null when a band beside the hero is left open or the last row under the Agenda is not full.
+ */
+function compose({ band, columns }: Page, blocks: readonly Secondary[]): Composed | null {
+  const banded = band ? fillArea(band, blocks, columns) : { placed: [], rest: blocks };
+  if (!banded) return null;
 
-  return quartersMissing(quartersOf(completed), rule) === 0 ? completed : null;
+  const under = fillArea(
+    { width: columns, height: Number.POSITIVE_INFINITY, beside: false },
+    banded.rest,
+    columns,
+  );
+  if (!under || under.rest.length > 0) return null;
+
+  return { band: banded.placed, under: under.placed };
 }
 
-function fillersFor(blocks: readonly Secondary[], missing: number): Secondary[] {
-  const taken = new Set(blocks.map(({ id }) => id));
-  const picked: Secondary[] = [];
-  let left = missing;
+interface Filled {
+  placed: RecipeBlock[];
+  rest: readonly Secondary[];
+}
 
-  for (const filler of FILLERS) {
-    if (taken.has(filler.id) || QUARTERS[filler.size] > left) continue;
+function fillArea(area: Area, blocks: readonly Secondary[], columns: GridColumns): Filled | null {
+  const sheet = new AreaSheet(area);
+  let rest = blocks;
+  const placed: RecipeBlock[] = [];
 
-    picked.push(filler);
-    left -= QUARTERS[filler.size];
+  for (let cell = sheet.firstFree(rest.length > 0); cell; cell = sheet.firstFree(rest.length > 0)) {
+    const pick = pickAt(sheet, cell, rest, columns);
+    if (!pick) return sheet.isEmpty() && !area.beside ? { placed, rest } : null;
+
+    sheet.take(cell, pick.size);
+    placed.push({ id: pick.block.id, size: pick.size });
+    rest = rest.filter((block) => block !== pick.block);
   }
 
-  return picked;
+  return sheet.isClosed() ? { placed, rest } : null;
 }
 
-function quartersOf(blocks: readonly Secondary[]): number {
-  return blocks.reduce((total, { size }) => total + QUARTERS[size], 0);
+interface Pick {
+  block: Secondary;
+  size: BlockSize;
 }
 
-function quartersMissing(quarters: number, rule: CellRule): number {
-  let target = Math.ceil(quarters / CELL_QUARTERS) * CELL_QUARTERS;
+function pickAt(
+  sheet: AreaSheet,
+  cell: Cell,
+  blocks: readonly Secondary[],
+  columns: GridColumns,
+): Pick | undefined {
+  const fitting = blocks.filter(({ size }) => sheet.fits(cell, size));
+  const widest = Math.max(0, ...fitting.map(({ size }) => size.w));
+  const native = fitting.find(({ size }) => size.w === widest);
+  if (native) return { block: native, size: native.size };
 
-  while (!fillsRows(target / CELL_QUARTERS, rule)) target += CELL_QUARTERS;
+  const run = sheet.runAt(cell);
 
-  return target - quarters;
+  for (const block of blocks)
+    for (const size of narrowings(block, run, columns))
+      if (sheet.fits(cell, size)) return { block, size };
+
+  return undefined;
 }
 
-function fillsRows(cells: number, rule: CellRule): boolean {
-  if (rule.units === PHONE_UNITS) return true;
+/**
+ * The sizes a block may take on a narrower run of cases, tallest first: from the room it had down
+ * to the fewest cases it may be drawn on, each within its bounds.
+ */
+function narrowings(
+  { id, size, minCases }: Secondary,
+  run: number,
+  columns: GridColumns,
+): BlockSize[] {
+  if (size.w <= run) return [];
 
-  const cellsUnderHero = rule.besideHero ? cells - 1 : cells;
+  const tallest = Math.ceil((size.w * size.h) / run);
+  const lowest = Math.ceil(minCases / run);
 
-  return cellsUnderHero >= 0 && cellsUnderHero % 2 === 0;
+  return Array.from({ length: Math.max(0, tallest - lowest + 1) }, (_, step) => ({
+    w: run,
+    h: tallest - step,
+  })).filter((wanted) => sizeKey(heldOnGrid(wanted, boundsOf(id), columns)) === sizeKey(wanted));
 }
 
-function toCells(blocks: readonly Secondary[]): Cell[] {
-  const { whole, half } = pairLists(blocks.filter(({ size }) => size !== "s"));
-  const glances = blocks.filter(({ size }) => size === "s");
+/** The cases of an area taken so far, an area with no height growing as rows are taken. */
+class AreaSheet {
+  private readonly rows: boolean[][] = [];
 
-  if (!half) return [...whole, ...chunksOf(glances)];
+  constructor(private readonly area: Area) {}
 
-  return [...whole, [half, ...glances.slice(0, 2)], ...chunksOf(glances.slice(2))];
-}
+  /** The first free case, read row by row; on an open area, the start of a new row once all are full. */
+  firstFree(more: boolean): Cell | undefined {
+    const rows = Number.isFinite(this.area.height) ? this.area.height : this.rows.length;
 
-function pairLists(blocks: readonly Secondary[]): { whole: Cell[]; half?: Secondary } {
-  return blocks.reduce<{ whole: Cell[]; half?: Secondary }>(
-    ({ whole, half }, block) => {
-      if (block.size === "l") return { whole: [...whole, [block]], half };
-      if (half) return { whole: [...whole, [half, block]] };
+    for (let y = 0; y < rows; y++)
+      for (let x = 0; x < this.area.width; x++) if (!this.taken(x, y)) return { x, y };
 
-      return { whole, half: block };
-    },
-    { whole: [] },
-  );
-}
+    return more && !Number.isFinite(this.area.height) ? { x: 0, y: rows } : undefined;
+  }
 
-function chunksOf(glances: readonly Secondary[]): Cell[] {
-  return Array.from({ length: Math.ceil(glances.length / CELL_QUARTERS) }, (_, index) =>
-    glances.slice(index * CELL_QUARTERS, (index + 1) * CELL_QUARTERS),
-  );
-}
+  fits({ x, y }: Cell, { w, h }: BlockSize): boolean {
+    if (x + w > this.area.width || y + h > this.area.height) return false;
 
-function arrange(hero: LayoutBlock, cells: readonly Cell[]): LayoutBlock[] {
-  const [neighbour = [], ...under] = cells.map((cell) =>
-    cell.map(({ id, size }) => ({ id, size })),
-  );
+    for (let row = y; row < y + h; row++)
+      for (let column = x; column < x + w; column++) if (this.taken(column, row)) return false;
 
-  if (hero.size === "xl") return [hero, ...neighbour, ...under.flat()];
+    return true;
+  }
 
-  return [hero, ...neighbour, CALENDAR, ...under.flat()];
+  runAt({ x, y }: Cell): number {
+    let run = 0;
+    while (x + run < this.area.width && !this.taken(x + run, y)) run++;
+
+    return run;
+  }
+
+  take({ x, y }: Cell, { w, h }: BlockSize): void {
+    for (let row = y; row < y + h; row++) {
+      const cases = this.rows[row] ?? Array.from({ length: this.area.width }, () => false);
+      for (let column = x; column < x + w; column++) cases[column] = true;
+      this.rows[row] = cases;
+    }
+  }
+
+  isEmpty(): boolean {
+    return this.rows.length === 0;
+  }
+
+  /** Whether every case of the rows taken is covered, and a band of fixed height whole or untouched. */
+  isClosed(): boolean {
+    const full = this.rows.every((row) => row?.every(Boolean));
+    if (!Number.isFinite(this.area.height)) return full;
+
+    return this.isEmpty() ? !this.area.beside : full && this.rows.length === this.area.height;
+  }
+
+  private taken(x: number, y: number): boolean {
+    return this.rows[y]?.[x] ?? false;
+  }
 }

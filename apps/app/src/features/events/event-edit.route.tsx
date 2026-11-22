@@ -25,7 +25,7 @@ function EventEditPage() {
   if (isEventGone(query)) return <EventNotFound />;
 
   return (
-    <Screen title={t("title")} width="reading">
+    <Screen title={t("title")} width="full">
       <QueryState
         query={query}
         staleMessage={t("refreshError")}

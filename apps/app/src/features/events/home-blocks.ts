@@ -15,13 +15,14 @@ import { remindersBlock } from "./components/blocks/reminders-block";
 import { reviewBlock } from "./components/blocks/review-block";
 import { todayBlock } from "./components/blocks/today-block";
 import { tonightBlock } from "./components/blocks/tonight-block";
+import { welcomeBlock } from "./components/blocks/welcome-block";
 import { workloadBlock } from "./components/blocks/workload-block";
 import type { HomeBlockContext, HomeBlockDefinition } from "./home-block";
-import { blockSizesOf } from "./home-block-sizes";
+import { boundsOf } from "./home-block-bounds";
 
 export type RegisteredBlock = DashboardBlock<HomeBlockContext>;
 
-export type UnsizedBlock = Omit<RegisteredBlock, "sizes">;
+export type UnsizedBlock = Omit<RegisteredBlock, "sizing">;
 
 /** Every block the home offers, in the order the drawer lists them. A new block is one line here. */
 const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
@@ -37,12 +38,13 @@ const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
   workloadBlock,
   progressBlock,
   remindersBlock,
+  welcomeBlock,
 ];
 
 function sized(block: UnsizedBlock): RegisteredBlock[] {
-  const sizes = blockSizesOf(block.id);
+  const sizing = boundsOf(block.id);
 
-  return sizes ? [{ ...block, sizes }] : [];
+  return sizing ? [{ ...block, sizing }] : [];
 }
 
 export function useHomeRegistry(family: readonly ChildDto[]): RegisteredBlock[] {

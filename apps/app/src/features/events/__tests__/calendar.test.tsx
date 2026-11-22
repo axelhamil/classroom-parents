@@ -7,6 +7,7 @@ import {
   calendarRequests,
   crunchDay,
   FIVE_CHILDREN,
+  givenBriefingHome,
   givenCalendar,
   STRESS,
 } from "../../../__tests__/calendar-fixtures";
@@ -22,10 +23,7 @@ vi.mock("@packages/web-kit/theme/use-theme", () => ({
 }));
 
 /** The line of late deadlines lives in the Agenda only while the "En retard" block is hidden. */
-const AGENDA_WITHOUT_OVERDUE_BLOCK = [
-  { id: "calendar", w: 12, h: 3, hidden: false },
-  { id: "overdue", w: 4, h: 1, hidden: true },
-];
+const AGENDA_WITHOUT_OVERDUE_BLOCK = [{ id: "calendar", w: 4, h: 2 }];
 
 function search(router: Awaited<ReturnType<typeof renderAppAt>>): Record<string, unknown> {
   return router.state.location.search;
@@ -112,10 +110,7 @@ describe("Accueil, the family calendar", () => {
       [CHILD],
       [deadline(1, "2026-11-12", "Fiche à signer", { category: "document_due" })],
       {
-        homeLayout: [
-          { id: "today", w: 4, h: 2, hidden: true },
-          { id: "calendar", w: 8, h: 3, hidden: false },
-        ],
+        homeLayout: [{ id: "calendar", w: 2, h: 2 }],
       },
     );
     await renderAppAt("/");
@@ -135,7 +130,7 @@ describe("Accueil, the family calendar", () => {
       removeEventListener: () => undefined,
     }));
     at("2026-11-13T16:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-11-16", "Cahier de liaison signé")]);
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-16", "Cahier de liaison signé")]);
     await renderAppAt("/?date=2026-11-16");
 
     await screen.findByRole("region", { name: "Pour lundi 16 novembre" });
@@ -161,7 +156,7 @@ describe("Accueil, the family calendar", () => {
 
   it("after 16:00 on a phone the briefing owns today and tomorrow, the week starts the day after", async () => {
     at("2026-11-12T17:00:00.000Z");
-    givenCalendar(
+    givenBriefingHome(
       [CHILD],
       [
         deadline(1, "2026-11-12", "Mot signé"),
@@ -187,7 +182,7 @@ describe("Accueil, the family calendar", () => {
 
   it("on a Saturday phone the briefing owns Sunday and Monday, the week starts on Tuesday", async () => {
     at("2026-11-14T09:00:00.000Z");
-    givenCalendar([CHILD], [deadline(1, "2026-11-15", "Exposé à finir")]);
+    givenBriefingHome([CHILD], [deadline(1, "2026-11-15", "Exposé à finir")]);
     await renderAppAt("/");
 
     const briefing = await screen.findByRole("region", { name: "Pour lundi 16 novembre" });

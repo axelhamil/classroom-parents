@@ -111,14 +111,15 @@ function CalendarWeekend({
 
 /**
  * The strip of the seven days on a phone: it sticks under the app bar while the thread scrolls,
- * and the dates of the thread stick under it. Holds the day picker.
+ * and the dates of the thread stick under it. Inside a tile that scrolls on its own, both stick to
+ * the tile's top instead, the app bar being outside it. Holds the day picker.
  */
 function CalendarDayStrip({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="calendar-day-strip"
       className={cn(
-        "sticky top-[calc(var(--spacing-app-bar)+env(safe-area-inset-top))] z-20 flex h-day-strip items-center bg-background",
+        "sticky top-[calc(var(--spacing-app-bar)+env(safe-area-inset-top))] z-20 flex h-day-strip items-center bg-background in-data-[slot=scroll-region]:top-0",
         className,
       )}
       {...props}
@@ -136,6 +137,7 @@ const calendarDayVariants = cva(
         column: [
           "grid grid-cols-[minmax(0,1fr)_auto] content-start gap-1.5 rounded-inner bg-card pb-2 [&>*]:col-span-full [&_[data-slot=calendar-entry-link]]:scroll-mt-12 [&>[data-slot=calendar-day-mark]]:row-start-1 [&>[data-slot=calendar-day-mark]]:px-1 data-[tone=past]:text-muted-foreground data-[tone=today]:bg-today-column",
           "[&>[data-slot=calendar-day-note]]:sticky [&>[data-slot=calendar-day-note]]:top-0 [&>[data-slot=calendar-day-note]]:z-30 [&>[data-slot=calendar-day-note]]:col-span-1 [&>[data-slot=calendar-day-note]]:col-start-2 [&>[data-slot=calendar-day-note]]:row-start-1 [&>[data-slot=calendar-day-note]]:h-8 [&>[data-slot=calendar-day-note]]:min-h-0 [&>[data-slot=calendar-day-note]]:pe-1",
+          "not-data-folded:@container/day @max-[11rem]/day:[&>[data-slot=calendar-day-note]_[data-part=label]]:sr-only",
         ],
         row: "@xl/week:grid @xl/week:grid-cols-[var(--spacing-day-gutter)_minmax(0,1fr)] @xl/week:items-start @xl/week:gap-x-4 @xl/week:[&>[data-slot=calendar-day-header]]:flex-wrap @xl/week:[&>[data-slot=calendar-day-header]]:py-1 @xl/week:[&_[data-slot=calendar-day-empty]]:order-last @xl/week:[&_[data-slot=calendar-day-empty]]:ms-3 @xl/week:[&>[data-slot=calendar-day-header]:only-child]:col-span-full @xl/week:[&_[data-slot=calendar-day-title]]:basis-day-gutter-title @xl/week:[&_[data-slot=calendar-day-crunch]]:order-last @xl/week:[&>[data-slot=calendar-day-header]:only-child>[data-slot=calendar-day-title]]:grow-0",
       },
@@ -195,7 +197,7 @@ function CalendarDayMark({ className, ...props }: React.ComponentProps<"h3">) {
         "[&>[data-part=day]]:inline-grid [&>[data-part=day]]:place-items-center [&>[data-part=day]]:rounded-full [&>[data-part=day]]:font-display [&>[data-part=day]]:font-bold [&>[data-part=day]]:tabular-nums",
         "group-data-[tone=today]/day:[&>[data-part=day]]:bg-primary group-data-[tone=today]/day:[&>[data-part=day]]:text-primary-foreground",
         "[&>[data-part=weekday]]:text-small [&>[data-part=weekday]]:font-semibold [&>[data-part=weekday]]:text-muted-foreground group-data-[tone=today]/day:[&>[data-part=weekday]]:text-foreground",
-        "group-data-[layout=rail]/day:sticky group-data-[layout=rail]/day:top-[calc(var(--spacing-app-bar)+var(--spacing-day-strip)+env(safe-area-inset-top))] group-data-[layout=rail]/day:row-span-full group-data-[layout=rail]/day:flex-col group-data-[layout=rail]/day:items-center group-data-[layout=rail]/day:self-start",
+        "group-data-[layout=rail]/day:sticky group-data-[layout=rail]/day:top-[calc(var(--spacing-app-bar)+var(--spacing-day-strip)+env(safe-area-inset-top))] group-data-[layout=rail]/day:in-data-[slot=scroll-region]:top-day-strip group-data-[layout=rail]/day:row-span-full group-data-[layout=rail]/day:flex-col group-data-[layout=rail]/day:items-center group-data-[layout=rail]/day:self-start",
         "group-data-[layout=rail]/day:[&>[data-part=day]]:min-w-10 group-data-[layout=rail]/day:[&>[data-part=day]]:h-10 group-data-[layout=rail]/day:[&>[data-part=day]]:px-1 group-data-[layout=rail]/day:[&>[data-part=day]]:text-2xl",
         "group-data-[quiet=true]/day:[&>[data-part=day]]:h-7 group-data-[quiet=true]/day:[&>[data-part=day]]:text-body group-data-[quiet=true]/day:[&>[data-part=day]]:whitespace-nowrap group-data-[quiet=true]/day:[&>[data-part=day]]:text-muted-foreground group-data-[quiet=true]/day:[&>[data-part=weekday]]:text-meta",
         "group-data-[layout=column]/day:sticky group-data-[layout=column]/day:z-20 group-data-[layout=column]/day:top-0 group-data-[layout=column]/day:h-8 group-data-[layout=column]/day:items-center group-data-[layout=column]/day:gap-1 group-data-[layout=column]/day:border-b group-data-[layout=column]/day:border-border group-data-[layout=column]/day:bg-inherit group-data-[layout=column]/day:px-0.5 group-data-[layout=column]/day:whitespace-nowrap",
@@ -207,7 +209,11 @@ function CalendarDayMark({ className, ...props }: React.ComponentProps<"h3">) {
   );
 }
 
-/** The one line under a day's mark: its relative word ("Demain") and, on a full day, its count. */
+/**
+ * The one line under a day's mark: its relative word ("Demain") and, on a full day, its count. On a
+ * column too narrow to hold the date and the word side by side, the word (`data-part="label"`)
+ * is left to assistive technology and its badge keeps its icon, so the date stays readable.
+ */
 function CalendarDayNote({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p

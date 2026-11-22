@@ -16,7 +16,7 @@ export function EventNotFound() {
     <Screen
       title={t("detail.notFound.title")}
       description={t("detail.notFound.description")}
-      width="reading"
+      width="full"
     >
       <Button asChild variant="outline" className="self-start">
         <Link to="/">{t("detail.back")}</Link>

@@ -69,19 +69,26 @@ export function referenceDay(
   return weekStart === "monday" ? focus : today;
 }
 
+/**
+ * The period the Agenda shows: the day of `place`, else `opensOn` (where a hero Agenda opens), else
+ * the reference day. `home` is the day it opens on, the one a place leaves out of the address.
+ */
 export function placePeriod(
   place: CalendarPlace,
   clock: Pick<SchoolClock, "today" | "focus">,
   weekStart: WeekStart = "anchor",
+  opensOn?: string,
 ) {
   const view = place.view ?? "week";
   const reference = referenceDay(clock, weekStart);
-  const anchor = place.date ?? reference;
+  const home = opensOn ?? reference;
+  const anchor = place.date ?? home;
 
   return {
     view,
     today: clock.today,
     reference,
+    home,
     anchor,
     period: calendarPeriod(view, anchor, weekStart),
   };

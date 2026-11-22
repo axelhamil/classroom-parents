@@ -12,6 +12,7 @@ import {
   todayAt,
 } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
+import type { Block } from "./served-layout";
 
 /*
  * The page clock is pinned, which freezes `performance.now()` too: interactions are told
@@ -194,19 +195,19 @@ const DRAG_STEPS = 6;
 const DRAG_INPUT_BUDGET_MS = 100;
 const DRAG_MS = 2000;
 
-const TWELVE_TILES = [
-  { id: "today", size: "l" },
-  { id: "tonight", size: "m" },
-  { id: "review", size: "s" },
-  { id: "overdue", size: "s" },
-  { id: "calendar", size: "xl" },
-  { id: `child:${LEA.id}`, size: "m" },
-  { id: `child:${MAXIMILIEN.id}`, size: "m" },
-  { id: "assessments", size: "m" },
-  { id: "documents", size: "m" },
-  { id: "notes", size: "m" },
-  { id: "progress", size: "s" },
-  { id: "outings", size: "s" },
+const TWELVE_TILES: Block[] = [
+  { id: "today", size: { w: 2, h: 2 } },
+  { id: "tonight", size: { w: 2, h: 1 } },
+  { id: "review", size: { w: 1, h: 1 } },
+  { id: "overdue", size: { w: 1, h: 1 } },
+  { id: "calendar", size: { w: 4, h: 2 } },
+  { id: `child:${LEA.id}`, size: { w: 2, h: 1 } },
+  { id: `child:${MAXIMILIEN.id}`, size: { w: 2, h: 1 } },
+  { id: "assessments", size: { w: 2, h: 1 } },
+  { id: "documents", size: { w: 2, h: 1 } },
+  { id: "notes", size: { w: 2, h: 1 } },
+  { id: "progress", size: { w: 1, h: 1 } },
+  { id: "outings", size: { w: 1, h: 1 } },
 ];
 
 declare global {

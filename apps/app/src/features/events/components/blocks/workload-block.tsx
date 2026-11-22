@@ -11,28 +11,40 @@ import {
 import { useTranslation } from "react-i18next";
 import { weekLoadView } from "../../../../shared/agenda/views";
 import { nextSevenDays } from "../../../../shared/agenda/windows";
+import { useTileSizeClass } from "../../../../shared/dashboard/tile-size-class";
 import { wallDateParts } from "../../../../shared/format/deadline-label";
+import { blockIsEmpty } from "../../block-emptiness";
 import type { HomeBlockDefinition, HomeBlockProps } from "../../home-block";
 import { useHomeEvents } from "../../hooks/use-home-events";
 import { BlockEmpty } from "./block-empty";
+import { BlockGlance } from "./block-glance";
 import { BlockPanel } from "./block-panel";
 
-function WorkloadBlock({ family, childId, clock, title }: HomeBlockProps) {
+function WorkloadBlock({ blockId, family, childId, clock, title }: HomeBlockProps) {
   const { t } = useTranslation("home");
   const query = useHomeEvents(clock);
-  const { days, open, loadOf } = weekLoadView(query.data ?? [], clock, childId);
+  const events = query.data ?? [];
+  const { days, open, loadOf } = weekLoadView(events, clock, childId);
   const children = family.filter((child) => childId === null || child.id === childId);
+  const glance = useTileSizeClass() === "glance";
 
   return (
-    <BlockPanel title={title} icon={WorkloadIcon}>
-      {query.isSuccess && open.length === 0 && (
+    <BlockPanel title={title} icon={WorkloadIcon} fits={glance}>
+      {query.isSuccess && blockIsEmpty(blockId, { events, clock, childId }) && (
         <BlockEmpty
           icon={NothingDueIcon}
           title={t("blocks.workload.empty", { days: nextSevenDays.days })}
           hint={t("blocks.workload.emptyHint")}
         />
       )}
-      {open.length > 0 && (
+      {open.length > 0 && glance && (
+        <BlockGlance
+          events={open}
+          label={(count) => t("blocks.workload.count", { count, days: nextSevenDays.days })}
+          today={clock.today}
+        />
+      )}
+      {open.length > 0 && !glance && (
         <Table fit>
           <TableHeader>
             <TableRow>

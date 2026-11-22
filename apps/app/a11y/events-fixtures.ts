@@ -1,6 +1,7 @@
 import { shiftDate } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import type { Page, Request } from "@playwright/test";
+import { type Block, inCases } from "./served-layout";
 
 export const LEA = {
   id: "8d0c1f4e-6a51-4c55-9c39-3a1f1e0b7a11",
@@ -20,6 +21,19 @@ export const MAXIMILIEN = {
   lastSyncedAt: "2026-11-01T08:00:00.000Z",
   syncing: false,
 };
+
+/** A third child, connected and read, for the homes that list a block per child. */
+export const JADE = {
+  id: "c3a9e1d2-7b4f-4a6e-8c1d-2e3f4a5b6c77",
+  label: "Jade",
+  googleEmail: "jade@example.com",
+  status: "connected",
+  lastSyncedAt: "2026-11-10T08:00:00.000Z",
+  syncing: false,
+};
+
+/** A parent whose only child is still being read, with no deadline yet: the advice leads with the first steps. */
+export const NEWCOMER = { ...LEA, lastSyncedAt: null, syncing: true };
 
 /**
  * A Thursday of school term: what the home shows depends on the day (evening, weekend, holidays),
@@ -119,11 +133,19 @@ interface ApiFixtures {
   events: unknown[];
   detail?: unknown;
   reminders?: number;
-  homeLayout?: unknown[];
+  homeLayout?: Block[];
+  /** The school calendar of the family's zone; left out, the gate's empty calendar stands (`csp.ts`). */
+  schoolCalendar?: SchoolCalendarFixture;
+}
+
+export interface SchoolCalendarFixture {
+  zone: string | null;
+  holidays: { name: string; startsOn: string; endsOn: string }[];
+  bankHolidays: { date: string }[];
 }
 
 /** The line of late deadlines lives in the Agenda only while the "En retard" block is hidden. */
-export const AGENDA_WITHOUT_OVERDUE_BLOCK = [{ id: "calendar", size: "xl" }];
+export const AGENDA_WITHOUT_OVERDUE_BLOCK: Block[] = [{ id: "calendar", size: { w: 4, h: 2 } }];
 
 function statusOf(event: unknown): unknown {
   return typeof event === "object" && event !== null && "status" in event
@@ -150,9 +172,11 @@ export async function serveFamily(page: Page, fixtures: ApiFixtures): Promise<Re
     if (path === "/children") return route.fulfill({ json: fixtures.children });
     if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
     if (path === "/home/layout")
-      return route.fulfill({ json: { blocks: fixtures.homeLayout ?? null, revision: 0 } });
+      return route.fulfill({ json: { v: 3, blocks: inCases(fixtures.homeLayout), revision: 0 } });
     if (path === "/home/note") return route.fulfill({ json: { body: "", updatedAt: null } });
     if (path === "/notifications/unread-count") return route.fulfill({ json: { count: 0 } });
+    if (path === "/school-calendar" && fixtures.schoolCalendar)
+      return route.fulfill({ json: fixtures.schoolCalendar });
     if (path === "/events") {
       eventRequests.push(request);
       const status = new URL(request.url()).searchParams.get("status");

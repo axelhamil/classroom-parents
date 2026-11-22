@@ -157,7 +157,7 @@ function DeadlineQuote({ className, ...props }: React.ComponentProps<"blockquote
     <blockquote
       data-slot="deadline-quote"
       className={cn(
-        "max-w-prose rounded-inner bg-surface-container p-block text-body whitespace-pre-line wrap-anywhere text-foreground",
+        "max-w-measure rounded-inner bg-surface-container p-block text-body whitespace-pre-line wrap-anywhere text-foreground",
         className,
       )}
       {...props}

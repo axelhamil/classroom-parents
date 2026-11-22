@@ -2,9 +2,10 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { json, renderAppAt, resetApp, stubApi } from "../../../__tests__/app-harness";
-import { givenCalendar } from "../../../__tests__/calendar-fixtures";
+import { BRIEFING_ABOVE_AGENDA, givenCalendar } from "../../../__tests__/calendar-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
 import { at, deadline } from "../../../__tests__/week-fixtures";
+import type { StoredLayout } from "../../dashboard/layout-migration";
 
 vi.mock("@packages/web-kit/theme/use-theme", () => ({
   useTheme: () => ({
@@ -38,14 +39,13 @@ const FRIDAY_MORNING_REMINDER = {
   ],
 };
 
-const WEEK_WITHOUT_BRIEFING = [
-  { id: "today", w: 4, h: 2, hidden: true },
-  { id: "calendar", w: 8, h: 3, hidden: false },
-];
+const CALENDAR_GIVEN_UP = { timeout: 3000 };
+
+const WEEK_WITHOUT_BRIEFING = [{ id: "calendar", w: 2, h: 2 }];
 
 interface ParentHome {
   events?: ReturnType<typeof deadline>[];
-  homeLayout?: unknown[];
+  homeLayout?: StoredLayout["blocks"];
   answers?: Record<string, unknown>;
 }
 
@@ -93,14 +93,16 @@ describe("the school clock of the shell", () => {
 
     await renderAppAt("/");
 
-    expect(await screen.findByRole("region", { name: "Pour aujourd'hui" })).toBeDefined();
+    expect(
+      await screen.findByRole("region", { name: "Pour aujourd'hui" }, CALENDAR_GIVEN_UP),
+    ).toBeDefined();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByText("Une erreur est survenue")).toBeNull();
   });
 
   it("given a parent in Montreal when Paris is already Friday, then the briefing prepares Friday from Montreal's Thursday evening", async () => {
     at(THURSDAY_EVENING_IN_MONTREAL);
-    givenParentIn("America/Montreal");
+    givenParentIn("America/Montreal", { homeLayout: BRIEFING_ABOVE_AGENDA });
 
     await renderAppAt("/");
 

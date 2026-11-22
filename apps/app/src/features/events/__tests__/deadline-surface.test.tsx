@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { cleanup, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderAppAt, resetApp } from "../../../__tests__/app-harness";
 import { givenCalendar } from "../../../__tests__/calendar-fixtures";
 import { CHILD } from "../../../__tests__/family-fixtures";
+import { givenWideScreen } from "../../../__tests__/match-media";
 import { at, deadline, HUGO } from "../../../__tests__/week-fixtures";
 
 const THURSDAY_MORNING = "2026-11-12T09:00:00.000Z";
 
-const DOCUMENTS = [{ id: "documents", w: 4, h: 1, hidden: false }];
+const DOCUMENTS = [{ id: "documents", w: 2, h: 1 }];
 
 function permission(childId: string, date = "2026-11-16") {
   return deadline(1, date, "Autorisation de sortie", { category: "document_due", childId });
@@ -22,6 +23,8 @@ async function cardSurface(): Promise<string | null> {
 }
 
 describe("a deadline card of the home wears its child's color only when it tells children apart", () => {
+  beforeEach(givenWideScreen);
+
   afterEach(() => {
     cleanup();
     resetApp();

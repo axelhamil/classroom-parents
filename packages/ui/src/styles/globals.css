@@ -76,6 +76,8 @@
   --corner-inner: 0.75rem;
   --radius: var(--corner-inner);
   --surface-padding: 1rem;
+  /* The room a header adds above itself in a panel that already pads its top by 0.25rem, so its top sits a surface padding from the edge. */
+  --surface-header-inset: calc(var(--surface-padding) - 0.25rem);
   --popover-padding: 0.25rem;
   --block-padding: 0.75rem;
   --block-padding-compact: 0.5rem;
@@ -184,17 +186,20 @@
   --enter-distance: 0.375rem;
   --stagger-step: 40ms;
   --touch-target: 2.75rem;
+  /* The resize handles of an arranged tile: a corner the size of the smallest target WCAG allows, an edge a thinner strip. */
+  --resize-corner: 1.5rem;
+  --resize-edge: 1rem;
   --nav-height: 4.25rem;
   --app-bar-height: 4rem;
   /* Side margin of every page: 16px on a phone, growing with the screen up to 40px. */
   --page-gutter: clamp(1rem, 0.5rem + 2vw, 2.5rem);
-  /* A text page holds 70 characters per line, the middle of the 65 to 75 readable measure. */
-  --page-reading-width: calc(70ch + 2 * var(--page-gutter));
+  /* Running text holds 70 characters per line, the middle of the 65 to 75 readable measure. The text block carries it, never the page. */
+  --reading-measure: 70ch;
   --page-form-width: calc(28rem + 2 * var(--page-gutter));
   /* The list of settings sections beside the open one: holds "Confidentialité" with its icon and room to breathe. */
   --settings-sidebar-width: 15rem;
-  /* A settings row stays readable: its label and help on the left, its control on the right, no farther apart than the eye follows. */
-  --settings-row-width: 47.5rem;
+  /* The narrowest a section of a page reads well at: below twice this, sections stack in one column. */
+  --section-min-width: 28rem;
   --scroll-region-height: 30rem;
   --scroll-fade-size: 1rem;
   /* Above the first row of a tile: the room of a focus ring, no more, so the body starts right
@@ -231,7 +236,7 @@
   --print-item-space-compact: 0.2rem;
   /* A progress read at a glance: a faint track under the done part, which wears the action (held at 4.5:1 on the card by the contrast test). */
   --progress-track: color-mix(in oklch, var(--foreground) 10%, transparent);
-  /* Home grid: one row step, the height of a small block whatever it holds (S 1 step, M 1, L and XL 2); a phone, a tablet (md) and a desktop (lg) each get theirs. */
+  /* Home grid: one row step, the height of a block one case high whatever it holds; a phone, a tablet (md) and a desktop (lg) each get theirs. */
   --dashboard-row-height: 10.5rem;
   --dashboard-gap: 1.25rem;
 }
@@ -1115,9 +1120,8 @@
   --spacing-app-bar: var(--app-bar-height);
   --spacing-page-gutter: var(--page-gutter);
   --spacing-settings-sidebar: var(--settings-sidebar-width);
-  --container-settings: var(--settings-row-width);
 
-  --container-reading: var(--page-reading-width);
+  --container-measure: var(--reading-measure);
   --container-form: var(--page-form-width);
   /* From about 1800px of screen, a grid of cards gets a fourth column. */
   --container-ultrawide: 105rem;
@@ -1131,6 +1135,7 @@
   --spacing-print-item: var(--print-item-space);
 
   --spacing-surface: var(--surface-padding);
+  --spacing-surface-header-inset: var(--surface-header-inset);
   --spacing-popover: var(--popover-padding);
   --spacing-block: var(--block-padding);
   --spacing-block-compact: var(--block-padding-compact);
@@ -2371,24 +2376,163 @@ html:not(.theme-transitioning) [data-slot="app-navigation"] {
     user-select: none;
   }
 
+  /* Every edge and corner of a tile resizes it, with a mouse or a finger. Corners are the size of a
+     fingertip and marked like the corner of a widget; edges are thinner strips with a short bar in
+     their middle, so the toolbar that carries a tile keeps its grip and its buttons. */
   & .react-resizable-handle {
     position: absolute;
-    right: 0;
-    bottom: 0;
-    width: var(--touch-target);
-    height: var(--touch-target);
-    cursor: se-resize;
+    z-index: 1;
+    touch-action: none;
   }
 
   & .react-resizable-handle::after {
     content: "";
     position: absolute;
-    right: 0.75rem;
-    bottom: 0.75rem;
+    border-color: var(--muted-foreground);
+    border-style: solid;
+    border-width: 0;
+  }
+
+  & .react-resizable-handle-ne,
+  & .react-resizable-handle-nw,
+  & .react-resizable-handle-se,
+  & .react-resizable-handle-sw {
+    width: var(--resize-corner);
+    height: var(--resize-corner);
+  }
+
+  & .react-resizable-handle-ne::after,
+  & .react-resizable-handle-nw::after,
+  & .react-resizable-handle-se::after,
+  & .react-resizable-handle-sw::after {
     width: 0.5rem;
     height: 0.5rem;
-    border-right: 2px solid var(--muted-foreground);
-    border-bottom: 2px solid var(--muted-foreground);
+  }
+
+  & .react-resizable-handle-se {
+    right: 0;
+    bottom: 0;
+    cursor: nwse-resize;
+
+    &::after {
+      right: 0.5rem;
+      bottom: 0.5rem;
+      border-right-width: 2px;
+      border-bottom-width: 2px;
+    }
+  }
+
+  & .react-resizable-handle-sw {
+    left: 0;
+    bottom: 0;
+    cursor: nesw-resize;
+
+    &::after {
+      left: 0.5rem;
+      bottom: 0.5rem;
+      border-left-width: 2px;
+      border-bottom-width: 2px;
+    }
+  }
+
+  & .react-resizable-handle-ne {
+    right: 0;
+    top: 0;
+    cursor: nesw-resize;
+
+    &::after {
+      right: 0.5rem;
+      top: 0.5rem;
+      border-right-width: 2px;
+      border-top-width: 2px;
+    }
+  }
+
+  & .react-resizable-handle-nw {
+    left: 0;
+    top: 0;
+    cursor: nwse-resize;
+
+    &::after {
+      left: 0.5rem;
+      top: 0.5rem;
+      border-left-width: 2px;
+      border-top-width: 2px;
+    }
+  }
+
+  & .react-resizable-handle-n,
+  & .react-resizable-handle-s {
+    left: calc(50% - var(--touch-target) / 2);
+    width: var(--touch-target);
+    height: var(--resize-edge);
+    cursor: ns-resize;
+
+    &::after {
+      left: calc(50% - 0.75rem);
+      width: 1.5rem;
+      border-top-width: 2px;
+      border-radius: 1px;
+    }
+  }
+
+  & .react-resizable-handle-n {
+    top: 0;
+
+    &::after {
+      top: 0.25rem;
+    }
+  }
+
+  & .react-resizable-handle-s {
+    bottom: 0;
+
+    &::after {
+      bottom: 0.25rem;
+    }
+  }
+
+  & .react-resizable-handle-e,
+  & .react-resizable-handle-w {
+    top: calc(50% - var(--touch-target) / 2);
+    width: var(--resize-edge);
+    height: var(--touch-target);
+    cursor: ew-resize;
+
+    &::after {
+      top: calc(50% - 0.75rem);
+      height: 1.5rem;
+      border-left-width: 2px;
+      border-radius: 1px;
+    }
+  }
+
+  & .react-resizable-handle-e {
+    right: 0;
+
+    &::after {
+      right: 0.25rem;
+    }
+  }
+
+  & .react-resizable-handle-w {
+    left: 0;
+
+    &::after {
+      left: 0.25rem;
+    }
+  }
+
+  /* On a phone, where rows are pixels, a tile carries the gap below it: its lower handles sit on
+     the card, never in the gap where the upper handles of the next tile start. */
+  & [data-gap-below] {
+    padding-bottom: --spacing(4);
+  }
+
+  & [data-gap-below] > .react-resizable-handle-s,
+  & [data-gap-below] > .react-resizable-handle-se,
+  & [data-gap-below] > .react-resizable-handle-sw {
+    bottom: --spacing(4);
   }
 
   @media (prefers-reduced-motion: reduce) {

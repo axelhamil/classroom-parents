@@ -40,20 +40,27 @@ export const AUTHENTICATED_PAGES: readonly AuditedPage[] = [
 ];
 
 /**
- * Pages declared `full` (`pageContainerVariants`): cards or lists that reflow into more columns.
- * `page-width.spec.ts` fails any of them that leaves more than a quarter of a 1440px screen empty.
- * `settings` is left out: from a tablet up it only redirects to its first section, listed below,
- * so measuring it at 1440px raced the redirect.
+ * Pages left out of `page-width.spec.ts`, which fails every other page whose box or painted
+ * content leaves more than a quarter of a 1440px or 1920px screen empty, or that caps one of its
+ * cards. Each one says why.
  */
-export const FULL_WIDTH_PAGES: ReadonlySet<string> = new Set([
-  "not found",
-  "settings, notifications",
-  "settings, language and region",
-  "settings, ai",
-  "settings, appearance",
-  "settings, account",
-  "settings, privacy",
-  "settings, help",
-  "children, every state",
-  "not found (signed in)",
+export const WIDTH_GATE_EXEMPT: ReadonlyMap<string, string> = new Map([
+  ["login", "a lone sign-in form: wider fields only stretch the eye's path"],
+  ["fridge planner", "the preview of a printed sheet keeps the paper's proportions"],
+  ["settings", "from a tablet up it only redirects to its first section, gated below"],
+]);
+
+/**
+ * Pages whose content is running text or a lone message: their box takes the screen, but what
+ * they paint stops at the reading measure the spec asks for, so only the painted check skips them.
+ */
+export const RUNNING_TEXT_PAGES: ReadonlyMap<string, string> = new Map([
+  ["data rights", "legal prose at the reading measure"],
+  ["accessibility statement", "legal prose at the reading measure"],
+  ["privacy policy", "legal prose at the reading measure"],
+  ["terms", "legal prose at the reading measure"],
+  ["cookies policy", "legal prose at the reading measure"],
+  ["sub-processors", "legal prose at the reading measure"],
+  ["not found", "a lone message under its icon"],
+  ["not found (signed in)", "a lone message under its icon"],
 ]);

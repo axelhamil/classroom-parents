@@ -3,60 +3,28 @@ import type { CDPSession, Locator, Page } from "@playwright/test";
 import { showColorScheme } from "./color-scheme";
 import { expect, test } from "./csp";
 import { EVENTS, inDays, LEA, MAXIMILIEN, serveFamily, todayAt } from "./events-fixtures";
+import {
+  ARRANGED,
+  apart,
+  arrange,
+  cards,
+  domOrder,
+  finish,
+  holes,
+  type Rect,
+  serveLayout,
+  settled,
+} from "./home-board";
 import { STORAGE_STATE } from "./playwright.config";
+import { type Block, inCases } from "./served-layout";
 
-interface Block {
-  id: string;
-  size: string;
-}
-
-interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-const ARRANGED: Block[] = [
-  { id: "today", size: "l" },
-  { id: "tonight", size: "m" },
-  { id: "review", size: "s" },
-  { id: "overdue", size: "s" },
-  { id: "calendar", size: "xl" },
-  { id: "assessments", size: "m" },
-  { id: "documents", size: "m" },
-  { id: "notes", size: "m" },
-];
-
-const WIDTHS = [390, 768, 1440] as const;
+const WIDTHS = [390, 768, 1440, 1600] as const;
 
 const PHONE = { width: 390, height: 844 };
 
+const WIDE = { width: 1600, height: 900 };
+
 const QUIET_EVENTS = EVENTS.filter((event) => event.deadlineDate !== inDays(1));
-
-/** The home served with a revision, every save kept and answered with the next revision. */
-async function serveLayout(page: Page, blocks: Block[] | null = ARRANGED): Promise<unknown[]> {
-  const saved: unknown[] = [];
-  let layout: unknown = blocks;
-  let revision = 1;
-
-  await page.route(
-    (url) => url.pathname === "/home/layout",
-    async (route) => {
-      const request = route.request();
-      if (request.method() === "PUT") {
-        const body: { blocks: unknown } = request.postDataJSON();
-        saved.push(body);
-        layout = body.blocks;
-        revision += 1;
-      }
-
-      return route.fulfill({ json: { blocks: layout, revision } });
-    },
-  );
-
-  return saved;
-}
 
 async function openHome(page: Page, blocks: Block[] | null = ARRANGED): Promise<unknown[]> {
   await page.clock.setFixedTime(todayAt("18:30"));
@@ -69,95 +37,40 @@ async function openHome(page: Page, blocks: Block[] | null = ARRANGED): Promise<
   return saved;
 }
 
-async function arrange(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Modifier l'accueil" }).click();
-  await expect(page.locator(".react-grid-layout")).toBeVisible();
-  await settled(page);
-}
-
-async function finish(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Terminé" }).click();
-  await expect(page.locator(".react-grid-layout")).toHaveCount(0);
-}
-
-function settled(page: Page): Promise<void> {
-  return expect
-    .poll(() =>
-      page.evaluate(() =>
-        document
-          .getAnimations()
-          .every(
-            (animation) =>
-              animation.timeline !== document.timeline || animation.playState !== "running",
-          ),
-      ),
-    )
-    .toBe(true);
-}
-
-/** The card of each block, from the corner of the grid that holds it, in reading order. */
-async function cards(page: Page): Promise<Record<string, Rect>> {
-  await settled(page);
-  const grid = page.locator(".react-grid-layout, [data-slot=dashboard]:not([aria-hidden])").first();
-
-  return grid.evaluate((el) => {
-    const origin = el.getBoundingClientRect();
-    const tiles = [...el.querySelectorAll<HTMLElement>("[data-block][data-size]")];
-
-    return Object.fromEntries(
-      tiles.map((tile) => {
-        const box = (
-          tile.querySelector("[data-slot=dashboard-panel]") ?? tile
-        ).getBoundingClientRect();
-
-        return [
-          tile.dataset.block ?? "",
-          { x: box.x - origin.x, y: box.y - origin.y, width: box.width, height: box.height },
-        ];
-      }),
-    );
-  });
-}
-
-function apart(reading: Record<string, Rect>, arranging: Record<string, Rect>): string[] {
-  return Object.entries(reading).flatMap(([block, rect]) => {
-    const other = arranging[block];
-    const sides = (["x", "y", "width", "height"] as const).filter(
-      (side) => !other || Math.abs(other[side] - rect[side]) > 1,
-    );
-
-    return sides.length > 0 ? [`${block}: ${sides.join(", ")}`] : [];
-  });
-}
-
-/** Every pair of horizontal neighbours and every column meets with one gap, never a hole. */
-function holes(rects: Record<string, Rect>): string[] {
-  const boxes = Object.entries(rects);
-  const gaps = boxes.flatMap(([block, box]) => {
-    const below = boxes.filter(
-      ([, other]) =>
-        other.y >= box.y + box.height - 1 &&
-        other.x < box.x + box.width - 1 &&
-        other.x + other.width > box.x + 1,
-    );
-    if (below.length === 0) return [];
-
-    const gap = Math.min(...below.map(([, other]) => other.y)) - (box.y + box.height);
-
-    return gap > 24 ? [`${block} ${Math.round(gap)}px`] : [];
-  });
-
-  return gaps;
-}
-
-function domOrder(page: Page): Promise<string[]> {
-  return page
-    .locator("[data-block][data-size]")
-    .evaluateAll((tiles) => tiles.map((tile) => (tile as HTMLElement).dataset.block ?? ""));
-}
-
 function announcement(page: Page): Locator {
   return page.locator("main p[role=status].sr-only");
+}
+
+function tile(page: Page, block: string): Locator {
+  return page.locator(`[data-block=${block}][data-size]`);
+}
+
+function edge(page: Page, block: string, side: string): Locator {
+  return tile(page, block).locator(`.react-resizable-handle-${side}`);
+}
+
+/** The blocks as a reader meets them: row by row, left to right. */
+function inReadingOrder(rects: Record<string, Rect>): string[] {
+  return Object.entries(rects)
+    .sort(([, a], [, b]) => a.y - b.y || a.x - b.x)
+    .map(([block]) => block);
+}
+
+/** Pulls a resize handle with the mouse by a distance, in small steps like a hand. */
+async function pullWithMouse(page: Page, grip: Locator, by: { x: number; y: number }) {
+  const from = await centerOf(grip);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + by.x, from.y + by.y, { steps: 12 });
+  await page.mouse.up();
+}
+
+/** One case of the grid, across and down, read from a tile and the size it is drawn at. */
+async function caseOf(page: Page, block: string, cases: { w: number; h: number }) {
+  const box = await tile(page, block).boundingBox();
+  if (!box) throw new Error("The tile has no box.");
+
+  return { x: box.width / cases.w, y: box.height / cases.h };
 }
 
 function handle(page: Page, block: string): Locator {
@@ -184,25 +97,28 @@ test.describe("the home keeps its rectangles", () => {
   test.use({ storageState: STORAGE_STATE });
 
   for (const width of WIDTHS)
-    test(`draws every block at the same place and size read or arranged, with no hole, in the order of the layout (${width} px)`, async ({
+    test(`draws every block at the same place and size read or arranged, with no hole, in reading order (${width} px)`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await openHome(page);
       const reading = await cards(page);
 
+      const read = await domOrder(page);
+      expect(read).toEqual(inReadingOrder(reading));
+
       await arrange(page);
       const arranging = await cards(page);
       expect(Object.keys(arranging).sort()).toEqual(Object.keys(reading).sort());
       expect(apart(reading, arranging)).toEqual([]);
       expect(holes(arranging)).toEqual([]);
-      expect(await domOrder(page)).toEqual(ARRANGED.map(({ id }) => id));
+      expect(await domOrder(page)).toEqual(read);
 
       await finish(page);
       const back = await cards(page);
       expect(apart(reading, back)).toEqual([]);
       expect(holes(back)).toEqual([]);
-      expect(await domOrder(page)).toEqual(ARRANGED.map(({ id }) => id));
+      expect(await domOrder(page)).toEqual(read);
     });
 
   for (const colorScheme of COLOR_SCHEMES)
@@ -219,7 +135,7 @@ test.describe("the home keeps its rectangles", () => {
 });
 
 test.describe("the home arranged from the keyboard", () => {
-  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+  test.use({ storageState: STORAGE_STATE, viewport: WIDE });
 
   test("takes, moves, resizes and lays a block with its handle, the focus kept and every step said", async ({
     page,
@@ -232,25 +148,47 @@ test.describe("the home arranged from the keyboard", () => {
     await expect(tonight).toHaveAttribute("aria-roledescription", "bloc déplaçable");
     await page.keyboard.press("Space");
     await expect(tonight).toHaveAttribute("aria-pressed", "true");
-    await expect(announcement(page)).toHaveText("Pour ce soir, position 2 sur 8, taille moyenne");
+    await expect(announcement(page)).toHaveText(
+      "Pour ce soir, position 2 sur 8, largeur 2, hauteur 1",
+    );
 
     await page.keyboard.press("ArrowLeft");
     await expect
       .poll(() => domOrder(page))
       .toEqual(["tonight", "today", ...ARRANGED.slice(2).map(({ id }) => id)]);
     await expect(tonight).toBeFocused();
-    await expect(announcement(page)).toHaveText("Pour ce soir, position 1 sur 8, taille moyenne");
+    await expect(announcement(page)).toHaveText(
+      "Pour ce soir, position 1 sur 8, largeur 2, hauteur 1",
+    );
+
+    await page.keyboard.press("Shift+ArrowDown");
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "2x2");
+    await expect(announcement(page)).toHaveText("Hauteur 2 sur 3");
 
     await page.keyboard.press("+");
-    await expect(page.locator("[data-block=tonight]")).toHaveAttribute("data-size", "l");
-    await expect(announcement(page)).toHaveText("Pour ce soir, position 1 sur 8, taille grande");
+    await expect(announcement(page)).toHaveText("Largeur 2, la plus grande possible");
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "2x2");
+
+    await page.keyboard.press("Shift+ArrowLeft");
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "1x2");
+    await expect(announcement(page)).toHaveText("Largeur 1 sur 2");
+    await page.keyboard.press("Shift+ArrowRight");
+    await page.keyboard.press("Shift+ArrowUp");
+    await page.keyboard.press("Shift+ArrowDown");
+    await expect(announcement(page)).toHaveText("Hauteur 2 sur 3");
+    expect(holes(await cards(page))).toEqual([]);
 
     await page.keyboard.press("Space");
     await expect(announcement(page)).toHaveText("Posé");
     await expect(tonight).toBeFocused();
     await expect.poll(() => saved.length).toBe(1);
     expect(saved[0]).toMatchObject({
-      blocks: [{ id: "tonight", size: "l" }, { id: "today", size: "l" }, ...ARRANGED.slice(2)],
+      v: 3,
+      blocks: inCases([
+        { id: "tonight", size: { w: 2, h: 2 } },
+        { id: "today", size: { w: 2, h: 2 } },
+        ...ARRANGED.slice(2),
+      ]),
     });
 
     await page.keyboard.press("Space");
@@ -270,8 +208,20 @@ test.describe("the home arranged from the keyboard", () => {
     await arrange(page);
 
     await page.getByRole("button", { name: "Disposition de Pense-bête" }).click();
-    await page.getByRole("menuitemradio", { name: "Grande" }).click();
-    await expect(page.locator("[data-block=notes]")).toHaveAttribute("data-size", "l");
+    const menu = page.getByRole("menu");
+    await expect(menu.getByText("Taille : 2 × 1")).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Raccourcir" })).toBeDisabled();
+    await expect(menu.getByRole("menuitem", { name: "Élargir" })).toBeDisabled();
+    await menu.getByRole("menuitem", { name: "Grandir" }).click();
+    await expect(tile(page, "notes")).toHaveAttribute("data-size", "2x2");
+    await expect(menu.getByText("Taille : 2 × 2")).toBeVisible();
+    await expect(announcement(page)).toHaveText("Hauteur 2 sur 3");
+    await expect(menu.getByRole("menuitem", { name: "Rétrécir" })).toBeDisabled();
+    await menu.getByRole("menuitem", { name: "Raccourcir" }).click();
+    await expect(tile(page, "notes")).toHaveAttribute("data-size", "2x1");
+    await expect(announcement(page)).toHaveText("Hauteur 1 sur 3");
+    await page.keyboard.press("Escape");
+    expect(holes(await cards(page))).toEqual([]);
 
     await page.getByRole("button", { name: "Disposition de Pense-bête" }).click();
     await page.getByRole("menuitem", { name: "Masquer Pense-bête" }).click();
@@ -286,11 +236,14 @@ test.describe("the home arranged from the keyboard", () => {
     await expect(drawer).toBeHidden();
     await expect.poll(async () => (await domOrder(page)).at(-1)).toBe("notes");
 
-    await page.getByRole("button", { name: "Rétablir l'accueil par défaut" }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Rétablir" }).click();
+    await page.getByRole("button", { name: "Revenir à la disposition conseillée" }).click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Revenir à la disposition conseillée" })
+      .click();
     await expect
       .poll(() => saved.at(-1))
-      .toEqual({ blocks: null, baseRevision: expect.any(Number) });
+      .toEqual({ v: 3, blocks: null, baseRevision: expect.any(Number) });
   });
 
   test("opens the menu of a block with a right click on its header while the home is read", async ({
@@ -303,11 +256,95 @@ test.describe("the home arranged from the keyboard", () => {
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitem", { name: "Modifier l'accueil" })).toBeVisible();
     await menu.getByRole("menuitem", { name: "Taille" }).hover();
-    await page.getByRole("menuitemradio", { name: "Moyenne" }).click();
+    await expect(page.getByText("Taille : 1 × 1")).toBeVisible();
+    await page.getByRole("menuitem", { name: "Élargir" }).click();
 
-    await expect(page.locator("[data-block=review]")).toHaveAttribute("data-size", "m");
+    await expect(tile(page, "review")).toHaveAttribute("data-size", "2x1");
     await expect(page.locator(".react-grid-layout")).toHaveCount(0);
     await expect.poll(() => saved.length).toBe(1);
+  });
+});
+
+test.describe("a block the grid draws past its bound to leave no hole", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: { width: 1440, height: 900 } });
+
+  const GROWN: Block[] = [
+    { id: "calendar", size: { w: 4, h: 2 } },
+    { id: "tonight", size: { w: 2, h: 1 } },
+    { id: "notes", size: { w: 2, h: 1 } },
+  ];
+
+  test("offers and says the size it is drawn at, never a step past its bound", async ({ page }) => {
+    const saved = await openHome(page, GROWN);
+    await arrange(page);
+
+    await page.getByRole("button", { name: "Disposition de Pour ce soir" }).click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByText("Taille : 3 × 1")).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Élargir" })).toBeDisabled();
+    await menu.getByRole("menuitem", { name: "Grandir" }).click();
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "2x2");
+    await expect(menu.getByText("Taille : 3 × 2")).toBeVisible();
+    await expect(announcement(page)).toHaveText("Hauteur 2 sur 3");
+    await page.keyboard.press("Escape");
+    expect(holes(await cards(page))).toEqual([]);
+
+    const tonight = handle(page, "Pour ce soir");
+    await tonight.focus();
+    await page.keyboard.press("Space");
+    await page.keyboard.press("+");
+    await expect(announcement(page)).toHaveText("Largeur 3, agrandie pour ne laisser aucun vide");
+    const said = await announcement(page).textContent();
+    await page.keyboard.press("+");
+    await expect.poll(() => announcement(page).textContent()).not.toBe(said);
+    await page.keyboard.press("Space");
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "2x2");
+    await expect.poll(() => saved.length).toBe(1);
+  });
+});
+
+test.describe("the home resized with a pointer", () => {
+  test.use({ storageState: STORAGE_STATE, viewport: WIDE });
+
+  test("grows a block by its corner, narrows another by the opposite corner, widens a third by its edge, snapped to cases", async ({
+    page,
+  }) => {
+    const saved = await openHome(page);
+    await arrange(page);
+    await expect(tile(page, "tonight").locator(".react-resizable-handle")).toHaveCount(8);
+
+    const step = await caseOf(page, "review", { w: 1, h: 1 });
+    await pullWithMouse(page, edge(page, "tonight", "se"), { x: 0, y: step.y * 0.7 });
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "2x2");
+    await expect.poll(() => saved.length).toBe(1);
+    expect(holes(await cards(page))).toEqual([]);
+
+    await pullWithMouse(page, edge(page, "documents", "nw"), { x: step.x * 0.6, y: 0 });
+    await expect(tile(page, "documents")).toHaveAttribute("data-size", "1x1");
+    expect(holes(await cards(page))).toEqual([]);
+
+    await pullWithMouse(page, edge(page, "review", "e"), { x: step.x * 0.4, y: 0 });
+    await expect(tile(page, "review")).toHaveAttribute("data-size", "1x1");
+    await pullWithMouse(page, edge(page, "review", "e"), { x: step.x * 0.7, y: 0 });
+    await expect(tile(page, "review")).toHaveAttribute("data-size", "2x1");
+    expect(holes(await cards(page))).toEqual([]);
+
+    const arranging = await cards(page);
+    await finish(page);
+    expect(apart(arranging, await cards(page))).toEqual([]);
+    expect(await domOrder(page)).toEqual(inReadingOrder(await cards(page)));
+  });
+
+  test("stops a block at its bounds however far the handle goes", async ({ page }) => {
+    await openHome(page);
+    await arrange(page);
+
+    const step = await caseOf(page, "review", { w: 1, h: 1 });
+    await pullWithMouse(page, edge(page, "tonight", "se"), { x: step.x * 3, y: step.y * 5 });
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "2x3");
+    await pullWithMouse(page, edge(page, "tonight", "nw"), { x: step.x * 3, y: step.y * 5 });
+    await expect(tile(page, "tonight")).toHaveAttribute("data-size", "1x1");
+    expect(holes(await cards(page))).toEqual([]);
   });
 });
 
@@ -341,6 +378,32 @@ test.describe("the home arranged by touch", () => {
       },
     };
   }
+
+  test("resizes a block by its corner and another by its edge with a finger, snapped to rows, the same once read", async ({
+    page,
+  }) => {
+    const saved = await openHome(page);
+    await arrange(page);
+    const touch = await touchOf(page);
+    const step = await caseOf(page, "review", { w: 1, h: 1 });
+
+    const corner = await centerOf(edge(page, "review", "se"));
+    await touch.slide(corner, { x: corner.x, y: corner.y + step.y * 0.7 });
+    await touch.end();
+    await expect(tile(page, "review")).toHaveAttribute("data-size", "1x2");
+    await expect.poll(() => saved.length).toBe(1);
+
+    await settled(page);
+    const bottom = await centerOf(edge(page, "overdue", "s"));
+    await touch.slide(bottom, { x: bottom.x, y: bottom.y + step.y * 1.6 });
+    await touch.end();
+    await expect(tile(page, "overdue")).toHaveAttribute("data-size", "1x3");
+    expect(holes(await cards(page))).toEqual([]);
+
+    const arranging = await cards(page);
+    await finish(page);
+    expect(apart(arranging, await cards(page))).toEqual([]);
+  });
 
   test("reorders with the grip of a tile, while a slide on its body scrolls the page", async ({
     page,

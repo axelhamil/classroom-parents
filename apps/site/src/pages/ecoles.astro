@@ -24,7 +24,7 @@ const jsonLd = JSON.stringify(
   indexed
 >
   <script slot="head" type="application/ld+json" set:html={jsonLd} />
-  <main class={cn(pageContainerVariants({ width: "reading" }), "@container flex flex-col gap-6 pt-4 pb-12")}>
+  <main class={cn(pageContainerVariants({ width: "full" }), "@container flex flex-col gap-6 pt-4 pb-12")}>
     <SchoolAdminGuide
       copy={schools}
       privacyUrl={privacyUrl}

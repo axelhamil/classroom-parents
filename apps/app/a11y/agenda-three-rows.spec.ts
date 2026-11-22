@@ -1,8 +1,10 @@
 import type { Locator, Page } from "@playwright/test";
 import { wordlessCategories } from "./agenda-board";
+import { clippingFrames, drawnWithin } from "./clipping";
 import { expect, test } from "./csp";
 import { inDays, LEA, MAXIMILIEN, REVIEW_EVENT, serveFamily, todayAt } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
+import type { Block } from "./served-layout";
 
 test.use({ storageState: STORAGE_STATE });
 
@@ -41,22 +43,19 @@ const PACKED_DAY = TITLES.map((title, index) => ({
   deadlineAt: `${BUSIEST}T07:00:00.000Z`,
 }));
 
-/** How many of a day's deadlines are drawn whole: inside every scrolling box above them and the window. */
-function wholeCards(day: Locator): Promise<number> {
-  return day.evaluate((element) => {
-    const frames: DOMRect[] = [new DOMRect(0, 0, window.innerWidth, window.innerHeight)];
-    for (let node = element.parentElement; node; node = node.parentElement) {
-      const { overflowY } = getComputedStyle(node);
-      if (overflowY === "auto" || overflowY === "scroll" || overflowY === "hidden")
-        frames.push(node.getBoundingClientRect());
-    }
+/** How many of a day's deadlines are drawn whole: inside every frame that clips them and the window. */
+async function wholeCards(day: Locator): Promise<number> {
+  const screen = await day.evaluate(() => ({ top: 0, bottom: innerHeight }));
+  const frames = [screen, ...(await clippingFrames(day))];
+  const cards = await day.locator("[data-slot=calendar-entry]").evaluateAll((entries) =>
+    entries.map((entry) => {
+      const { top, bottom } = entry.getBoundingClientRect();
 
-    return [...element.querySelectorAll("[data-slot=calendar-entry]")].filter((card) => {
-      const box = card.getBoundingClientRect();
+      return { top, bottom };
+    }),
+  );
 
-      return frames.every((frame) => box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1);
-    }).length;
-  });
+  return cards.filter((card) => frames.every((frame) => drawnWithin(card, frame))).length;
 }
 
 /** Per card: how far the checkbox's centre sits from the centre of the title's first line. */
@@ -75,7 +74,7 @@ function checkboxOffsets(day: Locator): Promise<number[]> {
   );
 }
 
-async function busiestDay(page: Page, homeLayout: unknown[]): Promise<Locator> {
+async function busiestDay(page: Page, homeLayout: Block[]): Promise<Locator> {
   await page.clock.setFixedTime(todayAt("09:00"));
   await serveFamily(page, { children: [LEA, MAXIMILIEN], events: PACKED_DAY, homeLayout });
   await page.goto("/");
@@ -90,8 +89,11 @@ async function busiestDay(page: Page, homeLayout: unknown[]): Promise<Locator> {
 
 test.describe("the Agenda shows three deadlines of a day without a gesture", () => {
   for (const width of [768, 993, 1280, 1440])
-    for (const size of ["l", "xl"])
-      test(`in a tile ${size.toUpperCase()} at ${width} px`, async ({ page }) => {
+    for (const size of [
+      { w: 2, h: 2 },
+      { w: 4, h: 2 },
+    ])
+      test(`in a tile ${size.w} × ${size.h} at ${width} px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
         const day = await busiestDay(page, [{ id: "calendar", size }]);
 
@@ -102,7 +104,7 @@ test.describe("the Agenda shows three deadlines of a day without a gesture", () 
 
   test("in the phone's thread at 390 px", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    const day = await busiestDay(page, [{ id: "calendar", size: "xl" }]);
+    const day = await busiestDay(page, [{ id: "calendar", size: { w: 4, h: 2 } }]);
     await day.evaluate((element) => element.scrollIntoView({ block: "start" }));
 
     await expect.poll(() => wholeCards(day)).toBeGreaterThanOrEqual(3);

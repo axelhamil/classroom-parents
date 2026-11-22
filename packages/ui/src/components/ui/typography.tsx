@@ -119,6 +119,26 @@ function TypographyMuted({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
+/**
+ * Running text at its reading measure, about 70 characters a line: its paragraphs, lists,
+ * headings, quotes and alerts stop at `max-w-measure`, while a table inside keeps the page's
+ * width. Why the text block and not the page: the page still spans the screen (its header, its
+ * tables, its columns of sections), only the lines the eye follows stay short. It draws no box
+ * (`display: contents`), so its children stay in the flow of their parent.
+ */
+function ReadingText({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="reading-text"
+      className={cn(
+        "contents [&_:is(p,ul,ol,h2,h3,h4,blockquote,[data-slot=alert])]:max-w-measure",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 const typographyInlineVariants = cva("", {
   variants: {
     tone: {
@@ -230,6 +250,7 @@ function TypographyOrderedList({ className, ...props }: React.ComponentProps<"ol
 }
 
 export {
+  ReadingText,
   TypographyBlockquote,
   TypographyDisplay,
   TypographyH1,

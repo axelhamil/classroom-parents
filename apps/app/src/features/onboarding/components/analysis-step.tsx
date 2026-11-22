@@ -21,12 +21,13 @@ import { useTranslation } from "react-i18next";
 import type { ChildDto } from "../../../shared/api/queries/children";
 import { syncChildMutationOptions } from "../../../shared/children/child-link.mutations";
 import { firstEventsQueryOptions } from "../../../shared/children/child-link.queries";
+import { analysisState } from "../../../shared/children/first-sync";
 import { classifySchoolError } from "../../../shared/children/school-error";
 import { SchoolProcedure } from "../../../shared/children/school-procedure";
 import { useStartChildLink } from "../../../shared/children/use-start-child-link";
 import { EventCard } from "../../../shared/events/event-card";
 import type { ChildHue, DeadlineSurface } from "../../../shared/format/child-hue";
-import { analysisState, type OnboardingMode } from "../onboarding-steps";
+import type { OnboardingMode } from "../onboarding-steps";
 import { StepFrame } from "./step-frame";
 import { StepList } from "./step-list";
 

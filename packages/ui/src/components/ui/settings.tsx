@@ -10,6 +10,7 @@ import { ShowMoreIcon } from "./icons";
 import { Label } from "./label";
 import { UnderSectionHeading } from "./page-section";
 import { SectionCard } from "./section-card";
+import { SectionGrid } from "./section-grid";
 import { TypographyH2 } from "./typography";
 
 export interface SettingsLayoutProps {
@@ -106,7 +107,10 @@ export interface SettingsSectionProps {
   children: ReactNode;
 }
 
-/** The open section: its title as the page's `h2`, its groups below, each titled `h3`. */
+/**
+ * The open section: its title as the page's `h2`, its groups below, each titled `h3`, in as many
+ * columns as the pane holds (`SectionGrid`): one on a tablet, two from about 1280px.
+ */
 function SettingsSection({ title, back, children }: SettingsSectionProps) {
   const titleId = useId();
 
@@ -116,7 +120,9 @@ function SettingsSection({ title, back, children }: SettingsSectionProps) {
         <div className="md:hidden">{back}</div>
         <TypographyH2 id={titleId}>{title}</TypographyH2>
       </div>
-      <UnderSectionHeading>{children}</UnderSectionHeading>
+      <UnderSectionHeading>
+        <SectionGrid>{children}</SectionGrid>
+      </UnderSectionHeading>
     </section>
   );
 }
@@ -126,11 +132,11 @@ const settingsGroupVariants = cva(
   {
     variants: {
       width: {
-        row: "max-w-settings",
-        wide: "",
+        column: "",
+        wide: "col-span-full",
       },
     },
-    defaultVariants: { width: "row" },
+    defaultVariants: { width: "column" },
   },
 );
 
@@ -147,8 +153,8 @@ export interface SettingsGroupProps extends VariantProps<typeof settingsGroupVar
 
 /**
  * A card of settings rows under one title. It can take the focus, so the search can land the
- * keyboard on the setting it found. Its rows stay readable (`width="row"`); a grid that needs
- * the room, the palettes, takes the pane's width (`width="wide"`).
+ * keyboard on the setting it found. It fills one column of its section (`width="column"`); a grid
+ * that needs the room, the palettes, takes the whole row (`width="wide"`).
  */
 function SettingsGroup({
   id,
@@ -195,12 +201,13 @@ function settingsRowDescriptionId(controlId: string): string {
 
 /**
  * One setting: its label and one line of help on the left, its control on the right. Below the
- * width where both fit, the control wraps under the label instead of squeezing it.
+ * width where both fit, the control wraps under the label instead of squeezing it; in a wide
+ * card the line stops at the reading measure, so the eye still goes from a label to its control.
  */
 function SettingsRow({ label, description, controlId, control, children }: SettingsRowProps) {
   return (
     <div data-slot="settings-row" className="flex flex-col gap-3 not-first:border-t not-first:pt-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <div className="flex max-w-measure flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div className="flex min-w-48 flex-1 flex-col gap-0.5">
           {controlId ? (
             <Label htmlFor={controlId}>{label}</Label>

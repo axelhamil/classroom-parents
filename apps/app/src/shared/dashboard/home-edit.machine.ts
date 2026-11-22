@@ -1,9 +1,13 @@
 import { and, assign, emit, fromPromise, not, raise, setup, stateIn } from "xstate";
-import type { BlockSize, GridUnits } from "./dashboard-pack";
+import type { BlockSize, BlockSizing, GridColumns } from "./block-size";
 import {
+  blocksIn,
   type Draft,
   type Edge,
+  type HomeLayout,
   hide,
+  isAdvised,
+  keepPinned,
   moveBy,
   moveToEdge,
   moveToIndex,
@@ -13,8 +17,8 @@ import {
   resize,
   type Step,
   show,
-  stepSize,
   undo,
+  withoutPinned,
 } from "./layout-commands";
 
 export type KeyMove =
@@ -26,12 +30,12 @@ export type KeyMove =
     };
 
 export interface RemoteLayout {
-  blocks: Draft;
+  blocks: HomeLayout;
   revision: number;
 }
 
 export interface SaveInput {
-  blocks: Draft;
+  blocks: HomeLayout;
   baseRevision: number;
 }
 
@@ -42,22 +46,34 @@ export type SaveOutcome =
   | { kind: "rejected" };
 
 export interface HomeEditInput {
-  layout: Draft;
+  layout: HomeLayout;
   revision: number;
-  units: GridUnits;
+  columns: GridColumns;
+  /** How each block may be sized, so a move by rows reads the rectangles drawn on screen. */
+  sizingOf?: (id: string) => BlockSizing | undefined;
+  /**
+   * Blocks only the advice shows: pinned where they stand while the home is arranged, so what is
+   * arranged is what was read, and dropped from the layout once the edit ends or a command leaves
+   * the advice.
+   */
+  adviceOnly?: readonly string[];
 }
 
 export interface HomeEditContext {
-  committed: Draft;
-  draft: Draft;
+  committed: HomeLayout;
+  draft: HomeLayout;
   activeId: string | null;
-  gestureStart: Draft | null;
-  past: readonly Draft[];
+  gestureStart: HomeLayout | null;
+  past: readonly HomeLayout[];
   baseRevision: number;
-  units: GridUnits;
-  unsaved: Draft | null;
-  inFlight: Draft | null;
+  columns: GridColumns;
+  sizingOf: (id: string) => BlockSizing | undefined;
+  unsaved: HomeLayout | null;
+  inFlight: HomeLayout | null;
   remote: RemoteLayout | null;
+  adviceOnly: readonly string[];
+  /** The advice as it was shown when the edit began: what an advised layout shows while arranging. */
+  shownAdvice: Draft | null;
 }
 
 export type HomeEditEvent =
@@ -71,20 +87,20 @@ export type HomeEditEvent =
   | { type: "DROP" }
   | { type: "SETTLED" }
   | { type: "RESIZE_START"; id: string }
-  | { type: "RESIZE"; size: BlockSize }
+  | { type: "RESIZE"; drawn: BlockSize; size: BlockSize }
   | { type: "RESIZE_END" }
   | { type: "KEY_LIFT"; id: string }
   | { type: "KEY_MOVE"; move: KeyMove }
-  | { type: "KEY_SIZE"; step: Step; allowed: readonly BlockSize[] }
+  | { type: "KEY_SIZE"; drawn: BlockSize; size: BlockSize }
   | { type: "KEY_DROP" }
-  | { type: "SIZE"; id: string; size: BlockSize; from?: Draft }
+  | { type: "SIZE"; id: string; drawn: BlockSize; size: BlockSize; from?: Draft }
   | { type: "HIDE"; id: string; from?: Draft }
   | { type: "SHOW"; id: string; size: BlockSize }
   | { type: "UNDO" }
   | { type: "RESET" }
-  | { type: "CONFIRM_RESET"; layout: Draft; shown?: Draft }
-  | { type: "BREAKPOINT_CHANGED"; units: GridUnits }
-  | { type: "REMOTE_CHANGED"; layout: Draft; revision: number }
+  | { type: "CONFIRM_RESET"; layout: HomeLayout; shown?: Draft }
+  | { type: "BREAKPOINT_CHANGED"; columns: GridColumns }
+  | { type: "REMOTE_CHANGED"; layout: HomeLayout; revision: number }
   | { type: "ONLINE" }
   | { type: "KEEP_MINE" }
   | { type: "TAKE_THEIRS" }
@@ -104,17 +120,22 @@ const isRemoteChange = and(["isNewerRemote", not(stateIn(SAVING))]);
 
 const isSaveRejected = and(["isRejected", stateIn(SAVING)]);
 
-function applyKeyMove(context: HomeEditContext, move: KeyMove): Draft {
-  const { draft, activeId, units } = context;
-  if (!activeId) return draft;
+function applyKeyMove(context: HomeEditContext, move: KeyMove): HomeLayout {
+  const { activeId, columns, sizingOf } = context;
+  const draft = blocksIn(context.draft);
+  if (!activeId) return context.draft;
 
   if (move.kind === "by") return moveBy(draft, activeId, move.step);
   if (move.kind === "edge") return moveToEdge(draft, activeId, move.edge);
 
-  return moveToRow(draft, activeId, move.direction, units);
+  return moveToRow(draft, activeId, move.direction, columns, sizingOf);
 }
 
-function commitDraft(context: HomeEditContext, from: Draft, next: Draft): Partial<HomeEditContext> {
+function commitDraft(
+  context: HomeEditContext,
+  from: HomeLayout,
+  next: HomeLayout,
+): Partial<HomeEditContext> {
   const history = record({ draft: from, past: context.past }, next);
   if (history.draft === from) return { draft: from };
 
@@ -161,26 +182,34 @@ export const homeEditMachine = setup({
       activeId: null,
       gestureStart: null,
       draft: event.type === "EDIT" && event.advice ? event.advice : context.draft,
+      shownAdvice: event.type === "EDIT" ? (event.advice ?? null) : null,
     })),
     showResetAdvice: assign(({ context, event }) => ({
       draft: event.type === "CONFIRM_RESET" && event.shown ? event.shown : context.draft,
     })),
     settleDraft: assign(({ context }) => ({
-      draft:
+      shownAdvice: null,
+      draft: kept(
+        context,
         context.unsaved === null && context.inFlight === null ? context.committed : context.draft,
+      ),
     })),
-    adoptRemote: assign(({ event }) => {
+    adoptRemote: assign(({ context, event }) => {
       if (event.type !== "REMOTE_CHANGED") return {};
 
-      return { committed: event.layout, draft: event.layout, baseRevision: event.revision };
+      return {
+        committed: event.layout,
+        draft: shownOf(context, event.layout),
+        baseRevision: event.revision,
+      };
     }),
     keepRemote: assign(({ event }) => {
       if (event.type !== "REMOTE_CHANGED") return {};
 
       return { remote: { blocks: event.layout, revision: event.revision } };
     }),
-    setUnits: assign(({ context, event }) => ({
-      units: event.type === "BREAKPOINT_CHANGED" ? event.units : context.units,
+    setColumns: assign(({ context, event }) => ({
+      columns: event.type === "BREAKPOINT_CHANGED" ? event.columns : context.columns,
     })),
     startGesture: assign(({ context, event }) => {
       if (event.type !== "LIFT" && event.type !== "KEY_LIFT" && event.type !== "RESIZE_START")
@@ -196,25 +225,34 @@ export const homeEditMachine = setup({
     dragTo: assign(({ context, event }) => {
       if (event.type !== "DRAG_INDEX" || !context.activeId) return {};
 
-      return { draft: moveToIndex(context.draft, context.activeId, event.index) };
+      const moved = moveToIndex(blocksIn(context.draft), context.activeId, event.index);
+
+      return { draft: pinned(context, moved) };
     }),
     resizeActive: assign(({ context, event }) => {
       if (event.type !== "RESIZE" || !context.activeId) return {};
 
-      return { draft: resize(context.draft, context.activeId, event.size) };
+      const base = blocksIn(context.gestureStart ?? context.draft);
+
+      return { draft: resize(base, context.activeId, event.drawn, event.size) };
     }),
     keyMove: assign(({ context, event }) => {
       if (event.type !== "KEY_MOVE") return {};
 
-      return { draft: applyKeyMove(context, event.move) };
+      return { draft: pinned(context, applyKeyMove(context, event.move)) };
     }),
     keySize: assign(({ context, event }) => {
       if (event.type !== "KEY_SIZE" || !context.activeId) return {};
 
-      return { draft: stepSize(context.draft, context.activeId, event.step, event.allowed) };
+      return { draft: resize(blocksIn(context.draft), context.activeId, event.drawn, event.size) };
     }),
     applyCommand: assign(({ context, event }) => {
-      const base = commandBase(context.draft, event);
+      const base = commandBase(context, event);
+
+      return commitDraft(context, base, pinned(context, commandResult(base, event)));
+    }),
+    applyReadCommand: assign(({ context, event }) => {
+      const base = kept(context, commandBase(context, event));
 
       return commitDraft(context, base, commandResult(base, event));
     }),
@@ -257,7 +295,7 @@ export const homeEditMachine = setup({
 
       return {
         committed: remote.blocks,
-        draft: remote.blocks,
+        draft: shownOf(context, remote.blocks),
         past: [...context.past, context.draft],
         baseRevision: remote.revision,
         unsaved: null,
@@ -275,13 +313,16 @@ export const homeEditMachine = setup({
     gestureStart: null,
     past: [],
     baseRevision: input.revision,
-    units: input.units,
+    columns: input.columns,
+    sizingOf: input.sizingOf ?? unsized,
     unsaved: null,
     inFlight: null,
     remote: null,
+    adviceOnly: input.adviceOnly ?? [],
+    shownAdvice: null,
   }),
   on: {
-    BREAKPOINT_CHANGED: { actions: "setUnits" },
+    BREAKPOINT_CHANGED: { actions: "setColumns" },
   },
   states: {
     mode: {
@@ -291,8 +332,8 @@ export const homeEditMachine = setup({
           entry: "settleDraft",
           on: {
             EDIT: { target: "editing", actions: "openSession" },
-            SIZE: { actions: "applyCommand" },
-            HIDE: { actions: "applyCommand" },
+            SIZE: { actions: "applyReadCommand" },
+            HIDE: { actions: "applyReadCommand" },
             UNDO: { guard: "canUndo", actions: "undoDraft" },
           },
         },
@@ -326,7 +367,10 @@ export const homeEditMachine = setup({
                 DROP: { target: "settling", actions: "commitGesture" },
                 CANCEL: { target: "settling", actions: "restoreGesture" },
                 ESC: { target: "settling", actions: "restoreGesture" },
-                BREAKPOINT_CHANGED: { target: "settling", actions: ["setUnits", "restoreGesture"] },
+                BREAKPOINT_CHANGED: {
+                  target: "settling",
+                  actions: ["setColumns", "restoreGesture"],
+                },
                 REMOTE_CHANGED: {
                   guard: isRemoteChange,
                   target: "settling",
@@ -348,7 +392,7 @@ export const homeEditMachine = setup({
                 ESC: { target: "idle", actions: ["restoreGesture", "endGesture"] },
                 BREAKPOINT_CHANGED: {
                   target: "idle",
-                  actions: ["setUnits", "restoreGesture", "endGesture"],
+                  actions: ["setColumns", "restoreGesture", "endGesture"],
                 },
                 REMOTE_CHANGED: {
                   guard: isRemoteChange,
@@ -367,7 +411,7 @@ export const homeEditMachine = setup({
                 CANCEL: { target: "idle", actions: ["restoreGesture", "endGesture"] },
                 BREAKPOINT_CHANGED: {
                   target: "idle",
-                  actions: ["setUnits", "restoreGesture", "endGesture"],
+                  actions: ["setColumns", "restoreGesture", "endGesture"],
                 },
                 REMOTE_CHANGED: {
                   guard: isRemoteChange,
@@ -449,25 +493,52 @@ export const homeEditMachine = setup({
   },
 });
 
-function sameDraft(left: Draft, right: Draft): boolean {
+function unsized(): undefined {
+  return undefined;
+}
+
+function sameDraft(left: HomeLayout, right: HomeLayout): boolean {
+  if (isAdvised(left) || isAdvised(right)) return isAdvised(left) && isAdvised(right);
   if (left.length !== right.length) return false;
 
   return left.every(
-    (block, index) => block.id === right[index]?.id && block.size === right[index]?.size,
+    (block, index) => block.id === right[index]?.id && sameSize(block.size, right[index]?.size),
   );
 }
 
-function commandBase(draft: Draft, event: HomeEditEvent): Draft {
-  if (event.type === "SIZE" || event.type === "HIDE") return event.from ?? draft;
+function commandBase(context: HomeEditContext, event: HomeEditEvent): HomeLayout {
+  if ((event.type === "SIZE" || event.type === "HIDE") && event.from) return event.from;
 
-  return draft;
+  return context.draft;
 }
 
-function commandResult(draft: Draft, event: HomeEditEvent): Draft {
-  if (event.type === "SIZE") return resize(draft, event.id, event.size);
+/** A move of the other blocks, the blocks only the advice shows back where they stood. */
+function pinned(context: HomeEditContext, next: HomeLayout): HomeLayout {
+  if (isAdvised(next)) return next;
+
+  return keepPinned(blocksIn(context.draft), next, context.adviceOnly);
+}
+
+/** A layout taken from elsewhere while arranging: the advice shown at the start when it is the advice. */
+function shownOf({ shownAdvice }: HomeEditContext, layout: HomeLayout): HomeLayout {
+  return isAdvised(layout) && shownAdvice ? shownAdvice : layout;
+}
+
+/** The layout without the blocks only the advice shows. */
+function kept({ adviceOnly }: HomeEditContext, layout: HomeLayout): HomeLayout {
+  return isAdvised(layout) ? layout : withoutPinned(layout, adviceOnly);
+}
+
+function sameSize(left: BlockSize, right: BlockSize | undefined): boolean {
+  return left.w === right?.w && left.h === right.h;
+}
+
+function commandResult(layout: HomeLayout, event: HomeEditEvent): HomeLayout {
+  const draft = blocksIn(layout);
+  if (event.type === "SIZE") return resize(draft, event.id, event.drawn, event.size);
   if (event.type === "HIDE") return hide(draft, event.id);
   if (event.type === "SHOW") return show(draft, event.id, event.size);
   if (event.type === "CONFIRM_RESET") return event.layout;
 
-  return draft;
+  return layout;
 }

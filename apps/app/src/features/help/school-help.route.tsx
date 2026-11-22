@@ -3,6 +3,7 @@ import { Button } from "@packages/ui/components/ui/button";
 import { Item, ItemContent, ItemMedia, ItemTitle } from "@packages/ui/components/ui/item";
 import { LoadErrorAlert } from "@packages/ui/components/ui/load-error-alert";
 import { SectionCard } from "@packages/ui/components/ui/section-card";
+import { SectionGrid } from "@packages/ui/components/ui/section-grid";
 import { TypographyMuted, TypographyP } from "@packages/ui/components/ui/typography";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -27,35 +28,40 @@ function SchoolHelpPage() {
   const { t } = useTranslation("help");
 
   return (
-    <Screen title={t("school.title")} description={t("school.description")} width="reading">
-      <SectionCard title={t("school.why.title")}>
-        <TypographyP>{t("school.why.body")}</TypographyP>
-      </SectionCard>
+    <Screen title={t("school.title")} description={t("school.description")} width="full">
+      <SectionGrid>
+        <SectionCard title={t("school.why.title")}>
+          <TypographyP>{t("school.why.body")}</TypographyP>
+        </SectionCard>
 
-      <SectionCard title={t("school.steps.title")}>
-        <ol className="flex flex-col gap-2">
-          {STEPS.map((step, index) => (
-            <li key={step}>
-              <Item variant="muted">
-                <ItemMedia>
-                  <Badge variant="secondary">{index + 1}</Badge>
-                </ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{t(`school.steps.${step}.title`)}</ItemTitle>
-                  <TypographyMuted>{t(`school.steps.${step}.body`)}</TypographyMuted>
-                </ItemContent>
-              </Item>
-            </li>
-          ))}
-        </ol>
-        <Button asChild variant="outline" className="self-start">
-          <Link to="/children">{t("school.steps.back.action")}</Link>
-        </Button>
-      </SectionCard>
+        <SectionCard title={t("school.steps.title")}>
+          <ol className="flex flex-col gap-2">
+            {STEPS.map((step, index) => (
+              <li key={step}>
+                <Item variant="muted">
+                  <ItemMedia>
+                    <Badge variant="secondary">{index + 1}</Badge>
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemTitle>{t(`school.steps.${step}.title`)}</ItemTitle>
+                    <TypographyMuted>{t(`school.steps.${step}.body`)}</TypographyMuted>
+                  </ItemContent>
+                </Item>
+              </li>
+            ))}
+          </ol>
+          <Button asChild variant="outline" className="self-start">
+            <Link to="/children">{t("school.steps.back.action")}</Link>
+          </Button>
+        </SectionCard>
 
-      <SectionCard title={t("school.message.title")} description={t("school.message.description")}>
-        <RequestMessage />
-      </SectionCard>
+        <SectionCard
+          title={t("school.message.title")}
+          description={t("school.message.description")}
+        >
+          <RequestMessage />
+        </SectionCard>
+      </SectionGrid>
     </Screen>
   );
 }

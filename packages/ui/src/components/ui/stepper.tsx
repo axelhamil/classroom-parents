@@ -16,7 +16,7 @@ function Stepper({ className, asChild = false, ...props }: StepperProps) {
     <Comp
       data-slot="stepper"
       className={cn(
-        "flex flex-1 flex-col gap-6 overflow-x-clip pt-3 pb-[max(--spacing(6),env(safe-area-inset-bottom))] md:pt-8",
+        "@container flex flex-1 flex-col gap-6 overflow-x-clip pt-3 pb-[max(--spacing(6),env(safe-area-inset-bottom))] md:pt-8",
         className,
       )}
       {...props}
@@ -44,15 +44,22 @@ function StepperPosition({ className, ...props }: React.ComponentProps<"p">) {
   );
 }
 
-const stepperPanelVariants = cva("flex flex-1 flex-col gap-6", {
-  variants: {
-    direction: {
-      forward: "animate-step-forward",
-      back: "animate-step-back",
+/**
+ * One step. From a computer screen on, its intro and its body sit side by side, so a step uses
+ * the width of the page instead of a narrow column in its middle; below, they stack.
+ */
+const stepperPanelVariants = cva(
+  "flex flex-1 flex-col gap-6 @5xl:grid @5xl:grid-cols-2 @5xl:content-start",
+  {
+    variants: {
+      direction: {
+        forward: "animate-step-forward",
+        back: "animate-step-back",
+      },
     },
+    defaultVariants: { direction: "forward" },
   },
-  defaultVariants: { direction: "forward" },
-});
+);
 
 interface StepperPanelProps
   extends React.ComponentProps<"section">,
@@ -73,6 +80,17 @@ function StepperIntro({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="stepper-intro"
       className={cn("flex flex-col items-start gap-3 text-pretty", className)}
+      {...props}
+    />
+  );
+}
+
+/** What a step asks, under or beside its intro: its content, then its actions. */
+function StepperBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="stepper-body"
+      className={cn("flex flex-1 flex-col gap-6", className)}
       {...props}
     />
   );
@@ -132,6 +150,7 @@ export {
   RevealList,
   Stepper,
   StepperActions,
+  StepperBody,
   StepperHeader,
   StepperIntro,
   StepperMedia,

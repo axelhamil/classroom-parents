@@ -1,5 +1,5 @@
 import { throwApiError } from "@packages/web-kit/api/errors/api-error";
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { api } from "../api-client";
 
 const $status = api.push.status.$get;
@@ -15,4 +15,9 @@ export function pushStatusQueryOptions(userId: string) {
       return res.json();
     },
   });
+}
+
+/** Whether at least one device of the parent receives reminders now; false until the status answers. */
+export function usePushLive(userId: string): boolean {
+  return (useQuery(pushStatusQueryOptions(userId)).data?.live ?? 0) > 0;
 }

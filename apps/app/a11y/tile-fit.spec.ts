@@ -1,24 +1,41 @@
 import type { Page } from "@playwright/test";
-import { HOME_BLOCK_SIZES } from "../src/features/events/home-block-sizes";
+import {
+  ADVICE_ONLY_BLOCK_IDS,
+  boundsOf,
+  HOME_BLOCK_PATTERNS,
+} from "../src/features/events/home-block-bounds";
+import {
+  type BlockSize,
+  type Bounds,
+  boundsAt,
+  type GridColumns,
+} from "../src/shared/dashboard/block-size";
+import { withoutPinned } from "../src/shared/dashboard/layout-commands";
+import { gridColumnsFor } from "../src/shared/dashboard/use-grid-columns";
 import { expect, test } from "./csp";
 import {
   EVENTS,
   inDays,
   LEA,
   MAXIMILIEN,
+  NEWCOMER,
   REVIEW_EVENT,
   serveFamily,
   todayAt,
 } from "./events-fixtures";
+import { apart, arrange, cards, settled } from "./home-board";
 import { STORAGE_STATE } from "./playwright.config";
-
-const SIZES = ["s", "m", "l", "xl"] as const;
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 768, height: 1024 },
-  { width: 1440, height: 900 },
-];
+  { width: 1280, height: 800 },
+  { width: 1600, height: 900 },
+].map((viewport) => ({ ...viewport, columns: gridColumnsFor(viewport.width) }));
+
+const SIZINGS = ["smallest", "middle", "largest"] as const;
+
+type Sizing = (typeof SIZINGS)[number];
 
 const SMALLEST_SCROLL_HEIGHT = 64;
 
@@ -57,16 +74,101 @@ const FULL_WEEK = [
   ),
 ];
 
-function layoutAt(size: (typeof SIZES)[number]) {
-  return Object.entries(HOME_BLOCK_SIZES)
-    .filter(([, sizes]) => sizes.allowed.includes(size))
-    .map(([id]) => ({ id: id.replace("*", LEA.id), size }));
+const LONG_NAMED = {
+  ...LEA,
+  label: "Marie-Charlotte-Éléonore de La Tour d'Auvergne-Montmorency-Laval",
+};
+
+/** Every deadline of the week, the first of each kind under an unbreakable title for its child. */
+const LONG_TITLES = FULL_WEEK.map((event) => ({
+  ...event,
+  childId: LONG_NAMED.id,
+  title: `Autorisationdesortieauchâteaudeversaillesàrendresignéeparlesdeuxparents ${event.title}`,
+}));
+
+/** Every block the parent can place, each at its smallest, middle or largest size at these columns. */
+function layoutAt(sizing: Sizing, columns: GridColumns, childId = LEA.id) {
+  return withoutPinned(HOME_BLOCK_PATTERNS, ADVICE_ONLY_BLOCK_IDS).flatMap((pattern) => {
+    const id = pattern.replace("*", childId);
+    const block = boundsOf(id);
+    if (!block) return [];
+
+    return [{ id, ...sizeAt(sizing, boundsAt(block, columns)) }];
+  });
+}
+
+function sizeAt(sizing: Sizing, { minW, maxW, minH, maxH }: Bounds): BlockSize {
+  if (sizing === "smallest") return { w: minW, h: minH };
+  if (sizing === "largest") return { w: maxW, h: maxH };
+
+  return { w: Math.round((minW + maxW) / 2), h: Math.round((minH + maxH) / 2) };
+}
+
+/** The home served in cases as the server keeps it, in place of the fixture's layout. */
+async function serveCases(page: Page, blocks: ReturnType<typeof layoutAt>): Promise<void> {
+  await page.route(
+    (url) => url.pathname === "/home/layout",
+    (route) => route.fulfill({ json: { v: 3, blocks, revision: 0 } }),
+  );
 }
 
 interface TileOffender {
   block: string;
   scrollers: number;
   smallest: number;
+}
+
+/**
+ * The blocks with something drawn past their tile, outside the one region that scrolls inside it.
+ * A line a clamp hides on purpose is let off only downwards: the clamped box itself must stay in
+ * the tile, and nothing may run past its sides, a long word included. A part moved by a transform
+ * (the fill of a progress bar) is drawing, not content.
+ */
+function overflowing(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const underClamp = (element: Element) => {
+      for (let node = element.parentElement; node; node = node.parentElement)
+        if (getComputedStyle(node).webkitLineClamp !== "none") return true;
+
+      return false;
+    };
+
+    return [
+      ...document.querySelectorAll<HTMLElement>("[data-slot=dashboard] [data-block]"),
+    ].flatMap((tile) => {
+      const frame = tile.getBoundingClientRect();
+      const past = [...tile.querySelectorAll<HTMLElement>("*")].filter((element) => {
+        if (element.closest("[data-slot=scroll-region]")) return false;
+        if (element.getClientRects().length === 0) return false;
+        if (getComputedStyle(element).transform !== "none") return false;
+
+        const box = element.getBoundingClientRect();
+        if (box.right > frame.right + 1 || box.left < frame.left - 1) return true;
+
+        return !underClamp(element) && box.bottom > frame.bottom + 1;
+      });
+
+      return past.length > 0 ? [tile.dataset.block ?? ""] : [];
+    });
+  });
+}
+
+/** The tiles drawn as a glance that still list rows or scroll: a full list squashed into one case. */
+function squashedGlances(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>("[data-block][data-content=glance]")].flatMap(
+      (tile) => {
+        const scrolls = [...tile.querySelectorAll("*")].some((element) => {
+          const { overflowY } = getComputedStyle(element);
+
+          return overflowY === "auto" || overflowY === "scroll";
+        });
+        const lists = tile.querySelector("li, tr, [data-slot=scroll-region]") !== null;
+
+        return scrolls || lists ? [tile.dataset.block ?? ""] : [];
+      },
+    ),
+  );
 }
 
 /** Per block: how many visible scroll containers it holds, and the height of the smallest. */
@@ -94,45 +196,65 @@ function tileOffenders(page: Page): Promise<TileOffender[]> {
   }, SMALLEST_SCROLL_HEIGHT);
 }
 
-function settled(page: Page): Promise<void> {
-  return expect
-    .poll(() =>
-      page.evaluate(() =>
-        document
-          .getAnimations()
-          .every(
-            (animation) =>
-              animation.playState !== "running" ||
-              animation.timeline !== document.timeline ||
-              animation.effect?.getTiming().iterations === Number.POSITIVE_INFINITY,
-          ),
-      ),
-    )
-    .toBe(true);
+async function openHome(page: Page): Promise<void> {
+  const loaded = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.startsWith("/events"),
+  );
+  await page.goto("/");
+  await loaded;
+  await expect(page.locator("[data-block]").first()).toBeVisible();
+  await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
+  await settled(page);
 }
 
 test.describe("each home tile scrolls once, and never through a slit", () => {
   test.use({ storageState: STORAGE_STATE });
 
   for (const viewport of VIEWPORTS)
-    for (const size of SIZES)
-      test(`every block at ${size.toUpperCase()}, ${viewport.width} px`, async ({ page }) => {
+    for (const sizing of SIZINGS)
+      test(`every block at its ${sizing} size, ${viewport.width} px`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.clock.setFixedTime(todayAt("17:00"));
-        await serveFamily(page, {
-          children: [LEA, MAXIMILIEN],
-          events: FULL_WEEK,
-          homeLayout: layoutAt(size),
-        });
-        const loaded = page.waitForResponse((response) =>
-          new URL(response.url()).pathname.startsWith("/events"),
-        );
-        await page.goto("/");
-        await loaded;
-        await expect(page.locator("[data-block]").first()).toBeVisible();
-        await expect(page.locator("[data-slot=skeleton]")).toHaveCount(0);
-        await settled(page);
+        await serveFamily(page, { children: [LEA, MAXIMILIEN], events: FULL_WEEK });
+        await serveCases(page, layoutAt(sizing, viewport.columns));
+        await openHome(page);
 
         expect(await tileOffenders(page)).toEqual([]);
+        expect(await squashedGlances(page)).toEqual([]);
+        if (sizing === "smallest") expect(await overflowing(page)).toEqual([]);
+
+        const reading = await cards(page);
+        await arrange(page);
+        expect(apart(reading, await cards(page))).toEqual([]);
       });
+
+  for (const viewport of VIEWPORTS.slice(0, 2))
+    test(`a glance keeps a very long name and title in its tile, ${viewport.width} px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.clock.setFixedTime(todayAt("17:00"));
+      await serveFamily(page, { children: [LONG_NAMED, MAXIMILIEN], events: LONG_TITLES });
+      await serveCases(page, layoutAt("smallest", viewport.columns, LONG_NAMED.id));
+      await openHome(page);
+
+      await expect(page.locator("[data-block][data-content=glance]").first()).toBeVisible();
+      expect(await overflowing(page)).toEqual([]);
+      expect(await squashedGlances(page)).toEqual([]);
+    });
+
+  for (const viewport of VIEWPORTS)
+    test(`the first steps the advice leads a new parent with, ${viewport.width} px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.clock.setFixedTime(todayAt("08:00"));
+      await serveFamily(page, { children: [NEWCOMER], events: [] });
+      await openHome(page);
+
+      const welcome = page.locator("[data-block=welcome]");
+      await expect(welcome).toHaveAttribute("data-size", viewport.columns === 1 ? "1x2" : "2x2");
+      await expect(welcome.getByRole("listitem")).toHaveCount(3);
+      expect(await tileOffenders(page)).toEqual([]);
+    });
 });

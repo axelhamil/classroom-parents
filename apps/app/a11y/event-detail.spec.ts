@@ -2,6 +2,7 @@ import { blockingViolations, COLOR_SCHEMES } from "@packages/test/a11y";
 import { showColorScheme } from "./color-scheme";
 import { expect, test } from "./csp";
 import { LEA, REVIEW_EVENT, serveFamily } from "./events-fixtures";
+import { gridColumns, largestHole, paintedRects } from "./painted";
 import { STORAGE_STATE } from "./playwright.config";
 
 test.describe("event detail on a phone", () => {
@@ -58,3 +59,31 @@ test.describe("event detail on a phone", () => {
     await expect(trigger).toBeFocused();
   });
 });
+
+// A deadline spreads its parts over the width; a part shorter than its row neighbour must not
+// leave a hole under it that pushes the next part down the screen.
+const MAX_HOLE = 64;
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+]) {
+  test.describe(`event detail on a ${viewport.width}px screen`, () => {
+    test.use({ storageState: STORAGE_STATE, viewport });
+
+    test("leaves no hole between its parts", async ({ page }) => {
+      await serveFamily(page, { children: [LEA], events: [REVIEW_EVENT] });
+      await page.goto(`/events/${REVIEW_EVENT.id}`);
+      const why = page.getByRole("region", { name: "Pourquoi à vérifier" });
+      await expect(why).toBeVisible();
+
+      // The grid that lays out the deadline's parts, the outermost holding them, whatever other
+      // section grid the page or a part draws.
+      const parts = page.locator("main [data-slot=section-grid]").filter({ has: why }).first();
+
+      const hole = largestHole(await paintedRects(parts), await gridColumns(parts));
+
+      expect(hole).toBeLessThanOrEqual(MAX_HOLE);
+    });
+  });
+}

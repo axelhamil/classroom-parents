@@ -4,14 +4,15 @@ import type { Locator } from "@playwright/test";
 import { expect, test } from "./csp";
 import { LEA, parisTime, REVIEW_EVENT, SCHOOL_THURSDAY, serveFamily } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
+import type { Block } from "./served-layout";
 
 const SATURDAY = shiftDate(SCHOOL_THURSDAY, 2);
 
-const HOME = [
-  { id: "today", size: "l" },
-  { id: "tonight", size: "m" },
-  { id: "overdue", size: "m" },
-  { id: "calendar", size: "xl" },
+const HOME: Block[] = [
+  { id: "today", size: { w: 2, h: 2 } },
+  { id: "tonight", size: { w: 2, h: 1 } },
+  { id: "overdue", size: { w: 2, h: 1 } },
+  { id: "calendar", size: { w: 4, h: 2 } },
 ];
 
 function deadline(index: number, offset: number, title: string, extra: object = {}) {

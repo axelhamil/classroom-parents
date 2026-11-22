@@ -26,7 +26,9 @@ describe("an empty home block says something useful at its size", () => {
   it("given no assessment in two weeks but one later, then the block names the next one and links to it", async () => {
     at(THURSDAY_MORNING);
     const history = deadline(1, "2026-12-02", "Évaluation d'histoire", { category: "assessment" });
-    givenCalendar([CHILD], [history]);
+    givenCalendar([CHILD], [history], {
+      homeLayout: [{ id: "assessments", w: 2, h: 1 }],
+    });
     await renderAppAt("/");
 
     const assessments = await block("Contrôles à réviser");
@@ -57,7 +59,7 @@ describe("an empty home block says something useful at its size", () => {
     at(THURSDAY_EVENING);
     const talk = deadline(1, "2026-11-17", "Exposé");
     givenCalendar([CHILD], [talk], {
-      homeLayout: [{ id: "tonight", w: 4, h: 1, hidden: false }],
+      homeLayout: [{ id: "tonight", w: 2, h: 1 }],
     });
     await renderAppAt("/");
 

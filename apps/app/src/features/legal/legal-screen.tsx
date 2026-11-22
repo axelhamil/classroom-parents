@@ -2,6 +2,7 @@ import { AppBar } from "@packages/ui/components/ui/app-bar";
 import { BrandLink, BrandMark } from "@packages/ui/components/ui/brand-link";
 import { Button } from "@packages/ui/components/ui/button";
 import { BackIcon } from "@packages/ui/components/ui/icons";
+import { ReadingText } from "@packages/ui/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,8 +34,8 @@ export function LegalScreen({ title, description, children }: LegalScreenProps) 
           </Link>
         </Button>
       </AppBar>
-      <Screen title={title} description={description} width="reading">
-        {children}
+      <Screen title={title} description={description} width="full">
+        <ReadingText>{children}</ReadingText>
       </Screen>
       <LegalFooter />
     </div>

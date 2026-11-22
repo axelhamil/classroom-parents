@@ -18,27 +18,25 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type ActorRefFrom, fromPromise, type SnapshotFrom } from "xstate";
 import { z } from "zod";
-import { BLOCK_SIZES } from "../../../shared/dashboard/dashboard-pack";
 import {
   type HomeEditInput,
   homeEditMachine,
   type SaveInput,
   type SaveOutcome,
 } from "../../../shared/dashboard/home-edit.machine";
-import type { Draft } from "../../../shared/dashboard/layout-commands";
-import { type LayoutBlock, snapSize } from "../../../shared/dashboard/layout-migration";
-import { TABLET_QUERY } from "../../../shared/layout/use-media-query";
+import { ADVISED, type Draft, isAdvised } from "../../../shared/dashboard/layout-commands";
+import {
+  readStoredLayout,
+  type StoredLayout,
+  storedLayoutOf,
+  storedLayoutSchema,
+} from "../../../shared/dashboard/layout-migration";
+import { currentGridColumns } from "../../../shared/dashboard/use-grid-columns";
 import { isConnectionFailure } from "../../../shared/offline/connection";
 import { saveHomeLayoutMutationOptions } from "../api/home.mutations";
 import { HOME_LAYOUT_KEY, type HomeLayoutReply, homeLayoutQueryOptions } from "../api/home.queries";
-import { blockSizesOf } from "../home-block-sizes";
-
-/**
- * The draft that stands for "no layout chosen": the home follows the advised
- * layout. It is recognized by identity and saved as `blocks: null`, so
- * `CONFIRM_RESET { layout: ADVISED_LAYOUT }` brings the advised layout back.
- */
-export const ADVISED_LAYOUT: Draft = [];
+import { ADVICE_ONLY_BLOCK_IDS, boundsOf } from "../home-block-bounds";
+import { layoutOf, savedBlocksOf } from "../home-layout-draft";
 
 const UNKNOWN_REVISION = -1;
 
@@ -46,17 +44,13 @@ const LAYOUT_STALE = "HOME_LAYOUT_STALE";
 
 const STORED_LAYOUT_NAME = "home:layout:v2";
 
-const storedLayoutSchema = z
-  .object({
-    v: z.literal(2),
-    blocks: z.array(z.object({ id: z.string(), size: z.enum(BLOCK_SIZES) })).nullable(),
-    revision: z.number().int().nonnegative(),
-  })
+const localCopySchema = storedLayoutSchema
+  .extend({ revision: z.number().int().nonnegative() })
   .nullable();
 
-type StoredLayout = z.infer<typeof storedLayoutSchema>;
+type LocalCopy = z.infer<typeof localCopySchema>;
 
-type ServerLayout = Pick<HomeLayoutReply, "blocks" | "revision">;
+type ServerLayout = StoredLayout & Pick<HomeLayoutReply, "revision">;
 
 const NETWORK: SaveOutcome = { kind: "network" };
 
@@ -138,7 +132,7 @@ function useLayoutSave(registryRef: RefObject<readonly string[]>) {
 
     try {
       const saved = await mutateAsync({
-        blocks: blocksOf(input.blocks),
+        ...storedLayoutOf(savedBlocksOf(input.blocks)),
         baseRevision: Math.max(input.baseRevision, 0),
       });
 
@@ -220,7 +214,7 @@ function useLocalCopy(actor: HomeSyncActor, storageKey: string): void {
   useEffect(() => {
     if (revision === UNKNOWN_REVISION) return;
 
-    writeStoredValue(storageKey, { v: 2, blocks: blocksOf(committed), revision });
+    writeStoredValue(storageKey, { ...storedLayoutOf(savedBlocksOf(committed)), revision });
   }, [committed, revision, storageKey]);
 }
 
@@ -229,14 +223,17 @@ function seedOf(
   storageKey: string,
   registry: readonly string[],
 ): HomeEditInput {
-  const units = window.matchMedia(TABLET_QUERY).matches ? 4 : 2;
-  const known =
-    queryClient.getQueryData(homeLayoutQueryOptions.queryKey) ?? storedLayout(storageKey);
-  if (!known) return { layout: ADVISED_LAYOUT, revision: UNKNOWN_REVISION, units };
+  const known = queryClient.getQueryData(homeLayoutQueryOptions.queryKey) ?? localCopy(storageKey);
+  const kit: Omit<HomeEditInput, "layout" | "revision"> = {
+    columns: currentGridColumns(),
+    sizingOf: boundsOf,
+    adviceOnly: ADVICE_ONLY_BLOCK_IDS,
+  };
+  if (!known) return { layout: ADVISED, revision: UNKNOWN_REVISION, ...kit };
 
   const { blocks, revision } = remoteOf(known, registry);
 
-  return { layout: blocks, revision, units };
+  return { layout: blocks, revision, ...kit };
 }
 
 /** A reply with no revision is never adopted, so waiting for it would hold the home forever. */
@@ -244,35 +241,13 @@ function unreadable(reply: ServerLayout | undefined): boolean {
   return reply !== undefined && !Number.isInteger(reply.revision);
 }
 
-function storedLayout(storageKey: string): StoredLayout {
-  return readStoredValue(storageKey, storedLayoutSchema, null);
+/** The device's copy, dropped when it is not in the current form: the server's answer replaces it. */
+function localCopy(storageKey: string): LocalCopy {
+  return readStoredValue(storageKey, localCopySchema, null);
 }
 
 function remoteOf(layout: ServerLayout, registry: readonly string[]) {
-  return { blocks: draftOf(layout.blocks, registry), revision: layout.revision };
-}
-
-function draftOf(blocks: readonly LayoutBlock[] | null, registry: readonly string[]): Draft {
-  return blocks ? fitToRegistry(blocks, registry) : ADVISED_LAYOUT;
-}
-
-/** The blocks the home can draw, once each, at a size the block allows. */
-export function fitToRegistry(blocks: readonly LayoutBlock[], registry: readonly string[]): Draft {
-  const known = new Set(registry);
-  const seen = new Set<string>();
-
-  return blocks.flatMap((block) => {
-    if (!known.has(block.id) || seen.has(block.id)) return [];
-
-    seen.add(block.id);
-    const allowed = blockSizesOf(block.id)?.allowed ?? [block.size];
-
-    return [{ id: block.id, size: snapSize(block.size, allowed) }];
-  });
-}
-
-function blocksOf(draft: Draft): LayoutBlock[] | null {
-  return draft === ADVISED_LAYOUT ? null : [...draft];
+  return { blocks: layoutOf(readStoredLayout(layout), registry), revision: layout.revision };
 }
 
 /**
@@ -281,10 +256,10 @@ function blocksOf(draft: Draft): LayoutBlock[] | null {
  */
 function orderOf(snapshot: HomeSyncSnapshot): Draft | null {
   const { draft, gestureStart } = snapshot.context;
-  const carried = snapshot.matches({ mode: { editing: "dragging" } }) && gestureStart !== null;
-  const shown = carried ? gestureStart : draft;
+  const carried = snapshot.matches({ mode: { editing: "dragging" } });
+  const shown = carried && gestureStart ? gestureStart : draft;
 
-  return shown === ADVISED_LAYOUT ? null : shown;
+  return isAdvised(shown) ? null : shown;
 }
 
 function editStateOf(snapshot: HomeSyncSnapshot) {

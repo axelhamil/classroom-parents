@@ -21,8 +21,12 @@ interaction checks a rule engine cannot see. Runs on every PR
   viewport with no horizontal overflow, and every section is reachable from it
   with `aria-current="page"` on the active tab. `/login` (Google only) at 390 px keeps one
   `<main>`, one `<h1>` and no blocking violation (`shell.spec.ts`).
-- **Page width**: a page in `FULL_WIDTH_PAGES` leaves at most 25 % of a
-  1440 px screen empty (`page-width.spec.ts`).
+- **Page width**: every page, a deadline and its edit form included, leaves at
+  most 25 % of a 1440 px and a 1920 px screen empty, by its `<main>` and by what
+  it paints (`painted.ts`), and caps none of its cards (`page-width.spec.ts`); pages
+  left out are in `WIDTH_GATE_EXEMPT`, running text and lone messages skip the
+  painted check (`RUNNING_TEXT_PAGES`), each with its reason. A deadline leaves no
+  hole over 64 px between its parts at 1440 and 1920 px (`event-detail.spec.ts`).
 - **Visual system**: on home, the event drawer, Enfants, Réglages and onboarding, at 390 px (touch) and 1440 px, every
   rendered icon is 14, 16 or 20 px (8 for a mark's dot), every one-line control is one of the three `--control-*`
   heights the pointer resolves to, and a rounded block within 32 px of a painted rounded parent sits concentric to it

@@ -11,6 +11,7 @@ import {
   todayAt,
 } from "./events-fixtures";
 import { STORAGE_STATE } from "./playwright.config";
+import { type Block, inCases } from "./served-layout";
 
 /*
  * Every list of the app measured with a family that has piled up 500 deadlines over a
@@ -52,7 +53,10 @@ function deadlineAt(index: number) {
 }
 
 /** The late deadlines open as a list from the Agenda only while the "En retard" block is hidden. */
-const HOME_WITH_THE_LATE_LINE = [{ id: "review", size: "m" }, ...AGENDA_WITHOUT_OVERDUE_BLOCK];
+const HOME_WITH_THE_LATE_LINE: Block[] = [
+  { id: "review", size: { w: 2, h: 1 } },
+  ...AGENDA_WITHOUT_OVERDUE_BLOCK,
+];
 
 const ALL = Array.from({ length: DEADLINES }, (_, index) => deadlineAt(index));
 type Deadline = (typeof ALL)[number];
@@ -73,7 +77,7 @@ function answer(route: Route): Promise<void> {
 
   if (path === "/children") return route.fulfill({ json: FAMILY });
   if (path === "/home/layout")
-    return route.fulfill({ json: { blocks: HOME_WITH_THE_LATE_LINE, revision: 1 } });
+    return route.fulfill({ json: { v: 3, blocks: inCases(HOME_WITH_THE_LATE_LINE), revision: 1 } });
   if (path === "/sync") return route.fulfill({ status: 202, json: { status: "requested" } });
   if (path === "/events/calendar") {
     const from = query.get("from") ?? "";

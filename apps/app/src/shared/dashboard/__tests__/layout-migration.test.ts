@@ -1,54 +1,36 @@
 import { describe, expect, it } from "vitest";
-import type { BlockSize } from "../dashboard-pack";
-import { readStoredLayout, snapSize } from "../layout-migration";
+import { readStoredLayout, storedLayoutOf } from "../layout-migration";
 
-describe("a stored layout is read in either version", () => {
-  it("given a v1 layout, then hidden blocks leave and each width gives its size", () => {
-    const v1 = [
-      { id: "today", w: 3, h: 1, hidden: false },
-      { id: "tonight", w: 4, h: 2, hidden: false },
-      { id: "notes", w: 4, h: 1, hidden: true },
-      { id: "review", w: 6, h: 1, hidden: false },
-      { id: "overdue", w: 8, h: 3, hidden: false },
-      { id: "calendar", w: 12, h: 2, hidden: false },
-    ];
-
-    expect(readStoredLayout(v1)).toEqual([
-      { id: "today", size: "s" },
-      { id: "tonight", size: "m" },
-      { id: "review", size: "l" },
-      { id: "overdue", size: "l" },
-      { id: "calendar", size: "xl" },
-    ]);
-  });
-
-  it("given a v2 layout, then its order and sizes are kept as stored", () => {
-    const v2 = {
-      v: 2,
+describe("a stored layout is read in cases only", () => {
+  it("given a layout in cases, then its order and sizes are kept as stored", () => {
+    const stored = {
+      v: 3,
       blocks: [
-        { id: "calendar", size: "xl" },
-        { id: "notes", size: "m" },
+        { id: "calendar", w: 4, h: 3 },
+        { id: "notes", w: 1, h: 2 },
       ],
     };
 
-    expect(readStoredLayout(v2)).toEqual(v2.blocks);
+    expect(readStoredLayout(stored)).toEqual([
+      { id: "calendar", size: { w: 4, h: 3 } },
+      { id: "notes", size: { w: 1, h: 2 } },
+    ]);
   });
 
-  it.each([null, undefined, { v: 3, blocks: [] }, [{ id: "today", w: 5, h: 1, hidden: false }]])(
-    "given %j, then nothing usable is stored",
-    (stored) => {
-      expect(readStoredLayout(stored)).toBeNull();
-    },
-  );
-});
+  it.each([
+    ["the advised layout", { v: 3, blocks: null }],
+    ["nothing", null],
+    ["a layout in fixed sizes", { v: 2, blocks: [{ id: "calendar", size: "xl" }] }],
+    ["a layout in the first format", [{ id: "today", w: 3, h: 1, hidden: false }]],
+    ["a block in part of a case", { v: 3, blocks: [{ id: "today", w: 1.5, h: 1 }] }],
+  ])("given %s, then the advised layout applies", (_, stored) => {
+    expect(readStoredLayout(stored)).toBeNull();
+  });
 
-describe("a size snaps to the closest one the block allows", () => {
-  it.each<[BlockSize, BlockSize[], BlockSize]>([
-    ["s", ["m", "l", "xl"], "m"],
-    ["xl", ["s", "m"], "m"],
-    ["m", ["s", "l"], "l"],
-    ["l", ["m", "l"], "l"],
-  ])("given %s among %j, then it becomes %s", (size, allowed, snapped) => {
-    expect(snapSize(size, allowed)).toBe(snapped);
+  it("given blocks in cases, then they are kept in the form they are read from", () => {
+    const blocks = [{ id: "today", size: { w: 2, h: 3 } }];
+
+    expect(readStoredLayout(storedLayoutOf(blocks))).toEqual(blocks);
+    expect(storedLayoutOf(null)).toEqual({ v: 3, blocks: null });
   });
 });

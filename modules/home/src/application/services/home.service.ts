@@ -2,9 +2,14 @@ import { type IInstrumentation, type IUnitOfWork, Option, Result } from "@packag
 import { EventTypes } from "@packages/events";
 import { emitEvent } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import { type HomeBlock, HomeLayout } from "../../domain/value-objects/home-layout.vo";
+import {
+  HOME_LAYOUT_VERSION,
+  type HomeBlock,
+  HomeLayout,
+  nearestFixedSize,
+} from "../../domain/value-objects/home-layout.vo";
 import { HomeNote } from "../../domain/value-objects/home-note.vo";
-import type { HomeLayoutBody, HomeLayoutDto, HomeNoteDto } from "../dto/home.dto";
+import type { HomeBlockDto, HomeLayoutBody, HomeLayoutDto, HomeNoteDto } from "../dto/home.dto";
 import { type HomeError, layoutInvalid, layoutStale, noteInvalid } from "../errors/home-errors";
 import type {
   IHomeRepository,
@@ -18,8 +23,23 @@ type LayoutChoice = Option<HomeLayout>;
 
 type NoteChoice = Option<HomeNote>;
 
+function withFixedSize(block: HomeBlock): HomeBlockDto {
+  return { ...block, size: nearestFixedSize(block) };
+}
+
 function layoutDtoOf({ layout, revision }: StoredHomeLayout): HomeLayoutDto {
-  return { blocks: layout.map(({ value }) => [...value.blocks]).toNull(), revision };
+  return {
+    v: HOME_LAYOUT_VERSION,
+    blocks: layout.map(({ value }) => value.blocks.map(withFixedSize)).toNull(),
+    revision,
+  };
+}
+
+function layoutOfBody(body: HomeLayoutBody): Option<Result<HomeLayout>> {
+  if (body.v === HOME_LAYOUT_VERSION)
+    return Option.fromNullable(body.blocks).map((blocks) => HomeLayout.of(blocks));
+
+  return Option.fromNullable(body.blocks).map((blocks) => HomeLayout.fromFixedSizes(blocks));
 }
 
 function noteDtoOf(stored: Option<StoredHomeNote>): HomeNoteDto {
@@ -49,12 +69,10 @@ export class HomeService {
     return this.span("layout", async () => (await this.home.layoutOf(userId)).map(layoutDtoOf));
   }
 
-  async setLayout(
-    userId: string,
-    { blocks, baseRevision }: HomeLayoutBody,
-  ): Outcome<HomeLayoutDto> {
+  async setLayout(userId: string, body: HomeLayoutBody): Outcome<HomeLayoutDto> {
     return this.span("setLayout", async () => {
-      const choice = this.layoutChoiceOf(blocks);
+      const { baseRevision } = body;
+      const choice = this.layoutChoiceOf(body);
       if (choice.isFailure) return Result.fail(choice.getError());
 
       const stored = await this.transactions.run(() =>
@@ -80,10 +98,12 @@ export class HomeService {
     });
   }
 
-  private layoutChoiceOf(blocks: HomeBlock[] | null): Result<LayoutChoice, HomeError> {
-    if (blocks === null) return Result.ok(Option.none());
+  private layoutChoiceOf(body: HomeLayoutBody): Result<LayoutChoice, HomeError> {
+    const layout = layoutOfBody(body);
+    if (layout.isNone()) return Result.ok(Option.none());
 
-    return HomeLayout.of(blocks)
+    return layout
+      .unwrap()
       .map((layout) => Option.some(layout))
       .mapError(layoutInvalid);
   }

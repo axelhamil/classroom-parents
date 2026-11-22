@@ -9,6 +9,7 @@ import {
   transition,
   waitFor,
 } from "xstate";
+import { type BlockSize, type BlockSizing, boundsOnGrid } from "../block-size";
 import {
   type HomeEditEvent,
   type HomeEditInput,
@@ -16,20 +17,54 @@ import {
   type SaveInput,
   type SaveOutcome,
 } from "../home-edit.machine";
-import type { Draft } from "../layout-commands";
+import {
+  ADVISED,
+  blocksIn,
+  type Draft,
+  type HomeLayout,
+  type SizeStep,
+  steppedSize,
+} from "../layout-commands";
+
+const ONE_BY_ONE = { w: 1, h: 1 };
+
+const TWO_BY_ONE = { w: 2, h: 1 };
+
+const TWO_BY_TWO = { w: 2, h: 2 };
+
+const FOUR_BY_TWO = { w: 4, h: 2 };
+
+const FREE: BlockSizing = {
+  bounds: { minW: 1, maxW: 4, minH: 1, maxH: 3 },
+  defaultSize: TWO_BY_ONE,
+};
+
+const AT_MOST_TWO: BlockSizing = { ...FREE, bounds: { ...FREE.bounds, maxW: 2 } };
+
+/** A size key pressed on the lifted block, from the rectangle it is drawn in now. */
+function keySize(
+  actor: ReturnType<typeof startEditing>["actor"],
+  change: SizeStep,
+  drawn: BlockSize,
+  sizing = FREE,
+) {
+  const bounds = boundsOnGrid(sizing, actor.getSnapshot().context.columns);
+  const size = steppedSize(drawn, change, bounds);
+  if (size) actor.send({ type: "KEY_SIZE", drawn, size });
+}
 
 const LAYOUT: Draft = [
-  { id: "a", size: "s" },
-  { id: "b", size: "m" },
-  { id: "c", size: "l" },
+  { id: "a", size: ONE_BY_ONE },
+  { id: "b", size: TWO_BY_ONE },
+  { id: "c", size: TWO_BY_TWO },
 ];
 
 const REMOTE: Draft = [
-  { id: "c", size: "l" },
-  { id: "a", size: "s" },
+  { id: "c", size: TWO_BY_TWO },
+  { id: "a", size: ONE_BY_ONE },
 ];
 
-const INPUT: HomeEditInput = { layout: LAYOUT, revision: 1, units: 4 };
+const INPUT: HomeEditInput = { layout: LAYOUT, revision: 1, columns: 4 };
 
 const EVENTS: HomeEditEvent[] = [
   { type: "EDIT" },
@@ -42,19 +77,19 @@ const EVENTS: HomeEditEvent[] = [
   { type: "DROP" },
   { type: "SETTLED" },
   { type: "RESIZE_START", id: "a" },
-  { type: "RESIZE", size: "m" },
+  { type: "RESIZE", drawn: ONE_BY_ONE, size: TWO_BY_ONE },
   { type: "RESIZE_END" },
   { type: "KEY_LIFT", id: "b" },
   { type: "KEY_MOVE", move: { kind: "by", step: -1 } },
-  { type: "KEY_SIZE", step: 1, allowed: ["m", "l"] },
+  { type: "KEY_SIZE", drawn: TWO_BY_ONE, size: { w: 3, h: 1 } },
   { type: "KEY_DROP" },
-  { type: "SIZE", id: "c", size: "xl" },
+  { type: "SIZE", id: "c", drawn: TWO_BY_TWO, size: FOUR_BY_TWO },
   { type: "HIDE", id: "a" },
-  { type: "SHOW", id: "z", size: "s" },
+  { type: "SHOW", id: "z", size: ONE_BY_ONE },
   { type: "UNDO" },
   { type: "RESET" },
   { type: "CONFIRM_RESET", layout: REMOTE },
-  { type: "BREAKPOINT_CHANGED", units: 2 },
+  { type: "BREAKPOINT_CHANGED", columns: 2 },
   { type: "REMOTE_CHANGED", layout: REMOTE, revision: 5 },
   { type: "ONLINE" },
   { type: "KEEP_MINE" },
@@ -74,7 +109,7 @@ const graphMachine = homeEditMachine.provide({ actors: { save: pendingSave } });
 type Snapshot = SnapshotFrom<typeof graphMachine>;
 
 function serialize(state: Snapshot): string {
-  const { activeId, unsaved, past, baseRevision, units } = state.context;
+  const { activeId, unsaved, past, baseRevision, columns } = state.context;
 
   return JSON.stringify({
     value: state.value,
@@ -82,7 +117,7 @@ function serialize(state: Snapshot): string {
     unsaved: unsaved !== null,
     undo: past.length > 0,
     baseRevision,
-    units,
+    columns,
   });
 }
 
@@ -202,7 +237,20 @@ interface Deferred {
   resolve: (outcome: SaveOutcome) => void;
 }
 
-function startEditing() {
+const ADVICE: Draft = [
+  { id: "welcome", size: TWO_BY_TWO },
+  { id: "a", size: ONE_BY_ONE },
+  { id: "b", size: TWO_BY_ONE },
+  { id: "c", size: TWO_BY_TWO },
+];
+
+const ADVISED_INPUT: HomeEditInput = {
+  ...INPUT,
+  layout: ADVISED,
+  adviceOnly: ["welcome"],
+};
+
+function startEditing(input: HomeEditInput = INPUT, edit: HomeEditEvent = { type: "EDIT" }) {
   const saves: Deferred[] = [];
   const rejected = vi.fn();
   const savedOffline = vi.fn();
@@ -213,20 +261,20 @@ function startEditing() {
       ),
     },
   });
-  const actor = createActor(machine, { input: INPUT });
+  const actor = createActor(machine, { input });
 
   actor.on("saveRejected", rejected);
   actor.on("savedOffline", savedOffline);
   actor.start();
 
-  actor.send({ type: "EDIT" });
+  actor.send(edit);
   actor.send({ type: "LOADED" });
 
   return { actor, saves, rejected, savedOffline };
 }
 
-function idsOf(draft: Draft): string[] {
-  return draft.map((block) => block.id);
+function idsOf(layout: HomeLayout): string[] {
+  return blocksIn(layout).map((block) => block.id);
 }
 
 describe("home edit machine gestures", () => {
@@ -246,11 +294,102 @@ describe("home edit machine gestures", () => {
 
     actor.send({ type: "LIFT", id: "a" });
     actor.send({ type: "DRAG_INDEX", index: 2 });
-    actor.send({ type: "BREAKPOINT_CHANGED", units: 2 });
+    actor.send({ type: "BREAKPOINT_CHANGED", columns: 2 });
 
     expect(actor.getSnapshot().matches({ mode: { editing: "settling" } })).toBe(true);
     expect(idsOf(actor.getSnapshot().context.draft)).toEqual(["a", "b", "c"]);
     expect(saves).toHaveLength(0);
+  });
+
+  it("given a lifted block, when widened, grown, then shortened from the keyboard and laid, then its size is saved once", () => {
+    const { actor, saves } = startEditing();
+
+    actor.send({ type: "KEY_LIFT", id: "b" });
+    keySize(actor, { axis: "w", step: 1 }, TWO_BY_ONE);
+    keySize(actor, { axis: "h", step: 1 }, { w: 3, h: 1 });
+    keySize(actor, { axis: "h", step: 1 }, { w: 3, h: 2 });
+    keySize(actor, { axis: "h", step: -1 }, { w: 3, h: 3 });
+    expect(saves).toHaveLength(0);
+    actor.send({ type: "KEY_DROP" });
+
+    expect(blocksIn(actor.getSnapshot().context.draft)[1]).toEqual({
+      id: "b",
+      size: { w: 3, h: 2 },
+    });
+    expect(saves).toHaveLength(1);
+  });
+
+  it("given a block lifted under a taller neighbour, when it goes up a row, then it lands beside it as drawn on screen", () => {
+    const notes: BlockSizing = { ...FREE, raisedAt: [{ columns: 3, minH: 2 }] };
+    const home: Draft = [
+      { id: "notes", size: TWO_BY_ONE },
+      { id: "b", size: ONE_BY_ONE },
+      { id: "c", size: ONE_BY_ONE },
+      { id: "d", size: ONE_BY_ONE },
+    ];
+    const sizingOf = (id: string) => (id === "notes" ? notes : undefined);
+    const { actor } = startEditing({ ...INPUT, layout: home, columns: 3, sizingOf });
+
+    actor.send({ type: "KEY_LIFT", id: "c" });
+    actor.send({ type: "KEY_MOVE", move: { kind: "row", direction: "up" } });
+    actor.send({ type: "KEY_DROP" });
+
+    expect(idsOf(actor.getSnapshot().context.draft)).toEqual(["notes", "c", "b", "d"]);
+  });
+
+  it("given a lifted block at its largest, when it steps past its bounds or the columns, then nothing changes", () => {
+    const { actor } = startEditing({ ...INPUT, columns: 2 });
+
+    actor.send({ type: "KEY_LIFT", id: "b" });
+    keySize(actor, { axis: "w", step: 1 }, TWO_BY_ONE);
+    keySize(actor, { axis: "h", step: -1 }, TWO_BY_ONE);
+
+    expect(actor.getSnapshot().context.draft).toBe(LAYOUT);
+  });
+
+  it("given a lifted block the grid draws wider than its bound to leave no hole, when widened, then nothing changes", () => {
+    const pair: Draft = [
+      { id: "a", size: TWO_BY_ONE },
+      { id: "b", size: TWO_BY_ONE },
+    ];
+    const { actor, saves } = startEditing({ ...INPUT, layout: pair, columns: 3 });
+
+    actor.send({ type: "KEY_LIFT", id: "a" });
+    keySize(actor, { axis: "w", step: 1 }, { w: 3, h: 1 }, AT_MOST_TWO);
+    actor.send({ type: "KEY_DROP" });
+
+    expect(actor.getSnapshot().context.draft).toBe(pair);
+    expect(saves).toHaveLength(0);
+  });
+
+  it("given a pointer resize on a narrower grid, when only the height changes, then the width chosen for a wider screen is kept", () => {
+    const { actor, saves } = startEditing({
+      ...INPUT,
+      layout: [{ id: "x", size: FOUR_BY_TWO }],
+      columns: 2,
+    });
+
+    actor.send({ type: "RESIZE_START", id: "x" });
+    actor.send({ type: "RESIZE", drawn: TWO_BY_TWO, size: { w: 2, h: 3 } });
+    actor.send({ type: "RESIZE_END" });
+
+    expect(actor.getSnapshot().context.draft).toEqual([{ id: "x", size: { w: 4, h: 3 } }]);
+    expect(saves[0]?.input.blocks).toEqual([{ id: "x", size: { w: 4, h: 3 } }]);
+  });
+
+  it("given the advised home with its welcome, when another block is resized, then the welcome stays first and as it was", () => {
+    const { actor } = startEditing(ADVISED_INPUT, { type: "EDIT", advice: ADVICE });
+
+    actor.send({ type: "KEY_LIFT", id: "a" });
+    keySize(actor, { axis: "w", step: 1 }, ONE_BY_ONE);
+    actor.send({ type: "KEY_MOVE", move: { kind: "edge", edge: "start" } });
+    actor.send({ type: "KEY_DROP" });
+
+    expect(blocksIn(actor.getSnapshot().context.draft)[0]).toEqual({
+      id: "welcome",
+      size: TWO_BY_TWO,
+    });
+    expect(blocksIn(actor.getSnapshot().context.draft)[1]).toEqual({ id: "a", size: TWO_BY_ONE });
   });
 
   it("given a commit, when undone, then the previous draft is saved again", () => {
@@ -284,7 +423,7 @@ describe("home edit machine sync", () => {
 
     actor.send({ type: "HIDE", id: "a" });
     actor.send({ type: "HIDE", id: "b" });
-    actor.send({ type: "SHOW", id: "z", size: "s" });
+    actor.send({ type: "SHOW", id: "z", size: ONE_BY_ONE });
     saves[0]?.resolve({ kind: "ok", revision: 2 });
     await waitFor(actor, () => saves.length === 2);
 
@@ -326,6 +465,25 @@ describe("home edit machine sync", () => {
     expect(saves[1]?.input.baseRevision).toBe(4);
     expect(idsOf(saves[1]?.input.blocks ?? [])).toEqual(["b", "c"]);
   });
+
+  it.each([
+    ["the advised layout", ADVISED, ["welcome", "a", "b", "c"]],
+    ["a saved layout", REMOTE, ["c", "a"]],
+  ])(
+    "given an advised home arranged on two devices, when the parent takes theirs, %s, then the first steps stay only while the home is advised",
+    async (_, theirs, shown) => {
+      const { actor, saves } = startEditing(ADVISED_INPUT, { type: "EDIT", advice: ADVICE });
+
+      actor.send({ type: "HIDE", id: "b" });
+      saves[0]?.resolve({ kind: "conflict", remote: { blocks: theirs, revision: 4 } });
+      await waitFor(actor, (state) => state.matches({ sync: "conflict" }));
+      actor.send({ type: "TAKE_THEIRS" });
+
+      expect(actor.getSnapshot().matches({ mode: "editing" })).toBe(true);
+      expect(idsOf(actor.getSnapshot().context.draft)).toEqual(shown);
+      expect(actor.getSnapshot().context.committed).toBe(theirs);
+    },
+  );
 
   it("given the echo of its own save, when it arrives, then no conflict opens", async () => {
     const { actor, saves } = startEditing();
@@ -412,7 +570,7 @@ describe("home edit machine rollback during a gesture", () => {
     const { actor, saves } = startEditing();
 
     actor.send({ type: "HIDE", id: "a" });
-    actor.send({ type: "SHOW", id: "a", size: "s" });
+    actor.send({ type: "SHOW", id: "a", size: ONE_BY_ONE });
     actor.send({ type: "KEY_LIFT", id: "b" });
     actor.send({ type: "KEY_MOVE", move: { kind: "edge", edge: "end" } });
     saves[0]?.resolve({ kind: "rejected" });
@@ -448,10 +606,9 @@ describe("home edit machine trusting the server over the copy kept on the device
 });
 
 describe("home edit machine on the advised layout", () => {
-  const ADVISED: Draft = [];
   const SHOWN: Draft = [
-    { id: "c", size: "l" },
-    { id: "b", size: "m" },
+    { id: "c", size: TWO_BY_TWO },
+    { id: "b", size: TWO_BY_ONE },
   ];
 
   function startOnAdvice() {
@@ -489,18 +646,26 @@ describe("home edit machine on the advised layout", () => {
     actor.send({ type: "KEY_MOVE", move: { kind: "edge", edge: "start" } });
     actor.send({ type: "KEY_DROP" });
 
-    expect(saves[0]?.input.blocks.map((block) => block.id)).toEqual(["b", "c"]);
+    expect(idsOf(saves[0]?.input.blocks ?? ADVISED)).toEqual(["b", "c"]);
   });
 
   it("given the advised home read, when a block is resized from its menu, then the advice as shown is saved resized", () => {
     const { actor, saves } = startOnAdvice();
 
-    actor.send({ type: "SIZE", id: "b", size: "l", from: SHOWN });
+    actor.send({ type: "SIZE", id: "b", drawn: TWO_BY_ONE, size: TWO_BY_TWO, from: SHOWN });
 
     expect(saves[0]?.input.blocks).toEqual([
-      { id: "c", size: "l" },
-      { id: "b", size: "l" },
+      { id: "c", size: TWO_BY_TWO },
+      { id: "b", size: TWO_BY_TWO },
     ]);
+  });
+
+  it("given the advice coming back from elsewhere as a copy while arranging, then the advice shown at the start stays shown", () => {
+    const { actor } = startEditing(ADVISED_INPUT, { type: "EDIT", advice: ADVICE });
+
+    actor.send({ type: "REMOTE_CHANGED", layout: { kind: "advised" }, revision: 2 });
+
+    expect(actor.getSnapshot().context.draft).toBe(ADVICE);
   });
 
   it("given an arranged home, when reset, then the advice is saved and shown for the rest of the session", () => {

@@ -8,15 +8,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { type EventCallback, GridLayout, useContainerWidth } from "react-grid-layout";
+import { type EventCallback, GridLayout, type Layout, useContainerWidth } from "react-grid-layout";
 import { defaultConstraints } from "react-grid-layout/core";
 import { touchFeedback } from "../../motion/haptic";
-import { type BlockSize, tallOnTablet } from "../dashboard-pack";
+import { type BlockSize, type BlockSizing, type GridColumns, sizeAt, sizeKey } from "../block-size";
 import type { Draft } from "../layout-commands";
 import type { LayoutBlock } from "../layout-migration";
-import { createCellCompactor } from "./cell-compactor";
-import { editGeometry, editGridConfig, type GridMetrics } from "./edit-geometry";
-import { sizeConstraint, sizeOfSpan } from "./size-constraint";
+import { createCellCompactor, heldStill } from "./cell-compactor";
+import { editGridConfig, editSlots, type FlowingTile, type GridMetrics } from "./edit-geometry";
+import { boundedLayout, pulledSize, type ResizeStart, sizeConstraint } from "./size-constraint";
 import { createWindowEdgeScroll, type Pointer, pointerOf } from "./window-edge-scroll";
 
 /** What the edit grid tells the edit mode, one discrete fact at a time, never a pointer frame. */
@@ -26,17 +26,19 @@ export interface EditGridEvents {
   onDrop: () => void;
   onCancel: () => void;
   onResizeStart: (id: string) => void;
-  onResize: (size: BlockSize) => void;
+  /** The rectangle the tile was drawn in when the gesture began, in cases, and the one it is pulled to. */
+  onResize: (drawn: BlockSize, size: BlockSize) => void;
   onResizeEnd: () => void;
 }
 
 export interface HomeEditGridProps extends EditGridEvents {
   order: Draft;
-  cols: number;
-  agendaPx: number | undefined;
-  resizable: boolean;
-  allowedOf: (id: string) => readonly BlockSize[];
-  tallSizesOf: (id: string) => readonly BlockSize[];
+  cols: GridColumns;
+  /** The tile drawn at the height of its content: it keeps that height, no handle changes it. */
+  flow: FlowingTile | undefined;
+  sizingOf: (id: string) => BlockSizing | undefined;
+  /** Blocks drawn where they stand while the others are arranged: no drag, no resize, never displaced. */
+  pinned: readonly string[];
   renderTile: (block: LayoutBlock) => ReactNode;
   /** Drawn until the grid knows its width and its row height: the read grid, in the same rectangles. */
   fallback: ReactNode;
@@ -46,7 +48,11 @@ const HANDLE = "[data-slot=dashboard-tile-toolbar]";
 
 const NOT_A_HANDLE = "[data-no-drag], [data-handle]";
 
-const RESIZE_HANDLES = ["se"] as const;
+const ONE_CASE: BlockSize = { w: 1, h: 1 };
+
+const UNPLACED = { x: 0, y: Number.MAX_SAFE_INTEGER };
+
+const RESIZE_HANDLES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"] as const;
 
 interface LiveResize {
   id: string;
@@ -55,9 +61,9 @@ interface LiveResize {
 
 /**
  * The home while it is arranged, on react-grid-layout: the same rectangles as the read grid, the
- * order packed by cells on every move, the page scrolled when the finger holds at its edge, and a
- * corner to resize where the pointer is fine and the grid wide. Loaded only once the parent
- * arranges their home.
+ * order packed by cells on every move, the page scrolled when the finger holds at its edge, and
+ * every edge and corner of a tile to resize it by whole cases, with a mouse or a finger. Loaded
+ * only once the parent arranges their home.
  */
 export default function HomeEditGrid(props: HomeEditGridProps) {
   const { width, containerRef, mounted } = useContainerWidth({ measureBeforeMount: true });
@@ -66,7 +72,7 @@ export default function HomeEditGrid(props: HomeEditGridProps) {
 
   return (
     <div ref={containerRef}>
-      <Dashboard ref={probe} aria-hidden className="invisible absolute h-0" />
+      <Dashboard ref={probe} columns={props.cols} aria-hidden className="invisible absolute h-0" />
       {mounted && metrics ? (
         <EditGrid {...props} width={width} metrics={metrics} />
       ) : (
@@ -83,10 +89,9 @@ interface EditGridProps extends HomeEditGridProps {
 
 function EditGrid({
   order,
-  agendaPx,
-  resizable,
-  allowedOf,
-  tallSizesOf,
+  flow,
+  sizingOf,
+  pinned,
   renderTile,
   width,
   metrics,
@@ -95,23 +100,27 @@ function EditGrid({
 }: EditGridProps) {
   const ids = useMemo(() => order.map(({ id }) => id), [order]);
   const live = useRef<LiveResize | null>(null);
-  const refs = useCompactorRefs(ids, order, metrics, agendaPx, tallSizesOf, live, events.onIndex);
+  const start = useRef<ResizeStart | null>(null);
+  const refs = useCompactorRefs(
+    { ids, order, metrics, flow, pinned },
+    sizingOf,
+    live,
+    events.onIndex,
+  );
   const [compactor] = useState(() => createCellCompactor(refs));
   const edge = useEdgeScroll();
-  const layout = useMemo(() => {
-    const sizeOf = (id: string) => sizeIn(order, id);
+  const slots = useMemo(() => {
+    const sizeOf = (id: string) => sizeAt(sizeIn(order, id), sizingOf(id), metrics.cols);
 
-    return editGeometry(
-      ids,
-      sizeOf,
-      metrics,
-      agendaPx,
-      tallOnTablet(tallSizesOf, sizeOf, metrics.cols),
-    );
-  }, [ids, order, metrics, agendaPx, tallSizesOf]);
+    return editSlots(ids, sizeOf, metrics, flow);
+  }, [ids, order, metrics, flow, sizingOf]);
+  const layout = useMemo(
+    () => heldStill(boundedLayout(slots, sizingOf, metrics, flow), pinned),
+    [slots, sizingOf, metrics, flow, pinned],
+  );
   const constraints = useMemo(
-    () => [...defaultConstraints, sizeConstraint(allowedOf, metrics)],
-    [allowedOf, metrics],
+    () => [...defaultConstraints, sizeConstraint(sizingOf, metrics)],
+    [sizingOf, metrics],
   );
   const config = editGridConfig(metrics);
   const lifted = useRef(false);
@@ -150,21 +159,27 @@ function EditGrid({
   };
 
   const onResizeStart: EventCallback = (_layout, item) => {
-    if (item) events.onResizeStart(item.i);
+    const drawn = item && slots.find((slot) => slot.item.i === item.i)?.units;
+    if (!item || !drawn) return;
+
+    start.current = { id: item.i, h: item.h, drawn };
+    events.onResizeStart(item.i);
   };
 
   const onResize: EventCallback = (_layout, _old, item) => {
-    if (!item) return;
+    const from = start.current;
+    if (!item || from?.id !== item.i) return;
 
-    const size = sizeOfSpan(item.w, item.h, metrics);
-    if (live.current?.size === size) return;
+    const size = pulledSize(from, item, sizingOf(item.i), metrics);
+    if (live.current?.size.w === size.w && live.current.size.h === size.h) return;
 
     live.current = { id: item.i, size };
-    events.onResize(size);
+    events.onResize(from.drawn, size);
   };
 
   const onResizeStop: EventCallback = () => {
     live.current = null;
+    start.current = null;
     events.onResizeEnd();
   };
 
@@ -177,7 +192,7 @@ function EditGrid({
       constraints={constraints}
       gridConfig={config}
       dragConfig={{ handle: HANDLE, cancel: NOT_A_HANDLE, threshold: 3 }}
-      resizeConfig={{ enabled: resizable, handles: RESIZE_HANDLES }}
+      resizeConfig={{ enabled: true, handles: RESIZE_HANDLES }}
       onDragStart={onDragStart}
       onDrag={onDrag}
       onDragStop={onDragStop}
@@ -185,12 +200,13 @@ function EditGrid({
       onResize={onResize}
       onResizeStop={onResizeStop}
     >
-      {order.map((block) => (
+      {inReadingOrder(order, layout).map((block) => (
         <div
           key={block.id}
           data-block={block.id}
-          data-size={block.size}
-          className={config.tileGap ? "flex flex-col pb-4" : "flex flex-col"}
+          data-size={sizeKey(block.size)}
+          data-gap-below={config.tileGap ? "" : undefined}
+          className="flex flex-col"
         >
           {renderTile(block)}
         </div>
@@ -201,7 +217,7 @@ function EditGrid({
 
 function useGridMetrics(
   probe: RefObject<HTMLDivElement | null>,
-  cols: number,
+  cols: GridColumns,
   width: number,
 ): GridMetrics | null {
   const [metrics, setMetrics] = useState<GridMetrics | null>(null);
@@ -224,17 +240,25 @@ function useGridMetrics(
   return metrics;
 }
 
+interface CompactorInputs {
+  ids: readonly string[];
+  order: Draft;
+  metrics: GridMetrics;
+  flow: FlowingTile | undefined;
+  pinned: readonly string[];
+}
+
 function useCompactorRefs(
-  ids: readonly string[],
-  order: Draft,
-  metrics: GridMetrics,
-  agendaPx: number | undefined,
-  tallSizesOf: (id: string) => readonly BlockSize[],
+  { ids, order, metrics, flow, pinned }: CompactorInputs,
+  sizingOf: (id: string) => BlockSizing | undefined,
   live: RefObject<LiveResize | null>,
   onIndex: (index: number) => void,
 ) {
-  const sizeOf = (id: string): BlockSize =>
-    live.current?.id === id ? live.current.size : sizeIn(order, id);
+  const sizeOf = (id: string): BlockSize => {
+    const size = live.current?.id === id ? live.current.size : sizeIn(order, id);
+
+    return sizeAt(size, sizingOf(id), metrics.cols);
+  };
   const reportIndex = (_id: string, index: number) => {
     touchFeedback("step");
     onIndex(index);
@@ -243,24 +267,37 @@ function useCompactorRefs(
     order: useRef(ids),
     active: useRef<string | null>(null),
     metrics: useRef(metrics),
-    agendaPx: useRef(agendaPx),
+    flow: useRef(flow),
     sizeOf: useRef(sizeOf),
-    tallOf: useRef(tallOnTablet(tallSizesOf, sizeOf, metrics.cols)),
     onIndexChange: useRef(reportIndex),
+    pinned: useRef(pinned),
   };
 
   refs.order.current = ids;
   refs.metrics.current = metrics;
-  refs.agendaPx.current = agendaPx;
+  refs.flow.current = flow;
   refs.sizeOf.current = sizeOf;
-  refs.tallOf.current = tallOnTablet(tallSizesOf, sizeOf, metrics.cols);
   refs.onIndexChange.current = reportIndex;
+  refs.pinned.current = pinned;
 
   return refs;
 }
 
 function sizeIn(order: Draft, id: string): BlockSize {
-  return order.find((block) => block.id === id)?.size ?? "m";
+  return order.find((block) => block.id === id)?.size ?? ONE_CASE;
+}
+
+/** The blocks in the order a reader meets them on the grid, row by row: the order of the DOM and of Tab. */
+function inReadingOrder(order: Draft, layout: Layout): Draft {
+  const place = new Map(layout.map((item) => [item.i, item]));
+  const placeOf = (id: string) => place.get(id) ?? UNPLACED;
+
+  return [...order].sort((a, b) => {
+    const first = placeOf(a.id);
+    const second = placeOf(b.id);
+
+    return first.y - second.y || first.x - second.x;
+  });
 }
 
 interface EdgeScroll {

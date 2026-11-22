@@ -1,23 +1,12 @@
 import type { Layout } from "react-grid-layout";
-import {
-  type BlockSize,
-  type GridItem,
-  type PackedItem,
-  pack,
-  toGrid,
-  unitsFor,
-} from "../dashboard-pack";
-
-export const AGENDA_BLOCK_ID = "calendar";
+import type { BlockSize, GridColumns } from "../block-size";
+import { type GridItem, type Placed, pack, toGrid } from "../dashboard-pack";
 
 export interface GridMetrics {
-  cols: number;
+  cols: GridColumns;
   rowHeight: number;
   gap: number;
 }
-
-/** Whether a block takes one more row at this width, the same answer read and edit both ask. */
-export type TallOf = (id: string) => boolean;
 
 export interface EditGridConfig {
   cols: number;
@@ -25,6 +14,12 @@ export interface EditGridConfig {
   margin: readonly [number, number];
   containerPadding: readonly [number, number];
   tileGap: number;
+}
+
+/** The tile drawn at the height of its content on a phone, and that height in pixels, measured as read. */
+export interface FlowingTile {
+  id: string;
+  px: number;
 }
 
 export interface EditSlot {
@@ -35,7 +30,7 @@ export interface EditSlot {
 const PIXEL_ROW = 1;
 
 export function hasPixelRows({ cols }: GridMetrics): boolean {
-  return unitsFor(cols) === 2;
+  return cols === 1;
 }
 
 export function rowsPerUnit(metrics: GridMetrics): number {
@@ -63,37 +58,38 @@ export function editGeometry(
   order: readonly string[],
   sizeOf: (id: string) => BlockSize,
   metrics: GridMetrics,
-  agendaPx?: number,
-  tallOf?: TallOf,
+  flow?: FlowingTile,
 ): Layout {
-  return editSlots(order, sizeOf, metrics, agendaPx, tallOf).map(({ item }) => item);
+  return editSlots(order, sizeOf, metrics, flow).map(({ item }) => item);
 }
 
 export function editSlots(
   order: readonly string[],
   sizeOf: (id: string) => BlockSize,
   metrics: GridMetrics,
-  agendaPx?: number,
-  tallOf?: TallOf,
+  flow?: FlowingTile,
 ): EditSlot[] {
-  const packed = pack(order, sizeOf, unitsFor(metrics.cols), tallOf).items;
-  const items = toGrid(packed, metrics.cols);
-  const placed = hasPixelRows(metrics) ? toPixelRows(packed, items, metrics, agendaPx) : items;
+  const packed = pack(
+    order.map((id) => ({ id, size: sizeOf(id) })),
+    metrics.cols,
+  );
+  const items = toGrid(packed);
+  const placed = hasPixelRows(metrics) ? toPixelRows(packed, items, metrics, flow) : items;
 
   return placed.map((item, index) => ({ item, units: unitSpanOf(packed[index]) }));
 }
 
-function unitSpanOf(packed: PackedItem | undefined): EditSlot["units"] {
+function unitSpanOf(packed: Placed | undefined): EditSlot["units"] {
   return { w: packed?.w ?? 1, h: packed?.h ?? 1 };
 }
 
 function toPixelRows(
-  packed: readonly PackedItem[],
+  packed: readonly Placed[],
   items: readonly GridItem[],
   metrics: GridMetrics,
-  agendaPx: number | undefined,
+  flow: FlowingTile | undefined,
 ): GridItem[] {
-  const tops = rowTops(rowHeights(packed, metrics, agendaPx));
+  const tops = rowTops(rowHeights(packed, metrics, flow));
   const topOf = (row: number) => tops[row] ?? 0;
 
   return items.map((item) => ({
@@ -104,17 +100,17 @@ function toPixelRows(
 }
 
 function rowHeights(
-  packed: readonly PackedItem[],
+  packed: readonly Placed[],
   metrics: GridMetrics,
-  agendaPx: number | undefined,
+  flow: FlowingTile | undefined,
 ): number[] {
   const rows = Math.max(0, ...packed.map(({ y, h }) => y + h));
   const heights = Array.from({ length: rows }, () => rowsPerUnit(metrics));
-  const agenda = packed.find(({ id }) => id === AGENDA_BLOCK_ID);
-  if (!agenda || agendaPx === undefined) return heights;
+  const flowing = packed.find(({ id }) => id === flow?.id);
+  if (!flowing || !flow) return heights;
 
-  heights.fill(0, agenda.y, agenda.y + agenda.h);
-  heights[agenda.y] = agendaPx + metrics.gap;
+  heights.fill(0, flowing.y, flowing.y + flowing.h);
+  heights[flowing.y] = flow.px + metrics.gap;
 
   return heights;
 }

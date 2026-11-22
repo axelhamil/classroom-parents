@@ -2,8 +2,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
+  ContextMenuLabel,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
@@ -15,8 +14,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@packages/ui/components/ui/dropdown-menu";
@@ -28,17 +25,62 @@ import {
   MoveDownIcon,
   MoveUpIcon,
 } from "@packages/ui/components/ui/icons";
+import type { TFunction } from "i18next";
 import { type ReactElement, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { BLOCK_SIZES, type BlockSize } from "./dashboard-pack";
+import type { BlockSize, Bounds } from "./block-size";
+import { type SizeStep, steppedStored } from "./layout-commands";
 
 /** What the menu of a tile can do to its block, already bound to it. */
 export interface TileCommands {
   title: string;
+  /** The size the tile is drawn at, in cases. */
   size: BlockSize;
-  allowed: readonly BlockSize[];
-  onSize: (size: BlockSize) => void;
+  /** The size the layout keeps for the block: a command that would not change it is greyed out. */
+  stored: BlockSize;
+  /** The bounds it may be resized within at this width of the grid. */
+  bounds: Bounds;
+  onStep: (change: SizeStep) => void;
   onHide: () => void;
+}
+
+interface SizeCommand {
+  change: SizeStep;
+  label: "edit.widen" | "edit.narrow" | "edit.grow" | "edit.shorten";
+}
+
+const SIZE_COMMANDS: readonly SizeCommand[] = [
+  { change: { axis: "w", step: 1 }, label: "edit.widen" },
+  { change: { axis: "w", step: -1 }, label: "edit.narrow" },
+  { change: { axis: "h", step: 1 }, label: "edit.grow" },
+  { change: { axis: "h", step: -1 }, label: "edit.shorten" },
+];
+
+interface SizeChoice {
+  key: string;
+  label: string;
+  disabled: boolean;
+  select: (event: Event) => void;
+}
+
+/**
+ * The four size commands of a tile, each greyed once it would keep no new size: stopped by a bound,
+ * or narrowing a tile the grid grew past a size already as small. Choosing one keeps the menu open,
+ * so a block is stepped to its size without reopening it.
+ */
+function sizeChoices(
+  t: TFunction<"home">,
+  { size, stored, bounds, onStep }: Pick<TileCommands, "size" | "stored" | "bounds" | "onStep">,
+): SizeChoice[] {
+  return SIZE_COMMANDS.map(({ change, label }) => ({
+    key: label,
+    label: t(label),
+    disabled: steppedStored(stored, size, change, bounds) === undefined,
+    select: (event) => {
+      event.preventDefault();
+      onStep(change);
+    },
+  }));
 }
 
 export interface TileEditMenuProps extends TileCommands {
@@ -49,15 +91,16 @@ export interface TileEditMenuProps extends TileCommands {
 }
 
 /**
- * The menu of a tile while the home is arranged: its size among the ones the block allows, a row
- * up or down, and hiding it. Every change a drag makes is reachable here with one pointer or the
- * keyboard alone (WCAG 2.5.7).
+ * The menu of a tile while the home is arranged: its size now and the commands that widen, narrow,
+ * grow or shorten it, a row up or down, and hiding it. Every change a drag makes is reachable here
+ * with one pointer or the keyboard alone (WCAG 2.5.7).
  */
 export function TileEditMenu({
   title,
   size,
-  allowed,
-  onSize,
+  stored,
+  bounds,
+  onStep,
   onHide,
   onMoveUp,
   onMoveDown,
@@ -88,14 +131,12 @@ export function TileEditMenu({
           onHidden();
         }}
       >
-        <DropdownMenuLabel>{t("edit.size")}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={size} onValueChange={(next) => onSize(sizeOf(next, size))}>
-          {offered(allowed).map((choice) => (
-            <DropdownMenuRadioItem key={choice} value={choice}>
-              {t(`sizes.${choice}`)}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+        <DropdownMenuLabel>{t("edit.sizeNow", { w: size.w, h: size.h })}</DropdownMenuLabel>
+        {sizeChoices(t, { size, stored, bounds, onStep }).map((choice) => (
+          <DropdownMenuItem key={choice.key} disabled={choice.disabled} onSelect={choice.select}>
+            {choice.label}
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onMoveUp}>
           <MoveUpIcon aria-hidden />
@@ -134,8 +175,9 @@ export function TileContextMenu({
   header,
   title,
   size,
-  allowed,
-  onSize,
+  stored,
+  bounds,
+  onStep,
   onHide,
   onEdit,
 }: TileContextMenuProps) {
@@ -152,16 +194,12 @@ export function TileContextMenu({
         <ContextMenuSub>
           <ContextMenuSubTrigger>{t("edit.size")}</ContextMenuSubTrigger>
           <ContextMenuSubContent>
-            <ContextMenuRadioGroup
-              value={size}
-              onValueChange={(next) => onSize(sizeOf(next, size))}
-            >
-              {offered(allowed).map((choice) => (
-                <ContextMenuRadioItem key={choice} value={choice}>
-                  {t(`sizes.${choice}`)}
-                </ContextMenuRadioItem>
-              ))}
-            </ContextMenuRadioGroup>
+            <ContextMenuLabel>{t("edit.sizeNow", { w: size.w, h: size.h })}</ContextMenuLabel>
+            {sizeChoices(t, { size, stored, bounds, onStep }).map((choice) => (
+              <ContextMenuItem key={choice.key} disabled={choice.disabled} onSelect={choice.select}>
+                {choice.label}
+              </ContextMenuItem>
+            ))}
           </ContextMenuSubContent>
         </ContextMenuSub>
         <ContextMenuSeparator />
@@ -172,12 +210,4 @@ export function TileContextMenu({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
-
-function offered(allowed: readonly BlockSize[]): BlockSize[] {
-  return BLOCK_SIZES.filter((size) => allowed.includes(size));
-}
-
-function sizeOf(value: string, fallback: BlockSize): BlockSize {
-  return BLOCK_SIZES.find((size) => size === value) ?? fallback;
 }
