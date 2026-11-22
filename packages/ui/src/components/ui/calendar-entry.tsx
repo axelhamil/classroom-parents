@@ -32,7 +32,8 @@ const calendarEntryVariants = cva(
         comfortable: "",
         compact: [
           "gap-2 px-block-compact py-1.5 [&>[data-slot=calendar-entry-body]]:gap-0.5 [&_[data-slot=calendar-entry-link]]:line-clamp-2 [&_[data-slot=calendar-entry-link]]:leading-snug",
-          "@container/entry @max-3xs/entry:[&_[data-slot=deadline-category]>span]:sr-only",
+          "@container/entry [&_[data-slot=deadline-category]]:whitespace-nowrap [&_[data-part=short]]:hidden @max-3xs/entry:[&_[data-part=short]]:inline @max-3xs/entry:[&_[data-part=word]]:sr-only",
+          "[&_[data-slot=calendar-entry-meta]>*]:shrink-0 [&_[data-slot=calendar-entry-meta]>[data-part=course]]:min-w-0 [&_[data-slot=calendar-entry-meta]>[data-part=course]]:shrink [&_[data-slot=calendar-entry-meta]>[data-part=course]]:grow [&_[data-slot=calendar-entry-meta]>[data-part=course]]:basis-0 [&_[data-slot=calendar-entry-meta]>[data-part=course]]:truncate",
         ],
       },
     },
@@ -49,9 +50,10 @@ const calendarEntryVariants = cva(
  * One deadline of the agenda, its checkbox on the left, centred on the first line of the title
  * whatever the type scale, its 44 px target drawn around it rather than by the card's height.
  * `density="compact"` is the card of the planner and the thread: two lines of title at most and
- * one line of meta, so three deadlines of a day stand in a tile without a scroll. In a narrow
- * card the category keeps its icon and its word is only read, so the meta stays on one line
- * without cutting anything.
+ * one line of meta, so three deadlines of a day stand in a tile without a scroll. The meta keeps
+ * the category's icon and word (its short word in a narrow card, the full one read), then the
+ * time, then the course, which gives way first: it takes what room is left and ends in an
+ * ellipsis, its full name in its `title` and read.
  * `surface="tint"` fills it with its child's hue, which tells two
  * children apart; `surface="paper"` is the neutral card of a family with one child, whose hue
  * only remains as an edge on the leading side, and `urgent` or `overdue` is that paper breathed

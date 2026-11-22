@@ -238,6 +238,14 @@ export default {
     document_due: "Document à rendre",
     other: "Autre",
   },
+  categoriesShort: {
+    assessment: "Éval.",
+    homework: "Devoir",
+    school_trip: "Sortie",
+    swimming: "Piscine",
+    document_due: "Doc.",
+    other: "Autre",
+  },
   origins: {
     announcement: "annonce Classroom reçue {{when}}",
     coursework: "devoir Classroom reçu {{when}}",
