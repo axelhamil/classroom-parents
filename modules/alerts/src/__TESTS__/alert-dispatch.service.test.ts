@@ -411,12 +411,12 @@ describe("grouping", () => {
       title: "many",
       body: "Devoir 0 | Devoir 1 | Devoir 2 | Devoir 3 | Devoir 4",
       url: "https://app.example.com/",
-      tag: "alerts-2026-11-13-18:00",
+      tag: "alerts-2026-11-13T17:00",
       notificationRef: expect.stringMatching(/^reminders:[0-9a-f]{16}$/),
     });
     expect(push.send.mock.calls[0]?.[2]).toEqual({
       ttlSeconds: 7200,
-      topic: "alerts202611131800",
+      topic: "alerts202611131700",
       urgency: "high",
     });
     expect(enqueuedEvents(outbox).map(({ eventType }) => eventType)).toEqual(
@@ -470,12 +470,12 @@ describe("grouping", () => {
 
     expect(result.getValue()).toEqual({ claimed: 4, sent: 4, emailed: 0, missed: 0 });
     expect(push.send.mock.calls.map(([, message]) => message.tag).toSorted()).toEqual([
-      "alerts-2026-11-13-16:00",
-      "alerts-2026-11-13-17:00",
+      "alerts-2026-11-13T15:00",
+      "alerts-2026-11-13T16:00",
     ]);
     expect(push.send.mock.calls.map(([, , options]) => options.topic).toSorted()).toEqual([
+      "alerts202611131500",
       "alerts202611131600",
-      "alerts202611131700",
     ]);
   });
 
@@ -491,7 +491,7 @@ describe("grouping", () => {
     expect(email.sendGroup).toHaveBeenCalledTimes(1);
     const [to, content] = email.sendGroup.mock.calls[0] ?? [];
     expect(to).toBe("parent@example.com");
-    expect(content?.groupKey).toStartWith(`alerts-2026-11-13-18:00-${PARENT}-`);
+    expect(content?.groupKey).toStartWith(`alerts-2026-11-13T17:00-${PARENT}-`);
     expect(content?.items.map(({ eventTitle }) => eventTitle)).toEqual(["Devoir 0", "Devoir 1"]);
     expect(content?.appUrl).toBe("https://app.example.com/");
   });

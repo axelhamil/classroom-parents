@@ -1,0 +1,1 @@
+ALTER TABLE "event" ADD COLUMN "school_time_zone" text DEFAULT 'Europe/Paris' NOT NULL;

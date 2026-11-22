@@ -52,6 +52,10 @@ const DAY_FIRST = new RegExp(
   `(?:${WEEKDAY}${BEFORE_DAY})?${DAY}(?:${LINK}${MONTH}|\\s*/\\s*(\\d{1,2})(?!\\d))?`,
   "gu",
 );
+const PERIOD_START = new RegExp(
+  `${DAY}\\s*(?:au|a|to|-|–|al|ate|ila|الى)\\s*${DAY}${LINK}${MONTH}`,
+  "gu",
+);
 const MONTH_FIRST = new RegExp(`(?:${WEEKDAY}[\\s,]+)?${MONTH}\\s+${DAY}`, "gu");
 
 interface DayAndMonth {
@@ -172,8 +176,20 @@ function monthFirstDays(text: string): WrittenDay[] {
   });
 }
 
+type PeriodBound = "start" | "end";
+
+function periodBounds(text: string, bound: PeriodBound): Required<DayAndMonth>[] {
+  return Array.from(text.matchAll(PERIOD_START)).flatMap(([, start, end, monthName]) => {
+    const month = MONTH_NAMES.get(monthName ?? "");
+    const dayValue = Number(bound === "start" ? start : end);
+    if (month === undefined || !isDay(dayValue)) return [];
+
+    return [{ day: dayValue, month }];
+  });
+}
+
 function writtenDays(text: string, order: DateOrder | null): WrittenDay[] {
-  return [...dayFirstDays(text, order), ...monthFirstDays(text)];
+  return [...dayFirstDays(text, order), ...monthFirstDays(text), ...periodBounds(text, "start")];
 }
 
 function sameDayAndMonth(written: DayAndMonth, deadline: Required<DayAndMonth>): boolean {
@@ -309,6 +325,35 @@ function quotesAreInSource(candidate: ExtractedCandidate, source: string): boole
   const expression = normalizeForMatch(candidate.dateExpression);
 
   return quote !== "" && expression !== "" && source.includes(quote) && source.includes(expression);
+}
+
+/**
+ * Whether the deadline is the day and month the date expression writes: a weekday that
+ * contradicts it is then the teacher's slip, which a second reading cannot settle.
+ */
+export function keepsTheWrittenDate(candidate: ExtractedCandidate, context: CheckContext): boolean {
+  const deadline = partsOf(candidate.deadlineDate);
+
+  return writtenDays(normalizeForMatch(candidate.dateExpression), context.dateOrder).some(
+    (written) => written.month !== undefined && sameDayAndMonth(written, deadline),
+  );
+}
+
+/**
+ * Whether the announcement writes a day and month that no read deadline or amendment carries:
+ * a fast reading that left a dated sentence out is worth a second one.
+ */
+export function leavesAWrittenDateOut(
+  source: string,
+  readDates: readonly string[],
+  dateOrder: DateOrder | null,
+): boolean {
+  const text = normalizeForMatch(source);
+  const covered = [...readDates.map(partsOf), ...periodBounds(text, "end")];
+
+  return writtenDays(text, dateOrder)
+    .filter((written) => written.month !== undefined && written.otherReading === undefined)
+    .some((written) => !covered.some((day) => sameDayAndMonth(written, day)));
 }
 
 export function reviewReasonsFor(

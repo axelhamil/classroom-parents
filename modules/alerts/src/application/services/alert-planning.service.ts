@@ -2,7 +2,7 @@ import { type AppError, type IInstrumentation, type IUnitOfWork, Result } from "
 import { EventTypes } from "@packages/events";
 import { type BatchedEvent, emitEvents } from "@packages/outbox/event-emitter";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
-import { Alert } from "../../domain/alert.aggregate";
+import { Alert, type ParentClock } from "../../domain/alert.aggregate";
 import { AlertOrigin } from "../../domain/value-objects/alert-origin.vo";
 import { AlertTime } from "../../domain/value-objects/alert-time.vo";
 import { QuietHours } from "../../domain/value-objects/quiet-hours.vo";
@@ -13,6 +13,7 @@ import type {
   IEventDeadlines,
   UpcomingDeadline,
 } from "../ports/event-deadlines.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
 import type { IReminderSettingsRepository } from "../ports/reminder-settings.port";
 import {
   type ApplicableReminders,
@@ -75,6 +76,7 @@ export class AlertPlanningService {
     private readonly alerts: IAlertRepository,
     private readonly settings: IReminderSettingsRepository,
     private readonly deadlines: IEventDeadlines,
+    private readonly timeZones: IParentTimeZone,
     private readonly transactions: IUnitOfWork,
     private readonly outbox: IOutboxRepository,
     private readonly instrumentation: IInstrumentation,
@@ -87,6 +89,18 @@ export class AlertPlanningService {
 
   async replan(event: PlannedEvent): Promise<Result<void, AppError>> {
     return this.span("replan", () => this.follow(event));
+  }
+
+  async followTimeZone(
+    userId: string,
+    actorUserId: string | null,
+  ): Promise<Result<void, AppError>> {
+    return this.span("followTimeZone", async () => {
+      const upcoming = await this.deadlines.upcomingFor(userId, this.clock());
+      if (upcoming.isFailure) return Result.fail(upcoming.getError());
+
+      return this.replanUpcoming(userId, upcoming.getValue(), actorUserId);
+    });
   }
 
   async replanUpcoming(
@@ -109,7 +123,7 @@ export class AlertPlanningService {
         if (quiet.isFailure) return Result.fail(quiet.getError());
 
         const changes = noChanges();
-        const now = this.clock();
+        const clock = await this.parentClock(userId);
         for (const deadline of upcoming) {
           const own = plans.getValue().get(deadline.eventId);
           const planned = this.plan(
@@ -119,7 +133,7 @@ export class AlertPlanningService {
             own ? fromEventPlan(own) : fromDefaults(defaults.getValue()),
             quiet.getValue(),
             found.getValue().filter((alert) => alert.get("eventId") === deadline.eventId),
-            now,
+            clock,
           );
           if (planned.isFailure) return planned;
         }
@@ -166,7 +180,7 @@ export class AlertPlanningService {
         applicable.getValue(),
         quiet.getValue(),
         found.getValue(),
-        this.clock(),
+        await this.parentClock(event.userId),
       );
       if (planned.isFailure) return planned;
       return this.write(changes);
@@ -180,17 +194,17 @@ export class AlertPlanningService {
     { reminders, origin }: ApplicableReminders,
     quiet: QuietHours,
     existing: Alert[],
-    now: Date,
+    clock: ParentClock,
   ): Result<void, AlertsError> {
     if (deadline.done || (deadline.needsReview && origin.equals(AlertOrigin.byDefault()))) {
       this.cancelAll(changes, existing, event.actorUserId);
       return Result.ok();
     }
 
-    const target = reminderTarget(deadline);
+    const target = reminderTarget(deadline, clock.timeZone);
     const planned = reminders
       .plan(target)
-      .flatMap((items) => this.timed(items, quiet, existing, target, now));
+      .flatMap((items) => this.timed(items, quiet, existing, target, clock));
     if (planned.isFailure) return Result.fail(corrupted(planned.getError()));
 
     const kept = new Set(planned.getValue().map(({ reminder }) => reminder.key()));
@@ -204,12 +218,19 @@ export class AlertPlanningService {
       const alert = existing.find((candidate) => candidate.key() === reminder.key());
       if (alert) {
         const before = occurrenceOf(alert);
-        alert.follow({ time, origin }, target, quiet, now);
+        alert.follow({ time, origin }, target, quiet, clock);
         this.record(changes, alert, before, event.actorUserId);
         continue;
       }
 
-      const scheduled = Alert.schedule({ ...event, reminder, time, origin, deadline: target, now });
+      const scheduled = Alert.schedule({
+        ...event,
+        reminder,
+        time,
+        origin,
+        deadline: target,
+        now: clock.now,
+      });
       if (scheduled.isPending()) this.record(changes, scheduled, NO_OCCURRENCE, event.actorUserId);
     }
     return Result.ok();
@@ -220,16 +241,16 @@ export class AlertPlanningService {
     quiet: QuietHours,
     existing: Alert[],
     target: ReminderTarget,
-    now: Date,
+    clock: ParentClock,
   ): Result<PlannedReminder[]> {
     const timed: PlannedReminder[] = [];
     for (const { reminder, time } of planned) {
-      const shifted = quiet.shift(time, target.at, now);
+      const shifted = quiet.shift(time, target.at, clock.now, clock.timeZone);
       if (shifted.isFailure) return Result.fail(shifted.getError());
       if (timed.some((kept) => kept.time.equals(shifted.getValue()))) continue;
       timed.push({ reminder, time: shifted.getValue() });
     }
-    return this.withLateAlert(timed, quiet, existing, target, now);
+    return this.withLateAlert(timed, quiet, existing, target, clock);
   }
 
   private withLateAlert(
@@ -237,7 +258,7 @@ export class AlertPlanningService {
     quiet: QuietHours,
     existing: Alert[],
     target: ReminderTarget,
-    now: Date,
+    { now, timeZone }: ParentClock,
   ): Result<PlannedReminder[]> {
     const last = latest(planned);
     if (!last) return Result.ok(planned);
@@ -260,10 +281,14 @@ export class AlertPlanningService {
     );
     const time = already
       ? Result.ok<AlertTime>(already.get("time"))
-      : nextMinute(now).flatMap((soon) => quiet.shift(soon, target.at, now));
+      : nextMinute(now).flatMap((soon) => quiet.shift(soon, target.at, now, timeZone));
     return time.map((late) =>
       planned.map((item) => (item === last ? { ...item, time: late } : item)),
     );
+  }
+
+  private async parentClock(userId: string): Promise<ParentClock> {
+    return { now: this.clock(), timeZone: await this.timeZones.of(userId) };
   }
 
   private async quietHoursOf(userId: string): Promise<Result<QuietHours, AlertsError>> {

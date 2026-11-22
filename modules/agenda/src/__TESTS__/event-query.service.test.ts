@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE } from "@packages/ddd-kit/zoned-time";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import type { CourseName, ICourseNames } from "../application/ports/course-names.port";
@@ -8,6 +9,7 @@ import type {
   EventPage,
   IEventRepository,
 } from "../application/ports/event-repository.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import type { IVisibleChildren } from "../application/ports/visible-children.port";
 import { EventPresenter } from "../application/services/event-presenter";
 import { EventQueryService } from "../application/services/event-query.service";
@@ -20,6 +22,7 @@ const LEAVING = "0196a000-0000-7000-8000-000000000002";
 let repo: PortMock<IEventRepository>;
 let children: PortMock<IVisibleChildren>;
 let courseNames: PortMock<ICourseNames>;
+let timeZones: PortMock<IParentTimeZone>;
 let service: EventQueryService;
 
 const MATHS: CourseName = { childId: CHILD, courseId: "course-1", name: "Mathématiques 4e B" };
@@ -30,11 +33,14 @@ beforeEach(() => {
   children.idsOf.mockResolvedValue(Result.ok([CHILD]));
   courseNames = mockPort<ICourseNames>();
   courseNames.namesOf.mockResolvedValue(Result.ok<CourseName[], AppError>([MATHS]));
+  timeZones = mockPort<IParentTimeZone>();
+  timeZones.of.mockResolvedValue(PARIS_TIME_ZONE);
   const instrumentation = mockInstrumentation();
   service = new EventQueryService(
     repo,
     children,
     new EventPresenter(courseNames, instrumentation),
+    timeZones,
     instrumentation,
   );
 });
@@ -190,6 +196,22 @@ describe("calendar", () => {
     expect(filter?.range.value.to).toBe("2026-11-30");
     expect(result.getValue().items).toHaveLength(1);
   });
+
+  it.each([
+    ["Montreal", "America/Toronto", "2026-11-26T05:00:00.000Z", "2026-11-27T05:00:00.000Z"],
+    ["Casablanca", "Africa/Casablanca", "2026-11-25T23:00:00.000Z", "2026-11-26T23:00:00.000Z"],
+  ])(
+    "given a parent in %s, then the calendar day runs between two midnights of the parent's zone",
+    async (_city, timeZone, startsAt, endsBefore) => {
+      timeZones.of.mockResolvedValue(timeZone);
+
+      await service.listCalendar(PARENT, { from: "2026-11-26", to: "2026-11-26" });
+
+      const [, filter] = repo.listCalendar.mock.calls[0] ?? [];
+      expect(filter?.range.value.startsAt).toEqual(new Date(startsAt));
+      expect(filter?.range.value.endsBefore).toEqual(new Date(endsBefore));
+    },
+  );
 
   it("given more than 62 days, then EVENT_RANGE_INVALID and nothing is read", async () => {
     const result = await service.listCalendar(PARENT, { from: "2026-11-01", to: "2027-01-02" });

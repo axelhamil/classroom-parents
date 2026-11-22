@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { type AppError, Option, Result } from "@packages/ddd-kit";
+import { PARIS_TIME_ZONE, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import { EventTypes } from "@packages/events";
 import type { IOutboxRepository } from "@packages/outbox/outbox.port";
 import { enqueuedEvents } from "@packages/outbox/testing/enqueued-events";
 import { mockPort, type PortMock } from "@packages/test/bun";
 import { mockInstrumentation } from "@packages/test/bun/instrumentation";
 import { mockUnitOfWork } from "@packages/test/bun/unit-of-work";
+import { onParentTimeZoneChanged } from "../application/event-handlers/on-parent-time-zone-changed";
 import type { AlertsError, IAlertRepository } from "../application/ports/alert-repository.port";
 import type { EventDeadline, IEventDeadlines } from "../application/ports/event-deadlines.port";
+import type { IParentTimeZone } from "../application/ports/parent-time-zone.port";
 import type { IReminderSettingsRepository } from "../application/ports/reminder-settings.port";
 import { AlertPlanningService } from "../application/services/alert-planning.service";
 import type { Alert } from "../domain/alert.aggregate";
@@ -21,6 +24,7 @@ const NOW = new Date("2026-11-10T09:00:00.000Z");
 let alerts: PortMock<IAlertRepository>;
 let settings: PortMock<IReminderSettingsRepository>;
 let deadlines: PortMock<IEventDeadlines>;
+let timeZones: PortMock<IParentTimeZone>;
 let outbox: PortMock<IOutboxRepository>;
 let service: AlertPlanningService;
 
@@ -97,8 +101,12 @@ beforeEach(() => {
   settings = mockPort<IReminderSettingsRepository>();
   deadlines = mockPort<IEventDeadlines>();
   outbox = mockPort<IOutboxRepository>();
+  timeZones = mockPort<IParentTimeZone>();
+  timeZones.of.mockResolvedValue(PARIS_TIME_ZONE);
 
   givenAlerts();
+  alerts.lockOwnedMany.mockResolvedValue(Result.ok<Alert[], AlertsError>([]));
+  settings.eventPlansFor.mockResolvedValue(Result.ok(new Map()));
   alerts.saveMany.mockResolvedValue(Result.ok());
   settings.defaultsFor.mockResolvedValue(Result.ok(Option.none()));
   settings.eventPlanFor.mockResolvedValue(Result.ok(Option.none()));
@@ -109,6 +117,7 @@ beforeEach(() => {
     alerts,
     settings,
     deadlines,
+    timeZones,
     mockUnitOfWork().unitOfWork,
     outbox,
     mockInstrumentation(),
@@ -479,24 +488,20 @@ describe("replan when the deadline moves", () => {
 
     await service.replan(planned);
 
-    expect(saved()?.get("time").value).toEqual({
-      date: "2027-03-28",
-      time: "03:30",
-      at: new Date("2027-03-28T01:30:00.000Z"),
-    });
+    expect(saved()?.get("time").value).toEqual({ at: new Date("2027-03-28T01:30:00.000Z") });
   });
 });
 
 describe("the hour repeated when Paris goes back to winter time", () => {
-  it("given reminders 6 and 7 hours before a deadline at 08:00 on 2027-10-31, then both resolve to 00:00 UTC and merge into one alert", async () => {
+  it("given reminders 6 and 7 hours before a deadline at 08:00 on 2027-10-31, then each rings at its own instant through the repeated hour", async () => {
     givenEvent(deadlineOn("2027-10-31", "08:00"));
     givenDefaults(hours(6), hours(7));
     givenQuietHours(QUIET_HOURS_OFF);
 
     await service.replan(planned);
 
-    expect(savedAlerts().map((alert) => alert.key())).toEqual(["h6"]);
-    expect(dueTimes()).toEqual(["2027-10-31T00:00:00.000Z"]);
+    expect(savedAlerts().map((alert) => alert.key())).toEqual(["h6", "h7"]);
+    expect(dueTimes()).toEqual(["2027-10-31T01:00:00.000Z", "2027-10-31T00:00:00.000Z"]);
   });
 });
 
@@ -704,6 +709,7 @@ describe("late deadlines", () => {
       alerts,
       settings,
       deadlines,
+      timeZones,
       mockUnitOfWork().unitOfWork,
       outbox,
       mockInstrumentation(),
@@ -714,5 +720,100 @@ describe("late deadlines", () => {
     await nightService.planDefault(planned);
 
     expect(dueTimes()).toEqual([paris("2026-11-11", "07:00").toISOString()]);
+  });
+});
+
+const wallIn = (timeZone: string) => (date: string, time: string) =>
+  zonedWallTimeToUtc(date, time, timeZone).unwrapOr(new Date(Number.NaN));
+
+const PARENTS = [
+  ["Montreal", "America/Toronto"],
+  ["Casablanca", "Africa/Casablanca"],
+] as const;
+
+const preferenceChanged = (timeZone: string) => ({
+  eventType: EventTypes.ASSISTANT_PREFERENCE_CHANGED,
+  dateOccurred: NOW,
+  aggregateId: PARENT,
+  payload: { userId: PARENT, locale: "fr", timeZone, country: null, extractionEnabled: true },
+});
+
+describe("a parent outside Paris", () => {
+  it.each(PARENTS)(
+    "given a parent in %s and a reminder the day before at 18:00, then it rings at 18:00 of the parent's zone",
+    async (_city, timeZone) => {
+      const local = wallIn(timeZone);
+      timeZones.of.mockResolvedValue(timeZone);
+      givenDefaults(days(1, "18:00"));
+      givenQuietHours(QUIET_HOURS_OFF);
+      givenEvent({ ...deadlineOn("2026-11-15"), deadlineAt: local("2026-11-15", "23:59") });
+
+      await service.planDefault(planned);
+
+      expect(timeZones.of).toHaveBeenCalledWith(PARENT);
+      expect(dueTimes()).toEqual([local("2026-11-14", "18:00").toISOString()]);
+    },
+  );
+
+  it.each(PARENTS)(
+    "given a parent in %s and a reminder falling at 22:30 of the parent's evening, then it waits for 07:00 of the parent's morning",
+    async (_city, timeZone) => {
+      const local = wallIn(timeZone);
+      timeZones.of.mockResolvedValue(timeZone);
+      givenDefaults(days(1, "22:30"));
+      givenEvent({
+        ...deadlineOn("2026-11-15", "08:00"),
+        deadlineAt: local("2026-11-15", "08:00"),
+      });
+
+      await service.planDefault(planned);
+
+      expect(dueTimes()).toEqual([local("2026-11-15", "07:00").toISOString()]);
+    },
+  );
+
+  it("given a reminder planned in Paris and the parent who moves to Montreal, then the preference event replans it at 18:00 in Montreal", async () => {
+    givenDefaults(days(1, "18:00"));
+    givenQuietHours(QUIET_HOURS_OFF);
+    await service.planDefault(planned);
+    const planned18InParis = saved();
+    expect(dueTimes()).toEqual([paris("2026-11-14", "18:00").toISOString()]);
+
+    timeZones.of.mockResolvedValue("America/Toronto");
+    alerts.lockOwnedMany.mockResolvedValue(
+      Result.ok<Alert[], AlertsError>(planned18InParis ? [planned18InParis] : []),
+    );
+    deadlines.upcomingFor.mockResolvedValue(
+      Result.ok([{ ...deadlineOn("2026-11-15"), eventId: ALERT_EVENT }]),
+    );
+    const handler = onParentTimeZoneChanged({ AlertPlanningService: service });
+
+    await handler.handle(preferenceChanged("America/Toronto"));
+
+    expect(saved()?.get("time").value.at).toEqual(wallIn("America/Toronto")("2026-11-14", "18:00"));
+    expect(enqueuedEvents(outbox).at(-1)?.payload).toMatchObject({
+      dueAt: "2026-11-14T23:00:00.000Z",
+      actorUserId: PARENT,
+    });
+  });
+
+  it("given the preference event without a change of zone, then nothing is rescheduled", async () => {
+    givenDefaults(days(1, "18:00"));
+    givenQuietHours(QUIET_HOURS_OFF);
+    await service.planDefault(planned);
+    const existing = saved();
+    const scheduled = enqueuedEvents(outbox).length;
+    alerts.lockOwnedMany.mockResolvedValue(
+      Result.ok<Alert[], AlertsError>(existing ? [existing] : []),
+    );
+    deadlines.upcomingFor.mockResolvedValue(
+      Result.ok([{ ...deadlineOn("2026-11-15"), eventId: ALERT_EVENT }]),
+    );
+
+    await onParentTimeZoneChanged({ AlertPlanningService: service }).handle(
+      preferenceChanged(PARIS_TIME_ZONE),
+    );
+
+    expect(enqueuedEvents(outbox)).toHaveLength(scheduled);
   });
 });

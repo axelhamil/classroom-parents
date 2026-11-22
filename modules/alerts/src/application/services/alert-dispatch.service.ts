@@ -90,8 +90,7 @@ function hex(id: string): string {
 }
 
 function slotOf(group: Deliverable[]): string {
-  const opening = group[0]?.item.alert.get("time").value;
-  return `${opening?.date ?? ""}-${opening?.time ?? ""}`;
+  return group[0]?.item.alert.get("time").value.at.toISOString().slice(0, 16) ?? "";
 }
 
 function membersDigest(group: Deliverable[]): string {

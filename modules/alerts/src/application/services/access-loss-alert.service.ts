@@ -29,6 +29,7 @@ import type {
 } from "../ports/access-loss-repository.port";
 import type { IAlertEmailSender } from "../ports/alert-email-sender.port";
 import type { AlertsError, DeliveryChannel } from "../ports/alert-repository.port";
+import type { IParentTimeZone } from "../ports/parent-time-zone.port";
 import type { IPushCopy } from "../ports/push-copy.port";
 import type { IPushSender } from "../ports/push-sender.port";
 import {
@@ -63,6 +64,7 @@ export class AccessLossAlertService {
   constructor(
     private readonly losses: IAccessLossRepository,
     private readonly settings: IReminderSettingsRepository,
+    private readonly timeZones: IParentTimeZone,
     private readonly contexts: IAccessLossContextReader,
     private readonly subscriptions: IPushSubscriptionRepository,
     private readonly push: IPushSender,
@@ -135,8 +137,9 @@ export class AccessLossAlertService {
     const quiet = await this.settings.quietHoursFor(child.userId);
     if (quiet.isFailure) return Result.fail(quiet.getError());
 
-    const ring = AlertTime.fromInstant(now).flatMap((wall) =>
-      quiet.getValue().unwrapOr(QuietHours.defaults()).ringAfter(wall),
+    const timeZone = await this.timeZones.of(child.userId);
+    const ring = AlertTime.fromInstant(now).flatMap((time) =>
+      quiet.getValue().unwrapOr(QuietHours.defaults()).ringAfter(time, timeZone),
     );
     if (ring.isFailure) return Result.fail(unplannable(child, ring.getError()));
 

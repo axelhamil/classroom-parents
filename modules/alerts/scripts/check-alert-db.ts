@@ -7,7 +7,9 @@
  * thousands of settled alerts, the reminders migration turns legacy alerts into reminders, and a
  * phone shared by two parents belongs to the last one who subscribed it: A's alerts stop reaching it,
  * and revoking a device's session removes that device's push alerts while an expired session keeps them.
- * The dispatchers claim only the alerts of the parents this run creates, so another writer on the
+ * A reminder read back keeps the instant it was planned at, and a parent who moves from Paris to
+ * Montreal gets the reminder "the day before at 18:00" replanned at 18:00 in Montreal once the
+ * preference event is handled. The dispatchers claim only the alerts of the parents this run creates, so another writer on the
  * same database (a demo seed, a second run) neither fails the counts nor gets its alerts sent.
  */
 
@@ -19,7 +21,7 @@ exitUnlessLocalDatabase("check-alert-db", process.env.DATABASE_URL);
 import { agendaEvent } from "@modules/agenda/schemas/event.schema";
 import { seedParentWithChild } from "@modules/children/schemas/testing/seed-child";
 import { type AppError, type ILogger, Option, Result } from "@packages/ddd-kit";
-import { shiftInstant } from "@packages/ddd-kit/days";
+import { shiftDate, shiftInstant } from "@packages/ddd-kit/days";
 import { PARIS_TIME_ZONE, utcToZonedWall, zonedWallTimeToUtc } from "@packages/ddd-kit/zoned-time";
 import {
   and,
@@ -43,6 +45,7 @@ import { alert } from "../schemas/alert.schema";
 import { pushSubscription } from "../schemas/push-subscription.schema";
 import { alertEventReminders } from "../schemas/reminder-settings.schema";
 import { DISPATCH_BATCH, DISPATCH_LEASE_SECONDS } from "../src/application/config/dispatch-budget";
+import { onParentTimeZoneChanged } from "../src/application/event-handlers/on-parent-time-zone-changed";
 import type {
   AlertContext,
   IAlertContextReader,
@@ -53,6 +56,7 @@ import type {
   IEventDeadlines,
   UpcomingDeadline,
 } from "../src/application/ports/event-deadlines.port";
+import type { IParentTimeZone } from "../src/application/ports/parent-time-zone.port";
 import type { IPushCopy } from "../src/application/ports/push-copy.port";
 import type { IPushSender } from "../src/application/ports/push-sender.port";
 import { AlertDispatchService } from "../src/application/services/alert-dispatch.service";
@@ -176,6 +180,9 @@ const contexts: IAlertContextReader = {
     ),
 };
 
+const zoneOf = new Map<string, string>();
+const timeZones: IParentTimeZone = { of: async (userId) => zoneOf.get(userId) ?? PARIS_TIME_ZONE };
+
 const outbox = new DrizzleOutboxRepository(instrumentation, () => undefined);
 const transactions = new TransactionService(instrumentation, async (events) => {
   await outbox.enqueue(events, { source: "check-alert-db" });
@@ -199,6 +206,7 @@ const planning = new AlertPlanningService(
   alerts,
   reminderSettings,
   deadlines,
+  timeZones,
   transactions,
   outbox,
   instrumentation,
@@ -207,6 +215,7 @@ const settings = new ReminderSettingsService(
   reminderSettings,
   alerts,
   deadlines,
+  timeZones,
   planning,
   transactions,
   outbox,
@@ -559,6 +568,55 @@ run(async () => {
       ringsAt.length === fewEvents.length + manyEvents.length &&
       ringsAt.every((time) => time === "19:00"),
     { quiet: quietRead.isSuccess && quietRead.getValue(), ringsAt: [...new Set(ringsAt)] },
+  );
+
+  const z = await seedFamily("z");
+  const zoneDeadline = shiftInstant(NOW, 6);
+  const [zoneEvent = ""] = await seedEvents(z, 1, "zone", zoneDeadline);
+  const dayBefore = shiftDate(parisDay(zoneDeadline), -1);
+  await settings.setDefaults(z.userId, [{ kind: "days_before", days: 1, time: "18:00" }]);
+  const [inParis] = await alertsOn(zoneEvent);
+  const readBack = await alerts.lockOwned(z.userId, zoneEvent);
+  const readInstant = readBack.isSuccess ? readBack.getValue()[0]?.get("time").value.at : undefined;
+  await step(
+    "a reminder the day before at 18:00 is stored at 18:00 in Paris and read back at that same instant",
+    inParis?.dueAt.getTime() === paris(dayBefore, "18:00").getTime() &&
+      readInstant?.getTime() === inParis.dueAt.getTime(),
+    { dueAt: inParis?.dueAt.toISOString(), readBack: readInstant?.toISOString() },
+  );
+
+  zoneOf.set(z.userId, "America/Toronto");
+  await onParentTimeZoneChanged({ AlertPlanningService: planning }).handle({
+    eventType: EventTypes.ASSISTANT_PREFERENCE_CHANGED,
+    dateOccurred: NOW,
+    aggregateId: z.userId,
+    payload: {
+      userId: z.userId,
+      locale: "fr",
+      timeZone: "America/Toronto",
+      country: "CA",
+      extractionEnabled: true,
+    },
+  });
+  const [inMontreal] = await alertsOn(zoneEvent);
+  const montrealEvening = zonedWallTimeToUtc(dayBefore, "18:00", "America/Toronto").unwrapOr(
+    new Date(Number.NaN),
+  );
+  const rescheduled = await db
+    .select({ payload: outboxSchema.outboxEvent.payload })
+    .from(outboxSchema.outboxEvent)
+    .where(
+      and(
+        eq(outboxSchema.outboxEvent.eventType, EventTypes.ALERT_SCHEDULED),
+        eq(outboxSchema.outboxEvent.aggregateId, inMontreal?.id ?? probe),
+      ),
+    );
+  await step(
+    "a parent who moves to Montreal gets the reminder replanned at 18:00 in Montreal, announced once more",
+    inMontreal?.dueAt.getTime() === montrealEvening.getTime() &&
+      inMontreal.status === "pending" &&
+      rescheduled.length === 2,
+    { dueAt: inMontreal?.dueAt.toISOString(), scheduled: rescheduled.length },
   );
 
   const e = await seedFamily("e");

@@ -6,8 +6,10 @@ import {
   db,
   eq,
   inArray,
-  isDue,
+  isNull,
   leasedBy,
+  lte,
+  or,
   resolveExecutor,
   type SQL,
   sql,
@@ -19,6 +21,7 @@ import type {
   DigestLease,
   DigestSettlement,
   IWeeklyDigestRepository,
+  PlannedDigest,
 } from "../../application/ports/weekly-digest-repository.port";
 import { type RepositoryTracer, repositoryTracer } from "./repository-tracer";
 
@@ -31,16 +34,19 @@ function fencedBy(lease: DigestLease): SQL | undefined {
 
 export function digestClaimQuery(
   exec: ReturnType<typeof resolveExecutor>,
+  now: Date,
   limit: number,
   leaseSeconds: number,
   scope?: SQL,
 ) {
+  const reached = or(
+    isNull(alertWeeklyDigest.nextAttemptAt),
+    lte(alertWeeklyDigest.nextAttemptAt, now),
+  );
   const due = db
     .select({ id: alertWeeklyDigest.id })
     .from(alertWeeklyDigest)
-    .where(
-      and(eq(alertWeeklyDigest.status, "pending"), isDue(alertWeeklyDigest.nextAttemptAt), scope),
-    )
+    .where(and(eq(alertWeeklyDigest.status, "pending"), reached, scope))
     .orderBy(asc(alertWeeklyDigest.createdAt))
     .limit(limit)
     .for("update", { skipLocked: true });
@@ -62,18 +68,21 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
     this.tracer = repositoryTracer(instrumentation, "DrizzleWeeklyDigestRepository");
   }
 
-  async plan(
-    userIds: string[],
-    weekStart: string,
-    expiresAt: Date,
-  ): Promise<Result<number, AlertsError>> {
+  async plan(digests: PlannedDigest[], weekStart: string): Promise<Result<number, AlertsError>> {
     const exec = resolveExecutor();
     return this.tracer.method("plan", async () => {
-      if (userIds.length === 0) return Result.ok(0);
+      if (digests.length === 0) return Result.ok(0);
 
       const query = exec
         .insert(alertWeeklyDigest)
-        .values(userIds.map((userId) => ({ userId, weekStart, expiresAt })))
+        .values(
+          digests.map(({ userId, dueAt, expiresAt }) => ({
+            userId,
+            weekStart,
+            expiresAt,
+            nextAttemptAt: dueAt,
+          })),
+        )
         .onConflictDoNothing({ target: [alertWeeklyDigest.weekStart, alertWeeklyDigest.userId] })
         .returning({ id: alertWeeklyDigest.id });
       const planned = await this.tracer.query(query);
@@ -82,13 +91,14 @@ export class DrizzleWeeklyDigestRepository implements IWeeklyDigestRepository {
   }
 
   async claimDue(
+    now: Date,
     limit: number,
     leaseSeconds: number,
   ): Promise<Result<ClaimedDigest[], AlertsError>> {
     const exec = resolveExecutor();
     return this.tracer.method("claimDue", async () => {
       const rows = await this.tracer.query(
-        digestClaimQuery(exec, limit, leaseSeconds, this.claimScope),
+        digestClaimQuery(exec, now, limit, leaseSeconds, this.claimScope),
       );
       return Result.ok(
         rows.map((row) => ({

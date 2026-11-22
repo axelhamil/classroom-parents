@@ -16,6 +16,7 @@ import type {
 } from "../application/ports/classroom-client.port";
 import type { SeenAnnouncement } from "../application/ports/seen-announcement-repository.port";
 import type { SyncError } from "../application/sync-error";
+import type { WrittenDate } from "../domain/date-ahead";
 import {
   announcement,
   CHILD,
@@ -63,6 +64,10 @@ function extractorAnswers(byText: Record<string, ExtractorAnswer>): void {
       Array.isArray(answer) ? { deadlines: answer, amendments: [] } : answer,
     );
   });
+}
+
+function givenWrittenDates(datesOf: Record<string, WrittenDate[]>) {
+  h.writtenDates.in.mockImplementation((text) => datesOf[text] ?? []);
 }
 
 function ledgerHas(entries: SeenAnnouncement[]): void {
@@ -280,6 +285,11 @@ describe("syncChild", () => {
       ...announcement(id, "maths", daysAgo),
       text,
     });
+    givenWrittenDates({
+      "Contrôle de fractions le 12/11.": [{ day: 12, month: 11 }],
+      "Sortie au musée le 3 novembre.": [{ day: 3, month: 11 }],
+      "Exposé à rendre le 5 janvier.": [{ day: 5, month: 1 }],
+    });
     h.givenCourses({
       maths: [
         posted("written-ahead", "Contrôle de fractions le 12/11.", 20),
@@ -307,6 +317,37 @@ describe("syncChild", () => {
       "Exposé à rendre le 5 janvier.",
       "Évaluation jeudi prochain.",
     ]);
+  });
+
+  it.each([
+    ["Arabic", "الامتحان يوم 26 نونبر"],
+    ["Portuguese", "Prova dia 26 de novembro"],
+    ["Spanish", "Examen el 26 de noviembre"],
+    ["English", "Test on November 26"],
+  ])(
+    "given a paused %s announcement for 26 November and a Montreal parent on 26 November at 22:00 there, then it is read again",
+    async (_language, text) => {
+      givenWrittenDates({ [text]: [{ day: 26, month: 11 }] });
+      h.timeZones.of.mockResolvedValue("America/Toronto");
+      h.givenCourses({ maths: [{ ...announcement("a1", "maths"), text }] });
+      ledgerHas([{ announcementId: "a1", outcome: "paused", attempts: 0 }]);
+
+      await h.service.syncChild(CHILD, new Date("2026-11-27T03:00:00.000Z"));
+
+      expect(h.writtenDates.in).toHaveBeenCalledWith(text);
+      expect(h.extractor.extract.mock.calls.map(([request]) => request.text)).toEqual([text]);
+    },
+  );
+
+  it("given a paused announcement for 26 November and a Paris parent at that same instant, then the day is past and it stays paused", async () => {
+    const text = "Test on November 26";
+    givenWrittenDates({ [text]: [{ day: 26, month: 11 }] });
+    h.givenCourses({ maths: [{ ...announcement("a1", "maths"), text }] });
+    ledgerHas([{ announcementId: "a1", outcome: "paused", attempts: 0 }]);
+
+    await h.service.syncChild(CHILD, new Date("2026-11-27T03:00:00.000Z"));
+
+    expect(h.extractor.extract).not.toHaveBeenCalled();
   });
 
   it("never extracts an abandoned announcement again", async () => {
@@ -647,6 +688,23 @@ describe("syncChild, Classroom coursework (D13)", () => {
     expect(h.extractor.extract).not.toHaveBeenCalled();
     expect(result.getValue().eventsCreated).toBe(1);
   });
+
+  it.each([
+    ["Montreal", "America/Toronto", "2026-11-26", "22:00"],
+    ["Casablanca", "Africa/Casablanca", "2026-11-27", "04:00"],
+  ])(
+    "given a parent in %s and a coursework due 2026-11-27T03:00Z, then it is due on the wall day and time there",
+    async (_city, timeZone, deadlineDate, deadlineTime) => {
+      h.timeZones.of.mockResolvedValue(timeZone);
+      h.givenCourses({ maths: [] });
+      h.givenCoursework([coursework("w1", "maths", { date: "2026-11-27", time: "03:00" })]);
+
+      await h.service.syncChild(CHILD, NOW);
+
+      expect(h.timeZones.of).toHaveBeenCalledWith(CHILD.userId);
+      expect(courseworkSent()[0]?.items[0]).toMatchObject({ deadlineDate, deadlineTime });
+    },
+  );
 
   it("keeps a coursework due without a time as a whole day", async () => {
     h.givenCourses({ maths: [] });

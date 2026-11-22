@@ -34,9 +34,10 @@ import type {
   ClaimedDigest,
   DigestSettlement,
   IWeeklyDigestRepository,
+  PlannedDigest,
 } from "../ports/weekly-digest-repository.port";
 import { type DigestDeadlines, digestSummaryOf, hasDeadline } from "./digest-message";
-import { digestWeekDue, digestWeekOf } from "./digest-week";
+import { digestTimingOf, digestWeekDue, digestWeekOf } from "./digest-week";
 import { pushToParent } from "./push-fanout";
 
 export const DIGEST_PLAN_BATCH = 200;
@@ -54,6 +55,11 @@ export interface DigestOutcome {
 type Delivered = "push" | "email" | "skipped" | "missed" | "none";
 
 type SkipReason = "opted_out" | "no_deadline";
+
+interface ReaderClock {
+  now: Date;
+  timeZone: string;
+}
 
 interface DigestMessages {
   detailed: PushText;
@@ -87,7 +93,7 @@ export class WeeklyDigestService {
         const planned = await this.plan(now);
         if (planned.isFailure) return Result.fail(planned.getError());
 
-        const claimed = await this.digests.claimDue(DISPATCH_BATCH, DISPATCH_LEASE_SECONDS);
+        const claimed = await this.digests.claimDue(now, DISPATCH_BATCH, DISPATCH_LEASE_SECONDS);
         if (claimed.isFailure) return Result.fail(claimed.getError());
 
         const batch = claimed.getValue();
@@ -129,7 +135,18 @@ export class WeeklyDigestService {
     if (awaiting.isFailure) return Result.fail(awaiting.getError());
     if (awaiting.getValue().length === 0) return Result.ok(0);
 
-    return this.digests.plan(awaiting.getValue(), week.weekStart, week.from);
+    const planned = await mapBounded(awaiting.getValue(), DISPATCH_CONCURRENCY, (userId) =>
+      this.inParentZone(userId, week.weekStart),
+    );
+    return this.digests.plan(planned.flat(), week.weekStart);
+  }
+
+  private async inParentZone(userId: string, weekStart: string): Promise<PlannedDigest[]> {
+    const timing = digestTimingOf(weekStart, await this.timeZones.of(userId));
+    if (timing.isSuccess) return [{ userId, ...timing.getValue() }];
+
+    this.instrumentation.capture(new Error(`digest of ${userId}: ${timing.getError()}`));
+    return [];
   }
 
   private async dispatch(digest: ClaimedDigest, now: Date): Promise<Result<Delivered, AppError>> {
@@ -140,7 +157,8 @@ export class WeeklyDigestService {
     if (!enabled.getValue().unwrapOr(DIGEST_ENABLED_BY_DEFAULT))
       return this.skip(digest, "opted_out");
 
-    const week = digestWeekOf(digest.weekStart);
+    const timeZone = await this.timeZones.of(digest.userId);
+    const week = digestWeekOf(digest.weekStart, timeZone);
     if (week.isFailure) return Result.fail(corrupted(digest.lease.digestId, week.getError()));
 
     const { from, to } = week.getValue();
@@ -149,15 +167,15 @@ export class WeeklyDigestService {
     const due = deadlines.getValue();
     if (!hasDeadline(due)) return this.skip(digest, "no_deadline");
 
-    return this.deliver(digest, due, now);
+    return this.deliver(digest, due, { now, timeZone });
   }
 
   private async deliver(
     digest: ClaimedDigest,
     deadlines: DigestDeadlines,
-    now: Date,
+    { now, timeZone }: ReaderClock,
   ): Promise<Result<Delivered, AppError>> {
-    const composed = await this.compose(digest, deadlines, now);
+    const composed = await this.compose(digest, deadlines, todayIn(now, timeZone));
     if (composed.isFailure) return Result.fail(composed.getError());
 
     const { detailed, lockScreen } = composed.getValue();
@@ -204,9 +222,8 @@ export class WeeklyDigestService {
   private async compose(
     digest: ClaimedDigest,
     deadlines: DigestDeadlines,
-    now: Date,
+    today: string,
   ): Promise<Result<DigestMessages, AppError>> {
-    const today = todayIn(now, await this.timeZones.of(digest.userId));
     const summary = digestSummaryOf(deadlines, today);
     const details = await this.subscriptions.lockScreenDetailsFor(digest.userId);
     if (details.isFailure) return Result.fail(details.getError());

@@ -187,7 +187,7 @@ export class AgendaEvent extends Aggregate<AgendaEventProps, EventId> {
       this._props.title = state.title;
       fields.push("title");
     }
-    if (!edited.includes("deadline") && !state.deadline.equals(this._props.deadline)) {
+    if (!edited.includes("deadline") && !state.deadline.fallsWith(this._props.deadline)) {
       this._props.deadline = state.deadline;
       fields.push("deadline");
     }
